@@ -577,8 +577,32 @@ namespace PFE.Tests.Editor.Entities.Enemies
             Assert.AreEqual(0.4f, ctrl.AllVulnerabilityMultiplier, 1e-4f, "UnitAlicorn.as:589");
         }
 
+        /// <summary>
+        /// The quarter-HP event fires, and the <b>carbine</b> boss still calls no waves — the
+        /// <c>tr == 2</c> half of <c>if(tr == 2 &amp;&amp; globalDif &gt; 1)</c>
+        /// (<c>UnitBossRaider.as:233</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This fixture replaces one that could never have passed.</b> It asserted
+        /// <c>ReinforcementsSpawned == 1, 2, 3</c> on a default boss — but the default variant is
+        /// <c>tr == 1</c> (<c>:12</c>), which the oracle refuses outright, and the spawn also needs a
+        /// live room and a spent spawn budget. Nothing incremented the counter, so the assertions were
+        /// unreachable; it was never executed, and an unexecuted fixture that asserts a value the code
+        /// cannot produce is worse than no fixture.</para>
+        ///
+        /// <para><b>What is asserted here is the half a MonoBehaviour can prove.</b> The gate itself
+        /// (three terms, four-wave budget) is pinned offline against the oracle's literals in
+        /// <c>BossRaiderRulesTests.ShouldCallReinforcement_RequiresAllThreeTerms</c> and
+        /// <c>.TheReinforcementBudget_IsExactlyFourWaves</c>; what this one adds is that the brain
+        /// really consults it and really refuses for the carbine body.</para>
+        ///
+        /// <para><c>OnDefinitionAssigned</c> is called by hand because <c>Initialize</c> does not call
+        /// it: <c>BossBrain.InitializeBossStats</c> runs from <c>Awake</c>, where there is no definition
+        /// yet, so <c>_maxHp</c> would stay 0 and <c>CurrentHpFraction</c> would clamp to 1 — no quarter
+        /// would ever be crossed.</para>
+        /// </remarks>
         [Test]
-        public void BossRaider_QuarterHpThreshold_TriggersReinforcementWave()
+        public void BossRaider_CarbineVariant_CallsNoReinforcements_ButStillCrossesItsQuarters()
         {
             var go = CreateGameObject("BossRaider");
             var controller = go.AddComponent<BossRaiderController>();
@@ -588,23 +612,28 @@ namespace PFE.Tests.Editor.Entities.Enemies
             def.health = 2000;
             var stats = new UnitStats(2000f, 100f);
             controller.Initialize(def, stats);
+            brain.OnDefinitionAssigned();
 
+            Assert.AreEqual(1, brain.Variant, "tr defaults to 1 — the carbine body (:12)");
             Assert.AreEqual(0, controller.ReinforcementsSpawned);
 
-            // 70% HP -> 1st quarter passed
-            stats.CurrentHp.Value = 1400f;
-            brain.SimTick(1);
-            Assert.AreEqual(1, controller.ReinforcementsSpawned, "1st quarter threshold must trigger 1st reinforcement wave");
+            int quartersSeen = 0;
+            brain.OnQuarterHpThreshold += _ => quartersSeen++;
 
-            // 45% HP -> 2nd quarter passed
-            stats.CurrentHp.Value = 900f;
-            brain.SimTick(2);
-            Assert.AreEqual(2, controller.ReinforcementsSpawned, "2nd quarter threshold must trigger 2nd reinforcement wave");
+            // Walk 100% -> 20% so three quarters are crossed. <b>Three, not four</b>:
+            // `floor((maxhp-hp)/maxhp*4)` is strictly below 4 while the boss is alive, so the fourth
+            // quarter only exists on the killing blow (see BossRaiderRules.QuarterFor).
+            foreach (float hp in new[] { 1500f, 1000f, 500f, 400f })
+            {
+                stats.CurrentHp.Value = hp;
+                brain.SimTick(1);
+            }
 
-            // 20% HP -> 3rd quarter passed
-            stats.CurrentHp.Value = 400f;
-            brain.SimTick(3);
-            Assert.AreEqual(3, controller.ReinforcementsSpawned, "3rd quarter threshold must trigger 3rd reinforcement wave");
+            Assert.AreEqual(3, quartersSeen,
+                "the quarter-HP event is variant-independent — 1, 2 and 3 fire while the boss lives");
+            Assert.AreEqual(0, controller.ReinforcementsSpawned,
+                ":233 — `tr == 2` gates the wave, so the carbine body never calls one");
+            Assert.AreEqual(0, brain.ReinforcementsCalled, ":236 — and `called` stays at 0");
         }
 
         [Test]
@@ -748,6 +777,76 @@ namespace PFE.Tests.Editor.Entities.Enemies
             Assert.IsTrue(zombieCtrl.IsAlive, "Zombie must resurrect when resurrect timer expires");
             Assert.AreEqual(100f, zombieCtrl.CurrentHealth);
             Assert.AreEqual(300, zombieCtrl.ResurrectTimer);
+        }
+
+        // ── 9. The raider leader's TWO bodies ──────────────────────────────────
+
+        /// <summary>
+        /// <c>UnitBossRaider.as:54-61</c> builds one of two DisplayObjects from the placement's
+        /// <c>tr</c>: <c>if(this.tr == 2) vis = new visualRaiderBoss2(); else vis = new visualRaiderBoss();</c>.
+        /// The two are disjoint art — Boss-1 all-black with an orange mane and a carbine, Boss-2
+        /// orange-brown with a flamer — so drawing the wrong one is a wrong sprite, not a tint.
+        /// </summary>
+        /// <remarks>
+        /// <b>Every expected id here is a literal from the oracle, not read back out of the code.</b>
+        /// The row ids look inverted (<c>bossraider</c> is the flamer, <c>bossraider1</c> the carbine)
+        /// because <c>bossraider</c> is the id rooms place (<c>AllData.as:193</c>) and had to keep its
+        /// name; a test that compared the mapper against itself would agree with an inverted map.
+        /// </remarks>
+        [Test]
+        public void BossRaider_OnlyTrTwoSelectsTheFlamerBody()
+        {
+            Assert.AreEqual("bossraider", BossRaiderVariants.VisualDefinitionId(2),
+                "tr == 2 is the flamer body (visualRaiderBoss2)");
+            Assert.AreEqual("bossraider1", BossRaiderVariants.VisualDefinitionId(1),
+                "tr == 1 (the :12 initialiser) is the carbine body (visualRaiderBoss)");
+        }
+
+        [Test]
+        public void BossRaider_AnyOtherTrFallsThroughToTheCarbineBody()
+        {
+            // The oracle tests `tr == 2` in one `if` and everything else in the `else`. `tr` is an int
+            // parsed from an XML attribute, so 0, 3, and a negative all reach the carbine body.
+            foreach (int variant in new[] { 0, 3, -1, 99 })
+            {
+                Assert.AreEqual("bossraider1", BossRaiderVariants.VisualDefinitionId(variant),
+                    $"tr == {variant} is not 2, so the oracle draws visualRaiderBoss");
+            }
+        }
+
+        [Test]
+        public void BossRaider_TheTwoBodiesAreDistinctRows()
+        {
+            Assert.AreNotEqual(BossRaiderVariants.CarbineVisualDefinitionId,
+                BossRaiderVariants.FlamerVisualDefinitionId,
+                "the two bodies must not collapse onto one row — that is the bug this mapper exists for");
+            Assert.AreEqual("bossraider", BossRaiderVariants.FlamerVisualDefinitionId,
+                "rooms place `bossraider`, so that row has to be the flamer");
+            Assert.AreEqual("bossraider1", BossRaiderVariants.CarbineVisualDefinitionId,
+                "the carbine body is the extra row imported beside it");
+        }
+
+        /// <summary>
+        /// The body and the gun must select on the <b>same</b> test. A boss drawn as the carbine gunner
+        /// and firing the flamer is the same defect as drawing the wrong body — <c>:54-61</c> and
+        /// <c>:71-80</c> are two branches of one <c>if</c>.
+        /// </summary>
+        [Test]
+        public void BossRaider_BodyAndWeaponAgreeForEveryVariant()
+        {
+            Assert.AreEqual("carbine", BossRaiderController.WeaponIdFor(1), "tr == 1 gun");
+            Assert.AreEqual("flamer", BossRaiderController.WeaponIdFor(2), "tr == 2 gun");
+
+            // The pairing, stated as a relation rather than a second copy of the table: whichever row a
+            // variant draws, its gun is the one that body carries.
+            foreach (int variant in new[] { 0, 1, 2, 3 })
+            {
+                bool flamer = variant == 2;
+                Assert.AreEqual(flamer, BossRaiderVariants.VisualDefinitionId(variant) == "bossraider",
+                    $"tr == {variant}: body and gun disagree about whether this is the flamer");
+                Assert.AreEqual(flamer, BossRaiderController.WeaponIdFor(variant) == "flamer",
+                    $"tr == {variant}: gun disagrees with the oracle's `tr == 2` branch");
+            }
         }
     }
 }

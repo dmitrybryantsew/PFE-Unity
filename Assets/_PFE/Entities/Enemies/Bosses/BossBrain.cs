@@ -102,9 +102,20 @@ namespace PFE.Entities.Enemies.Bosses
             {
                 _quarterHpEventsTriggered++;
                 OnQuarterHpPassed(_quarterHpEventsTriggered);
-                OnQuarterHpThreshold?.Invoke(_quarterHpEventsTriggered);
+                RaiseQuarterHpThreshold(_quarterHpEventsTriggered);
             }
         }
+
+        /// <summary>
+        /// Raises <see cref="OnQuarterHpThreshold"/> for a subclass that owns its own latch loop.
+        ///
+        /// <para><b>Why this exists.</b> A C# event can only be raised from the type that declares it,
+        /// so an override of <see cref="CheckQuarterHpThresholds"/> — which
+        /// <c>BossRaiderBrain</c> needs, to claim the quarter that a killing blow crosses — could not
+        /// fire the event without this. The alternative was a second event declared on the subclass,
+        /// which would leave two subscriptions that a caller has to know to attach both of.</para>
+        /// </summary>
+        protected void RaiseQuarterHpThreshold(int quarter) => OnQuarterHpThreshold?.Invoke(quarter);
 
         protected virtual void OnQuarterHpPassed(int quarter)
         {
