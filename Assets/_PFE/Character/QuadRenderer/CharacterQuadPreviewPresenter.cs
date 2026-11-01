@@ -29,7 +29,9 @@ namespace PFE.Character
         [SerializeField] int _frameIndex;
 
         [Header("Quad renderer")]
-        [SerializeField] bool _compensatePivot = true;
+        // Off is the correct convention (pivot as a fraction of the trimmed rect, exactly as
+        // Sprite.Create reads it). See docs/CharacterImportPipeline/08.
+        [SerializeField] bool _compensatePivot = false;
         [SerializeField] bool _bilinear = true;
         [SerializeField, Range(0f, 1f)] float _ambient = 1f;
 

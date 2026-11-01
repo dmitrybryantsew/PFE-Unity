@@ -127,8 +127,10 @@ namespace PFE.Tests.EditMode.Character
         [Test]
         public void CompensatedBuild_PlacesTheOriginAtTheFullPngPivot()
         {
-            // korpus: the origin must land on pixel (57, 40.5) of the PNG, not on the centre of the
-            // trimmed rect at (57, 42.5). That 2 px is the whole bug.
+            // korpus: this branch puts the origin on pixel (57, 40.5) of the PNG, not on the centre of
+            // the trimmed rect at (57, 42.5). It is kept as an A/B only — on 10-25 the sprite side was
+            // confirmed correct and this 2 px is what the quad side got WRONG, not what it fixed.
+            // docs/CharacterImportPipeline/08.
             CharacterQuadSource korpus = Source(0, 5, 114, 75, 114, 81);
             CharacterQuadLocal quad = CharacterQuadGeometry.Build(korpus, new Vector2(0.5f, 0.5f), true);
 
@@ -136,6 +138,27 @@ namespace PFE.Tests.EditMode.Character
             Assert.AreEqual(0.57f, quad.XMax, Tolerance);
             Assert.AreEqual(-0.355f, quad.YMin, Tolerance);   // (5 - 40.5) / 100
             Assert.AreEqual(0.395f, quad.YMax, Tolerance);    // (80 - 40.5) / 100
+        }
+
+        [Test]
+        public void Build_DefaultsToTheRectConvention_WhichIsWhatShips()
+        {
+            // The default is load-bearing: no prefab serialises _compensatePivot, so the field
+            // initialiser in CharacterQuadAssembler is the only thing deciding what the game draws.
+            // If someone flips Build's default back, this row fails before the character does.
+            CharacterQuadSource korpus = Source(0, 5, 114, 75, 114, 81);
+            CharacterQuadLocal byDefault = CharacterQuadGeometry.Build(korpus, new Vector2(0.5f, 0.5f));
+            CharacterQuadLocal shipped = CharacterQuadGeometry.Build(korpus, new Vector2(0.5f, 0.5f), false);
+
+            Assert.AreEqual(shipped.YMin, byDefault.YMin, Tolerance);
+            Assert.AreEqual(shipped.YMax, byDefault.YMax, Tolerance);
+
+            // And the two conventions are genuinely different on a trimmed part, so the row above is
+            // not comparing two identical numbers. korpus YMin is -0.375 shipped, -0.355 compensated:
+            // the 2 px trim offset, over PPU 100.
+            CharacterQuadLocal compensated = CharacterQuadGeometry.Build(korpus, new Vector2(0.5f, 0.5f), true);
+            Assert.AreEqual(-0.375f, byDefault.YMin, Tolerance);
+            Assert.AreEqual(0.02f, compensated.YMin - byDefault.YMin, Tolerance);
         }
 
         [Test]

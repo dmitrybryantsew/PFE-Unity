@@ -31,6 +31,12 @@ namespace PFE.Character
         readonly Dictionary<Texture, Material> _materials = new();
         readonly Dictionary<Texture2D, Texture2D> _bilinearCopies = new();
 
+        /// <summary>
+        /// Sources a bilinear copy could not be made from. Kept so the failure is attempted once and
+        /// reported once, instead of once per part per frame — see <see cref="GetBilinearCopy"/>.
+        /// </summary>
+        readonly HashSet<Texture2D> _unconvertible = new();
+
         Shader _shader;
         bool _shaderResolved;
 
@@ -103,14 +109,10 @@ namespace PFE.Character
                 return null;
             }
 
-            // The character import policy (CharacterTextureImportPolicy) now imports every part as
-            // bilinear with a mip chain, so this copy has nothing left to impose — and it would do
-            // damage if it ran: the copy is created with TextureCreationFlags.None and only mip 0 is
-            // copied, so the quad side would sample a texture that has *lost* the mip chain the
-            // imported one has. At the body parts' 4.8x minification that is visible aliasing the
-            // sprite side does not have, which makes the A/B compare two different filters.
-            // Sampling the imported texture directly is cheaper and correct; the copy stays for
-            // textures that are still Point.
+            // The character import policy (CharacterTextureImportPolicy) imports every part as bilinear
+            // with a mip chain, so for those there is nothing left to impose and sampling the imported
+            // texture directly is both cheaper and exactly what the shipped sprite path samples — which
+            // is what the A/B window needs. The copy below stays for textures that are still Point.
             if (source.filterMode == FilterMode.Bilinear)
             {
                 return source;
@@ -126,10 +128,42 @@ namespace PFE.Character
                 _bilinearCopies.Remove(source);
             }
 
+            // A texture that failed once fails every time — the failure is a property of the format or
+            // the platform, not of the moment. Without this the catch below would log once per part per
+            // frame, because a null is stored as "not cached" and the next call retries.
+            if (_unconvertible.Contains(source))
+            {
+                return null;
+            }
+
             Texture2D copy = null;
             try
             {
-                copy = new Texture2D(source.width, source.height, source.graphicsFormat, TextureCreationFlags.None)
+                // ── Why the copy has to carry the source's mip count, and its limit flag ──
+                // Graphics.CopyTexture rejects two textures whose mipmap limits differ, and the limit
+                // is `min(QualitySettings.globalTextureMipmapLimit, own mip count - 1)` — this project's
+                // current quality level sets the global limit to 1 (ProjectSettings/QualitySettings.asset,
+                // level 0 "Very Low"). Two things can therefore make a copy disagree with its source:
+                //
+                //   * a copy built without a mip chain cannot express a limit above 0;
+                //   * a runtime Texture2D does not necessarily honour the global limit the way an
+                //     imported one does (Texture2D.ignoreMipmapLimit).
+                //
+                // Either one produces exactly the message in the report:
+                //
+                //   Graphics.CopyTexture source and destination have different mipmap limits.
+                //   Source 1, Destination 0
+                //
+                // Texture2D.activeMipmapLimit is read-only in 6000.3 (there is a get_activeMipmapLimit
+                // and no setter), so the limit cannot be assigned directly — matching the two inputs it
+                // is derived from is the only lever available. Copying the whole chain instead of mip 0
+                // also removes an older hazard: a copy that had silently *lost* the chain its source has.
+                int mipCount = Mathf.Max(1, source.mipmapCount);
+                TextureCreationFlags flags = mipCount > 1
+                    ? TextureCreationFlags.MipChain
+                    : TextureCreationFlags.None;
+
+                copy = new Texture2D(source.width, source.height, source.graphicsFormat, mipCount, flags)
                 {
                     name = $"{source.name} (bilinear)",
                     filterMode = FilterMode.Bilinear,
@@ -138,9 +172,21 @@ namespace PFE.Character
                     hideFlags = HideFlags.HideAndDontSave
                 };
 
-                // Mip 0 only: the copy is created without a mip chain, and the simple overload copies
-                // every mip the source has.
-                Graphics.CopyTexture(source, 0, 0, copy, 0, 0);
+                copy.ignoreMipmapLimit = source.ignoreMipmapLimit;
+
+                // CopyTexture does NOT throw on this validation — it logs and leaves the destination
+                // uninitialised — so the catch below is not a safety net for it. The limits are
+                // compared here instead, which turns "a copy that is silently empty" into a fact the
+                // method can act on.
+                if (copy.activeMipmapLimit != source.activeMipmapLimit)
+                {
+                    throw new InvalidOperationException(
+                        $"mipmap limits differ and cannot be equalised (source {source.activeMipmapLimit}, " +
+                        $"copy {copy.activeMipmapLimit}, {mipCount} mip(s), " +
+                        $"ignoreMipmapLimit {source.ignoreMipmapLimit})");
+                }
+
+                Graphics.CopyTexture(source, copy);
             }
             catch (Exception exception)
             {
@@ -148,14 +194,18 @@ namespace PFE.Character
                 // to the imported texture keeps the character drawable (Point, as shipped) instead of
                 // magenta — a wrong filter is a much smaller failure than an invisible character.
                 Debug.LogWarning(
-                    $"[CharacterQuad] Could not build a bilinear copy of '{source.name}', falling back to " +
-                    $"the imported texture: {exception.Message}");
+                    $"[CharacterQuad] Could not build a bilinear copy of '{source.name}' " +
+                    $"({source.width}x{source.height} {source.graphicsFormat}, {source.mipmapCount} mip(s), " +
+                    $"filter {source.filterMode}, mipmap limit {source.activeMipmapLimit}), " +
+                    $"falling back to the imported texture: {exception.Message}");
 
                 if (copy != null)
                 {
                     DestroyObject(copy);
                     copy = null;
                 }
+
+                _unconvertible.Add(source);
             }
 
             _bilinearCopies[source] = copy;
@@ -198,6 +248,7 @@ namespace PFE.Character
                 DestroyObject(copy);
             }
             _bilinearCopies.Clear();
+            _unconvertible.Clear();
         }
 
         /// <summary>

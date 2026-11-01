@@ -89,19 +89,23 @@ namespace PFE.Character.Animation
 
     public sealed class PunchAnimState : SimpleActionState
     {
-        // Approximate frame index where the impact lands (tune per animation data).
-        const int ImpactFrame = 8;
-
         public override int    Priority => 230;
         public override string GetStateName(in PlayerMovementSnapshot s) => "punch";
 
         public new void Activate() => base.Activate();
 
-        public override void OnFrameChanged(int frame, in PlayerMovementSnapshot s, IAnimationEventSink e)
-        {
-            if (frame == ImpactFrame)
-                e?.FireEvent(AnimEvent.MeleeImpact, s.Position);
-        }
+        // No `MeleeImpact` event here, deliberately.
+        //
+        // It used to fire one on a guessed frame (8 for the punch, 6 for the kick), which the audio
+        // handler maps to the `blade` sample. `WKick` authors no such sound: its strike sample is
+        // `Snd.ps("m_big")` / `Snd.ps("m_med")` (WKick.as:81, :105), played by the weapon controller
+        // on the frame the swing actually fires (`rapid - 8`, i.e. frame 5 of 13) — not on a frame
+        // guessed from the clip. Firing both made every hoof strike play the right sample and a sword
+        // impact over the top of it.
+        //
+        // The hit that follows is a separate, legitimate sound: the swing is a Bullet in the oracle,
+        // so `Bullet.sound()` still adds the material sample when it lands — that path is
+        // MeleeHitVolume.PlayImpactSound and does not come through here.
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -110,18 +114,13 @@ namespace PFE.Character.Animation
 
     public sealed class KickAnimState : SimpleActionState
     {
-        const int ImpactFrame = 6;
-
         public override int    Priority => 220;
         public override string GetStateName(in PlayerMovementSnapshot s) => "kick";
 
         public new void Activate() => base.Activate();
 
-        public override void OnFrameChanged(int frame, in PlayerMovementSnapshot s, IAnimationEventSink e)
-        {
-            if (frame == ImpactFrame)
-                e?.FireEvent(AnimEvent.MeleeImpact, s.Position);
-        }
+        // See PunchAnimState: the strike sample comes from the weapon controller (`m_big`), and the
+        // impact material sample from MeleeHitVolume. Nothing is played from the clip frame.
     }
 
     // ─────────────────────────────────────────────────────────────────────────

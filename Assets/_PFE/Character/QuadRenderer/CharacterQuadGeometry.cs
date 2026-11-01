@@ -101,14 +101,22 @@ namespace PFE.Character
     /// Turns an imported sprite + a placement into four vertices — the geometry Remains bakes offline
     /// and PFE re-derives at runtime.
     ///
-    /// <para><b>What this fixes, and why it needs no import change.</b> The shipped path calls
-    /// <c>Sprite.Create(texture, textureRect, pivotNormalized, ppu)</c>. Unity reads that pivot as a
-    /// fraction of the <i>trimmed</i> rect, but the importer computed it as a fraction of the
-    /// <i>full PNG</i> (<c>CharacterSpriteImporter</c>: <c>(-bounds.x)/bounds.width</c>). Every part
-    /// whose PNG was alpha-trimmed therefore lands a little off, and by a different amount per part.
-    /// Here the pivot is resolved to <b>pixels in the full texture</b> and the rect is offset against
-    /// it, so the two rectangles can never disagree — the compensation is a consequence of the
-    /// arithmetic rather than a correction bolted on afterwards.</para>
+    /// <para><b>Which registration convention, and how that was decided.</b> The shipped path calls
+    /// <c>Sprite.Create(texture, textureRect, pivotNormalized, ppu)</c>, so Unity reads the pivot as a
+    /// fraction of the <i>trimmed rect</i>. The original claim here was that the importer had written it
+    /// as a fraction of the <i>full PNG</i> instead (<c>(-bounds.x)/bounds.width</c>), so every trimmed
+    /// part landed a little off and resolving the pivot against the full texture was the fix.</para>
+    ///
+    /// <para><b>That claim was tested on 10-25 and is false.</b> The sprite side was reported correct by
+    /// eye and the quad side displaced; measured, the two conventions differ by up to <b>0.325 units</b>
+    /// on <c>rwing</c> and <b>0.043</b> on <c>fleg1</c>, while the parts whose rect covers the whole PNG
+    /// (<c>lwing</c>, <c>fleg2</c>, <c>pip</c>, <c>morda_base</c>, <c>horn</c>) differ by exactly zero —
+    /// the positive control. The reason is structural: the sprite rect is the <i>frame's</i> alpha-trim
+    /// box, and the pivot was derived from that same frame's bounds, so pivot × rect is the point the
+    /// importer meant. The full-PNG canvas is the symbol's <i>union</i> over all frames, which is not
+    /// the box the pivot came from. <see cref="Build"/> therefore defaults to the rect convention, and
+    /// <c>compensatePivot: true</c> is kept only as an A/B switch for
+    /// <c>docs/CharacterImportPipeline/08</c>.</para>
     ///
     /// <para><b>The quad is the full rect, never the alpha contour.</b> Remains draws a
     /// <c>FullRect</c> quad; PFE's imported <c>spriteMeshType: 1</c> (Tight) cuts the mesh along the
@@ -128,16 +136,16 @@ namespace PFE.Character
         /// Builds the quad for one sprite.
         /// </summary>
         /// <param name="compensatePivot">
-        /// <c>true</c> — treat <paramref name="pivotNormalized"/> as a fraction of the full texture,
-        /// which is how the importer wrote it. <c>false</c> — treat it as a fraction of the trimmed
-        /// rect, which is how <c>Sprite.Create</c> reads it. The difference between the two is
-        /// <see cref="PivotErrorPixels"/>, and the preview window exposes it as a toggle precisely so
-        /// the hypothesis can be falsified instead of assumed.
+        /// <c>false</c> (the default, and what the renderers use) — treat <paramref name="pivotNormalized"/>
+        /// as a fraction of the trimmed rect, which is how <c>Sprite.Create</c> reads it, so the two
+        /// renderers place a part identically. <c>true</c> — treat it as a fraction of the full PNG.
+        /// That was the original design and it is <b>wrong</b>: it displaces every trimmed part, by up to
+        /// 0.325 units on <c>rwing</c>. Kept only so the preview window can show the difference.
         /// </param>
         public static CharacterQuadLocal Build(
             in CharacterQuadSource source,
             Vector2 pivotNormalized,
-            bool compensatePivot)
+            bool compensatePivot = false)
         {
             if (!source.IsValid)
             {
@@ -163,9 +171,13 @@ namespace PFE.Character
         /// <summary>
         /// The registration point, in pixels inside the full texture.
         ///
-        /// <para>The compensating branch is the whole fix: <c>pivotNormalized * textureSize</c> is a
-        /// point in the PNG, and the quad's origin is then placed there even if that point lies outside
-        /// the trimmed rect (which it does for the horn: the trim starts 38 px in).</para>
+        /// <para>The default branch is <c>rect.xy + pivotNormalized * rect.size</c> — the point
+        /// <c>Sprite.Create</c> would pick, which is the point the importer meant, because the rect is
+        /// the frame's alpha-trim box and the pivot was derived from that same frame's bounds.</para>
+        ///
+        /// <para>The compensating branch (<c>pivotNormalized * textureSize</c>) is retained only as an
+        /// A/B: it resolves the pivot against the symbol's union canvas rather than the frame box, so it
+        /// moves every trimmed part by a different amount. <c>docs/CharacterImportPipeline/08</c>.</para>
         /// </summary>
         public static Vector2 RegistrationPointPixels(
             in CharacterQuadSource source,
@@ -185,13 +197,15 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// How far the shipped pivot lands from where the importer meant it, in pixels.
+        /// How far the full-PNG convention lands from the rect convention, in pixels — i.e. exactly how
+        /// far <c>compensatePivot: true</c> moves a part, and in which direction.
         ///
         /// <para>This is the measured quantity in <c>docs/RenderingPipeline_Research/07</c> §3 —
         /// <c>x0 − p·(W − w)</c> and <c>y0 − p·(H − h)</c> — expressed as the difference between the
         /// two registration points rather than a separate formula. A part that was not trimmed reads
         /// exactly <c>(0, 0)</c>; that is the positive control which says the arithmetic is not
-        /// inventing numbers.</para>
+        /// inventing numbers, and on 10-25 it was also the row that showed the <i>compensated</i>
+        /// branch to be the wrong one.</para>
         /// </summary>
         public static Vector2 PivotErrorPixels(in CharacterQuadSource source, Vector2 pivotNormalized)
         {

@@ -24,7 +24,8 @@ namespace PFE.Character
     {
         static readonly HashSet<string> HeadSubPartNames = new()
         {
-            "morda_base", "morda_overlay", "eye", "forelock", "horn", "magic", "konec", "helm"
+            "morda_base", "morda_base_back", "shell", "morda_overlay", "eye", "forelock",
+            "horn", "magic", "konec", "helm", "helm2"
         };
 
         [Header("Data")]
@@ -67,6 +68,28 @@ namespace PFE.Character
         int _currentFrame;
         bool _assembled;
 
+        /// <summary>
+        /// The transform every part slot hangs from — AS3's <c>osn</c> child of the character's outer
+        /// visual symbol. It exists so the body can carry a placement matrix of its own
+        /// (<see cref="CharacterAnimationDefinition.bodyScale"/>) without scaling the overlays, which
+        /// are that symbol's <i>siblings</i> in the SWF and not its children.
+        ///
+        /// <para><b>Why a child transform and not the assembler's own.</b> <c>visualPlayer</c>(3690)
+        /// holds <c>osn</c>(3679) at 1.2999878 and holds <c>shit</c>/<c>fetter</c>/<c>cryst</c>/
+        /// <c>rat</c> beside it at their own scales. Putting the 1.3 on this transform reproduces that
+        /// tree exactly: the body grows, the shield dome does not. Putting it on the assembler would
+        /// grow both, which is a 30 % oversized shield and a bug nobody would connect to the player's
+        /// height.</para>
+        /// </summary>
+        Transform _bodyRoot;
+
+        /// <summary>
+        /// Horn aura charge, 0..100. Defaults to "off" — the original builds the glow at alpha 0 and
+        /// only raises it when a weapon or a levitation asks for it (<c>UnitPlayer.as:4851</c>), so a
+        /// character that nobody drives must not glow.
+        /// </summary>
+        float _hornAuraLevel = HornAura.LevelIdle;
+
         // ─── Public API ──────────────────────────────────────────────────────
 
         public CharacterAppearance Appearance
@@ -78,6 +101,13 @@ namespace PFE.Character
                 if (_assembled) ApplyAppearance();
             }
         }
+
+        /// <summary>
+        /// How many parts the last drawn frame took from the worn armour set. Mirrors
+        /// <see cref="CharacterQuadAssembler.ArmourPartsDrawn"/> so the A/B can compare decisions
+        /// rather than pixels — see that property for why.
+        /// </summary>
+        public int ArmourPartsDrawn { get; private set; }
 
         public CharacterVisualContext VisualContext
         {
@@ -137,6 +167,116 @@ namespace PFE.Character
 
         public int CurrentFrame => _currentFrame;
         public string CurrentState => _currentState;
+
+        /// <summary>
+        /// Where a named part sits in world space on the frame currently drawn — the port of AS3's
+        /// <c>vis.osn.body.head.morda.konec</c> transform (<c>UnitPlayer.as:3563</c>), which is how the
+        /// player's magic spawn point is derived.
+        ///
+        /// <para><b>Why this cannot be a Transform lookup.</b> <c>konec</c> is a marker, not art:
+        /// symbol 240 is empty, <see cref="CharacterPartDefinition.baseSprite"/> is null, and all
+        /// <b>881</b> of its placements are authored <c>visible: 0</c> — so <see cref="ApplyFrame"/>
+        /// never gives it a pool slot and there is no GameObject to read. The point still exists in the
+        /// frame data, which is where this reads it.</para>
+        ///
+        /// <para><b>Why it must be read every frame.</b> <c>konec</c> has <b>687</b> distinct positions
+        /// across the shipped clips — x spans 0.61 units, y spans 0.66 — because it rides the head.
+        /// Caching one sample would put the horn in the wrong place on most of the animation (lesson
+        /// #256: a placement is a starting point, not a position).</para>
+        ///
+        /// <para>World space through the <i>body root</i> — the parent every slot is placed under — so
+        /// the answer is the point the slot would occupy if the part were drawn. The armour override's
+        /// <c>localOffset</c> is included for the same reason
+        /// <see cref="ApplyFrame"/> includes it — a caller asking about <c>helm</c> must not get a
+        /// different answer than the renderer draws.</para>
+        /// </summary>
+        /// <param name="partName">The definition's part name, e.g. <c>konec</c>, <c>head</c>.</param>
+        /// <param name="world">The point, when the part is present on the current frame.</param>
+        /// <returns>
+        /// <c>false</c> when there is no definition, no current clip, no such part, or the part is
+        /// absent from this frame — every one of which is a legal "no anchor" answer rather than an
+        /// error, and each of which the caller must have a fallback for.
+        /// </returns>
+        public bool TryGetPartWorldPosition(string partName, out Vector2 world)
+        {
+            world = default;
+
+            if (_definition == null || string.IsNullOrEmpty(_currentState)) return false;
+
+            CharacterStateClip clip = _definition.GetStateClip(_currentState);
+            if (clip?.frames == null || _currentFrame < 0 || _currentFrame >= clip.frames.Length) return false;
+
+            CharacterFrameData frame = clip.frames[_currentFrame];
+            if (frame.partPlacements == null) return false;
+
+            int partIndex = FindPartIndex(partName);
+            if (partIndex < 0) return false;
+
+            foreach (PartFramePlacement placement in frame.partPlacements)
+            {
+                if (placement.partIndex != partIndex) continue;
+
+                Vector2 local = placement.localPosition;
+
+                // Same expression as ApplyFrame's transform write (via ResolvePartVisual): a part the
+                // armour has displaced must report the displaced point, or this and the renderer would
+                // disagree about where the part is.
+                ArmorVisualSet armorSet = GetActiveArmorSet();
+                if (TryGetArmorOverride(partIndex, armorSet, out ArmorPartOverride armorOverride))
+                {
+                    local += ArmorOffsets.Total(armorOverride, placement);
+                }
+
+                // Through the body root, not this component's transform: the placement is expressed in
+                // the body clip's own space, and since the body root can carry a scale
+                // (CharacterAnimationDefinition.bodyScale) the two are not the same answer. Using the
+                // assembler here would report every anchor at 1/1.3 of where the slot actually draws,
+                // and a held weapon would sit inside the chest with nothing logged.
+                world = BodyRootOrSelf.TransformPoint(new Vector3(local.x, local.y, 0f));
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Index of a named part in <see cref="CharacterAnimationDefinition.parts"/>, or -1.</summary>
+        int FindPartIndex(string partName)
+        {
+            if (_definition?.parts == null || string.IsNullOrEmpty(partName)) return -1;
+
+            for (int i = 0; i < _definition.parts.Length; i++)
+            {
+                CharacterPartDefinition part = _definition.parts[i];
+                if (part != null && part.partName == partName) return i;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// The horn aura's charge, 0..100, in the original's own units — see
+        /// <see cref="HornAura"/>. 0 is what the game spends most of its time at, so a freshly built
+        /// character shows no glow until the simulation says otherwise.
+        ///
+        /// <para>A plain number rather than a component reference on purpose: the shipped path is on
+        /// the player prefab and must not grow a dependency on a magic subsystem to be able to draw a
+        /// character.</para>
+        /// </summary>
+        public float HornAuraLevel
+        {
+            get => _hornAuraLevel;
+            set
+            {
+                float clamped = Mathf.Clamp(value, HornAura.LevelIdle, HornAura.LevelMax);
+                if (Mathf.Approximately(_hornAuraLevel, clamped))
+                {
+                    return;
+                }
+
+                _hornAuraLevel = clamped;
+                if (_assembled) ReapplyCurrentFrame();
+            }
+        }
 
         /// <summary>
         /// Sets all required data at once and rebuilds. Avoids the double-rebuild that occurs
@@ -302,6 +442,11 @@ namespace PFE.Character
                 return;
             }
 
+            // Built before the pool, not inside it: a rig with no placements still has a body, and a
+            // caller that asks for the root of a built character must not get null depending on how
+            // many parts its frames happen to carry.
+            EnsureBodyRoot();
+
             // Pool size = max partPlacements across all frames in all states.
             // This matches CharacterAnimationPreviewWindow._maxPlacementsPerFrame.
             int maxPlacements = 0;
@@ -320,7 +465,7 @@ namespace PFE.Character
             for (int i = 0; i < maxPlacements; i++)
             {
                 var go = new GameObject($"slot_{i}");
-                go.transform.SetParent(transform, false);
+                go.transform.SetParent(EnsureBodyRoot(), false);
                 go.SetActive(false);
 
                 // Inherit the character's layer. A new GameObject is always on layer 0, and the
@@ -345,6 +490,49 @@ namespace PFE.Character
             }
         }
 
+        /// <summary>
+        /// The transform the part slots hang from, created on first use — AS3's <c>osn</c> child of the
+        /// character's outer visual symbol, carrying that placement's scale.
+        ///
+        /// <para><b>Identity when the definition says 1.</b> A rig whose frames are the outer symbol's
+        /// own gets a scale-1 root: the tree grows one node and nothing on screen moves. That is what
+        /// keeps this from being a player-only branch in a component the NPCs share.</para>
+        ///
+        /// <para><b>The scale is re-read on every build, not cached on the node.</b> The node is
+        /// destroyed by <see cref="ClearSlots"/>, so an import that changes the definition cannot leave
+        /// a stale scale behind on a survivor.</para>
+        /// </summary>
+        Transform EnsureBodyRoot()
+        {
+            if (_bodyRoot != null)
+            {
+                return _bodyRoot;
+            }
+
+            var go = new GameObject("body");
+            go.transform.SetParent(transform, false);
+            go.layer = gameObject.layer;
+
+            Vector2 scale = _definition != null ? _definition.BodyScale : Vector2.one;
+            go.transform.localScale = new Vector3(scale.x, scale.y, 1f);
+
+            _bodyRoot = go.transform;
+            return _bodyRoot;
+        }
+
+        /// <summary>
+        /// The body root the part slots hang from, or <c>null</c> when nothing has been built.
+        /// Exposed so a fixture can assert the scale is <i>applied</i> and not merely stored — a value
+        /// nothing reads is exactly the fault this node was added to fix.
+        /// </summary>
+        public Transform BodyRoot => _bodyRoot;
+
+        /// <summary>
+        /// <see cref="BodyRoot"/> when a build has happened, otherwise this component's transform.
+        /// The fallback matters for a caller that reads an anchor before the first <c>Rebuild</c>.
+        /// </summary>
+        Transform BodyRootOrSelf => _bodyRoot != null ? _bodyRoot : transform;
+
         void ClearSlots()
         {
             ClearOverlays();
@@ -360,6 +548,14 @@ namespace PFE.Character
 
             _slotPool.Clear();
             _assembled = false;
+
+            // The body root goes with them: it carries the definition's scale, and a rebuild after an
+            // import must pick up a changed one rather than keep the transform it was born with.
+            if (_bodyRoot != null)
+            {
+                DestroyObject(_bodyRoot.gameObject);
+                _bodyRoot = null;
+            }
 
             foreach (Sprite s in _pivotCache.Values)
             {
@@ -572,6 +768,8 @@ namespace PFE.Character
             HashSet<string> hiddenHeadParts = BuildHiddenHeadParts(armorSet, out bool usesMordaComposite);
             bool hideMane = _visualContext.hideMane || (armorSet?.hidesMane ?? false);
 
+            ArmourPartsDrawn = 0;
+
             int slotIdx = 0;
             foreach (PartFramePlacement placement in frameData.partPlacements)
             {
@@ -606,12 +804,26 @@ namespace PFE.Character
                 EnsureSecondaryLayer(slot);
 
                 // ── Visual resolution ────────────────────────────────────────
-                ResolvedPartVisual visual = ResolvePartVisual(slot, armorSet);
+                ResolvedPartVisual visual = ResolvePartVisual(slot, armorSet, placement);
+                if (visual.fromArmor) ArmourPartsDrawn++;
+
+                // The horn aura is the one part whose colour is owned by the simulation rather than
+                // by the frame data: its tint channel is already the "magical aura colour"
+                // (TintCategory.Magic), but its alpha comes from the charge ramp. See HornAura.
+                bool isHornAura = part.partName == HornAura.PartName;
+                Color primaryColor = visual.primaryColor;
+                if (isHornAura)
+                {
+                    primaryColor.a *= HornAura.Normalized(_hornAuraLevel);
+                }
 
                 slot.gameObject.SetActive(true);
                 slot.renderer.sprite = visual.primarySprite;
-                slot.renderer.color = visual.primaryColor;
-                slot.renderer.enabled = visual.primarySprite != null;
+                slot.renderer.color = primaryColor;
+                // AS3 keeps the aura's `visible` tied to its alpha (`UnitPlayer.as:4852`), so an
+                // uncharged disc is not drawn at all rather than drawn transparent — same picture,
+                // one fewer draw call, and it keeps "is the aura on" answerable from the renderer.
+                slot.renderer.enabled = visual.primarySprite != null && (!isHornAura || primaryColor.a > 0f);
                 slot.renderer.sortingOrder = slotIdx * 2;
 
                 if (slot.hasSecondaryLayer && slot.secondaryRenderer != null)
@@ -623,6 +835,9 @@ namespace PFE.Character
                 }
 
                 // ── Transform ────────────────────────────────────────────────
+                // The armour's own offset is in the head container's space, so it is scaled and
+                // rotated by this placement before it can be added to a root-space position —
+                // ArmorOffsets.LocalToRoot, shared with the quad renderer so the two cannot drift.
                 slot.transform.localPosition = new Vector3(
                     placement.localPosition.x + visual.bakedOffset.x,
                     placement.localPosition.y + visual.bakedOffset.y,
@@ -718,18 +933,22 @@ namespace PFE.Character
 
         // ─── Visual resolution ───────────────────────────────────────────────
 
-        ResolvedPartVisual ResolvePartVisual(PartSlot slot, ArmorVisualSet armorSet)
+        ResolvedPartVisual ResolvePartVisual(PartSlot slot, ArmorVisualSet armorSet,
+                                             PartFramePlacement placement)
         {
             if (TryGetArmorOverride(slot.partIndex, armorSet, out ArmorPartOverride armorOverride))
             {
                 return new ResolvedPartVisual
                 {
-                    primarySprite = GetPivotedSprite(armorOverride.armorSprite, armorOverride.pivotOverride),
+                    primarySprite = GetPivotedSprite(
+                        armorOverride.armorSprite,
+                        ArmorPivots.Resolve(slot.partDef, armorOverride)),
+                    fromArmor = true,
                     primaryColor = Color.white,
                     secondarySprite = null,
                     secondaryColor = Color.white,
                     showSecondary = false,
-                    bakedOffset = armorOverride.positionOffset
+                    bakedOffset = ArmorOffsets.Total(armorOverride, placement)
                 };
             }
 
@@ -893,6 +1112,8 @@ namespace PFE.Character
         struct ResolvedPartVisual
         {
             public Sprite primarySprite;
+            /// <summary>True when the sprite came from the worn armour set, not from the part.</summary>
+            public bool fromArmor;
             public Color primaryColor;
             public Sprite secondarySprite;
             public Color secondaryColor;

@@ -23,6 +23,50 @@ namespace PFE.Data.Definitions
         ContentType IGameContent.ContentType => ContentType.CharacterAnimation;
         public float frameRate = 30f;
 
+        /// <summary>
+        /// The <c>osn</c> placement's scale inside the character's outer visual symbol — AS3
+        /// <c>visualPlayer</c>(3690) placing <c>osn</c>(3679) at <b>1.2999878</b>.
+        ///
+        /// <para><b>Why this is data and not a constant in the renderer.</b> The body clip the
+        /// importer reads (<c>pfe_fla.body_stay</c>(3651)) is not the symbol the game draws: the game
+        /// draws <c>visualPlayer</c>, which holds that clip at a non-identity matrix. A port that
+        /// imports the clip and drops the placement draws the character at
+        /// <b>1/1.3 of its AS3 size</b> — and does so silently, because every part is individually
+        /// correct. Personas carry the same fact as
+        /// <see cref="Campaign.NpcDefinition.visualScaleX"/>; this is the player's half of it.</para>
+        ///
+        /// <para><b>The translation is deliberately not carried.</b> 3690's <c>osn</c> placement is
+        /// <c>(0, 0)</c>, so the scale is about the SWF origin — which is where the rig's own parts
+        /// are already laid out. There is nothing to offset.</para>
+        /// </summary>
+        [Header("Body Placement")]
+        [Tooltip("The `osn` placement's scale inside the outer visual symbol (visualPlayer(3690) → " +
+                 "osn(3679) = 1.2999878). Applied to a body-root transform that holds the part slots, " +
+                 "so the whole body draws at its AS3 size. Written by the character import; 1 means " +
+                 "'the frames are the outer symbol's own'.")]
+        public Vector2 bodyScale = Vector2.one;
+
+        /// <summary>
+        /// <see cref="bodyScale"/> with <c>1</c> substituted for either axis a stale asset leaves at
+        /// <c>0</c>.
+        ///
+        /// <para><b>Why the guard exists, and why it is the same guard a persona has.</b> A field
+        /// added to a ScriptableObject deserialises as <c>0</c> in every asset saved before it
+        /// existed — Unity does not run the initialiser for a field that is absent from the YAML. A
+        /// raw <c>0</c> collapses the body root, so the player would vanish on the first frame after
+        /// this lands and before the next import writes the value. Vanishing is a far worse symptom
+        /// than a wrong size, and it would look like a rig bug rather than a data one.</para>
+        /// </summary>
+        public Vector2 BodyScale
+        {
+            get
+            {
+                float x = Mathf.Approximately(bodyScale.x, 0f) ? 1f : bodyScale.x;
+                float y = Mathf.Approximately(bodyScale.y, 0f) ? 1f : bodyScale.y;
+                return new Vector2(x, y);
+            }
+        }
+
         [Header("Body Parts")]
         public CharacterPartDefinition[] parts = Array.Empty<CharacterPartDefinition>();
 
@@ -249,6 +293,171 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
+    /// The one piece of arithmetic that turns an armour's <see cref="ArmorPartOverride.localOffset"/>
+    /// into the root-space offset the assemblers add to a placement.
+    /// </summary>
+    /// <remarks>
+    /// Both renderers must use this and nothing else — the sprite path writes it into a transform's
+    /// <c>localPosition</c> and the quad path adds it to the position it bakes into four vertices, so
+    /// a second copy of the formula is a second place for the two sides to disagree.
+    /// </remarks>
+    public static class ArmorOffsets
+    {
+        /// <summary>
+        /// The root-space displacement of <paramref name="localOffset"/> under
+        /// <paramref name="placement"/>'s rotation and scale.
+        /// </summary>
+        /// <remarks>
+        /// The scale is applied per axis before the rotation, matching how the transform composes
+        /// (<c>R · S</c>, not <c>S · R</c>). The shipped data has a negative <c>scale.y</c> and a
+        /// rotation near −180°, which is the art's own flip; both are carried by the placement, so
+        /// nothing here needs to know about them.
+        /// </remarks>
+        public static Vector2 LocalToRoot(Vector2 localOffset, PartFramePlacement placement)
+        {
+            if (localOffset.x == 0f && localOffset.y == 0f)
+            {
+                return Vector2.zero;
+            }
+
+            float radians = placement.localRotation * Mathf.Deg2Rad;
+            float sin = Mathf.Sin(radians);
+            float cos = Mathf.Cos(radians);
+
+            float x = localOffset.x * placement.localScale.x;
+            float y = localOffset.y * placement.localScale.y;
+
+            return new Vector2(x * cos - y * sin, x * sin + y * cos);
+        }
+
+        /// <summary>The full offset for a part on a frame: baked root offset plus the local one.</summary>
+        public static Vector2 Total(ArmorPartOverride armorOverride, PartFramePlacement placement)
+        {
+            return armorOverride.positionOffset +
+                   LocalToRoot(armorOverride.localOffset, placement);
+        }
+    }
+
+    /// <summary>
+    /// The pivot an armour sprite must be drawn with — which is <b>not</b> the pivot its part uses.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>What AS3 does.</b> An armour is a <i>frame of the same symbol</i>:
+    /// <c>Obj.setArmor</c> is <c>m.gotoAndStop(aid)</c> (<c>fe/Obj.as:67-96</c>). The symbol's
+    /// registration point does not move when the frame changes, so the armour art appears wherever
+    /// the artist drew it relative to that one fixed point.</para>
+    ///
+    /// <para><b>What the port stored.</b> Each frame is baked as its own PNG whose canvas is the
+    /// symbol's, so the registration point is a fixed point <i>in canvas pixels</i>. But a Unity
+    /// sprite pivot is normalised against the sprite's <b>trimmed rect</b>, and the trimmed rect is
+    /// per frame. The importer wrote frame 1's pivot for every armour frame
+    /// (<c>CharacterAnimationDataGenerator.cs:1374</c>, "Same symbol, same pivot") — true of the
+    /// registration, false of the number, which is a fraction of a different rectangle.</para>
+    ///
+    /// <para><b>The size of the error.</b> Measured over the shipped asset, on the front leg
+    /// (<c>fleg1</c>): frame 1 trims to 21×24 at (5,0), the chitin frame to 25×37 at (3,0), and the
+    /// pivot is 0.541×/0.965↑ of frame 1 — so the armour leg was drawn <b>12.5 px lower</b> than the
+    /// registration asks for, on a 42 px canvas. Outfits whose leg frames happen to trim the same as
+    /// frame 1 are unaffected, which is why only some of them look wrong.</para>
+    ///
+    /// <para><b>Why this is not baked instead.</b> The generator should eventually write this value;
+    /// until it does, this is the same correction applied at draw time, from data already in the
+    /// asset. Once the generator is fixed this returns its own input unchanged — the two agree
+    /// because the formula is the same one <c>CompositeFramePivot</c> already uses for symbol 273.</para>
+    /// </remarks>
+    public static class ArmorPivots
+    {
+        /// <summary>
+        /// How close a baked pivot must be to the part's own before it counts as the importer's
+        /// "same pivot" marker. The value is a copy, so this only has to survive serialisation.
+        /// </summary>
+        public const float SamePivotTolerance = 1e-5f;
+
+        /// <summary>
+        /// The pivot for an armour frame that shares a canvas with the part's base frame: the same
+        /// registration point, expressed against the armour frame's own trimmed rect.
+        /// </summary>
+        /// <param name="basePivot">The part's pivot, normalised against the base frame's trim.</param>
+        /// <param name="baseRectOrigin">The base sprite's <c>textureRect</c> position, in texture pixels.</param>
+        /// <param name="baseRectSize">The base sprite's <c>textureRect</c> size.</param>
+        /// <param name="armorRectOrigin">The armour sprite's <c>textureRect</c> position.</param>
+        /// <param name="armorRectSize">The armour sprite's <c>textureRect</c> size.</param>
+        public static Vector2 FromTrim(
+            Vector2 basePivot,
+            Vector2 baseRectOrigin,
+            Vector2 baseRectSize,
+            Vector2 armorRectOrigin,
+            Vector2 armorRectSize)
+        {
+            if (armorRectSize.x <= 0f || armorRectSize.y <= 0f)
+            {
+                return basePivot;
+            }
+
+            // The registration point in the shared canvas, then re-expressed against the armour trim.
+            float registrationX = basePivot.x * baseRectSize.x + baseRectOrigin.x;
+            float registrationY = basePivot.y * baseRectSize.y + baseRectOrigin.y;
+
+            return new Vector2(
+                (registrationX - armorRectOrigin.x) / armorRectSize.x,
+                (registrationY - armorRectOrigin.y) / armorRectSize.y);
+        }
+
+        /// <summary>
+        /// The pivot to draw <paramref name="armorOverride"/>'s sprite with, given its part.
+        /// </summary>
+        /// <remarks>
+        /// Three cases return the baked pivot untouched, and each is a real case in the asset:
+        /// <list type="bullet">
+        /// <item>a part with no base sprite — <c>helm</c>, <c>helm2</c>, <c>morda_armor</c> — has no
+        /// frame 1 to be normalised against, and its pivot was computed by the head-variant path;</item>
+        /// <item>a baked pivot that differs from the part's was <i>computed</i> (the composite
+        /// <c>morda_armor</c> pivot, a head variant's own pivot) and must not be overwritten;</item>
+        /// <item>an armour frame with a different canvas is a different symbol, not a different frame
+        /// of this one — the shared registration the formula needs does not exist. <c>polic</c>'s
+        /// forelock is this case (109×76 against 31×70).</item>
+        /// </list>
+        /// </remarks>
+        public static Vector2 Resolve(CharacterPartDefinition part, ArmorPartOverride armorOverride)
+        {
+            Vector2 baked = armorOverride.pivotOverride;
+            if (part == null || part.baseSprite == null || armorOverride.armorSprite == null)
+            {
+                return baked;
+            }
+
+            Vector2 partPivot = part.pivotNormalized;
+            if (Mathf.Abs(baked.x - partPivot.x) > SamePivotTolerance
+                || Mathf.Abs(baked.y - partPivot.y) > SamePivotTolerance)
+            {
+                return baked;
+            }
+
+            Texture2D baseTexture = part.baseSprite.texture;
+            Texture2D armorTexture = armorOverride.armorSprite.texture;
+            if (baseTexture == null || armorTexture == null)
+            {
+                return baked;
+            }
+
+            if (baseTexture.width != armorTexture.width || baseTexture.height != armorTexture.height)
+            {
+                return baked;
+            }
+
+            Rect baseRect = part.baseSprite.textureRect;
+            Rect armorRect = armorOverride.armorSprite.textureRect;
+
+            return FromTrim(
+                partPivot,
+                new Vector2(baseRect.x, baseRect.y),
+                new Vector2(baseRect.width, baseRect.height),
+                new Vector2(armorRect.x, armorRect.y),
+                new Vector2(armorRect.width, armorRect.height));
+        }
+    }
+
+    /// <summary>
     /// Armor visual overrides for a specific armor ID.
     /// </summary>
     [Serializable]
@@ -291,7 +500,33 @@ namespace PFE.Data.Definitions
         /// Accounts for sub-parts being repositioned in per-armor morda_armor(273) frames.
         /// Zero for body parts and head sub-parts that aren't repositioned.
         /// </summary>
+        /// <remarks>
+        /// This is a <b>root-space</b> offset: the assemblers add it to the part's placement as-is.
+        /// It is what the preview window's "bake armor offsets" button accumulates, and it is only
+        /// correct while the head's rotation and scale are the ones it was measured at. For head
+        /// sub-parts prefer <see cref="localOffset"/>, which is transformed by the placement.
+        /// </remarks>
         public Vector2 positionOffset;
+
+        /// <summary>
+        /// Position offset in the <b>head container's own space</b> (Unity axes, world units), for
+        /// head sub-parts that the armour's <c>morda_armor</c>(273) frame repositions.
+        /// </summary>
+        /// <remarks>
+        /// <para>Why this cannot be folded into <see cref="positionOffset"/>: the parts are siblings
+        /// under the character root, and the head is placed with a rotation and a scale — about
+        /// −180° and 0.206 in the shipped data, and the rotation swings by tens of degrees over an
+        /// animation. A delta measured inside 273 therefore has to be scaled and rotated by the
+        /// placement before it can be added to a root-space position. Measured on the shipped data:
+        /// <c>helm</c> sits at (8.15, 0.4) and <c>morda_base</c> at (0.1, −11.1) inside 273, and the
+        /// difference between their root positions is (−0.01653, −0.02373) — which is
+        /// <c>R(−179.85°) · (0.2061, −0.2060) · (8.05, 11.5)/100</c> to four decimals. So the
+        /// transform is the placement's, and the offset belongs to the placement's space.</para>
+        ///
+        /// <para>Applied as <c>R(placement.localRotation) · (scale.x·x, scale.y·y)</c>; see
+        /// <c>ArmorOffsets.LocalToRoot</c>.</para>
+        /// </remarks>
+        public Vector2 localOffset;
     }
 
     public enum AnimationLoopMode

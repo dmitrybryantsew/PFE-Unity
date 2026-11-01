@@ -57,8 +57,15 @@ namespace PFE.Tests.Editor.Campaign
 
             // Scoped to the pass that owns the assignment, so the same field written anywhere else in
             // the file — or a mention in a comment, which the stripper removes — cannot satisfy this.
+            //
+            // The signature is deliberately cut after the second parameter. `MethodBody` matches by
+            // verbatim `IndexOf`, and the real parameter list now wraps onto a second line
+            // (`… visualName,` / `Dictionary<string,int> symbols, SWFFile swf, Result result`), so a
+            // whole-signature literal would pin this lint to the importer's line wrapping as well as
+            // its name. Two parameters are still unambiguous: there is exactly one `ImportNpcVisual`
+            // declaration, and the call site at :452 does not carry `static bool`.
             string pass = SourceLint.MethodBody(importer,
-                "static bool ImportNpcVisual(NpcDefinition npc, string visualName, Result result)");
+                "static bool ImportNpcVisual(NpcDefinition npc, string visualName,");
 
             Assert.That(pass, Does.Contain("npc.visualSprite = "),
                 "UnitSpriteImporter's NPC pass no longer assigns NpcDefinition.visualSprite, so no persona " +

@@ -52,7 +52,8 @@ namespace PFE.Character
         /// </summary>
         static readonly HashSet<string> HeadSubPartNames = new()
         {
-            "morda_base", "morda_overlay", "eye", "forelock", "horn", "magic", "konec", "helm"
+            "morda_base", "morda_base_back", "shell", "morda_overlay", "eye", "forelock",
+            "horn", "magic", "konec", "helm", "helm2"
         };
 
         /// <summary>Two triangles, clockwise from the camera: (bl, tl, tr) and (bl, tr, br).</summary>
@@ -72,9 +73,11 @@ namespace PFE.Character
         [SerializeField] bool _useFlashTint = true;
 
         [Header("Quad renderer")]
-        [Tooltip("Resolve the pivot against the full PNG (what the importer meant) instead of the trimmed rect " +
-                 "(what Sprite.Create reads). Turning this off reproduces the shipped path's registration error.")]
-        [SerializeField] bool _compensatePivot = true;
+        [Tooltip("A/B switch for the rejected registration convention: resolve the pivot against the full PNG " +
+                 "instead of the trimmed rect. Off is correct and is what ships — the rect is the frame's " +
+                 "alpha-trim box, which is the box the pivot was derived from. On displaces every trimmed " +
+                 "part (rwing by 0.325 units). See docs/CharacterImportPipeline/08.")]
+        [SerializeField] bool _compensatePivot = false;
 
         [Tooltip("Sample a GPU-side bilinear copy of each part texture. The imported textures are Point.")]
         [SerializeField] bool _bilinear = true;
@@ -87,12 +90,40 @@ namespace PFE.Character
                  "docs/CharacterImportPipeline/04.")]
         [SerializeField] bool _useAtlas;
 
+        [Tooltip("Give the atlas a mip chain. Off by default: with it on this driver returned an atlas " +
+                 "whose regions held half-size fragments and the build logged an invalid-mip " +
+                 "CopyTexture. Off is level 0 only, which is what the atlas did before the chain " +
+                 "existed. See AtlasMips.")]
+        [SerializeField] bool _atlasMips;
+
         [Tooltip("Room ambient multiplier applied to every part. 1 = full brightness. " +
                  "Use CharacterRenderAmbient.FromDarkness(room.darkness) to match the background tiles.")]
         [SerializeField, Range(0f, 1f)] float _ambient = 1f;
 
         readonly List<QuadSlot> _slotPool = new();
         readonly List<QuadOverlaySlot> _overlaySlots = new();
+
+        /// <summary>
+        /// The node the part quads hang from — AS3's <c>osn</c> child of the outer visual symbol, the
+        /// one that carries the placement's scale. <b>This is what the quad path was missing.</b>
+        ///
+        /// <para><b>Why a node and not a number in the vertex maths.</b>
+        /// <see cref="CharacterSpriteAssembler.EnsureBodyRoot"/> gives its part slots this same node,
+        /// so the shipped path draws every part at <c>rect / ppu × bodyScale</c> and every part
+        /// <i>position</i> at <c>localPosition × bodyScale</c>. The quad path baked the placement into
+        /// the vertices and never read <see cref="CharacterAnimationDefinition.BodyScale"/> at all —
+        /// measured on the player, whose <c>bodyScale</c> is 1.2999878, that drew the whole character
+        /// at <b>1/1.3 = 0.769</b> of the sprite side: every part too small and every part too close
+        /// to the origin, which is the "the atlas side is smaller" reading in the A/B.
+        /// Reproducing the node rather than multiplying two numbers here means a non-uniform or
+        /// mirrored <c>bodyScale</c> composes the way a parent transform does, and the two paths stay
+        /// comparable part-for-part instead of agreeing only while the scale happens to be uniform.</para>
+        ///
+        /// <para><b>Overlays do not hang from it.</b> The shipped path parents its overlay slots to
+        /// <c>transform</c> (:601), not to the body root, because an overlay is a sibling of <c>osn</c>
+        /// in the original. Overlays keep that here.</para>
+        /// </summary>
+        Transform _bodyRoot;
 
         /// <summary>
         /// Reused every frame. The shipped path allocates one of these per animation frame per
@@ -124,6 +155,12 @@ namespace PFE.Character
         string _currentState;
         int _currentFrame;
         bool _assembled;
+
+        /// <summary>
+        /// Horn aura charge, 0..100 — see <see cref="HornAura"/>. Same default as the shipped path
+        /// (off) so the two sides of the A/B start from the same picture.
+        /// </summary>
+        float _hornAuraLevel = HornAura.LevelIdle;
 
         // ─── Public API (mirrors CharacterSpriteAssembler) ───────────────────
 
@@ -249,6 +286,72 @@ namespace PFE.Character
         /// <summary>The live atlas, or null. Exposed so the preview window can report its size and how
         /// many regions it replaced instead of asserting that it worked.</summary>
         public CharacterQuadAtlas Atlas => _atlas;
+
+        /// <summary>
+        /// How many parts the last drawn frame took from the worn armour set.
+        /// </summary>
+        /// <remarks>
+        /// The A/B could not tell "the costume did not reach this side" from "the costume reached it and
+        /// the pixels are wrong", because both look like a part drawn in the wrong clothes. This counts
+        /// the decision instead of the result: the sprite side and the quad side must report the same
+        /// number for the same frame, and the window prints both.
+        /// </remarks>
+        public int ArmourPartsDrawn { get; private set; }
+
+        /// <summary>
+        /// Give the atlas a mip chain. <b>Off by default.</b>
+        ///
+        /// <para><b>The measurement, and what it changed.</b> With the chain on, the dumped atlas
+        /// (<c>Temp/quad_atlas_dump</c>) held every part at roughly <b>half size, anchored in its
+        /// region's corner</b> — the widest run of opaque pixels in the whole 1024² texture was
+        /// <b>63 px</b> while the parts' own rects are 86–124 px wide — one region was <b>empty</b>, and
+        /// the build logged <c>Graphics.CopyTexture called with invalid source mip level: got 4, have
+        /// 4 mips</c>. On screen that is a character made of small detached fragments, which is exactly
+        /// what the A/B showed.</para>
+        ///
+        /// <para><b>That turned out not to be the chain.</b> The same half-size regions appeared with
+        /// the chain <i>off</i>; the real cause was the region copy itself, and the fix is a staging
+        /// copy through a render texture — see <see cref="CharacterQuadAtlas.Build"/>. What the log
+        /// lines did prove is that the per-level copy loop could never be made correct: it needed each
+        /// source texture's level count, and <c>Texture.mipmapCount</c> over-reports (`got 4, have 4
+        /// mips` for a texture that scored 4). So the loop is gone and the chain, when asked for, is
+        /// generated from the finished level 0 by <c>Apply(true)</c>.</para>
+        ///
+        /// <para><b>Why off is still the default.</b> The character is drawn at 0.72×–1.08× on a 1080p
+        /// screen, so the mips are almost never sampled; a chain is a correctness risk for no measured
+        /// gain. Kept as a switch so the claim can be checked rather than taken on trust.</para>
+        /// </summary>
+        public bool AtlasMips
+        {
+            get => _atlasMips;
+            set
+            {
+                if (_atlasMips == value) return;
+                _atlasMips = value;
+                InvalidateAtlas();
+            }
+        }
+
+        /// <summary>
+        /// Horn aura charge, 0..100, in the original's units — see <see cref="HornAura"/>. Mirrors
+        /// <see cref="CharacterSpriteAssembler.HornAuraLevel"/> so the A/B window can drive both sides
+        /// with one slider and any difference that survives is a difference between the renderers.
+        /// </summary>
+        public float HornAuraLevel
+        {
+            get => _hornAuraLevel;
+            set
+            {
+                float clamped = Mathf.Clamp(value, HornAura.LevelIdle, HornAura.LevelMax);
+                if (Mathf.Approximately(_hornAuraLevel, clamped))
+                {
+                    return;
+                }
+
+                _hornAuraLevel = clamped;
+                if (_assembled) ReapplyCurrentFrame();
+            }
+        }
 
         /// <summary>
         /// Room ambient, 0..1, multiplied into every part's vertex colour. Overlays are excluded — the
@@ -431,10 +534,47 @@ namespace PFE.Character
             }
         }
 
-        QuadSlot CreateSlot(string objectName)
+        /// <summary>
+        /// The transform the part quads hang from, created on first use — the quad path's half of
+        /// AS3's <c>osn</c> node. Identity when the definition says 1, so a rig whose frames are the
+        /// outer symbol's own grows one node and nothing on screen moves.
+        ///
+        /// <para><b>The scale is re-read on every rebuild, never cached on the node.</b>
+        /// <see cref="ClearSlots"/> destroys it, so an import that changes the definition cannot leave
+        /// a stale scale behind — the same rule and the same reason as the shipped assembler's
+        /// <c>EnsureBodyRoot</c>, which this mirrors deliberately rather than by coincidence.</para>
+        /// </summary>
+        Transform EnsureBodyRoot()
+        {
+            if (_bodyRoot != null)
+            {
+                return _bodyRoot;
+            }
+
+            var go = new GameObject("body");
+            go.transform.SetParent(transform, false);
+            go.layer = gameObject.layer;
+
+            Vector2 scale = _definition != null ? _definition.BodyScale : Vector2.one;
+            go.transform.localScale = new Vector3(scale.x, scale.y, 1f);
+
+            _bodyRoot = go.transform;
+            return _bodyRoot;
+        }
+
+        /// <summary>
+        /// The body root the part quads hang from, or <c>null</c> before the first build. Exposed so a
+        /// fixture can assert the scale is <i>applied</i> and not merely stored — a value nothing reads
+        /// is exactly the fault this node was added to fix, and it had already happened once here.
+        /// </summary>
+        public Transform BodyRoot => _bodyRoot;
+
+        QuadSlot CreateSlot(string objectName, bool bodySpace = true)
         {
             var go = new GameObject(objectName);
-            go.transform.SetParent(transform, false);
+            // A part hangs from the scaled body root so its baked vertices compose with the same
+            // parent scale the sprite path's slots get. An overlay does not — see _bodyRoot.
+            go.transform.SetParent(bodySpace ? EnsureBodyRoot() : transform, false);
 
             // Inherit the character's layer. A slot created lazily (the secondary hair layer is made
             // on the first frame that needs it, not during Setup) would otherwise sit on layer 0 and
@@ -502,6 +642,15 @@ namespace PFE.Character
             _slotPool.Clear();
             _materials.Dispose();
             _assembled = false;
+
+            // The body root goes with the slots: it carries the definition's bodyScale, and a rebuild
+            // after an import must pick up a changed one rather than keep the transform it was born
+            // with. Clearing it here also keeps the hierarchy from growing one "body" per rebuild.
+            if (_bodyRoot != null)
+            {
+                CharacterQuadMaterialCache.DestroyObject(_bodyRoot.gameObject);
+                _bodyRoot = null;
+            }
         }
 
         void ApplySortingLayerToAllSlots()
@@ -605,7 +754,7 @@ namespace PFE.Character
                 return;
             }
 
-            _atlas = CharacterQuadAtlas.Build(sprites, _bilinear, _visualContext.armorId);
+            _atlas = CharacterQuadAtlas.Build(sprites, _bilinear, _visualContext.armorId, _atlasMips);
         }
 
         void CollectSprites(List<Sprite> into)
@@ -697,7 +846,7 @@ namespace PFE.Character
             {
                 if (def == null || string.IsNullOrEmpty(def.overlayName)) continue;
 
-                QuadSlot slot = CreateSlot($"quad_overlay_{def.overlayName}");
+                QuadSlot slot = CreateSlot($"quad_overlay_{def.overlayName}", bodySpace: false);
                 slot.sortingOrder = def.sortingOrder;
                 slot.renderer.sortingOrder = def.sortingOrder;
 
@@ -841,6 +990,8 @@ namespace PFE.Character
             BuildHiddenHeadParts(armorSet, out bool usesMordaComposite);
             bool hideMane = _visualContext.hideMane || (armorSet?.hidesMane ?? false);
 
+            ArmourPartsDrawn = 0;
+
             int slotIdx = 0;
             foreach (PartFramePlacement placement in frameData.partPlacements)
             {
@@ -868,19 +1019,39 @@ namespace PFE.Character
                 slot.partIndex = placement.partIndex;
                 slot.partDef = part;
 
-                ResolvedQuadVisual visual = ResolvePartVisual(placement.partIndex, part, armorSet);
+                ResolvedQuadVisual visual = ResolvePartVisual(placement.partIndex, part, armorSet, placement);
+                if (visual.fromArmor) ArmourPartsDrawn++;
 
                 Vector2 position = placement.localPosition + visual.bakedOffset;
 
-                Show(
-                    slot,
-                    visual.primarySprite,
-                    visual.primaryPivot,
-                    position,
-                    placement.localRotation,
-                    placement.localScale,
-                    ApplyAmbient(visual.primaryColor),
-                    slot.sortingOrder);
+                // The horn aura is the one part whose colour is owned by the simulation rather than
+                // by the frame data — see HornAura. Its tint channel is already TintCategory.Magic;
+                // what is added here is the charge alpha.
+                bool isHornAura = part.partName == HornAura.PartName;
+                Color primaryColor = ApplyAmbient(visual.primaryColor);
+                if (isHornAura)
+                {
+                    primaryColor.a *= HornAura.Normalized(_hornAuraLevel);
+                }
+
+                if (isHornAura && primaryColor.a <= 0f)
+                {
+                    // AS3 ties the aura's `visible` to its alpha (`UnitPlayer.as:4852`): an uncharged
+                    // glow is absent, not transparent.
+                    slot.Hide();
+                }
+                else
+                {
+                    Show(
+                        slot,
+                        visual.primarySprite,
+                        visual.primaryPivot,
+                        position,
+                        placement.localRotation,
+                        placement.localScale,
+                        primaryColor,
+                        slot.sortingOrder);
+                }
 
                 if (visual.showSecondary && visual.secondarySprite != null)
                 {
@@ -1067,19 +1238,25 @@ namespace PFE.Character
         ResolvedQuadVisual ResolvePartVisual(
             int partIndex,
             CharacterPartDefinition part,
-            ArmorVisualSet armorSet)
+            ArmorVisualSet armorSet,
+            PartFramePlacement placement)
         {
             if (TryGetArmorOverride(partIndex, armorSet, out ArmorPartOverride armorOverride))
             {
                 return new ResolvedQuadVisual
                 {
                     primarySprite = armorOverride.armorSprite,
-                    primaryPivot = armorOverride.pivotOverride,
+                    // Not `armorOverride.pivotOverride`: that value is frame 1's pivot normalised
+                    // against frame 1's trim, and an armour frame trims differently. See ArmorPivots.
+                    primaryPivot = ArmorPivots.Resolve(part, armorOverride),
+                    fromArmor = true,
                     primaryColor = Color.white,
                     secondarySprite = null,
                     secondaryColor = Color.white,
                     showSecondary = false,
-                    bakedOffset = armorOverride.positionOffset
+                    // Shared with the sprite renderer: the armour's offset lives in the head
+                    // container's space and has to be rotated/scaled by this placement.
+                    bakedOffset = ArmorOffsets.Total(armorOverride, placement)
                 };
             }
 
@@ -1205,6 +1382,8 @@ namespace PFE.Character
         {
             public Sprite primarySprite;
             public Vector2 primaryPivot;
+            /// <summary>True when the sprite came from the worn armour set, not from the part.</summary>
+            public bool fromArmor;
             public Color primaryColor;
             public Sprite secondarySprite;
             public Color secondaryColor;

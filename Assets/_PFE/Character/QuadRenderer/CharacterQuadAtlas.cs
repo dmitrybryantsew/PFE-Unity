@@ -5,6 +5,26 @@ using UnityEngine.Experimental.Rendering;
 
 namespace PFE.Character
 {
+    /// <summary>
+    /// What a packed region's pixels actually turned out to be. See
+    /// <see cref="CharacterQuadAtlas.MeasureRegionFill"/> for why <see cref="Empty"/> is not a
+    /// failure and <see cref="Partial"/> is.
+    /// </summary>
+    public enum CharacterAtlasRegionFill
+    {
+        /// <summary>No ink anywhere in the rect. A blank frame and a lost copy are
+        /// indistinguishable from inside the atlas, so this is reported and never warned about.</summary>
+        Empty = 0,
+
+        /// <summary>Ink reaches all four edges, within the allowed band. What a correct copy
+        /// produces, because the rect is a frame's alpha-trim box.</summary>
+        Filled = 1,
+
+        /// <summary>Ink exists but stops short of an edge: the copy landed smaller than the rect.
+        /// This is the corruption signature the mip chain produced.</summary>
+        Partial = 2,
+    }
+
     /// <summary>One placed rectangle inside an atlas, in pixels, Y up from the bottom-left.</summary>
     public readonly struct CharacterAtlasRect
     {
@@ -308,15 +328,83 @@ namespace PFE.Character
         public int RegionCount => _rects.Count;
 
         /// <summary>
-        /// Mip levels in the atlas texture: 1 for a Point atlas, <c>min</c> over the packed sources
-        /// for a bilinear one. Read by the A/B readout, because "the atlas has no mip chain" and "the
-        /// atlas has one" are indistinguishable on screen until something is minified.
+        /// Mip levels the atlas actually <b>filled</b>: 1 for a Point atlas, otherwise the depth the
+        /// build copied. Read by the A/B readout, because "the atlas has no mip chain" and "the atlas
+        /// has one" are indistinguishable on screen until something is minified.
+        ///
+        /// <para><b>This used to read <c>_texture.mipmapCount</c>, and that was a number that could
+        /// not fail.</b> A texture allocated with <see cref="TextureCreationFlags.MipChain"/> always
+        /// reports the full chain for its size — 11 for a 1024² atlas — whatever the build managed to
+        /// copy into it. So the readout printed 11 while the loop was stopping at 3 or 4, and the
+        /// <c>CopyTexture</c> error in the log was the only evidence to the contrary. Reporting the
+        /// copied depth is what makes "the chain is as deep as the shallowest source" checkable from
+        /// the window.</para>
         /// </summary>
-        public int MipCount => _texture != null ? Mathf.Max(1, _texture.mipmapCount) : 0;
+        public int MipCount => _texture != null ? Mathf.Max(1, _mipDepth) : 0;
+
+        int _mipDepth = 1;
 
         /// <summary>Sprites the atlas had to leave out (unreadable format, or no room). They keep
         /// using the per-texture material, so a skipped part still draws.</summary>
         public int SkippedCount { get; private set; }
+
+        /// <summary>
+        /// How many packed regions came out only <b>partly</b> filled — read back off the finished
+        /// atlas, not asserted. This is the count of regions whose copy landed smaller than the rect
+        /// it was given, which draws a part too small inside a correctly sized quad.
+        ///
+        /// <para><b>Why the four edges are the test.</b> Every packed rect is a sprite's
+        /// <c>textureRect</c>, which is the frame's <b>alpha-trim box</b>: by construction the ink
+        /// touches all four of its edges. So if a region's top or right edge comes back empty while
+        /// the region is not empty as a whole, the copy landed smaller than the rect. That is exactly
+        /// the state the mip chain produced on this driver (regions holding half-size fragments
+        /// anchored in a corner, one region holding 7 px), and nothing in the class noticed, because
+        /// every number it reported was about intent rather than about the pixels.</para>
+        ///
+        /// <para><b>Why an empty region is not counted here.</b> The sources are
+        /// <c>isReadable: 0</c>, so a blank region cannot be told apart from a blank frame —
+        /// <c>lwing/f001</c> really is 86×101 of transparent and <c>helm/base</c> really is a 1×1
+        /// placeholder. Those are counted by <see cref="RegionsEmpty"/> instead, which nothing warns
+        /// about. See <see cref="CountRegionsMissingAnEdge"/> for the full reasoning and for the
+        /// measurement that fixes the tolerance.</para>
+        ///
+        /// <para><b>Cost.</b> One <c>GetPixels32</c> per build, which is a one-off per character
+        /// setup, not per frame.</para>
+        /// </summary>
+        public int RegionsMissingAnEdge { get; private set; }
+
+        /// <summary>
+        /// Regions holding no ink at all. Reported so the number is visible, never warned about: a
+        /// legitimate blank frame and an empty region left by a failed copy are indistinguishable
+        /// from inside the atlas. In the current art this is 3 of 330 — two 1×1 transparent
+        /// placeholders and one fully transparent wing frame.
+        /// </summary>
+        public int RegionsEmpty { get; private set; }
+
+        /// <summary>
+        /// How the pixels got into the texture: <c>"direct"</c> when they were copied straight out of
+        /// the imported part textures, <c>"staging"</c> when the direct route failed its own read-back
+        /// and the build went through a render texture instead. Recorded rather than inferred, so the
+        /// readout says which route produced the atlas it is describing.
+        /// </summary>
+        public string CopyRoute { get; private set; } = "direct";
+
+        /// <summary>
+        /// True when the read-back found <b>no ink anywhere</b> — every region blank at once. That is not
+        /// a property a real atlas has (the quad side would draw nothing), so it means the read-back did
+        /// not see the writes, and the region fill for this build is simply unverified.
+        ///
+        /// <para><b>Why this can happen.</b> On the staging route the pixels come from a
+        /// <c>Graphics.Blit</c> into a render texture and a copy out of it; the copy may not have
+        /// retired by the time <c>GetPixels32</c> reads back. It is reported instead of guessed at,
+        /// because the alternative is a window line claiming 83 regions are blank frames while the
+        /// character is visibly drawn from that atlas.</para>
+        /// </summary>
+        public bool ReadbackInconclusive { get; private set; }
+
+        /// <summary>Names of the first few regions <see cref="RegionsMissingAnEdge"/> counted, so a
+        /// warning can say which part rather than how many.</summary>
+        public string RegionMismatchSample { get; private set; }
 
         public string Error { get; private set; }
 
@@ -372,13 +460,59 @@ namespace PFE.Character
         /// caller's own context would be a bug in the caller, not something to paper over here.
         /// </param>
         public static CharacterQuadAtlas Build(
-            IEnumerable<Sprite> sprites, bool bilinear, string armorId = null)
+            IEnumerable<Sprite> sprites, bool bilinear, string armorId = null, bool mips = false)
         {
             if (sprites == null)
             {
                 return null;
             }
 
+            // ── 0. Build, then believe the pixels, not the request ──
+            //
+            // `Graphics.CopyTexture` with a region is asked for the full rect (verified: for the
+            // dump's region 14 that is `(0,0,102,99) -> (2,318)`, and `ComputeMipCopy` returns
+            // exactly that). What lands on this driver is the source's **mip-1 extent** — 51x49 —
+            // placed at the **level-0** origin: half size, anchored bottom-left, for all 83 regions,
+            // with the chain off and with it on. `docs/RenderingPipelineImprovement/03` §8.5 has the
+            // measurements. A request that is right and a result that is wrong is not something to
+            // argue with in a comment, so the build now checks and, if the copy lied, rebuilds
+            // through a route that cannot be confused by the source's mip chain.
+            var materialised = new List<Sprite>(sprites);
+            CharacterQuadAtlas atlas = BuildCore(materialised, bilinear, armorId, mips, false);
+
+            if (atlas != null && atlas.RegionsMissingAnEdge > 0)
+            {
+                atlas.Dispose();
+                atlas = BuildCore(materialised, bilinear, armorId, mips, true);
+
+                if (atlas != null && atlas.RegionsMissingAnEdge > 0)
+                {
+                    // Both routes produced a wrong atlas. Say so and hand back nothing: the caller
+                    // keeps one material per part texture, which draws correctly. A wrong picture is
+                    // worse than a slow one, and this is the whole reason the read-back exists.
+                    Debug.LogWarning(
+                        $"[CharacterQuad] Atlas abandoned: {atlas.RegionsMissingAnEdge} of " +
+                        $"{atlas.RegionCount} regions are only partly filled even after a blit " +
+                        $"through a render texture ({atlas.RegionMismatchSample}). Falling back to " +
+                        "one material per part texture — the quad side will draw correctly but not " +
+                        "batch.");
+                    atlas.Dispose();
+                    return null;
+                }
+            }
+
+            return atlas;
+        }
+
+        /// <summary>
+        /// One attempt at the atlas. <paramref name="viaRenderTexture"/> routes every region through a
+        /// reusable <see cref="RenderTexture"/> instead of copying straight out of the imported
+        /// texture — see <see cref="Build"/> for why that is a separate attempt rather than the only
+        /// path.
+        /// </summary>
+        static CharacterQuadAtlas BuildCore(
+            List<Sprite> sprites, bool bilinear, string armorId, bool mips, bool viaRenderTexture)
+        {
             // ── 1. Collect the distinct regions, in a deterministic order ──
             var regions = new List<Region>();
             var seen = new HashSet<SpriteKey>();
@@ -471,32 +605,39 @@ namespace PFE.Character
                 return null;
             }
 
-            // ── 4. How deep a chain the atlas can honestly carry ──
+            // ── 4. How deep a chain the atlas carries ──
             //
-            // A region cannot be copied into a mip level its own texture does not have, so the depth
-            // is the minimum over the packed sources. A Point atlas gets no chain at all, which keeps
-            // the pre-mip behaviour byte-identical.
-            int atlasMips = 1;
-            if (bilinear)
-            {
-                atlasMips = int.MaxValue;
-                foreach (Region region in regions)
-                {
-                    atlasMips = Mathf.Min(atlasMips, Mathf.Max(1, region.Texture.mipmapCount));
-                }
-
-                if (atlasMips == int.MaxValue)
-                {
-                    atlasMips = 1;
-                }
-            }
+            // **Level 0 only unless the caller asks for a chain, and the default is off.**
+            //
+            // The chain is now produced by Unity, from the finished level 0, in one `Apply(true)` —
+            // not by copying each region into each level. That per-region copy is what produced every
+            // `Graphics.CopyTexture called with invalid source mip level` line in the log: it needed
+            // the source texture's level count, and that count is not obtainable here.
+            // `Texture.mipmapCount` over-reports (the log says `got 4, have 4 mips`, so level 4 does
+            // not exist on a texture that reports 4), and the dimensions over-report further still
+            // (`ComputeMipDepth(86,101)` is 7 for a texture the importer gave 4 levels). With no
+            // trustworthy depth, the loop asked for levels that were not there, `CopyTexture` logged
+            // and returned, and the regions that needed those levels stayed half-written.
+            //
+            // Generating the chain from level 0 needs none of that: the atlas's own depth is exactly
+            // `ComputeMipDepth(size, size)`, which this code owns. The cost is that the filter sees
+            // across region boundaries at high levels — the packer's 2 px transparent gaps are what
+            // keep that to a soft edge rather than a neighbour's colour.
+            bool wantChain = bilinear && mips;
+            int atlasMips = wantChain ? ComputeMipDepth(size, size) : 1;
 
             // ── 5. Allocate, copy, and keep the lookup ──
             var atlas = new CharacterQuadAtlas
             {
                 SkippedCount = skipped,
-                ArmorId = armorId ?? string.Empty
+                ArmorId = armorId ?? string.Empty,
+                _mipDepth = atlasMips,
+                CopyRoute = viaRenderTexture ? "staging" : "direct"
             };
+
+            // Only the render-texture route needs these; the direct route leaves them empty and the
+            // finally below is a no-op.
+            var stagingCache = new Dictionary<long, RenderTexture>();
 
             try
             {
@@ -535,32 +676,82 @@ namespace PFE.Character
                     CharacterAtlasRect rect = packer.GetRect(i);
                     Region region = regions[i];
 
-                    // Level 0 is the rect the packer placed; deeper levels are that rect halved,
-                    // clamped to each texture's own level. Levels the region cannot fill are skipped
-                    // rather than copied from a clamped neighbour, which would smear one part's edge
-                    // across the gap at high mips.
-                    for (int mip = 0; mip < atlasMips; mip++)
+                    // Level 0 only. The chain, if one was asked for, is generated from the finished
+                    // level 0 after this loop — see step 4 for why copying per level could not work.
+                    CharacterAtlasMipCopy copy = ComputeMipCopy(
+                        region.Texture.width, region.Texture.height, size,
+                        region.Rect, rect, 0);
+
+                    if (!copy.IsValid)
                     {
-                        CharacterAtlasMipCopy copy = ComputeMipCopy(
-                            region.Texture.width, region.Texture.height, size,
-                            region.Rect, rect, mip);
-
-                        if (!copy.IsValid)
-                        {
-                            break;
-                        }
-
-                        Graphics.CopyTexture(
-                            region.Texture, 0, copy.Mip,
-                            copy.SourceX, copy.SourceY, copy.Width, copy.Height,
-                            atlas._texture, 0, copy.Mip, copy.DestinationX, copy.DestinationY);
+                        atlas._rects.Add(rect);
+                        atlas._sources.Add(new CharacterAtlasRegionSource(
+                            region.Texture.name, region.Rect,
+                            region.Texture.width, region.Texture.height));
+                        atlas._indexBySprite[region.Key] = atlas._rects.Count - 1;
+                        continue;
                     }
+
+                    // The source a region is read from. On the direct route that is the imported
+                    // texture; on the staging route it is a plain, single-level copy of it, made
+                    // once per distinct source size.
+                    Texture source = viaRenderTexture
+                        ? GetStagingCopy(region.Texture, stagingCache)
+                        : (Texture)region.Texture;
+
+                    Graphics.CopyTexture(
+                        source, 0, 0,
+                        copy.SourceX, copy.SourceY, copy.Width, copy.Height,
+                        atlas._texture, 0, 0, copy.DestinationX, copy.DestinationY);
 
                     atlas._rects.Add(rect);
                     atlas._sources.Add(new CharacterAtlasRegionSource(
                         region.Texture.name, region.Rect,
                         region.Texture.width, region.Texture.height));
                     atlas._indexBySprite[region.Key] = atlas._rects.Count - 1;
+                }
+
+                // The chain, from the finished level 0. `Apply(true)` is the only mip generation this
+                // build needs, and it cannot ask for a level that does not exist.
+                if (wantChain)
+                {
+                    atlas._texture.Apply(true, false);
+                }
+
+                // Read the result back. Everything above this line is arithmetic on rectangles, and
+                // arithmetic that is right can still be copied wrong — which is what the copy path did.
+                var badNames = new List<string>();
+                atlas.RegionsMissingAnEdge = CountRegionsMissingAnEdge(
+                    atlas._texture, atlas._rects, badNames, out int emptyRegions);
+                atlas.RegionsEmpty = emptyRegions;
+
+                // An atlas in which *nothing* is inked is not a verdict about the copies: the quad side
+                // would be drawing an empty texture and the character would be invisible. It means the
+                // read-back did not see the writes — which happens on the staging route, where the
+                // pixels are produced by a blit and the copy out of the render texture may not have
+                // retired by the time `GetPixels32` runs. Say that, rather than reporting 83 blank
+                // frames, because "83 regions hold no ink" is a claim the picture itself contradicts.
+                if (atlas._rects.Count > 0 && atlas.RegionsEmpty == atlas._rects.Count)
+                {
+                    atlas.RegionsEmpty = 0;
+                    atlas.ReadbackInconclusive = true;
+                    Debug.LogWarning(
+                        $"[CharacterQuad] Atlas {size}² read back with no ink in any of " +
+                        $"{atlas._rects.Count} regions ({atlas.CopyRoute} copy). The atlas itself is " +
+                        "drawing, so this is the read-back not seeing the writes, not an empty " +
+                        "atlas. Region fill is unverified for this build.");
+                }
+
+                if (atlas.RegionsMissingAnEdge > 0)
+                {
+                    atlas.RegionMismatchSample = string.Join(" | ", badNames);
+                    Debug.LogWarning(
+                        $"[CharacterQuad] Atlas {size}² ({atlasMips} mip level(s), " +
+                        $"{(viaRenderTexture ? "staging" : "direct")} copy): " +
+                        $"{atlas.RegionsMissingAnEdge} of {atlas._rects.Count} regions are only " +
+                        $"partly filled — the art landed smaller than the rect the copy was given, " +
+                        $"so those parts draw too small. {atlas.RegionMismatchSample}. " +
+                        "Compare Temp/quad_atlas_dump/quad_atlas_*.png against the .tsv.");
                 }
             }
             catch (Exception exception)
@@ -574,6 +765,22 @@ namespace PFE.Character
 
                 atlas.Dispose();
                 return null;
+            }
+            finally
+            {
+                // Staging copies are scratch: the atlas holds its own pixels once the copy has run.
+                foreach (RenderTexture staging in stagingCache.Values)
+                {
+                    if (staging == null)
+                    {
+                        continue;
+                    }
+
+                    staging.Release();
+                    CharacterQuadMaterialCache.DestroyObject(staging);
+                }
+
+                stagingCache.Clear();
             }
 
             // One material for every slot. Vertex colour still carries the tint, so the material needs
@@ -654,6 +861,288 @@ namespace PFE.Character
             texture.SetPixels32(clear);
             texture.Apply(withMips, false);
         }
+
+        /// <summary>
+        /// A plain, single-level copy of an imported part texture, made once per distinct source size
+        /// and reused for every region that comes from a texture that size.
+        ///
+        /// <para><b>Why this exists.</b> Copying a region straight out of an imported texture on this
+        /// driver lands the source's <b>mip-1 extent at the level-0 origin</b> — half size, anchored
+        /// bottom-left, for every region — even though the request is the full rect. The imported part
+        /// PNGs are all <c>enableMipMap: 1</c>, so the source always has a chain; a render texture
+        /// created here has exactly one level, so there is no chain to be confused by.</para>
+        ///
+        /// <para><b>Why a blit and not <c>CopyTexture</c>.</b> A blit is a raster operation: it samples
+        /// level 0 by definition, so it cannot pick a level. That is the property being bought here,
+        /// and it is worth one full-screen copy per distinct source size (a dozen at most for a
+        /// character, each under 256 px a side) on a build that already does 83 copies.</para>
+        ///
+        /// <para><b>Format.</b> The staging texture takes the source's own <c>graphicsFormat</c>, so no
+        /// conversion happens and the blit is a straight copy in the same colour space. If the platform
+        /// cannot allocate that format the build throws and <see cref="Build"/> falls back to one
+        /// material per part texture, which is the correct outcome for a texture this code cannot
+        /// copy.</para>
+        /// </summary>
+        static RenderTexture GetStagingCopy(
+            Texture2D source, Dictionary<long, RenderTexture> cache)
+        {
+            long key = ((long)source.width << 32) ^ (uint)source.height;
+            if (cache.TryGetValue(key, out RenderTexture cached) && cached != null)
+            {
+                return cached;
+            }
+
+            var descriptor = new RenderTextureDescriptor(
+                source.width, source.height, source.graphicsFormat, 0)
+            {
+                useMipMap = false,
+                autoGenerateMips = false,
+                msaaSamples = 1,
+            };
+
+            var staging = new RenderTexture(descriptor)
+            {
+                name = $"CharacterQuadAtlasStage_{source.width}x{source.height}",
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            staging.Create();
+
+            // `Blit` sets the destination as the active render target and leaves it there. Restoring it
+            // matters here because the very next thing that happens is a `CopyTexture` **from** this
+            // texture: reading a render target that is still bound is asking for a silently empty
+            // result, and an empty read is indistinguishable from a failed copy.
+            RenderTexture previous = RenderTexture.active;
+            Graphics.Blit(source, staging);
+            RenderTexture.active = previous;
+
+            cache[key] = staging;
+            return staging;
+        }
+
+        /// <summary>
+        /// Counts regions whose pixels did not land where the rect says they should, and fills
+        /// <paramref name="badNames"/> with the first few so a warning can name a part.
+        ///
+        /// <para><b>What it can and cannot tell apart, and why the line is drawn there.</b> The
+        /// imported PNGs are <c>isReadable: 0</c> (see the note on <c>Graphics.CopyTexture</c> above),
+        /// so this can only look at the finished atlas — never at the source. That makes one case
+        /// genuinely ambiguous: a region with <b>no ink at all</b> is either a blank frame
+        /// (<c>lwing/f001</c> is 86×101 of pure transparent; <c>helm/base</c> is a 1×1 transparent
+        /// placeholder) or an empty region left by a bad copy, and nothing inside the atlas separates
+        /// them. A <b>partial</b> fill is not ambiguous: ink exists but does not reach an edge, which
+        /// no correct copy produces. So partial fills are the warning and empty regions are only
+        /// counted.</para>
+        ///
+        /// <para><b>Measured, not assumed.</b> Across all 330 part sprites in
+        /// <c>Assets/_PFE/Art/Character</c>: 327 fill their rect, 3 have no ink, <b>0 are partial</b>.
+        /// An exact-edge test would flag 276 of 330 — every rect is a pixel or two wider than its
+        /// alpha-trim ink — so <see cref="EdgeBandPixels"/> exists, and its value is the smallest that
+        /// makes honest art quiet rather than slack chosen by feel.</para>
+        /// </summary>
+        /// <param name="texture">The finished atlas. Must be CPU-readable, which a <c>new Texture2D</c> is.</param>
+        /// <param name="rects">Every packed rect, in the atlas's own bottom-up pixel space.</param>
+        /// <param name="badNames">Receives up to <see cref="MismatchNameLimit"/> names.</param>
+        /// <param name="emptyCount">Regions with no ink at all. Reported, never warned about.</param>
+        static int CountRegionsMissingAnEdge(
+            Texture2D texture, List<CharacterAtlasRect> rects, List<string> badNames, out int emptyCount)
+        {
+            emptyCount = 0;
+            if (texture == null || rects == null || !texture.isReadable)
+            {
+                return 0;
+            }
+
+            int width = texture.width;
+            int height = texture.height;
+            Color32[] pixels = texture.GetPixels32();
+            if (pixels == null || pixels.Length < width * height)
+            {
+                return 0;
+            }
+
+            int partial = 0;
+            for (int i = 0; i < rects.Count; i++)
+            {
+                CharacterAtlasRect rect = rects[i];
+                if (!rect.IsValid)
+                {
+                    continue;
+                }
+
+                int x0 = Mathf.Max(0, rect.X);
+                int y0 = Mathf.Max(0, rect.Y);
+                int x1 = Mathf.Min(width, rect.X + rect.Width);
+                int y1 = Mathf.Min(height, rect.Y + rect.Height);
+                if (x1 <= x0 || y1 <= y0)
+                {
+                    continue;
+                }
+
+                CharacterAtlasRegionFill fill =
+                    MeasureRegionFill(pixels, width, height, rect, out string missingEdges);
+
+                if (fill == CharacterAtlasRegionFill.Empty)
+                {
+                    emptyCount++;
+                    continue;
+                }
+
+                if (fill == CharacterAtlasRegionFill.Filled)
+                {
+                    continue;
+                }
+
+                partial++;
+                if (badNames != null && badNames.Count < MismatchNameLimit)
+                {
+                    badNames.Add($"#{i} {rect.Width}x{rect.Height} at ({rect.X},{rect.Y}) " +
+                                 $"missing {missingEdges}");
+                }
+            }
+
+            return partial;
+        }
+
+        /// <summary>
+        /// Classifies one packed region by the pixels actually in it. Pure, and public, for the same
+        /// reason <see cref="ComputeMipCopy"/> is: the failure it detects is a GPU copy, which no
+        /// offline fixture can perform, so the part that can be wrong in a way a test can catch is
+        /// kept out of the part that needs a device.
+        ///
+        /// <para><b>Why this is not "is the region blank".</b> Blank art exists and is legitimate —
+        /// <c>lwing/f001</c> is 86×101 of pure transparent, <c>helm/base</c> is a 1×1 placeholder — and
+        /// the sources are <c>isReadable: 0</c>, so the atlas cannot tell those from a region a bad
+        /// copy left empty. Ink that exists but stops short of an edge cannot be either: no correct
+        /// copy produces it, because every packed rect is a frame's alpha-trim box. So
+        /// <see cref="CharacterAtlasRegionFill.Partial"/> is the only verdict worth warning about.</para>
+        ///
+        /// <para><b>The band.</b> A rect is routinely a pixel or two wider than its alpha-trim ink, so
+        /// an exact-edge test flags 276 of the project's 330 parts. With
+        /// <see cref="EdgeBandPixels"/> lines of slack, and with ink defined as any alpha above zero,
+        /// every one of those 330 comes back
+        /// <see cref="CharacterAtlasRegionFill.Filled"/> or <see cref="CharacterAtlasRegionFill.Empty"/>
+        /// — none partial. That is the measurement the constant below rests on.</para>
+        /// </summary>
+        /// <param name="pixels">The atlas's pixels, bottom-up: index <c>y * atlasWidth + x</c>, the
+        /// same space the rect lives in.</param>
+        /// <param name="missingEdges">Which edges the ink failed to reach, e.g. <c>"top+right"</c>, or
+        /// empty when the region is filled or has no ink at all.</param>
+        public static CharacterAtlasRegionFill MeasureRegionFill(
+            Color32[] pixels, int atlasWidth, int atlasHeight,
+            CharacterAtlasRect rect, out string missingEdges)
+        {
+            missingEdges = string.Empty;
+            if (pixels == null || atlasWidth < 1 || atlasHeight < 1 || !rect.IsValid)
+            {
+                return CharacterAtlasRegionFill.Empty;
+            }
+
+            int x0 = Mathf.Max(0, rect.X);
+            int y0 = Mathf.Max(0, rect.Y);
+            int x1 = Mathf.Min(atlasWidth, rect.X + rect.Width);
+            int y1 = Mathf.Min(atlasHeight, rect.Y + rect.Height);
+            if (x1 <= x0 || y1 <= y0 || pixels.Length < atlasWidth * atlasHeight)
+            {
+                return CharacterAtlasRegionFill.Empty;
+            }
+
+            bool anyInk = false;
+            for (int y = y0; y < y1 && !anyInk; y++)
+            {
+                int row = y * atlasWidth;
+                for (int x = x0; x < x1; x++)
+                {
+                    if (pixels[row + x].a > InkAlphaFloor)
+                    {
+                        anyInk = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!anyInk)
+            {
+                return CharacterAtlasRegionFill.Empty;
+            }
+
+            bool top = false, bottom = false, left = false, right = false;
+            int bandLimit = Mathf.Min(EdgeBandPixels, Mathf.Min(x1 - x0, y1 - y0));
+            for (int band = 0; band < bandLimit; band++)
+            {
+                int topRow = y1 - 1 - band;
+                int bottomRow = y0 + band;
+                int leftColumn = x0 + band;
+                int rightColumn = x1 - 1 - band;
+
+                if (!top)
+                {
+                    for (int x = x0; x < x1 && !top; x++)
+                    {
+                        top = pixels[topRow * atlasWidth + x].a > InkAlphaFloor;
+                    }
+                }
+
+                if (!bottom)
+                {
+                    for (int x = x0; x < x1 && !bottom; x++)
+                    {
+                        bottom = pixels[bottomRow * atlasWidth + x].a > InkAlphaFloor;
+                    }
+                }
+
+                if (!left)
+                {
+                    for (int y = y0; y < y1 && !left; y++)
+                    {
+                        left = pixels[y * atlasWidth + leftColumn].a > InkAlphaFloor;
+                    }
+                }
+
+                if (!right)
+                {
+                    for (int y = y0; y < y1 && !right; y++)
+                    {
+                        right = pixels[y * atlasWidth + rightColumn].a > InkAlphaFloor;
+                    }
+                }
+
+                if (top && bottom && left && right)
+                {
+                    return CharacterAtlasRegionFill.Filled;
+                }
+            }
+
+            var missing = new List<string>(4);
+            if (!top) missing.Add("top");
+            if (!bottom) missing.Add("bottom");
+            if (!left) missing.Add("left");
+            if (!right) missing.Add("right");
+            missingEdges = string.Join("+", missing);
+            return CharacterAtlasRegionFill.Partial;
+        }
+
+        /// <summary>Ink means any alpha at all — the same definition the alpha-trim box uses, so the
+        /// measurement and the invariant are about the same pixels. Measured: raising this to 8
+        /// (a third of the range) starts flagging honest art, because plenty of parts carry a soft
+        /// fringe of alpha 1–8 exactly where the trim box stops.</summary>
+        const byte InkAlphaFloor = 0;
+
+        /// <summary>
+        /// How many pixel <i>lines</i> are examined at each edge — so a gap of
+        /// <c>EdgeBandPixels - 1</c> px is tolerated. Three lines means a rect may be up to 2 px wider
+        /// than its ink and still count as filled.
+        ///
+        /// <para>Measured over the project's 330 part sprites with <see cref="InkAlphaFloor"/> at 0:
+        /// two lines flags 3, three lines flags 3, four lines flags 3 — and those three are the blank
+        /// frames, which are classified <see cref="CharacterAtlasRegionFill.Empty"/> and never reach
+        /// this test. One line flags nothing extra but leaves no room for a rect that is 2 px wider
+        /// than its art, which the art routinely is. Three is the smallest value with slack, and the
+        /// corruption signature it has to catch is tens of pixels wide, not one.</para>
+        /// </summary>
+        const int EdgeBandPixels = 3;
+
+        /// <summary>How many failing regions are named in the warning before it says "and more".</summary>
+        const int MismatchNameLimit = 4;
 
         /// <summary>
         /// The rect a packed region occupies, by index, for diagnostics. Pairs with
@@ -778,6 +1267,53 @@ namespace PFE.Character
                 Texture = texture;
                 Rect = rect;
             }
+        }
+
+        /// <summary>
+        /// How many mip levels a texture of this size actually holds, level 0 included: 1×1 → 1,
+        /// 5×7 → 3, 8×8 → 4, 1024² → 11.
+        ///
+        /// <para><b>Why this and not <see cref="Texture.mipmapCount"/>.</b> That property described a
+        /// deeper chain than the texture could fill on a live build — the editor log carried
+        /// <c>Graphics.CopyTexture called with invalid source mip level: got 4, have 4 mips</c> from
+        /// the atlas loop. The level's extent is a function of the dimensions, so deriving the depth
+        /// from the dimensions is the only answer the copy can be held to. Public so a fixture can pin
+        /// the edges rather than re-deriving them.</para>
+        /// </summary>
+        public static int ComputeMipDepth(int width, int height)
+        {
+            int longest = Mathf.Max(width, height);
+            if (longest < 1)
+            {
+                return 1;
+            }
+
+            int depth = 1;
+            while (longest > 1)
+            {
+                longest >>= 1;
+                depth++;
+            }
+
+            return depth;
+        }
+
+        /// <summary>
+        /// The depth this region's texture really has — and the reason the per-level copy loop is gone.
+        ///
+        /// <para>Kept because the number is still worth knowing, and because deleting it would erase
+        /// the evidence. It takes the smaller of what the dimensions allow and what
+        /// <see cref="Texture.mipmapCount"/> reports, and the log proved <b>both over-report</b>:
+        /// <c>CopyTexture</c> answered <c>got 4, have 4 mips</c> for a texture this function scored 4,
+        /// i.e. the level at index 4 does not exist. There is no third source to ask, so no loop can be
+        /// held to this number — hence <see cref="BuildCore"/> copies level 0 only and lets
+        /// <c>Apply(true)</c> generate the chain from the atlas's own, known depth.</para>
+        /// </summary>
+        static int RegionMipDepth(in Region region)
+        {
+            int bySize = ComputeMipDepth(region.Texture.width, region.Texture.height);
+            int reported = region.Texture.mipmapCount;
+            return reported > 0 ? Mathf.Min(bySize, reported) : bySize;
         }
 
         /// <summary>

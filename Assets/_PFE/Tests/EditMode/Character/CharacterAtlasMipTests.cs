@@ -351,5 +351,199 @@ namespace PFE.Tests.EditMode.Character
             Assert.AreEqual(0, clamped.X);
             Assert.AreEqual(4, clamped.Width);
         }
+
+        /// <summary>
+        /// The depth the atlas may copy is derived from the region's <b>dimensions</b>, not from
+        /// <see cref="Texture.mipmapCount"/>.
+        ///
+        /// <para><b>Why the edges are written down.</b> The atlas build used to ask the texture
+        /// property how deep it could go, and the editor log caught it over-reporting:
+        /// <c>Graphics.CopyTexture called with invalid source mip level: got 4, have 4 mips</c>. That
+        /// call logs and returns rather than throwing, so the region stayed recorded as packed while
+        /// its deepest levels stayed transparent — and a part that shrank on screen sampled them and
+        /// faded out. A level's extent is <c>max(w, h) &gt;&gt; mip</c>, so the arithmetic below is the
+        /// only depth a copy can be held to.</para>
+        /// </summary>
+        [Test]
+        public void MipDepth_IsTheNumberOfLevelsTheDimensionsAllow()
+        {
+            Assert.AreEqual(1, CharacterQuadAtlas.ComputeMipDepth(1, 1), "1x1 has level 0 only");
+            Assert.AreEqual(2, CharacterQuadAtlas.ComputeMipDepth(2, 2), "2x2 -> 2, 1");
+            Assert.AreEqual(3, CharacterQuadAtlas.ComputeMipDepth(5, 7), "7 -> 3 -> 1 is three levels");
+            Assert.AreEqual(4, CharacterQuadAtlas.ComputeMipDepth(8, 8), "8 -> 4 -> 2 -> 1");
+            Assert.AreEqual(5, CharacterQuadAtlas.ComputeMipDepth(21, 29), "29 -> 14 -> 7 -> 3 -> 1");
+            Assert.AreEqual(7, CharacterQuadAtlas.ComputeMipDepth(86, 101), "101 -> 50 -> 25 -> 12 -> 6 -> 3 -> 1");
+            Assert.AreEqual(11, CharacterQuadAtlas.ComputeMipDepth(1024, 1024), "the atlas itself");
+
+            // The positive control: a non-square texture is governed by its longer side, and a zero
+            // or negative dimension must not produce 0 or spin.
+            Assert.AreEqual(
+                CharacterQuadAtlas.ComputeMipDepth(200, 50),
+                CharacterQuadAtlas.ComputeMipDepth(50, 200),
+                "the longer side decides, whichever axis it is on");
+            Assert.AreEqual(1, CharacterQuadAtlas.ComputeMipDepth(0, 0));
+            Assert.AreEqual(1, CharacterQuadAtlas.ComputeMipDepth(-4, -4), "a negative size must not spin");
+        }
+
+        // ─── The pixel read-back ─────────────────────────────────
+        //
+        // Everything above checks rectangles. These check pixels, because a rectangle can be right
+        // and the copy into it still land wrong — which is what the mip chain did on this driver.
+        // `MeasureRegionFill` is pure and takes a Color32[], so the corruption can be reproduced
+        // here exactly, with no GPU and no texture.
+
+        static Color32[] Blank(int width, int height) => new Color32[width * height];
+
+        static void Paint(Color32[] pixels, int width, int x0, int y0, int w, int h)
+        {
+            for (int y = y0; y < y0 + h; y++)
+            {
+                for (int x = x0; x < x0 + w; x++)
+                {
+                    pixels[y * width + x] = new Color32(255, 255, 255, 255);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A correct copy: the ink fills the rect edge to edge, because the rect is the frame's
+        /// alpha-trim box. This is the positive control — if it did not read
+        /// <see cref="CharacterAtlasRegionFill.Filled"/>, every other test here would be measuring a
+        /// detector that fires on healthy art.
+        /// </summary>
+        [Test]
+        public void ARegionWhoseInkFillsIt_IsFilled()
+        {
+            const int size = 32;
+            Color32[] pixels = Blank(size, size);
+            var rect = new CharacterAtlasRect(4, 4, 10, 10);
+            Paint(pixels, size, rect.X, rect.Y, rect.Width, rect.Height);
+
+            CharacterAtlasRegionFill fill =
+                CharacterQuadAtlas.MeasureRegionFill(pixels, size, size, rect, out string missing);
+
+            Assert.AreEqual(CharacterAtlasRegionFill.Filled, fill);
+            Assert.AreEqual(string.Empty, missing, "a filled region has no missing edge to name");
+        }
+
+        /// <summary>
+        /// The corruption signature, reproduced: the copy landed in the bottom-left corner of the rect
+        /// and left the top and right edges empty. This is region 10 in the measured dump — a 114×75
+        /// <c>korpus</c> whose ink box was <c>(0,38,56,70)</c> against a source box of
+        /// <c>(0,1,113,73)</c>.
+        /// </summary>
+        [Test]
+        public void ACornerFragment_IsPartialAndNamesTheEdges()
+        {
+            const int size = 32;
+            Color32[] pixels = Blank(size, size);
+            var rect = new CharacterAtlasRect(4, 4, 10, 10);
+
+            // Ink in the lower-left quadrant only: x 4..8, y 4..8 of a rect spanning 4..14.
+            Paint(pixels, size, rect.X, rect.Y, rect.Width / 2, rect.Height / 2);
+
+            CharacterAtlasRegionFill fill =
+                CharacterQuadAtlas.MeasureRegionFill(pixels, size, size, rect, out string missing);
+
+            Assert.AreEqual(CharacterAtlasRegionFill.Partial, fill,
+                "ink that stops short of an edge cannot come from a correct copy");
+            Assert.AreEqual("top+right", missing,
+                "the empty edges are what tells a reader which way the copy fell short");
+        }
+
+        /// <summary>
+        /// A blank frame is not damage. <c>lwing/f001</c> really is 86×101 of pure transparent and
+        /// <c>helm/base</c> really is a 1×1 placeholder, and the sources are <c>isReadable: 0</c> so the
+        /// atlas cannot tell those from a region a bad copy left empty. That is why the verdict is
+        /// <see cref="CharacterAtlasRegionFill.Empty"/> and not
+        /// <see cref="CharacterAtlasRegionFill.Partial"/>: it gets counted, never warned about.
+        /// </summary>
+        [Test]
+        public void ARegionWithNoInk_IsEmptyRatherThanPartial()
+        {
+            const int size = 32;
+            Color32[] pixels = Blank(size, size);
+            var rect = new CharacterAtlasRect(4, 4, 10, 10);
+
+            CharacterAtlasRegionFill fill =
+                CharacterQuadAtlas.MeasureRegionFill(pixels, size, size, rect, out string missing);
+
+            Assert.AreEqual(CharacterAtlasRegionFill.Empty, fill);
+            Assert.AreEqual(string.Empty, missing);
+        }
+
+        /// <summary>
+        /// The band, pinned from both sides. Every one of the project's 330 part rects is a pixel or
+        /// two wider than its alpha-trim ink, so an exact-edge test would flag 276 of them; with two
+        /// pixels of gap allowed, none are flagged. Both halves are asserted so shrinking the constant
+        /// to an exact-edge test (noisy) or growing it to swallow a real fragment (blind) fails here.
+        ///
+        /// <para>The gap is measured in pixels of <i>gap</i>, not in the constant's own units: three
+        /// lines examine the edge and the two lines inside it, so a rect 2 px wider than its ink still
+        /// reads as filled and one 3 px wider does not.</para>
+        /// </summary>
+        [Test]
+        public void TheEdgeBand_ToleratesTwoPixelsOfGapAndNoMore()
+        {
+            const int size = 32;
+            var rect = new CharacterAtlasRect(4, 4, 10, 10);
+
+            // 2 px of gap on every side: still healthy.
+            Color32[] slack = Blank(size, size);
+            Paint(slack, size, rect.X + 2, rect.Y + 2, rect.Width - 4, rect.Height - 4);
+            Assert.AreEqual(
+                CharacterAtlasRegionFill.Filled,
+                CharacterQuadAtlas.MeasureRegionFill(slack, size, size, rect, out _),
+                "two pixels of margin is ordinary art, not a failed copy");
+
+            // 3 px: past the band, so it is a fragment.
+            Color32[] gap = Blank(size, size);
+            Paint(gap, size, rect.X + 3, rect.Y + 3, rect.Width - 6, rect.Height - 6);
+            Assert.AreEqual(
+                CharacterAtlasRegionFill.Partial,
+                CharacterQuadAtlas.MeasureRegionFill(gap, size, size, rect, out _),
+                "three pixels of margin is what a half-size copy looks like");
+        }
+
+        /// <summary>
+        /// A rect that runs past the atlas must be measured on the part that exists, not read out of
+        /// bounds. <see cref="CharacterQuadAtlas.ClampToTexture"/> normally prevents this, but the
+        /// read-back runs on whatever the packer produced, so it cannot assume the clamp happened.
+        /// </summary>
+        [Test]
+        public void ARegionOverhangingTheAtlas_IsMeasuredWithoutThrowing()
+        {
+            const int size = 32;
+            Color32[] pixels = Blank(size, size);
+            var rect = new CharacterAtlasRect(28, 28, 10, 10);
+            Paint(pixels, size, 28, 28, 4, 4);
+
+            CharacterAtlasRegionFill fill =
+                CharacterQuadAtlas.MeasureRegionFill(pixels, size, size, rect, out _);
+
+            Assert.AreEqual(CharacterAtlasRegionFill.Filled, fill,
+                "the visible 4x4 of the rect is filled, so nothing is wrong with the copy");
+        }
+
+        /// <summary>
+        /// Impossible input degrades to <see cref="CharacterAtlasRegionFill.Empty"/> — the quiet
+        /// verdict — rather than to a warning. A diagnostic that fires when it cannot measure is a
+        /// diagnostic that gets ignored.
+        /// </summary>
+        [Test]
+        public void UnmeasurableInput_IsQuiet()
+        {
+            var valid = new CharacterAtlasRect(0, 0, 4, 4);
+
+            Assert.AreEqual(CharacterAtlasRegionFill.Empty,
+                CharacterQuadAtlas.MeasureRegionFill(null, 8, 8, valid, out _));
+            Assert.AreEqual(CharacterAtlasRegionFill.Empty,
+                CharacterQuadAtlas.MeasureRegionFill(Blank(8, 8), 0, 8, valid, out _));
+            Assert.AreEqual(CharacterAtlasRegionFill.Empty,
+                CharacterQuadAtlas.MeasureRegionFill(Blank(8, 8), 8, 8, default, out _));
+            Assert.AreEqual(CharacterAtlasRegionFill.Empty,
+                CharacterQuadAtlas.MeasureRegionFill(Blank(4, 4), 8, 8, valid, out _),
+                "an array too small for the declared atlas is not measurable");
+        }
     }
 }

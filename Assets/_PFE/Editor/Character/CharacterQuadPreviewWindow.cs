@@ -99,8 +99,23 @@ namespace PFE.Editor.CharacterRendering
         int _gameScreenHeight = 1080;
 
         // ─── Quad renderer switches ──────────────────────────────
-        bool _compensatePivot = true;
+        // Off is the correct convention. On is an A/B for the rejected one; see the toggle's help text.
+        bool _compensatePivot = false;
         bool _bilinear = true;
+
+        /// <summary>
+        /// Whether the atlas carries a mip chain. Off is the default and off is correct today.
+        ///
+        /// <para><b>Why it is a switch and not a decision made once.</b> With the chain on, this driver
+        /// logs <c>CopyTexture called with invalid source mip level: got 4, have 4 mips</c> and leaves
+        /// regions half-copied — one holding a corner fragment, one holding 7 px, one empty — so parts
+        /// draw too small and scattered. <c>CopyTexture</c> logs and returns rather than throwing, so
+        /// the build reported success throughout. Level 0 alone is byte-identical to the pre-mip atlas,
+        /// which is the state the A/B was accepted in, and anti-aliasing for a debug renderer is not
+        /// worth a wrong picture. Kept as a toggle so the corruption can be reproduced on demand and
+        /// so <see cref="CharacterQuadAtlas.RegionsMissingAnEdge"/> has something to catch.</para>
+        /// </summary>
+        bool _atlasMips;
 
         /// <summary>
         /// Whether the quad side packs every part into one atlas. Only the quad side has the switch:
@@ -136,8 +151,32 @@ namespace PFE.Editor.CharacterRendering
         /// while a four-letter id is typed is work nobody asked for.
         /// </summary>
         string _appliedArmorId = string.Empty;
+
+        /// <summary>
+        /// The costume list, taken from the definition's own <c>armorSets</c> — 20 ids, in the order
+        /// the importer wrote them. Index 0 is "(none)", so <c>_selectedOutfitIdx == 0</c> and an empty
+        /// <see cref="_armorId"/> mean the same thing.
+        ///
+        /// <para><b>Why a popup as well as the text field.</b> The field alone asks the owner to
+        /// remember that the ids are <c>pip</c>, <c>tre</c>, <c>chitin</c>, … and a typo produces the
+        /// silent nothing of an unmatched id. The popup lists what exists; the field stays so an id
+        /// that is <i>not</i> in the list can still be tried, which is the negative control for
+        /// "an unknown costume draws no costume".</para>
+        /// </summary>
+        string[] _outfitNames = Array.Empty<string>();
+        int _selectedOutfitIdx;
+
         bool _useAmbient;
         int _roomDarkness = 60;
+
+        // ─── Horn aura ───────────────────────────────────────────
+
+        /// <summary>
+        /// The aura's charge, 0..100, in the original's units — <c>aMC</c> in
+        /// <c>UnitPlayer.as:4851</c>. Driven by hand here so the glow can be looked at; in the game
+        /// <see cref="HornAura.StepLevel"/> walks it toward 0 / 50 / 100.
+        /// </summary>
+        float _hornAuraLevel = HornAura.LevelIdle;
 
         // ─── Diagnostics ─────────────────────────────────────────
         bool _showPivotTable;
@@ -207,6 +246,7 @@ namespace PFE.Editor.CharacterRendering
             if (_animDef != null && _stateNames.Length == 0)
             {
                 RefreshStateList();
+                RefreshOutfitList();
             }
         }
 
@@ -226,6 +266,52 @@ namespace PFE.Editor.CharacterRendering
 
             _stateNames = names.ToArray();
             _selectedStateIdx = Mathf.Clamp(_selectedStateIdx, 0, Mathf.Max(0, _stateNames.Length - 1));
+        }
+
+        /// <summary>
+        /// Rebuilds the costume popup from the definition. Called with the state list, because both
+        /// come from the same asset and a swapped definition invalidates both.
+        /// </summary>
+        void RefreshOutfitList()
+        {
+            var names = new List<string> { "(none)" };
+            if (_animDef?.armorSets != null)
+            {
+                foreach (ArmorVisualSet set in _animDef.armorSets)
+                {
+                    if (set != null && !string.IsNullOrEmpty(set.armorId))
+                    {
+                        names.Add(set.armorId);
+                    }
+                }
+            }
+
+            _outfitNames = names.ToArray();
+            _selectedOutfitIdx = IndexOfOutfit(_armorId);
+        }
+
+        /// <summary>
+        /// Where <paramref name="armorId"/> sits in <see cref="_outfitNames"/>, or −1 for an id the
+        /// definition does not have. −1 is shown as "custom" rather than silently snapped to "(none)",
+        /// because "this id matches nothing" is the fact the field was typed to find out.
+        /// </summary>
+        int IndexOfOutfit(string armorId)
+        {
+            string wanted = armorId != null ? armorId.Trim() : string.Empty;
+            if (wanted.Length == 0)
+            {
+                return 0;
+            }
+
+            for (int i = 1; i < _outfitNames.Length; i++)
+            {
+                if (string.Equals(_outfitNames[i], wanted, StringComparison.Ordinal))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         // ─── Playback ────────────────────────────────────────────
@@ -362,6 +448,7 @@ namespace PFE.Editor.CharacterRendering
             if (EditorGUI.EndChangeCheck())
             {
                 RefreshStateList();
+                RefreshOutfitList();
                 CleanupScene();
             }
 
@@ -370,9 +457,26 @@ namespace PFE.Editor.CharacterRendering
                 return;
             }
 
-            EditorGUI.BeginChangeCheck();
-            _selectedStateIdx = EditorGUILayout.Popup("State", _selectedStateIdx, _stateNames);
-            if (EditorGUI.EndChangeCheck())
+            // ── Animation picker ──
+            // A popup plus two steppers rather than the popup alone: comparing two clips means going
+            // back and forth between neighbours (stay ↔ stay2, run ↔ run2), and re-opening a dropdown
+            // for every step is the part of that loop that costs attention.
+            EditorGUILayout.BeginHorizontal();
+            int previousState = _selectedStateIdx;
+            if (GUILayout.Button("◄", GUILayout.Width(24)))
+            {
+                _selectedStateIdx = (_selectedStateIdx - 1 + _stateNames.Length) % _stateNames.Length;
+            }
+
+            _selectedStateIdx = EditorGUILayout.Popup("Animation", _selectedStateIdx, _stateNames);
+
+            if (GUILayout.Button("►", GUILayout.Width(24)))
+            {
+                _selectedStateIdx = (_selectedStateIdx + 1) % _stateNames.Length;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (_selectedStateIdx != previousState)
             {
                 _currentFrame = 0;
                 _isPlaying = false;
@@ -566,24 +670,50 @@ namespace PFE.Editor.CharacterRendering
             EditorGUI.BeginChangeCheck();
 
             _compensatePivot = EditorGUILayout.ToggleLeft(
-                "Compensate pivot (full-PNG registration)", _compensatePivot);
+                "Full-PNG registration (rejected convention — A/B only)", _compensatePivot);
 
             if (!_compensatePivot)
             {
                 EditorGUILayout.HelpBox(
-                    "Off: the quad side uses the trimmed rect, exactly like Sprite.Create. With this off " +
-                    "the two sides must agree to the pixel — any disagreement is a bug in the quad path.",
+                    "Off (correct): the quad side uses the trimmed rect, exactly like Sprite.Create. The two " +
+                    "sides must agree to the pixel — any disagreement is a bug in the quad path.",
                     MessageType.None);
             }
             else
             {
                 EditorGUILayout.HelpBox(
-                    "On: the registration point is resolved against the full PNG. Parts that were " +
-                    "alpha-trimmed will visibly shift; that shift is the measured error.",
+                    "On: the registration point is resolved against the full PNG instead of the frame's " +
+                    "trimmed rect. This was the original design and it is wrong — it displaces every trimmed " +
+                    "part (rwing by 0.325 units, fleg1 by 0.043). The shift you see is that error.",
                     MessageType.None);
             }
 
             _bilinear = EditorGUILayout.ToggleLeft("Bilinear sampling (GPU-side copy)", _bilinear);
+
+            // ── Outfit picker ──
+            // Popup first (what exists), then the free-text field (what does not). Both write the same
+            // field, so they cannot disagree; the popup only re-reads it to decide which row is
+            // selected, and an id it does not know shows as "custom" instead of snapping to "(none)".
+            int pickedOutfit = EditorGUILayout.Popup(
+                new GUIContent(
+                    "Outfit",
+                    "Every armorId in PlayerAnimationDefinition.armorSets, plus (none). Both sides wear " +
+                    "the same one, so changing it changes what the character is, not which renderer draws it."),
+                _selectedOutfitIdx,
+                _outfitNames);
+
+            if (pickedOutfit >= 0 && pickedOutfit != _selectedOutfitIdx)
+            {
+                _selectedOutfitIdx = pickedOutfit;
+                _armorId = pickedOutfit == 0 ? string.Empty : _outfitNames[pickedOutfit];
+            }
+
+            if (_selectedOutfitIdx < 0)
+            {
+                EditorGUILayout.LabelField(
+                    $"custom: \"{_armorId}\" — not in armorSets, so no overrides will be found",
+                    EditorStyles.miniLabel);
+            }
 
             _armorId = EditorGUILayout.TextField(
                 new GUIContent(
@@ -594,6 +724,20 @@ namespace PFE.Editor.CharacterRendering
                 _armorId);
 
             _useAtlas = EditorGUILayout.ToggleLeft("One atlas + one material (quad side)", _useAtlas);
+            using (new EditorGUI.DisabledScope(!_sceneReady || _quadAssembler == null || !_useAtlas))
+            {
+                _atlasMips = EditorGUILayout.ToggleLeft(
+                    new GUIContent(
+                        "Mip chain on the atlas (generated from level 0, unverified)",
+                        "Off is the default and is what the A/B was accepted in. On makes Unity generate " +
+                        "the chain from the finished level 0 with Apply(true) — the per-region, per-level " +
+                        "copy that used to fill it is gone, because the source textures' level count " +
+                        "cannot be obtained here (mipmapCount and the dimensions both over-report, and " +
+                        "CopyTexture answered \"got 4, have 4 mips\"). Untested: the character is drawn at " +
+                        "~1x, so the mips are probably never sampled."),
+                    _atlasMips);
+            }
+
             using (new EditorGUI.DisabledScope(!_sceneReady || _quadAssembler == null))
             {
                 CharacterQuadAtlas atlas = _quadAssembler != null ? _quadAssembler.Atlas : null;
@@ -612,8 +756,33 @@ namespace PFE.Editor.CharacterRendering
                     EditorGUILayout.LabelField(
                         $"Atlas {atlas.Width}x{atlas.Height}: {atlas.RegionCount} regions, " +
                         $"{atlas.SkippedCount} skipped, filter {atlas.Texture.filterMode}, " +
-                        $"{atlas.MipCount} mip level(s)",
+                        $"{atlas.MipCount} mip level(s), {atlas.CopyRoute} copy",
                         EditorStyles.miniLabel);
+
+                    // The two read-back numbers. "0 partly filled" is the healthy line; anything else
+                    // names a region instead of leaving the picture to be diagnosed by eye.
+                    if (atlas.RegionsMissingAnEdge > 0)
+                    {
+                        EditorGUILayout.HelpBox(
+                            $"{atlas.RegionsMissingAnEdge} of {atlas.RegionCount} regions are only " +
+                            $"partly filled, so those parts draw too small.\n{atlas.RegionMismatchSample}",
+                            MessageType.Warning);
+                    }
+                    else if (atlas.ReadbackInconclusive)
+                    {
+                        EditorGUILayout.HelpBox(
+                            "Region fill unverified: the read-back saw no ink in any region, which the " +
+                            "picture contradicts — it is the read-back not seeing the writes, not an " +
+                            "empty atlas. Trust the picture.",
+                            MessageType.Info);
+                    }
+                    else
+                    {
+                        EditorGUILayout.LabelField(
+                            $"0 of {atlas.RegionCount} regions partly filled " +
+                            $"({atlas.RegionsEmpty} hold no ink — blank frames, not damage)",
+                            EditorStyles.miniLabel);
+                    }
 
                     if (GUILayout.Button("Dump atlas + region table to Temp/quad_atlas_dump"))
                     {
@@ -630,6 +799,36 @@ namespace PFE.Editor.CharacterRendering
                 float multiplier = CharacterRenderAmbient.FromDarkness(_roomDarkness);
                 EditorGUILayout.LabelField($"Ambient multiplier: {multiplier:F3}", EditorStyles.miniLabel);
             }
+
+            // ── Horn aura ──
+            // Symbol 239, the glow the original wraps the horn in while magic is charged. It ships at
+            // alpha 0, so without this control it is invisible and there is nothing to judge.
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("Horn aura (symbol 239)", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "AS3 keeps two integers: a target aMagic (0 / 50 / 100) and a current aMC that walks " +
+                "toward it by 5 per tick, then writes alpha = aMC / 100 and visible = alpha > 0 " +
+                "(UnitPlayer.as:4851-4852). 50 = a weapon with a visible vis is drawn, 100 = levitating " +
+                "or holding a telekinesis target of mass >= 1, 0 = everything else.\n\n" +
+                "The glow does not spin. Displ.as:131's rotation belongs to mm.horn.magic.krug, which is " +
+                "the appearance-preview composite — symbol 239 has no krug child, and its art is a " +
+                "horn-shaped halo, so spinning it would swing the glow off the horn.",
+                MessageType.None);
+
+            _hornAuraLevel = EditorGUILayout.Slider(
+                new GUIContent("Charge (aMC)", "0 = invisible, 50 = weapon drawn, 100 = levitation."),
+                _hornAuraLevel, HornAura.LevelIdle, HornAura.LevelMax);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Off (0)")) _hornAuraLevel = HornAura.LevelIdle;
+            if (GUILayout.Button("Weapon (50)")) _hornAuraLevel = HornAura.LevelWeaponDrawn;
+            if (GUILayout.Button("Levitate (100)")) _hornAuraLevel = HornAura.LevelLevitate;
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.LabelField(
+                $"alpha = {HornAura.Normalized(_hornAuraLevel):F2}   |   " +
+                $"tint channel 4 (magical aura colour)",
+                EditorStyles.miniLabel);
 
             if (EditorGUI.EndChangeCheck() && _sceneReady)
             {
@@ -878,8 +1077,29 @@ namespace PFE.Editor.CharacterRendering
             {
                 _quadAssembler.CompensatePivot = _compensatePivot;
                 _quadAssembler.Bilinear = _bilinear;
+                _quadAssembler.AtlasMips = _atlasMips;
                 _quadAssembler.AtlasEnabled = _useAtlas;
                 _quadAssembler.Ambient = _useAmbient ? CharacterRenderAmbient.FromDarkness(_roomDarkness) : 1f;
+            }
+
+            PushHornAura();
+        }
+
+        /// <summary>
+        /// Writes the aura's charge into both assemblers. Both sides get the same number, so any
+        /// difference that survives on screen is a difference between the renderers — which is the
+        /// only thing this window is for.
+        /// </summary>
+        void PushHornAura()
+        {
+            if (_spriteAssembler != null)
+            {
+                _spriteAssembler.HornAuraLevel = _hornAuraLevel;
+            }
+
+            if (_quadAssembler != null)
+            {
+                _quadAssembler.HornAuraLevel = _hornAuraLevel;
             }
         }
 
@@ -1220,6 +1440,7 @@ namespace PFE.Editor.CharacterRendering
             report.AppendLine(DescribeCamera());
             report.AppendLine(DescribeSourceResolution());
             report.AppendLine(DescribeAtlas());
+            report.AppendLine(DescribeArmour());
             report.AppendLine(DescribePartDiff());
             report.AppendLine(DescribeRenderTarget());
             report.AppendLine(DescribeForeignLayerObjects());
@@ -1359,10 +1580,70 @@ namespace PFE.Editor.CharacterRendering
 
             string costume = string.IsNullOrEmpty(atlas.ArmorId) ? "none" : atlas.ArmorId;
 
+            // "N mip level(s)" is the depth the build actually filled, not the depth the texture
+            // allocated — those two numbers were the same field until 2026-10-27, which made the old
+            // line unable to report the one thing it was there for.
+            string health = atlas.RegionsMissingAnEdge > 0
+                ? $"{atlas.RegionsMissingAnEdge} PARTLY FILLED ({atlas.RegionMismatchSample})"
+                : atlas.ReadbackInconclusive
+                    ? "fill unverified (read-back saw no ink)"
+                    : $"all {atlas.RegionCount} regions filled";
+
             return $"Atlas: {atlas.Width}x{atlas.Height} {atlas.Texture.filterMode} " +
-                   $"{atlas.MipCount} mip level(s), " +
+                   $"{atlas.MipCount} mip level(s), {atlas.CopyRoute} copy, " +
                    $"{atlas.RegionCount} regions from {atlas.RegionCount + atlas.SkippedCount} sprites, " +
-                   $"{atlas.SkippedCount} skipped, 1 material, costume {costume}";
+                   $"{atlas.SkippedCount} skipped, {health}, {atlas.RegionsEmpty} empty, " +
+                   $"1 material, costume {costume}";
+        }
+
+        /// <summary>
+        /// Whether the costume reached each side — the decision, not the picture.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this line exists.</b> "The outfit is not drawn on the quad side" and "the outfit
+        /// is drawn from the wrong sprite" look the same on screen: a part in the wrong clothes. Counting
+        /// <see cref="CharacterSpriteAssembler.ArmourPartsDrawn"/> against
+        /// <see cref="CharacterQuadAssembler.ArmourPartsDrawn"/> separates them in one run — if the two
+        /// numbers agree, the costume reached both sides and any difference is pixels; if the quad reports
+        /// zero, the costume never reached its slots and no amount of looking at the atlas will say why.</para>
+        ///
+        /// <para>The override count is the size of the worn set, so a part the set does not touch is
+        /// visible as <c>drew &lt; overrides</c> rather than as a bug.</para>
+        /// </remarks>
+        string DescribeArmour()
+        {
+            string armorId = _armorId != null ? _armorId.Trim() : string.Empty;
+            if (string.IsNullOrEmpty(armorId))
+            {
+                return "Armour: no costume — both sides draw the parts' own sprites";
+            }
+
+            ArmorVisualSet set = _animDef != null ? _animDef.GetArmorSet(armorId) : null;
+            if (set == null)
+            {
+                return $"Armour: \"{armorId}\" is not in armorSets — no overrides exist, so neither side can wear it";
+            }
+
+            int overrides = set.partOverrides != null ? set.partOverrides.Length : 0;
+            int spriteDrawn = _spriteAssembler != null ? _spriteAssembler.ArmourPartsDrawn : -1;
+            int quadDrawn = _quadAssembler != null ? _quadAssembler.ArmourPartsDrawn : -1;
+
+            string verdict;
+            if (quadDrawn == 0 && spriteDrawn > 0)
+            {
+                verdict = "QUAD TOOK NONE — the costume did not reach its slots";
+            }
+            else if (spriteDrawn != quadDrawn)
+            {
+                verdict = $"THE SIDES DISAGREE ({quadDrawn - spriteDrawn:+0;-0} on the quad side)";
+            }
+            else
+            {
+                verdict = "both sides agree";
+            }
+
+            return $"Armour: \"{armorId}\" has {overrides} override(s); drew {spriteDrawn} part(s) on the " +
+                   $"sprite side, {quadDrawn} on the quad side — {verdict}";
         }
 
         /// <summary>
@@ -1394,9 +1675,17 @@ namespace PFE.Editor.CharacterRendering
 
             var table = new StringBuilder();
             table.AppendLine(
-                $"atlas {atlas.Width}x{atlas.Height} {atlas.Texture.filterMode} {atlas.MipCount} mip level(s)");
+                $"atlas {atlas.Width}x{atlas.Height} {atlas.Texture.filterMode} {atlas.MipCount} mip level(s) "
+                + $"{atlas.CopyRoute} copy");
             table.AppendLine(
                 $"regions {atlas.RegionCount}  skipped {atlas.SkippedCount}  costume '{atlas.ArmorId}'");
+            // The read-back verdict travels with the dump, so the PNG and the table cannot be read
+            // separately and reach different conclusions.
+            table.AppendLine(
+                $"partly filled {atlas.RegionsMissingAnEdge}  empty {atlas.RegionsEmpty}" +
+                (string.IsNullOrEmpty(atlas.RegionMismatchSample)
+                    ? string.Empty
+                    : $"  first: {atlas.RegionMismatchSample}"));
             // The source columns are what make this dump checkable. A destination rect alone is
             // always well-formed, even when it was copied from the wrong window; with the source
             // window recorded, every row can be compared against the PNG on disk -- srcW x srcH must

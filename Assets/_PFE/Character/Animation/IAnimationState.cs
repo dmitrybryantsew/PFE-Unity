@@ -76,7 +76,9 @@ namespace PFE.Character.Animation
         public const string Land          = "land";
         public const string WaterEnter    = "water_enter";
         public const string WaterExit     = "water_exit";
-        public const string MeleeImpact   = "melee_impact";
+        // No `MeleeImpact`: a swing's samples are the weapon controller's (`m_big`/`m_med`, the
+        // oracle's own cue) plus MeleeHitVolume's material sample. Firing one from the clip frame
+        // made every hoof strike play a sword impact over the correct sound.
         public const string Death         = "death";
         public const string Resurrect     = "resurrect";
         public const string Dash          = "dash";
