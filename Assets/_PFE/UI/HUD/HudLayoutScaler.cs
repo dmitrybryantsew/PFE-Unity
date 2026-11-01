@@ -80,6 +80,42 @@ namespace PFE.UI.HUD
         }
 
         /// <summary>
+        /// AS3 <c>vis.hpPet.visible</c> — whether the companion bar is on screen.
+        ///
+        /// <para><b>Why the layout needs to know.</b> <c>setOtstup</c> (<c>GUI.as:1063-1083</c>) shifts
+        /// the quick-item readout, its icon and the mana line down 30 px <i>while the pet bar is
+        /// visible</i>, and <c>GUI.setPet</c> calls it as its last statement (<c>:1112</c>). The port had
+        /// the arithmetic as a pure function (<see cref="HudLayout.AnchorFor(HudSlot,bool,bool)"/>) with
+        /// fixtures and <b>no caller</b>, so the three elements never moved.</para>
+        /// </summary>
+        public bool PetBarVisible { get; private set; }
+
+        /// <summary>
+        /// AS3 <c>vitem.visible</c> — whether the quick-item icon is showing, which decides whether the
+        /// mana line rides 35 px below the item readout or collapses onto it (<c>GUI.as:1077-1083</c>).
+        ///
+        /// <para><b>A constant, not a field.</b> No port component builds or hides
+        /// <see cref="HudSlot.ItemIcon"/> yet, so the only reachable answer is the one the resting
+        /// table already assumes. A settable property nothing ever sets would be a knob that reads as
+        /// wired — the exact shape this pass spent its time removing. When an item-icon view lands it
+        /// becomes state, like <see cref="PetBarVisible"/>.</para>
+        /// </summary>
+        private const bool ItemIconVisible = true;
+
+        /// <summary>
+        /// Tell the layout the companion bar appeared or disappeared, and re-place the three elements
+        /// <c>setOtstup</c> touches. Called by <see cref="PetHealthBarView"/>; cheap to call with an
+        /// unchanged value (it returns without a pass).
+        /// </summary>
+        public void SetPetBarVisible(bool visible)
+        {
+            if (PetBarVisible == visible) return;
+
+            PetBarVisible = visible;
+            ApplyAll();
+        }
+
+        /// <summary>
         /// Binds a rect to a slot and places it immediately. Idempotent: registering the same slot
         /// twice replaces the rect rather than stacking a second entry, so a rebuild does not leave the
         /// scaler laying out an object that has been destroyed.
@@ -93,12 +129,12 @@ namespace PFE.UI.HUD
                 if (_registered[i].Key != slot) continue;
 
                 _registered[i] = new KeyValuePair<HudSlot, RectTransform>(slot, rect);
-                HudLayout.Apply(slot, rect);
+                HudLayout.ApplyRelative(slot, rect, PetBarVisible, ItemIconVisible);
                 return;
             }
 
             _registered.Add(new KeyValuePair<HudSlot, RectTransform>(slot, rect));
-            HudLayout.Apply(slot, rect);
+            HudLayout.ApplyRelative(slot, rect, PetBarVisible, ItemIconVisible);
         }
 
         /// <summary>
@@ -118,7 +154,10 @@ namespace PFE.UI.HUD
                 // stops a scene teardown throwing out of a layout pass.
                 if (entry.Value == null) continue;
 
-                HudLayout.Apply(entry.Key, entry.Value);
+                // `ApplyRelative`, not `Apply`: the resting rows are the table's, and this is where the
+                // state-dependent half of `setOtstup` gets folded in. With no pet and a visible icon it
+                // is byte-for-byte `Apply`.
+                HudLayout.ApplyRelative(entry.Key, entry.Value, PetBarVisible, ItemIconVisible);
             }
 
             ApplyScaledSpecials();

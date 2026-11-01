@@ -145,6 +145,21 @@ namespace PFE.UI.PipBuck
         /// </summary>
         public Func<string, WeaponDefinition> WeaponResolver { get; set; }
 
+        /// <summary>
+        /// Id → the <c>&lt;item&gt;</c> row's attribute run, or <b>null</b> when there is no row —
+        /// <c>AllData.d.item.(@id == id)</c>, the element <c>new Item(...)</c> keeps as <c>xml</c>
+        /// (<c>Item.as:159-289</c>).
+        ///
+        /// <para><b>Without this the whole item shelf is priced at the asset placeholder.</b> Every one
+        /// of the 500 <c>ItemDefinition</c> assets carries <c>basePrice: 10</c> / <c>sellPrice: 5</c>
+        /// (491 of 500 are exactly 10; the other nine are the spells, imported by hand) because the item
+        /// importer that would fill them is owner-only here. So <c>vendor_medic</c> sold
+        /// <c>impl_skin</c> — a 10 000-cap implant — for 10 caps, and every implant was also
+        /// <i>sellable</i> at 5 because the placeholder <c>@sell</c> was positive. See
+        /// <see cref="PFE.Systems.Items.ItemPriceRules"/>, which is what reads this.</para>
+        /// </summary>
+        public Func<string, string> ItemRowAttrsProvider { get; set; }
+
         /// <summary>The localisation document every name is read out of. See
         /// <see cref="PipItemNames"/> for why the definition alone prints the placeholder.</summary>
         public PipTextTable TextTable { get; set; } = PipTextTable.Empty;
@@ -233,8 +248,14 @@ namespace PFE.UI.PipBuck
                 definition.baseItemId, definition.modifierType, definition.workStation,
                 definition.displayName);
             facts.Tip = string.IsNullOrEmpty(definition.legacyTip) ? "misc" : definition.legacyTip;
-            facts.Price = definition.basePrice;
-            facts.SellPrice = definition.sellPrice;
+
+            // `Item.getPrice()` / `getMultPrice()` (`Item.as:352-383`) read the ROW, not the imported
+            // asset — and the asset is a placeholder on 491 of 500 items. The row is the authority;
+            // the asset's value is only the answer when the mirror has no row at all (offline, or a
+            // TextAsset that was not shipped). See ItemPriceRules for the measurements.
+            string rowAttrs = ItemRowAttrsProvider?.Invoke(itemId);
+            facts.Price = PFE.Systems.Items.ItemPriceRules.BuyBase(rowAttrs, definition.basePrice);
+            facts.SellPrice = PFE.Systems.Items.ItemPriceRules.SellPrice(rowAttrs, definition.sellPrice);
             return facts;
         }
 
@@ -301,7 +322,15 @@ namespace PFE.UI.PipBuck
             foreach (KeyValuePair<string, GameItemInstance> pair in inventory.Items)
             {
                 ItemDefinition definition = pair.Value?.Definition;
-                if (definition == null || definition.sellPrice <= 0) continue;
+                if (definition == null) continue;
+
+                // The `@sell` gate is the row's, not the asset's — the asset carries the placeholder 5
+                // on 491 of 500 items, which listed every implant/artefact/instrument in the bag as
+                // sellable. AS3 lists only rows with a positive `@sell`, and none of the 15
+                // impl/art/instr rows has one. See ItemPriceRules.
+                int sellPrice = PFE.Systems.Items.ItemPriceRules.SellPrice(
+                    ItemRowAttrsProvider?.Invoke(definition.itemId), definition.sellPrice);
+                if (sellPrice <= 0) continue;
 
                 _sellRows.Add(new VendorSellRow
                 {
@@ -312,7 +341,7 @@ namespace PFE.UI.PipBuck
                         definition.baseItemId, definition.modifierType, definition.workStation,
                         definition.displayName),
                     Kol = pair.Value.Quantity,
-                    Price = definition.sellPrice,
+                    Price = sellPrice,
                     SortName = SortNameFor(definition.legacyTip)
                 });
             }
@@ -324,7 +353,15 @@ namespace PFE.UI.PipBuck
                 // definition fields, see GameWeaponInstance:25-45), so the item row is resolved by id —
                 // and it is the item row that carries `@sell`, which is the price the Oracle shows.
                 ItemDefinition definition = weapon.Definition ?? _resolveItem?.Invoke(weapon.ItemId);
-                if (definition == null || definition.sellPrice <= 0) continue;
+                if (definition == null) continue;
+
+                // Same row-vs-asset rule as the item loop. It only bites the 32 ids that are BOTH a
+                // weapon and an item row (`grenade`, `molotov`, `dinamit`, …): no `<weapon>` row carries
+                // `@sell` at all (measured: 0 of 213), which is why a plain gun is not in the sell list
+                // in the Oracle either.
+                int weaponSell = PFE.Systems.Items.ItemPriceRules.SellPrice(
+                    ItemRowAttrsProvider?.Invoke(definition.itemId), definition.sellPrice);
+                if (weaponSell <= 0) continue;
 
                 string rid = weapon.Variant > 0 ? weapon.ItemId + "^" + weapon.Variant : weapon.ItemId;
                 _sellRows.Add(new VendorSellRow
@@ -334,7 +371,7 @@ namespace PFE.UI.PipBuck
                     Tip = "weapon",
                     Name = PipItemNames.Weapon(TextTable, weapon.ItemId, weapon.Variant, definition.displayName),
                     Kol = 1,
-                    Price = definition.sellPrice,
+                    Price = weaponSell,
                     SortName = SortNameFor("weapon")
                 });
             }

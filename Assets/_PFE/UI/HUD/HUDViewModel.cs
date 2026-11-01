@@ -52,6 +52,7 @@ namespace PFE.UI.HUD
         private ReadOnlyReactiveProperty<float> _healthPercent;
         private ReadOnlyReactiveProperty<float> _currentHealth;
         private ReadOnlyReactiveProperty<float> _maxHealth;
+        private ReadOnlyReactiveProperty<string> _healthText;
         private ReadOnlyReactiveProperty<bool> _isAlive;
         private ReadOnlyReactiveProperty<float> _currentMana;
         private ReadOnlyReactiveProperty<float> _maxMana;
@@ -104,6 +105,24 @@ namespace PFE.UI.HUD
         /// Maximum health value (for binding).
         /// </summary>
         public ReadOnlyReactiveProperty<float> MaxHealth => _maxHealth;
+
+        /// <summary>
+        /// The "current / max" readout, as a single reactive string — AS3 <c>GUI.setHp</c>'s
+        /// <c>hp.text = Math.ceil(hp) + "/" + Math.ceil(maxhp)</c> (<c>GUI.as:944</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>It is one property over BOTH numbers, and that is the fix for a real defect.</b>
+        /// The view used to subscribe to <see cref="CurrentHealth"/> alone and call
+        /// <see cref="GetHealthText"/> inside the handler, which reads <c>MaxHp</c> at that moment. A
+        /// max that changed without a second health write — a level-up at full health, where the pool
+        /// goes 100/100 → 115/115 — therefore left the text showing the old maximum until the player
+        /// took damage. The bar was right (it is a <c>CombineLatest</c> over both) and the number beside
+        /// it was not, which reads as "the max lags behind".</para>
+        ///
+        /// <para>AS3 cannot have this bug: <c>GUI.setHp</c> is called from the frame loop and reads
+        /// both fields live every time.</para>
+        /// </remarks>
+        public ReadOnlyReactiveProperty<string> HealthText => _healthText;
 
         /// <summary>
         /// Whether player is alive (for binding).
@@ -263,6 +282,7 @@ namespace PFE.UI.HUD
             _healthPercent = null;
             _currentHealth = null;
             _maxHealth = null;
+            _healthText = null;
             _isAlive = null;
             _currentMana = null;
             _maxMana = null;
@@ -355,10 +375,16 @@ namespace PFE.UI.HUD
             _maxHealth = Owned(playerStats.MaxHp);
             _isAlive = playerStats.CurrentHp.Select(hp => hp > 0).ToReadOnlyReactiveProperty();
 
+            // The numeric readout fires on EITHER number, not on the health alone — see HealthText.
+            // The rule itself lives in HealthReadout so it has an offline fixture; this is only the
+            // lifetime, which needs a MonoBehaviour to own it.
+            _healthText = HealthReadout.Bind(playerStats.CurrentHp, playerStats.MaxHp);
+
             _disposables.Add(_healthPercent);
             _disposables.Add(_currentHealth);
             _disposables.Add(_maxHealth);
             _disposables.Add(_isAlive);
+            _disposables.Add(_healthText);
 
             // Mana bindings
             _currentMana = Owned(playerStats.Mana);
@@ -461,16 +487,31 @@ namespace PFE.UI.HUD
         /// <summary>
         /// Get health text formatted for display (e.g., "85 / 100").
         /// </summary>
+        /// <remarks>
+        /// A live snapshot, for a caller that has no binding (a test, a tooltip). <b>A view must not
+        /// call this from a change handler</b> — that is the pattern that made the maximum lag; bind
+        /// <see cref="HealthText"/> instead.
+        /// </remarks>
         /// <returns>Formatted health string</returns>
         public string GetHealthText()
         {
             if (playerStats == null) return "-- / --";
 
-            float current = playerStats.CurrentHp.Value;
-            float max = playerStats.MaxHp.Value;
-
-            return $"{Mathf.Round(current)} / {Mathf.Round(max)}";
+            return FormatHealth(playerStats.CurrentHp.Value, playerStats.MaxHp.Value);
         }
+
+        /// <summary>
+        /// AS3 <c>GUI.setHp</c>: <c>Math.ceil(hp) + "/" + Math.ceil(maxhp)</c> (<c>GUI.as:944</c>).
+        /// </summary>
+        /// <remarks>
+        /// Ceiling, not rounding: the oracle rounds up so a player on 0.4 hp reads as "1", not as "0" —
+        /// a bar at zero with the player still alive is the one reading that looks like a bug.
+        /// <para>The rule is <see cref="HealthReadout.Format"/> — moved out of the view model so a shell
+        /// fixture can execute it (<c>HealthReadoutFormatTests</c>). This forwarder exists so the
+        /// live-snapshot accessor above keeps one definition.</para>
+        /// </remarks>
+        private static string FormatHealth(float current, float max)
+            => HealthReadout.Format(current, max);
 
         /// <summary>
         /// The HUD's mana readout — AS3 <c>GUI.setMana</c> (<c>GUI.as:985-997</c>).

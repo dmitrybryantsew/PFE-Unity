@@ -42,6 +42,8 @@ namespace PFE.Core
         private HUDViewModel _viewModel;
         private HudLayoutScaler _layout;
         private HealthBarView _healthBar;
+        private BossHealthBarView _bossBar;
+        private PetHealthBarView _petBar;
         private AmmoCounterView _ammoCounter;
         private ReloadIndicatorView _reloadIndicator;
         private ArmourBarView _armourBar;
@@ -97,6 +99,13 @@ namespace PFE.Core
         /// </summary>
         private InfoLogView _infoLog;
         private PickupFloatTextView _floatText;
+
+        /// <summary>
+        /// The gold star and name over every starred enemy. Built here and driven by
+        /// <c>EliteEnemyRegistry</c>, because the promotion happens in <c>UnitController.ApplyPlacement</c>
+        /// — a layer that must not know what a HUD is.
+        /// </summary>
+        private EliteNameplateView _eliteNameplates;
 
         /// <summary>
         /// The one-time tutorial popup — <c>GUI.impMess</c> (<c>GUI.as:1905-1932</c>). Fired by
@@ -258,6 +267,8 @@ namespace PFE.Core
             _viewModel = canvasGo.AddComponent<HUDViewModel>();
 
             _healthBar = BuildHealthBar(canvasGo.transform);
+            _bossBar = BuildBossHealthBar(canvasGo.transform);
+            _petBar = BuildPetHealthBar(canvasGo.transform);
             _ammoCounter = BuildAmmoCounter(canvasGo.transform);
             _reloadIndicator = BuildReloadIndicator(canvasGo.transform);
             _armourBar = BuildArmourBar(canvasGo.transform);
@@ -271,6 +282,10 @@ namespace PFE.Core
             _floatText = BuildPickupFloatText(canvasGo.transform);
             _impMess = BuildImportantMessage(canvasGo.transform);
 
+            // The starred-enemy markers. Built after the rest of the HUD so a star and a name draw over
+            // the health bar rather than under it — the same sibling-order rule the pickup labels use.
+            _eliteNameplates = BuildEliteNameplates(canvasGo.transform);
+
             // The script-presentation views. Built after the stat cluster so the blackout image can be
             // moved to the back of the sibling order: in the Oracle `vblack` lives on the world layer
             // and the GUI — including `vis.mess` — draws over it, which is what lets `beginBeg` show
@@ -278,7 +293,12 @@ namespace PFE.Core
             _toast = BuildToast(canvasGo.transform);
             _dialogue = BuildDialogue(canvasGo.transform);
             _overlay = BuildOverlay(canvasGo.transform);
-            _overlay.SetGuiElements(_healthBarRoot, _healthTextRoot);
+            // The boss bar goes with the stat cluster: AS3's `gui off` hides all of `vis` (the whole
+            // HUD sheet), and a boss bar floating over a black cutscene is the most conspicuous part of
+            // getting that wrong.
+            _overlay.SetGuiElements(_healthBarRoot, _healthTextRoot,
+                _bossBar != null ? _bossBar.gameObject : null,
+                _petBar != null ? _petBar.gameObject : null);
 
             // On the bootstrapper, not on the canvas — see the field's note. Added unconditionally so
             // that Bind can report a missing broker instead of the component being absent entirely.
@@ -299,11 +319,20 @@ namespace PFE.Core
             _reloadIndicator.SetViewModel(_viewModel);
             _armourBar.SetViewModel(_viewModel);
 
-            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, " +
-                      "world-anchored reload bar, world-anchored hold bar, world-anchored interaction " +
-                      "prompt, script banner, dialogue window, blackout overlay, pickup message list, " +
-                      "pickup floating labels) on a " +
+            Debug.Log("[HudBootstrapper] HUD built (health bar, boss health bar, armour bar, ammo " +
+                      "counter, world-anchored reload bar, world-anchored hold bar, world-anchored " +
+                      "interaction prompt, script banner, dialogue window, blackout overlay, pickup " +
+                      "message list, pickup floating labels, starred-enemy nameplates) on a " +
                       HudLayout.ReferenceWidth + "x" + HudLayout.ReferenceHeight + " canvas.");
+
+            // A missing nameplate is not a missing bar — nothing else in the HUD draws a star, so the
+            // symptom would be "starred enemies look ordinary" with no error anywhere. Loud once, at the
+            // moment the view was supposed to exist, rather than per spawn.
+            if (_eliteNameplates == null)
+            {
+                Debug.LogWarning("[HudBootstrapper] Starred-enemy nameplates were not built — a promoted " +
+                                 "enemy will show no gold star and no name.");
+            }
         }
 
         /// <summary>
@@ -514,6 +543,62 @@ namespace PFE.Core
 
             view.SetHealthText(text);
 
+            return view;
+        }
+
+        /// <summary>
+        /// The boss health bar — <c>vis.hpbarboss</c> (<c>GUI.hpBarBoss</c>, <c>GUI.as:1693-1705</c>).
+        ///
+        /// <para><b>It was the one HUD element with a layout row and no view.</b> <see cref="HudSlot"/>
+        /// has carried <c>BossHealthBar</c> since the anchor table was written, so the slot was laid out
+        /// at a position nothing ever drew at — which is why a boss fight in the port had no bar at all
+        /// while the Oracle put one across the top of the screen.</para>
+        ///
+        /// <para><b>Nothing is wired to it here.</b> The view subscribes to
+        /// <see cref="PFE.Entities.Enemies.Bosses.BossHealthBarFeed"/> itself, in <c>OnEnable</c>, so a
+        /// boss spawned long after the HUD still reaches it. The sprite comes from the interface
+        /// composition, the same place the dialogue portraits do.</para>
+        /// </summary>
+        private BossHealthBarView BuildBossHealthBar(Transform parent)
+        {
+            // Size is the SWF symbol's own (401x13), not a choice: the frame's shape bounds are
+            // -4010..4010 x -70..190 twips. HudLayout positions it; this only sizes it.
+            var barRect = CreateHudElement("Boss Health Bar",
+                parent, new Vector2(BossHealthBarView.BarWidth, BossHealthBarView.BarHeight));
+            _layout.Register(HudSlot.BossHealthBar, barRect);
+
+            var view = barRect.gameObject.AddComponent<BossHealthBarView>();
+            view.Build(_composition != null ? _composition.bossBar : null);
+            return view;
+        }
+
+        /// <summary>
+        /// The companion bar — <c>vis.hpPet</c> (<c>GUI.setPet</c>, <c>GUI.as:1086-1113</c>).
+        ///
+        /// <para><b>Same defect shape as the boss bar had, one slot down:</b>
+        /// <see cref="HudSlot.PetHealthBar"/> has been in the anchor table since it was written, and
+        /// nothing ever drew at it — so the layout row, the feed and the view all existed and a
+        /// summoned pet still showed no health. The view subscribes to
+        /// <see cref="PFE.Entities.Pets.PetHealthBarFeed"/> in its own <c>OnEnable</c>, so a pet
+        /// summoned long after the HUD is built still reaches it.</para>
+        ///
+        /// <para><b>Why it is in <c>SetGuiElements</c>.</b> AS3's <c>vis.hpPet</c> lives on the HUD
+        /// sheet, which <c>gui off</c> hides as one object (<c>GUI.as:758</c>); a companion bar
+        /// floating over a black cutscene is the same mistake the boss bar would make.</para>
+        ///
+        /// <para><b>No imported art.</b> The oracle's <c>hpPet</c> symbol is not in the interface
+        /// composition the way <c>hpbarboss</c> is, so the view draws its frame and fill as flat
+        /// images — the fallback the boss bar also takes when its sprite is missing.</para>
+        /// </summary>
+        private PetHealthBarView BuildPetHealthBar(Transform parent)
+        {
+            var barRect = CreateHudElement("Pet Health Bar", parent,
+                new Vector2(PetHealthBarView.BarWidth, PetHealthBarView.BarHeight));
+            _layout.Register(HudSlot.PetHealthBar, barRect);
+
+            var view = barRect.gameObject.AddComponent<PetHealthBarView>();
+            view.SetLayout(_layout);
+            view.Build();
             return view;
         }
 
@@ -764,6 +849,19 @@ namespace PFE.Core
         private PickupFloatTextView BuildPickupFloatText(Transform canvas)
         {
             var view = gameObject.AddComponent<PickupFloatTextView>();
+            view.Construct(canvas, ResolveFont());
+            return view;
+        }
+
+        /// <summary>
+        /// The starred-enemy markers. Lives on the bootstrapper's own GameObject, like
+        /// <see cref="BuildPickupFloatText"/>, because it draws nothing itself — the labels it creates are
+        /// parented to the canvas explicitly (they must be, for
+        /// <see cref="WorldAnchoredHudElement"/> — see <see cref="EliteNameplateView.Construct"/>).
+        /// </summary>
+        private EliteNameplateView BuildEliteNameplates(Transform canvas)
+        {
+            var view = gameObject.AddComponent<EliteNameplateView>();
             view.Construct(canvas, ResolveFont());
             return view;
         }

@@ -119,10 +119,28 @@ namespace PFE.UI.HUD
         OracleRelative,
 
         /// <summary>
-        /// The Oracle <b>never sets this</b>: the position lives in the SWF symbol <c>visualGUI</c>
-        /// (Symbol 4651), which this pipeline imports as a flat PNG and cannot read coordinates from.
+        /// The Oracle never writes this position in code — it is the SWF symbol's own display-list
+        /// placement inside <c>visualGUI</c> (4651), read out of the DefineSpriteTag matrices.
+        ///
+        /// <para>This category exists because <see cref="PortChoice"/>'s rationale ("the pipeline
+        /// imports <c>visualGUI</c> as a flat PNG and cannot read coordinates from it") is only true of
+        /// the <i>importer</i>, not of the file: the placements are ordinary
+        /// <c>PlaceObject2</c> matrices in twips, and a symbol's children can be read straight out of
+        /// them. A row tagged here is authored data with a cited twips value, so it must not be quoted
+        /// as a guess — and must not be "tidied" toward a rounder number.</para>
+        /// </summary>
+        OracleAuthored,
+
+        /// <summary>
+        /// The Oracle <b>never sets this</b>, and the port has not read it out of the SWF either.
         /// The value below is the port's own and is a known gap — see
         /// <c>docs/GameInterface/06_IMPLEMENTATION_PLAN.md</c> Item I4.
+        ///
+        /// <para><b>No longer the only answer for a SWF-placed element.</b> This used to say the
+        /// position "lives in the SWF symbol <c>visualGUI</c> (4651), which this pipeline imports as a
+        /// flat PNG and cannot read coordinates from". The importer cannot, but the file can — see
+        /// <see cref="OracleAuthored"/>, which is where the boss bar's row moved once its matrix was
+        /// read. A row left here is one nobody has measured yet, not one that is unmeasurable.</para>
         /// </summary>
         PortChoice,
 
@@ -443,6 +461,27 @@ namespace PFE.UI.HUD
         /// <summary>Oracle: <c>imp.y = round(screenY / 2 - 50)</c> (<c>GUI.as:348</c>) — 50 px below centre.</summary>
         public const float ImportantMessageCentreOffsetY = -50f;
 
+        // ── Boss health bar (hpbarboss, sprite 4360) ──────────────────────────
+
+        /// <summary>
+        /// The boss bar's top edge: <b>64.75 px</b> below the top of the screen.
+        ///
+        /// <para><b>Where 64.75 comes from, and why it is not a taste value.</b> <c>resizeScreen</c>
+        /// writes <c>hpbarboss.x</c> and nothing else (<c>GUI.as:324</c>), so the vertical position is
+        /// whatever the SWF placed. Read out of the DefineSpriteTag for <c>visualGUI</c> (4651):
+        /// <c>hpbarboss</c> (4360) sits at <c>translateX = 12002</c>, <c>translateY = 1365</c> twips,
+        /// i.e. (600.1, 68.25) px — x agrees with <c>screenX / 2</c> on the 1200-wide sheet, which is
+        /// the cross-check that the sheet's origin really is the screen's top-left. The bar's own frame
+        /// (shape 4359) spans <c>-70..190</c> twips about that anchor, so its top edge is
+        /// <c>68.25 - 3.5 = 64.75</c>.</para>
+        ///
+        /// <para>The owner's screenshot of the running game agrees within a couple of pixels: the
+        /// frame's top row measured at 41 px of a 0.671-scaled capture, i.e. ≈61 stage px — JPEG blur
+        /// and the 1 px stroke account for the difference. It is <b>not</b> the 20 px the port used to
+        /// draw it at.</para>
+        /// </summary>
+        public const float BossBarTopOffset = 64.75f;
+
         // ── The anchor table ──────────────────────────────────────────────────
 
         // Edge/corner shorthands. Written out rather than as magic Vector2s so the intent of each row
@@ -484,9 +523,13 @@ namespace PFE.UI.HUD
                 // and docs/GameInterface/07_VERIFICATION_AND_QUIRKS.md §2.4.
                 { HudSlot.SneakEye, new HudAnchor(BottomRight, new Vector2(-10f, 50f)) },
 
-                // GUI.as:324 `hpbarboss.x = screenX / 2` — horizontally centred. Its y is NOT set by
-                // the Oracle, so the 20 px top inset is this port's; see SourceFor(BossHealthBar).
-                { HudSlot.BossHealthBar, new HudAnchor(TopCentre, new Vector2(0f, -20f)) },
+                // GUI.as:324 `hpbarboss.x = screenX / 2` — horizontally centred. The Oracle never
+                // writes its y either, but that does not make the y unknown: it is the SWF's own
+                // placement of `hpbarboss` (4360) inside `visualGUI` (4651), translateY = 1365 twips
+                // = 68.25 px, less the 3.5 px the frame (4359) hangs above that point. See
+                // BossBarTopOffset, and SourceFor(BossHealthBar) for why the row is no longer tagged
+                // PortChoice.
+                { HudSlot.BossHealthBar, new HudAnchor(TopCentre, new Vector2(0f, -BossBarTopOffset)) },
 
                 // GUI.as:326-335 — the toast is centred with a 275 px side margin, clamped to a
                 // 500 px minimum width. The x/y below is the centred anchor; the width is ToastWidth().
@@ -599,10 +642,14 @@ namespace PFE.UI.HUD
                 case HudSlot.InteractionPrompt:
                     return HudAnchorSource.WorldAnchored;
 
+                // Both halves are authored: x from resizeScreen, y from the symbol's own matrix inside
+                // visualGUI. Neither is a guess, which is why this is not with the rows below.
+                case HudSlot.BossHealthBar:
+                    return HudAnchorSource.OracleAuthored;
+
                 // Horizontally centred by the Oracle, vertically not set. Classified as a port choice
                 // rather than as Oracle-set because half the anchor is invented and half is not, and a
                 // "mostly ported" tag is how an invented value gets quoted as a citation.
-                case HudSlot.BossHealthBar:
                 case HudSlot.Toast:
                 case HudSlot.InfoLog:
                 default:

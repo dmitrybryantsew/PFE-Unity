@@ -156,13 +156,16 @@ namespace PFE.UI.HUD
                 bound++;
             }
 
-            // Bind health text if assigned
-            if (_healthText != null && _viewModel.CurrentHealth != null)
+            // Bind health text if assigned.
+            //
+            // Bound to HealthText — a combined "current / max" property — and NOT to CurrentHealth
+            // with a GetHealthText() call inside the handler. That version read MaxHp at the instant
+            // the health changed, so a level-up that raised the ceiling without a second health write
+            // left the number showing the OLD maximum (the bar, which combines both, was right). See
+            // HUDViewModel.HealthText.
+            if (_healthText != null && _viewModel.HealthText != null)
             {
-                _viewModel.CurrentHealth.Subscribe(_ =>
-                {
-                    _healthText.text = _viewModel.GetHealthText();
-                }).AddTo(_disposables);
+                _viewModel.HealthText.Subscribe(text => _healthText.text = text).AddTo(_disposables);
                 bound++;
             }
 

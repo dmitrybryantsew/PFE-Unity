@@ -132,6 +132,10 @@ namespace PFE.UI.PipBuck
         /// <summary>The doctor's page, kept so the clinic subscription can open it without a cast.</summary>
         private PipPageMedView _medPage;
 
+        /// <summary>The workbench, kept so <see cref="BindPipPageRouter"/> can open page 7 without a
+        /// cast. Also the only page whose context (<c>pip.workTip</c>) is written from outside it.</summary>
+        private PipPageWorkView _workPage;
+
         [Inject]
         public void Construct(InputReader input, PipBuckManager manager, IObjectResolver resolver)
         {
@@ -211,6 +215,7 @@ namespace PFE.UI.PipBuck
             BindTravelMap();
             BindVendorPage();
             BindClinicPage();
+            BindPipPageRouter();
 
             // The tab captions. PipBuckPages.TabLabelFor resolves the Oracle's own string-table key
             // (Res.pipText("main" + n), PipBuck.as:172) against the localisation document, which is
@@ -494,6 +499,13 @@ namespace PFE.UI.PipBuck
                 // weapon vendor's shelf named every row by its raw id and priced it 0.
                 WeaponResolver = id => ResolvePlayerInventory()?.ResolveWeapon(id),
 
+                // `AllData.d.item` — the row behind every item price. `ItemDefinition.basePrice` is the
+                // field default (10) on 491 of the 500 shipped assets because the item importer is
+                // owner-only here, so the shelf priced a 10 000-cap implant at 10 caps and listed every
+                // implant as sellable at 5. The mirror is the same one the workbench reads its recipes
+                // from, for the same reason.
+                ItemRowAttrsProvider = PFE.Systems.Inventory.PlayerInventory.ItemRowAttrsOrNull,
+
                 // `pers.priceRepArmor` (Pers.as:105, default 0.5) has no ported field — the gap ledger
                 // claimed one, and a grep for the name finds nothing. The Oracle's own default is used
                 // rather than inventing a curve; landing the field changes this line only.
@@ -536,7 +548,44 @@ namespace PFE.UI.PipBuck
             _manager.RegisterPage(medPage);
             _medPage = medPage;
 
-            RegisterStub(7, "PipPageWork — Item I12 (workbench)");
+            // ── Page 7: the workbench (docs/CraftingAndRepair) ─────────────────
+            //
+            // The recipe table is read from the same `AllData` mirror the inventory already loads for
+            // `<sk>` rows — so crafting works without an importer run, which is owner-only here. See
+            // docs/CraftingAndRepair/00_INDEX.md §2 D1 for why that is a deliberate divergence.
+            //
+            // Every value is a provider: the player (and therefore the bag and the stats) is assembled
+            // in PlayerController.Awake, which is not ordered against this Start.
+            var workService = new PFE.Systems.Crafting.WorkbenchService(ResolveInventory,
+                PlayerInventory.AllDataText)
+            {
+                SkillLevel = id => ResolvePlayer()?.CharacterStats != null
+                    ? ResolvePlayer().CharacterStats.GetSkillLevel(id)
+                    : 0,
+                RepairMultiplierProvider = () => ResolvePlayer()?.CharacterStats != null
+                    ? ResolvePlayer().CharacterStats.repairMult
+                    : 0.25f,
+                MaxArmorLevelProvider = () => ResolvePlayer()?.CharacterStats != null
+                    ? ResolvePlayer().CharacterStats.maxArmorLvl
+                    : 0,
+                PotMasterProvider = () => ResolvePlayer()?.CharacterStats != null &&
+                                          ResolvePlayer().CharacterStats.potmaster > 0,
+            };
+
+            var workPage = new PipPageWorkView(workService)
+            {
+                TextTable = _text,
+                SubPageClicked = subPage => _manager.SubPageClick(subPage),
+
+                // `pip.snd(1)` on every click that changed something (PipPageWork.as:614). The sound
+                // belongs to the device, so the page raises it and the manager plays it.
+                Committed = () => _manager.Play(1),
+            };
+
+            workPage.Configure(_composition, _font, _text);
+            _manager.RegisterPage(workPage);
+            _workPage = workPage;
+
             RegisterStub(8, "PipPageApp — Item I12 (appearance)");
             RegisterStub(9, "PipPageVault — Item I12 (container)");
 
@@ -546,6 +595,45 @@ namespace PFE.UI.PipBuck
             infoPage.Build(_view.PageRoot);
             vendPage.Build(_view.PageRoot);
             medPage.Build(_view.PageRoot);
+            workPage.Build(_view.PageRoot);
+        }
+
+        /// <summary>
+        /// Binds <see cref="PipPageRouter"/> — the seam a world interaction uses to open a device page.
+        ///
+        /// <para><b>Why the device has to be the subscriber.</b> The two callers (a bench's
+        /// <c>allact</c> branch and a portable bench used from the bag) live in the map and inventory
+        /// assemblies and own no container, so neither can hold a reference to the page. The router is
+        /// the static they can both reach; this method is the one place that knows both the router and
+        /// the pages.</para>
+        ///
+        /// <para><b>Page 7 gets its context before the device opens.</b> <c>pip.workTip = allact;
+        /// pip.onoff(7)</c> (<c>Interact.as:1621-1625</c>) is two statements in that order, and
+        /// <c>setSubPages</c> reads <c>workTip</c> on the first <c>setStatus</c> — so writing the
+        /// context first is not a convenience, it is the only order that works.</para>
+        /// </summary>
+        private void BindPipPageRouter()
+        {
+            PipPageRouter.Request = (page, subPage, workTip) =>
+            {
+                if (_manager == null) return;
+
+                if (page == PipPageWorkView.WorkPageId)
+                {
+                    if (_workPage == null)
+                    {
+                        Debug.LogWarning("[PipBuckBootstrapper] The workbench page is not built; " +
+                                         "cannot open page 7.");
+                        return;
+                    }
+
+                    _workPage.Open(workTip);
+                    _manager.OnOff(PipPageWorkView.WorkPageId, subPage);
+                    return;
+                }
+
+                _manager.OnOff(page, subPage);
+            };
         }
 
         /// <summary>
@@ -1486,6 +1574,10 @@ namespace PFE.UI.PipBuck
 
             // The broker outlives this object, so an un-disposed subscription would keep a delegate
             // pointing at a destroyed bootstrapper alive for the rest of the session.
+            // The router is a static, so it outlives this object by definition. A destroyed bootstrapper
+            // still receiving a bench click would call into a dead page.
+            if (PipPageRouter.Request != null) PipPageRouter.Request = null;
+
             _travelMapSubscription?.Dispose();
             _travelMapSubscription = null;
 
