@@ -15,20 +15,26 @@ namespace PFE.Systems.Map.TileQuery
     /// <para><b>It is the AS3 identity, not the port's decode.</b> AS3 distinguishes these by
     /// <c>phis</c> plus the <c>shelf</c>/<c>stair</c>/<c>diagon</c> flags (<c>loc/Box.as:1260-1275</c>),
     /// and the port's <see cref="TilePhysicsType"/> does <b>not</b> map one-to-one onto them: a
-    /// <c>diagon</c> form carries <c>phis = 0</c> and decodes to <c>Air</c> plus a <c>slopeType</c>, and
-    /// a <c>shelf</c> decodes to <c>Platform</c> while AS3's <c>phis == 2</c> also decodes to
-    /// <c>Wall</c>. Naming the kind here keeps each consumer's predicate readable in AS3's terms
-    /// instead of re-deriving it from that mapping at every call site.</para>
+    /// <c>diagon</c> form carries <c>phis = 0</c> and decodes to <c>Air</c> plus a <c>slopeType</c>, a
+    /// <c>shelf</c> decodes to <c>Platform</c>, and AS3's <c>phis == 2</c> also decodes to <c>Wall</c>
+    /// — which is why a level-2 solid is carried as <see cref="TileData.levelTwoSolid"/> and split out
+    /// here instead of being lost in that collapse. Naming the kind here keeps each consumer's
+    /// predicate readable in AS3's terms instead of re-deriving it from that mapping at every call
+    /// site.</para>
     ///
     /// <para><b>What each kind means to each consumer</b> — the whole point of one classification with
     /// a predicate per consumer (guide §7.2 consequence 2):</para>
     /// <list type="table">
-    /// <item><term>projectile</term><description><see cref="Solid"/> only —
-    /// <c>weapon/Bullet.as:476</c> reads <c>phis == 1 || phis == 2</c> and nothing else, so it passes
-    /// catwalks, ramps and ladders.</description></item>
-    /// <item><term>dynamic prop</term><description><see cref="Solid"/> blocks;
-    /// <see cref="Shelf"/> blocks from above only; <see cref="Diagon"/> and <see cref="Stair"/> pass —
-    /// <c>loc/Box.as:1260-1275</c>.</description></item>
+    /// <item><term>projectile</term><description><see cref="Solid"/> only, and it is a
+    /// <b>strict</b> <c>phis == 1</c>: <c>weapon/Bullet.as:476</c> reads <c>phis == 1</c> plus a
+    /// <c>phis == 2</c> clause that only fires for the cell the round spawned in (which only the club's
+    /// shock round sets, <c>WClub.as:627-628</c>), and <c>PhisBullet.as:242</c> reads
+    /// <c>phis == 1</c> alone. So it passes <see cref="LevelTwoSolid"/> grates as well as catwalks,
+    /// ramps and ladders.</description></item>
+    /// <item><term>dynamic prop</term><description><see cref="Solid"/> and
+    /// <see cref="LevelTwoSolid"/> both block; <see cref="Shelf"/> blocks from above only;
+    /// <see cref="Diagon"/> and <see cref="Stair"/> pass — <c>loc/Box.as:1260-1275</c>, whose first
+    /// clause rejects <b>only</b> <c>phis</c> 0 and 3.</description></item>
     /// </list>
     /// </summary>
     [System.Flags]
@@ -37,7 +43,7 @@ namespace PFE.Systems.Map.TileQuery
         /// <summary>Nothing to collide with — air, water, or a destroyed tile.</summary>
         None = 0,
 
-        /// <summary>AS3 <c>phis == 1 || phis == 2</c> — a wall. Blocks every consumer.</summary>
+        /// <summary>AS3 <c>phis == 1</c> — an ordinary wall. Blocks every consumer.</summary>
         Solid = 1 << 0,
 
         /// <summary>AS3 <c>phis == 0</c> + <c>shelf</c> — a one-way catwalk. Blocks only from above.</summary>
@@ -48,6 +54,15 @@ namespace PFE.Systems.Map.TileQuery
 
         /// <summary>AS3 <c>phis == 0</c> + <c>diagon</c> — a walkable ramp. Blocks nothing.</summary>
         Diagon = 1 << 3,
+
+        /// <summary>
+        /// AS3 <c>phis == 2</c> — a <b>level-2 solid</b>: a closed <c>grate</c>/<c>hgrate</c> door
+        /// (<c>AllData.as:4859-4860</c>). Blocks movement, dynamic props (<c>Box.as:1262</c> rejects
+        /// only <c>phis</c> 0/3) and tile damage (<c>phis &gt;= 1</c>), but <b>not</b> a projectile
+        /// (<c>Bullet.as:476</c>, <c>PhisBullet.as:242</c>) and <b>not</b> line of sight
+        /// (<c>Unit.as:4626</c>) — every one of those tests <c>phis == 1</c> exactly.
+        /// </summary>
+        LevelTwoSolid = 1 << 4,
     }
 
     /// <summary>
@@ -79,7 +94,13 @@ namespace PFE.Systems.Map.TileQuery
         {
             if (tile == null) return SurfaceKind.None;
 
-            if (tile.physicsType == TilePhysicsType.Wall) return SurfaceKind.Solid;
+            // A `phis == 2` tile is a Wall in this port's decode, so the level-2 bit has to be read
+            // first or it can never be named at all — see TileData.levelTwoSolid.
+            if (tile.physicsType == TilePhysicsType.Wall)
+            {
+                return tile.levelTwoSolid ? SurfaceKind.LevelTwoSolid : SurfaceKind.Solid;
+            }
+
             if (tile.physicsType == TilePhysicsType.Platform) return SurfaceKind.Shelf;
 
             // `slopeType != 0` (TileData.IsSlopeSurface) — an AS3 `diagon`, which the port decodes to

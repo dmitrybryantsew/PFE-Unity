@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace PFE.Systems.Map
@@ -58,6 +58,38 @@ namespace PFE.Systems.Map
         /// <c>phis</c>-derived one instead of combining with it.</para>
         /// </summary>
         public float doorOcclusion = NoDoorOcclusion;
+
+        /// <summary>
+        /// AS3 <c>phis == 2</c> — a <b>level-2 solid</b>, which is what a closed <c>grate</c> /
+        /// <c>hgrate</c> door stamps onto its tiles (<c>AllData.as:4859-4860</c>, written by
+        /// <c>Box.initDoor</c>, <c>loc/Box.as:666</c>).
+        ///
+        /// <para><b>Why the port needs a second bit at all.</b> <see cref="physicsType"/> collapsed
+        /// every non-zero <c>phis</c> into <see cref="TilePhysicsType.Wall"/> (see
+        /// <c>TileDecoder.MapPhysicsType</c>), and for <i>most</i> consumers 1 and 2 are indeed the
+        /// same: units are gated on <c>phis &gt; 0</c>, dynamic props on <c>phis != 0 &amp;&amp; phis
+        /// != 3</c> (<c>Box.as:1262</c>), tile damage on <c>phis &gt;= 1</c>. Two consumers test
+        /// <c>phis == 1</c> <b>exactly</b> and therefore disagree:</para>
+        /// <list type="bullet">
+        /// <item><b>projectiles</b> — <c>weapon/Bullet.as:476</c> and all four arms of
+        /// <c>weapon/PhisBullet.as:242,263,286,315</c>. A bullet flies through a grate.</item>
+        /// <item><b>line of sight</b> — <c>unit/Unit.as:4626</c> (and <c>Location.isLine</c>,
+        /// <c>Location.as:2378</c>). An enemy sees through a grate.</item>
+        /// </list>
+        ///
+        /// <para><b>This is a flag, not a third physics type.</b> The tile stays a
+        /// <see cref="TilePhysicsType.Wall"/>: it blocks movement, props, light and damage exactly as
+        /// before, and every one of those readers keeps its single predicate. Only the consumers that
+        /// ask "is this <i>exactly</i> a <c>phis == 1</c> wall" read this bit — the same split
+        /// <see cref="SurfaceKind"/> exists to express.</para>
+        ///
+        /// <para><b>Writers:</b> <c>DoorPropPresenter.ApplyTileCollision</c> (the port's
+        /// <c>Box.setDoor</c>, and the only writer in practice — the two grate rows are the only
+        /// <c>phis = 2</c> in the shipped data) and <c>TileDecoder.ApplyForm</c> (a
+        /// <c>phis = 2</c> tile form, of which the data has none — kept so a future form decodes
+        /// honestly instead of silently becoming an ordinary wall).</para>
+        /// </summary>
+        public bool levelTwoSolid;
 
         /// <summary>
         /// <c>Tile.grav</c>'s default (<c>Tile.as:72</c>, <c>grav = 1</c>) — "ordinary gravity".
@@ -125,17 +157,64 @@ namespace PFE.Systems.Map
         public string trapId = "";
 
         /// <summary>
+        /// How much of a tile each <see cref="heightLevel"/> removes from the top: a quarter. AS3
+        /// <c>Tile.setZForm</c> divides <c>zForm</c> by 4 (<c>loc/Tile.as:292</c>).
+        /// </summary>
+        public const float HeightStepFraction = 0.25f;
+
+        /// <summary>Fraction of a tile this tile's <b>solid</b> part occupies: <c>1 - heightLevel/4</c>.</summary>
+        public float HeightScale =>
+            1f - Mathf.Clamp(heightLevel, 0, 3) * HeightStepFraction;
+
+        /// <summary>How far this tile's solid top sits below the cell's top edge, in pixels.</summary>
+        public float SolidTopDropPixels =>
+            WorldConstants.TILE_SIZE * Mathf.Clamp(heightLevel, 0, 3) * HeightStepFraction;
+
+        /// <summary>
         /// Get the physical bounds of this tile in pixel space.
         /// From AS3: phX1, phX2, phY1, phY2
+        ///
+        /// <para><b><c>heightLevel</c> shortens the tile from the TOP; it does not move the whole
+        /// cell.</b> AS3 <c>Tile.setZForm</c> writes <b>only</b> <c>phY1 = (Y + zForm/4) * tileY</c>
+        /// and leaves <c>phY2 = (Y + 1) * tileY</c> alone (<c>loc/Tile.as:281-297</c>). In AS3's
+        /// y-down frame <c>phY1</c> is the top edge, so a raised tile's solid part keeps its foot on
+        /// the cell floor and loses a quarter of the cell at the top — which is exactly what a step
+        /// is, and why <c>Grafon.as:848</c> draws the mask squashed to
+        /// <c>(phY2 - phY1) / tileY</c> and centred on <c>(phY2 + phY1) / 2</c>.</para>
+        ///
+        /// <para><b>Mirrored into this port's y-up frame, the top comes down and the bottom stays
+        /// put:</b> <c>[gy·40, (gy+1)·40 - heightLevel·10]</c>. This used to add
+        /// <c>heightLevel * 0.25</c> to the <i>whole</i> cell, which lifted the box a quarter cell
+        /// (and, with <c>TileCollider</c>'s own upward offset, a full half cell) above the ledge it
+        /// was supposed to be. 65 cells in 10 shipped rooms carry <c>zForm</c>.</para>
+        ///
+        /// <para><b>Every physics reader must use this, not the grid row.</b> <c>phis</c> decides
+        /// <i>whether</i> a cell is solid; <c>phX1..phY2</c> decide <i>where</i>. AS3's
+        /// <c>Unit.collisionTile</c> is a plain AABB test against these four numbers
+        /// (<c>Unit.as:2568-2583</c>), and its landing snap writes <c>Y = tile.phY1</c>
+        /// (<c>:2275, :2307</c>) — never the cell boundary.</para>
         /// </summary>
         public Rect GetBounds()
         {
-            float y1 = (gridPosition.y + heightLevel * 0.25f) * WorldConstants.TILE_SIZE;
-            float y2 = y1 + WorldConstants.TILE_SIZE;
             float x1 = gridPosition.x * WorldConstants.TILE_SIZE;
             float x2 = x1 + WorldConstants.TILE_SIZE;
+            float y1 = gridPosition.y * WorldConstants.TILE_SIZE;
+            float y2 = y1 + WorldConstants.TILE_SIZE * HeightScale;
             return new Rect(x1, y1, x2 - x1, y2 - y1);
         }
+
+        /// <summary>
+        /// AS3 <c>phY1</c> — the surface a unit lands on and the ceiling of the cell below.
+        /// For an unraised tile this is the cell's top edge; for a raised one it is
+        /// <see cref="SolidTopDropPixels"/> lower.
+        /// </summary>
+        public float SolidTopY => GetBounds().yMax;
+
+        /// <summary>
+        /// AS3 <c>phY2</c> — the underside of the tile. <c>setZForm</c> never writes it, so this is
+        /// always the cell's bottom edge.
+        /// </summary>
+        public float SolidBottomY => gridPosition.y * WorldConstants.TILE_SIZE;
         public string GetZadGraphic() { return zadGraphic; }
         public void SetZadGraphic(string graphic) { zadGraphic = graphic; }
         /// <summary>
@@ -325,6 +404,10 @@ namespace PFE.Systems.Map
             // and the occlusion rule — which only honours it while the tile is a Wall — would silently
             // start honouring it again if anything later made the tile solid.
             doorOcclusion = NoDoorOcclusion;
+
+            // AS3 `Tile.die()` sets `phis = 0`, and `phis` is the only thing that made the tile a
+            // level-2 solid — a destroyed grate is no longer one, so the bit must not survive it.
+            levelTwoSolid = false;
         }
 
         /// <summary>

@@ -46,6 +46,8 @@ namespace PFE.Tests.EditMode.Systems.Map.TileQuery
 
         [TestCase(SurfaceKind.None,   false, "air — nothing to collide with")]
         [TestCase(SurfaceKind.Solid,  true,  "a wall blocks a prop")]
+        [TestCase(SurfaceKind.LevelTwoSolid, true,
+            "a closed grate blocks a prop — Box.as:1262 rejects only phis 0 and 3")]
         [TestCase(SurfaceKind.Shelf,  true,  "a shelf blocks from above (the current bottom is above its top)")]
         [TestCase(SurfaceKind.Diagon, false, "a ramp passes a prop (divergence 1)")]
         [TestCase(SurfaceKind.Stair,  false, "a stair passes a prop (divergence 2)")]

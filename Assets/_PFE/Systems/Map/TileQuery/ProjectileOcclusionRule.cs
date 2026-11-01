@@ -15,8 +15,10 @@ namespace PFE.Systems.Map.TileQuery
     /// <c>Unit.as:2578</c>), <c>stair</c> climbable.</para>
     ///
     /// <para>So a projectile passes through catwalks, slopes and ladders. In this port <c>phis</c> 1
-    /// and 2 both decode to <see cref="TilePhysicsType.Wall"/>, which makes the whole rule one
-    /// comparison.</para>
+    /// and 2 both decode to <see cref="TilePhysicsType.Wall"/>, so the enum alone is <b>not</b> the
+    /// whole rule: a <c>phis == 2</c> tile carries <see cref="TileData.levelTwoSolid"/> and must be
+    /// let through too. That is the closed-grate case — 195 <c>grate</c>/<c>hgrate</c> placements in
+    /// 69 rooms, whose tiles the oracle leaves at <c>phis == 2</c> precisely so bullets cross them.</para>
     ///
     /// <para><b>Do not express this as <c>TileData.IsSolid()</c>.</b> That helper is
     /// <c>physicsType >= Wall</c>, i.e. it includes <c>Platform</c> and <c>Stair</c> — it answers
@@ -34,7 +36,14 @@ namespace PFE.Systems.Map.TileQuery
     {
         /// <summary>
         /// True when <paramref name="tile"/> stops a projectile: a <c>phis == 1</c> solid, which this
-        /// port decodes to <see cref="TilePhysicsType.Wall"/>.
+        /// port decodes to <see cref="TilePhysicsType.Wall"/> — <b>excluding</b> a level-2 solid.
+        ///
+        /// <para><b>The level-2 exclusion is the oracle's own, not a widening.</b> <c>Bullet.as:476</c>
+        /// reads <c>phis == 1 || phis == 2 &amp;&amp; (the bullet is still inside the cell it spawned
+        /// in)</c>, and the second clause is unreachable for an ordinary round: <c>tileX</c>/<c>tileY</c>
+        /// default to <c>-1</c> (<c>Bullet.as:87-89</c>) and the only writer is <c>WClub.as:627-628</c>,
+        /// the club's point-blank shock round. So a bullet fired at a closed grate goes through it, and
+        /// <c>PhisBullet.as</c>'s four arms test <c>phis == 1</c> with no second clause at all.</para>
         ///
         /// <para>A null tile — an unbuilt cell, or a collider that carries no <c>TileData</c> — is
         /// <b>not</b> an occluder. Returning true there would stop projectiles on colliders whose
@@ -42,7 +51,9 @@ namespace PFE.Systems.Map.TileQuery
         /// </summary>
         public static bool BlocksProjectile(TileData tile)
         {
-            return tile != null && tile.physicsType == TilePhysicsType.Wall;
+            if (tile == null) return false;
+            if (tile.physicsType != TilePhysicsType.Wall) return false;
+            return !tile.levelTwoSolid;
         }
     }
 }

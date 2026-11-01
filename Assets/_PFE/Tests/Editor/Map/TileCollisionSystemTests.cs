@@ -574,7 +574,144 @@ namespace PFE.Tests.Editor.Map
 
             // Assert
             Assert.AreEqual(80f, bounds0.yMin, "Height level 0 should start at Y=80");
-            Assert.Greater(bounds1.yMin, bounds0.yMin, "Height level 1 should be higher than level 0");
+            Assert.AreEqual(bounds0.yMin, bounds1.yMin,
+                "a raised tile keeps its foot on the cell floor — AS3 setZForm writes only phY1");
+            Assert.Less(bounds1.yMax, bounds0.yMax,
+                "Height level 1 lowers the top by a quarter cell");
+        }
+
+        // ── The rule, single-sourced (LLP2D §8.4) ────────────────────────────────────────────────
+        //
+        // Tile destruction was implemented twice — here and in `TileCollider.DamageThisTile` — and the
+        // two had drifted: this path had no `damage <= 0` guard, so a zero-damage hit returned true
+        // ("damaged") while changing nothing, and the collider refused the same input. Both now
+        // delegate to `TileDestruction.Apply`. These fixtures pin the rule once and pin that the two
+        // entry points cannot disagree again.
+
+        [TestCase(TilePhysicsType.Wall,     false,   0, 100, 50f,  TileDamageOutcome.Damaged)]
+        [TestCase(TilePhysicsType.Wall,     false,   0,  10, 10f,  TileDamageOutcome.Destroyed)]
+        [TestCase(TilePhysicsType.Wall,     false,  50, 100, 10f,  TileDamageOutcome.RefusedThreshold)]
+        [TestCase(TilePhysicsType.Wall,     false,  10, 100, 10f,  TileDamageOutcome.Damaged)]
+        [TestCase(TilePhysicsType.Wall,     true,    0, 100, 50f,  TileDamageOutcome.RefusedIndestructible)]
+        [TestCase(TilePhysicsType.Wall,     false,   0, 100,  0f,  TileDamageOutcome.RefusedNoDamage)]
+        [TestCase(TilePhysicsType.Wall,     false,   0, 100, 0.4f, TileDamageOutcome.RefusedNoDamage)]
+        [TestCase(TilePhysicsType.Stair,    false,   0, 100, 50f,  TileDamageOutcome.RefusedNotDamageable)]
+        [TestCase(TilePhysicsType.Platform, false,   0, 100, 50f,  TileDamageOutcome.RefusedNotDamageable)]
+        [TestCase(TilePhysicsType.Air,      false,   0, 100, 50f,  TileDamageOutcome.RefusedNotDamageable)]
+        public void Rule_NamesEveryOutcome(
+            TilePhysicsType physicsType, bool indestructible, int threshold, int hp, float damage,
+            TileDamageOutcome expected)
+        {
+            var tile = new TileData
+            {
+                gridPosition    = new Vector2Int(2, 2),
+                physicsType     = physicsType,
+                indestructible  = indestructible,
+                damageThreshold = threshold,
+                hitPoints       = hp,
+            };
+
+            // The message names the case, not just the method: the offline runner prints
+            // `FAIL <method>` and then the assertion message, so without this a table of ten cases
+            // reports "Rule_NamesEveryOutcome failed" and says nothing about which row died.
+            string label = $"phis={physicsType} indestructible={indestructible} thre={threshold} " +
+                           $"hp={hp} damage={damage}";
+
+            Assert.AreEqual(expected, TileDestruction.Apply(tile, damage), label);
+        }
+
+        [Test]
+        public void AZeroDamageHitChangesNothing()
+        {
+            // The drift, stated as a behaviour: `TakeDamage(0)` returns true when the threshold is 0
+            // (nothing is "below" it), so the old `ApplyDamage` reported success and damaged nothing.
+            // A hit that carries no tile damage must be a refusal, not a silent no-op that claims a hit.
+            var tile = new TileData
+            {
+                gridPosition = new Vector2Int(2, 2),
+                physicsType  = TilePhysicsType.Wall,
+                hitPoints    = 100,
+            };
+            testRoom.tiles[2, 2] = tile;
+
+            bool damaged = collisionSystem.ApplyDamage(new Vector2(90f, 90f), 0, radiusTiles: 0);
+
+            Assert.IsFalse(damaged, "a zero-damage hit must not report damage");
+            Assert.AreEqual(100, tile.hitPoints, "and must leave hp alone");
+        }
+
+        [Test]
+        public void BothCallSitesAgreeOnEveryOutcome()
+        {
+            // The fixture §8.4 asked for: same tile, same damage, same `phis`, compare `hp` and
+            // `physicsType`. One side goes through `TileDestruction.Apply` (what `TileCollider` uses),
+            // the other through `TileCollisionSystem.ApplyDamage` (the radius path). They are the same
+            // rule now, so any future divergence shows up here as a mismatched pair rather than as a
+            // failure count that could be a coincidence.
+            var cases = new (TilePhysicsType type, bool indestructible, int threshold, int hp, int damage)[]
+            {
+                (TilePhysicsType.Wall,     false,   0, 100, 50),
+                (TilePhysicsType.Wall,     false,   0,  10, 10),
+                (TilePhysicsType.Wall,     false,  50, 100, 10),
+                (TilePhysicsType.Wall,     false,  10, 100, 10),
+                (TilePhysicsType.Wall,     true,    0, 100, 50),
+                (TilePhysicsType.Wall,     false,   0, 100,  0),
+                (TilePhysicsType.Stair,    false,   0, 100, 50),
+                (TilePhysicsType.Platform, false,   0, 100, 50),
+            };
+
+            foreach ((TilePhysicsType type, bool indestructible, int threshold, int hp, int damage) c in cases)
+            {
+                var byRule = new TileData
+                {
+                    gridPosition = new Vector2Int(2, 2),
+                    physicsType = c.type, indestructible = c.indestructible,
+                    damageThreshold = c.threshold, hitPoints = c.hp,
+                };
+
+                var bySystem = new TileData
+                {
+                    gridPosition = new Vector2Int(2, 2),
+                    physicsType = c.type, indestructible = c.indestructible,
+                    damageThreshold = c.threshold, hitPoints = c.hp,
+                };
+                testRoom.tiles[2, 2] = bySystem;
+
+                // Rule path, plus the die step each caller performs when the rule says Destroyed.
+                TileDamageOutcome outcome = TileDestruction.Apply(byRule, c.damage);
+                if (outcome == TileDamageOutcome.Destroyed) byRule.Destroy();
+
+                bool damaged = collisionSystem.ApplyDamage(new Vector2(90f, 90f), c.damage, radiusTiles: 0);
+
+                string label = $"phis={c.type} indestruct={c.indestructible} thre={c.threshold} " +
+                               $"hp={c.hp} damage={c.damage}";
+
+                Assert.AreEqual(byRule.hitPoints, bySystem.hitPoints, $"hp diverged: {label}");
+                Assert.AreEqual(byRule.physicsType, bySystem.physicsType, $"phis diverged: {label}");
+
+                // The classification, not just the numbers — and this is the half the old drift lived
+                // in. `TakeDamage(0)` returns true when the threshold is 0, so the pre-refactor system
+                // subtracted nothing and still reported "damaged", while `TileCollider` refused the
+                // same input. Comparing only `hp` would have called those two identical.
+                Assert.AreEqual(!TileDestruction.WasRefused(outcome), damaged,
+                    $"the two call sites disagree about whether the hit landed: {label}");
+            }
+        }
+
+        [Test]
+        public void WasRefusedIsTrueForExactlyTheFourRefusals()
+        {
+            // Guards the enum's meaning rather than its order: `WasRefused` is a switch, so reordering
+            // the members is safe, but adding a fifth refusal and forgetting it here is not.
+            foreach (TileDamageOutcome outcome in System.Enum.GetValues(typeof(TileDamageOutcome)))
+            {
+                bool expected = outcome == TileDamageOutcome.RefusedNotDamageable
+                             || outcome == TileDamageOutcome.RefusedNoDamage
+                             || outcome == TileDamageOutcome.RefusedIndestructible
+                             || outcome == TileDamageOutcome.RefusedThreshold;
+
+                Assert.AreEqual(expected, TileDestruction.WasRefused(outcome), outcome.ToString());
+            }
         }
 
         [Test]

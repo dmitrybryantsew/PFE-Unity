@@ -610,9 +610,16 @@ namespace PFE.Systems.Physics
         /// <c>TileData.physicsType</c>, so the seam stays the single definition of tile semantics.
         /// Accepts <see cref="TileQueryFlags.Solid"/> <b>only</b>. Deliberately not
         /// <see cref="TileQueryFlags.Platform"/> or <see cref="TileQueryFlags.Slope"/>: AS3 blocks a
-        /// bullet on <c>phis == 1 || phis == 2</c> alone (<c>weapon/Bullet.as:476</c>), and a catwalk, a
-        /// slope and a ladder all carry <c>phis = 0</c>. Accepting them here made bullets stop in
-        /// mid-air on catwalks and above slopes.</para>
+        /// bullet on <c>phis == 1</c> alone (<c>weapon/Bullet.as:476</c>, whose <c>phis == 2</c> arm
+        /// only fires for the round's spawn cell), and a catwalk, a slope and a ladder all carry
+        /// <c>phis = 0</c>. Accepting them here made bullets stop in mid-air on catwalks and above
+        /// slopes.</para>
+        ///
+        /// <para><b>And not a level-2 solid.</b> A closed <c>grate</c> is <c>phis == 2</c>, which the
+        /// port decodes to <c>Wall</c> plus <see cref="TileData.levelTwoSolid"/>; it classifies as
+        /// <see cref="SurfaceKind.LevelTwoSolid"/>, not <see cref="SurfaceKind.Solid"/>, so this
+        /// predicate rejects it and no chain face is emitted there. Emitting one is exactly the bug
+        /// this exclusion fixes — a bullet stopped dead on a grate the oracle lets it through.</para>
         ///
         /// <para><b>This is one of exactly two places a bullet asks "is this tile in my way".</b> The
         /// other is <c>Projectile.OnTriggerEnter2D</c>, which is the legacy per-tile path. Both resolve

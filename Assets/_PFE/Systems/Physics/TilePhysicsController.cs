@@ -199,6 +199,13 @@ namespace PFE.Systems.Physics
         [Tooltip("Maximum vertical step-up height in pixels when grounded and walking into a low obstacle.")]
         [SerializeField] internal float stepUpThreshold = 10f;
 
+        [Tooltip("Step-up height while grounded and holding a walk key — AS3 UnitPlayer porog = 20, i.e. half a tile. " +
+                 "The player's standing value is 0, so a stationary player is stopped by any ledge at all.")]
+        [SerializeField] internal float stepUpThresholdWalking = TileQueryConstants.PlayerPorogWalk;
+
+        [Tooltip("Step-up height while grounded and not walking — AS3 UnitPlayer porog = 0.")]
+        [SerializeField] internal float stepUpThresholdIdle = TileQueryConstants.PlayerPorogGrounded;
+
         [Tooltip("Reduced step-up threshold while airborne or rising.")]
         [SerializeField] internal float stepUpThresholdWhileAirborne = 4f;
 
@@ -226,6 +233,23 @@ namespace PFE.Systems.Physics
         /// standing exactly on a cell boundary still probes the cell it is about to descend into.
         /// </summary>
         private const float LadderProbeBelowFeetPixels = 2f;
+
+        /// <summary>
+        /// AS3's sideways descend probe: <c>checkStairs(2, ±20 * storona)</c>
+        /// (<c>UnitPlayer.as:2847,2853</c>) — <b>20 pixels to one side</b> of the body centre, then two
+        /// pixels below the feet.
+        ///
+        /// <para><b>Why 20 and not "the neighbouring tile".</b> The oracle computes
+        /// <c>Math.floor((X + param2) / Tile.tileX)</c>, so the offset is measured from the body centre
+        /// and only lands in the adjacent cell when the centre is on that half of the cell. Writing
+        /// "probe the adjacent tile" instead would let a unit standing dead-centre reach a staircase it
+        /// could not reach in the original.</para>
+        ///
+        /// <para><b>This is the only way to start a descent from a one-way ledge.</b> See
+        /// <see cref="UpdateLadderState"/> — the own-column probe reads the ledge the unit is standing
+        /// on, which is a wall or a shelf, never a staircase.</para>
+        /// </summary>
+        private const float LadderSideProbePixels = 20f;
 
         [Header("State (read-only)")]
         [SerializeField] private bool isGrounded;
@@ -719,17 +743,26 @@ namespace PFE.Systems.Physics
 
         /// <summary>
         /// Check whether a teleport destination is free of solid geometry.
+        ///
+        /// <para><b>The rect is the body, not twice the body.</b> <c>halfHeight</c> is the standing
+        /// collision height and the box stands ON the point: <c>[y, y + halfHeight]</c>, which is what
+        /// the oracle tests — <c>loc.collisionUnit(x, y, stayX, stayY)</c> builds
+        /// <c>[y - stayY, y]</c> in its y-down space (<c>Location.as:2345-2352</c>), the same box
+        /// mirrored. The previous <c>height: halfHeight * 2f</c> reached twice the body height up from
+        /// the feet, so a ceiling one body height above the landing spot refused the teleport; indoors
+        /// that is every destination, which is why teleporting appeared to do nothing in rooms while
+        /// still working under open sky.</para>
         /// </summary>
         public bool CanTeleportTo(float targetPixelX, float targetPixelY, float halfWidth, float halfHeight)
         {
             if (currentRoom == null) return false;
 
-            // Build AABB at target in world pixel space
+            // Build AABB at target in world pixel space. y-up: the body stands on the point.
             Rect targetBounds = new Rect(
                 targetPixelX - halfWidth,
                 targetPixelY,
                 halfWidth * 2f,
-                halfHeight * 2f);
+                halfHeight);
 
             return !TileCollisionMath.CheckCollision(
                 currentRoom,
@@ -1768,32 +1801,73 @@ namespace PFE.Systems.Physics
             return Mathf.Max(standingCollisionHeight * 0.65f, 12f);
         }
 
+        /// <summary>
+        /// AS3's step-up, at the oracle's own rule: the obstacle's <b>top</b> decides, not a search
+        /// up the cell.
+        ///
+        /// <para><b>What this replaced.</b> A loop that raised the body one pixel at a time and
+        /// accepted the first height where the horizontal probe was clear <i>and</i>
+        /// <c>CheckGroundCollisionAt</c> said ground. That only ever terminated correctly because the
+        /// ground probe classified by grid row, so any y inside the obstacle's row counted — the loop
+        /// effectively searched for "the row above the obstacle" and then left the unit floating at
+        /// whatever pixel it stopped on. With tiles that have a real solid box (a
+        /// <c>heightLevel &gt; 0</c> tile's top is a quarter cell below its cell boundary) that
+        /// search has no correct answer at all: the only y that is both clear and ground is exactly
+        /// <c>tile.SolidTopY</c>, which is what <see cref="TileCollisionMath.TryStepUp"/> returns.</para>
+        ///
+        /// <para>AS3 <c>Unit.as:2131</c> (leftward) / <c>:2208</c> (rightward):
+        /// <c>if (Y2 - tile.phY1 &lt;= (stay ? porog : porog_jump) &amp;&amp; !collisionAll(±20,
+        /// tile.phY1 - Y2)) Y = tile.phY1;</c>.</para>
+        /// </summary>
         private bool TryStepUp(float attemptedX, float hw, float hh)
         {
-            float maxStepHeight = (!isGrounded || dy > 0.1f)
-                ? stepUpThresholdWhileAirborne
-                : stepUpThreshold;
-            int pixelSteps = Mathf.Max(0, Mathf.RoundToInt(maxStepHeight));
-            for (int step = 1; step <= pixelSteps; step++)
+            float allowance = ResolveStepUpAllowancePixels();
+            if (allowance <= 0f)
             {
-                float raisedY = posY + step;
-                if (CheckTileCollisionAt(attemptedX, raisedY, hw, hh))
-                {
-                    continue;
-                }
-
-                if (!CheckGroundCollisionAt(attemptedX, raisedY, hw))
-                {
-                    continue;
-                }
-
-                posX = attemptedX;
-                posY = raisedY;
-                isGrounded = true;
-                return true;
+                return false;
             }
 
-            return false;
+            float moveX = attemptedX - posX;
+            if (!TileCollisionMath.TryStepUp(
+                    currentRoom, posX, posY, hw, hh, moveX, allowance,
+                    roomWorldPixelX, roomWorldPixelY, out float steppedFeetY))
+            {
+                return false;
+            }
+
+            posX = attemptedX;
+            posY = steppedFeetY;
+            isGrounded = true;
+            return true;
+        }
+
+        /// <summary>
+        /// The step-up allowance for this step, in pixels — AS3 <c>stay ? porog : porog_jump</c>
+        /// (<c>Unit.as:2131</c>).
+        ///
+        /// <para><b>The player's values are not the generic unit's.</b> A generic unit gets a flat
+        /// <c>porog = 10</c> / <c>porog_jump = 4</c> (<c>Unit.as:278-279</c>); the player gets
+        /// <b>0 standing and 20 while a walk key is held</b>, and 10 airborne while running or holding
+        /// Up (<c>UnitPlayer.as:2530-2569</c>). 20 px is <i>half a tile</i>, and that is the whole
+        /// reason the original can walk up a <c>zForm</c> 2 step: <c>zForm</c> levels are 10 px apart,
+        /// so a quarter-tile step needs 10 and a half-tile step needs 20.</para>
+        ///
+        /// <para><c>stepUpThreshold</c> is kept as a floor on the walking value rather than replaced,
+        /// so a prefab that tuned it still has an effect.</para>
+        /// </summary>
+        private float ResolveStepUpAllowancePixels()
+        {
+            if (!isGrounded || dy > 0.1f)
+            {
+                return stepUpThresholdWhileAirborne;
+            }
+
+            if (Mathf.Abs(desiredHorizontalSpeed) > 0.01f)
+            {
+                return Mathf.Max(stepUpThreshold, stepUpThresholdWalking);
+            }
+
+            return stepUpThresholdIdle;
         }
 
         private void UpdateLadderState()
@@ -1811,7 +1885,15 @@ namespace PFE.Systems.Physics
 
             if (isOnLadder)
             {
-                if (!hasLadderContact || (Mathf.Abs(desiredHorizontalSpeed) > 0.1f && !wantsToUseLadder))
+                // Horizontal input does NOT release a ladder, and this used to try: the second clause
+                // was `desiredHorizontalSpeed > 0.1 && !wantsToUseLadder`, which can never be true —
+                // the locomotion controller answers 0 for its target speed while `IsOnLadder`
+                // (`PlayerLocomotionController.ResolveTargetHorizontalSpeed`), so the arm was dead and
+                // read as if walking off a ladder were supported. It is not, in the oracle either:
+                // `run()` skips its whole horizontal block while `isLaz`
+                // (`if(!this.isLaz) { X += (dx + osndx) / param1; … }`, `Unit.as:2061`). A ladder is
+                // left by a failed probe, by a jump (`:2942`), or by `runForever` / a quake.
+                if (!hasLadderContact)
                 {
                     isOnLadder = false;
                     activeLadderDirection = 0;
@@ -1824,14 +1906,47 @@ namespace PFE.Systems.Physics
                 return;
             }
 
-            // AS3 lets a unit start a descent from the GROUND as well as from the air:
-            // `if(stay && diagon == 0 && ... ) { if(checkStairs(2)) { dy = lazSpeed; throu = true; } }`
-            // (UnitPlayer.as:2839-2846) runs BEFORE the sit branch, so standing on a ladder's top cap
-            // and pressing Down descends instead of crouching. Requiring `!isGrounded` here was the
-            // port's own rule and it made a ladder a one-way trip: the cap that AS3 promotes to a
-            // shelf (Location.as:578-585) is exactly where the descent has to start from.
-            bool canEnterFromHere = climbUpPressed || climbDownPressed;
-            if (!wantsToUseLadder || !canEnterFromHere || !hasLadderContact)
+            // ── The two entry arms are NOT symmetric, and the asymmetry is the whole mechanic. ─────
+            //
+            // AS3 `UnitPlayer.control()` has one arm per key and they are gated differently:
+            //
+            //   Up   `if(!isSit && !isFly && keyBeUp && ...) { if(checkStairs()) { dy = -lazSpeed; } }`
+            //        (`:2933`) — NOT gated on `stay`, so a unit may grab a staircase out of the air.
+            //   Down `if(stay && diagon == 0 && ...) { if(checkStairs(2)) { dy = lazSpeed; throu = true; } }`
+            //        (`:2839`) — gated on `stay`, plus two `stayPhis == 2` sideways probes
+            //        (`:2847,:2853`); the only other way in is already being on the ladder
+            //        (`else if(isLaz)`, `:2864`), which is the branch above.
+            //
+            // The port used to accept EITHER key from any state. That made Down an entry from the air,
+            // so the tick after a jump off a staircase re-attached to it — `wantsToUseLadder` is still
+            // true while the key is held — and the jump was swallowed. The visible result was a unit
+            // that could not let go of a staircase it was climbing, in either direction. AS3 releases
+            // on `keyJump && !keyBeUp` (`:2942`) and then has no airborne Down arm to catch it again.
+            if (!wantsToUseLadder)
+            {
+                return;
+            }
+
+            if (climbUpPressed)
+            {
+                if (!hasLadderContact)
+                {
+                    return;
+                }
+            }
+            else if (climbDownPressed)
+            {
+                if (!isGrounded)
+                {
+                    return;
+                }
+
+                if (!hasLadderContact && !TryGetLadderDescentEntry(out ladderContact))
+                {
+                    return;
+                }
+            }
+            else
             {
                 return;
             }
@@ -1916,6 +2031,47 @@ namespace PFE.Systems.Physics
         }
 
         /// <summary>
+        /// AS3's two <b>sideways</b> descend probes, <c>checkStairs(2, ±20 * storona)</c>
+        /// (<c>UnitPlayer.as:2847,2853</c>), gated on <c>stayPhis == 2</c>.
+        ///
+        /// <para><b>What this is for.</b> Standing on a one-way ledge — a catwalk, or the shelf the
+        /// decoder promotes a staircase's top cell to (<c>TileDecoder.ApplyLegacyStairPlacementRules</c>)
+        /// — the own-column probe reads the ledge itself, which is a <c>shelf</c> or a wall and never a
+        /// staircase. So the unit's own column can never start a descent from there. The staircase that
+        /// leads down is <i>beside</i> the ledge, one probe-width away, and the oracle finds it with
+        /// these two calls. Without them the ledge is a solid floor you cannot drop through, which is
+        /// the reported symptom.</para>
+        ///
+        /// <para><b>Why <c>stayPhis == 2</c> and not "any ground".</b> AS3 distinguishes the support by
+        /// the tile it stands on: <c>stayPhis = 1</c> for a solid top, <c>2</c> for a <c>shelf</c>
+        /// (<c>Unit.as:2314-2326</c>). A solid ledge does <i>not</i> get these probes — there you crouch
+        /// (<c>stayPhis == 1 &amp;&amp; downp == 1</c>) and walk off the edge instead. This motor's
+        /// <see cref="isOnPlatform"/> is the same distinction: it is set by the ground query exactly when
+        /// the support it found was a one-way platform, not a solid tile.</para>
+        ///
+        /// <para><b>Behind first, then ahead</b> — the oracle's order (<c>-20 * storona</c> before
+        /// <c>+20 * storona</c>), and <c>storona</c> is the facing, so a unit pressed against a
+        /// staircase on one side never prefers the other.</para>
+        /// </summary>
+        private bool TryGetLadderDescentEntry(out LadderContact ladderContact)
+        {
+            ladderContact = default;
+
+            if (!isOnPlatform)
+            {
+                return false;
+            }
+
+            float probeY = posY - LadderProbeBelowFeetPixels;
+            if (TryProbeLadderCellAt(posX - LadderSideProbePixels * facingDirection, probeY, out ladderContact))
+            {
+                return true;
+            }
+
+            return TryProbeLadderCellAt(posX + LadderSideProbePixels * facingDirection, probeY, out ladderContact);
+        }
+
+        /// <summary>
         /// AS3 <c>checkStairs</c>'s body: read the ONE cell containing
         /// <paramref name="probeY"/> in the unit's own column, and answer whether it is a climbable
         /// ladder.
@@ -1928,13 +2084,24 @@ namespace PFE.Systems.Physics
         /// </summary>
         private bool TryProbeLadderCell(float probeY, out LadderContact ladderContact)
         {
+            return TryProbeLadderCellAt(posX, probeY, out ladderContact);
+        }
+
+        /// <summary>
+        /// <see cref="TryProbeLadderCell"/> with the probe column given explicitly — AS3
+        /// <c>checkStairs</c>'s second parameter (<c>UnitPlayer.as:2847,2853</c>). The oracle's
+        /// <c>Math.floor((X + param2) / Tile.tileX)</c> is the general form; passing <c>posX</c>
+        /// reproduces the <c>param2 = 0</c> call exactly.
+        /// </summary>
+        private bool TryProbeLadderCellAt(float probeX, float probeY, out LadderContact ladderContact)
+        {
             ladderContact = default;
             if (currentRoom == null || currentRoom.tiles == null)
             {
                 return false;
             }
 
-            int tx = Mathf.FloorToInt((posX - roomWorldPixelX) / WorldConstants.TILE_SIZE);
+            int tx = Mathf.FloorToInt((probeX - roomWorldPixelX) / WorldConstants.TILE_SIZE);
             int ty = Mathf.FloorToInt((probeY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
 
             TileData tile = currentRoom.GetTileAtCoord(new Vector2Int(tx, ty));

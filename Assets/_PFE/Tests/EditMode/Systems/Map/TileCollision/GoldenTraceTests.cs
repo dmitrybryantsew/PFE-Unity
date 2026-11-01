@@ -259,6 +259,69 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
             Assert.AreNotEqual(0UL, hash);
         }
 
+        [Test]
+        public void L8_DescendFromAOneWayLedgeOntoTheStaircaseBesideIt()
+        {
+            // A catwalk whose right end is level with the top of a staircase one cell to the side —
+            // the shape a real room produces when a staircase lands on a ledge. AS3 starts the
+            // descent from here with `stayPhis == 2 && checkStairs(2, ±20 * storona)`
+            // (UnitPlayer.as:2847,2853), because the unit's OWN column reads the ledge it is standing
+            // on, which is a shelf, never a staircase. Without those two probes the ledge is a solid
+            // floor you cannot drop through, which is the reported symptom.
+            string[] ascii = {
+                "............",
+                ".....H......",
+                ".....H......",
+                "...==H......",
+                "############"
+            };
+            RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
+
+            // Column 4 spans 160..200 px, so a centre at 190 puts the +20 probe in column 5.
+            using var harness = new GoldenTraceHarness(room, startX: 190f, startY: 80f);
+
+            harness.StepN(3);
+
+            Assert.IsTrue(harness.Motor.IsGrounded, "control: the unit must be standing on the ledge");
+            Assert.IsTrue(harness.Motor.IsOnPlatform,
+                "control: the support must be a ONE-WAY platform — `stayPhis == 2`, not a solid top");
+
+            harness.StepN(6, ladderY: -1f, ladderClimb: true);
+
+            Assert.IsTrue(harness.Motor.IsOnLadder,
+                "Down on a one-way ledge must hand over to the staircase beside it");
+            Assert.Less(harness.Motor.PixelPosition.y, 80f,
+                "and the unit must actually descend, not stand on the ledge");
+        }
+
+        [Test]
+        public void L9_JumpOffWithDownHeld_IsNotReAttachedOnTheNextTick()
+        {
+            // AS3 clears `isLaz` on `keyJump && !keyBeUp` (UnitPlayer.as:2942) and its Down arm is
+            // gated on `stay` (:2839) or on already being on the ladder (:2864), so nothing re-grabs
+            // the unit out of the air. The port's Down arm used to accept any state, which meant the
+            // tick after a jump re-attached while the key was still held and swallowed the jump.
+            string[] ascii = {
+                "............",
+                ".....H......",
+                ".....H......",
+                ".....H......",
+                "############"
+            };
+            RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
+
+            using var harness = new GoldenTraceHarness(room, startX: 220f, startY: 40f);
+
+            harness.StepN(6, ladderY: 1f, ladderClimb: true);
+            Assert.IsTrue(harness.Motor.IsOnLadder, "control: the unit must be on the ladder");
+
+            harness.Step(jump: true, ladderY: -1f, ladderClimb: true);
+            harness.StepN(3, ladderY: -1f, ladderClimb: true);
+
+            Assert.IsFalse(harness.Motor.IsOnLadder,
+                "holding Down must not re-grab the ladder the unit just jumped off");
+        }
+
         // ──────────────────────────────────────────────────────────────────────────
         // 4.2 Slopes (S1–S6)
         // ──────────────────────────────────────────────────────────────────────────
@@ -384,6 +447,80 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
 
             // Tile 4 is wall (x=160..200), motor half-width is 15 -> max X is ~145
             Assert.Less(harness.Motor.PixelPosition.x, 160f, "Motor must not penetrate wall at slope end");
+
+            ulong hash = harness.Recorder.ComputeHash();
+            Assert.AreNotEqual(0UL, hash);
+        }
+
+        /// <summary>
+        /// <b>The reported bug, as a motor test.</b> A diagonal staircase is a run of `diagon` treads —
+        /// `phis == 0`, so `slopeType != 0` here — and the original drops through it on the same gesture
+        /// as a catwalk: `keyDubSit` raises `throu` (`UnitPlayer.as:2917-2925`) and `run()`'s downward
+        /// branch skips `checkDiagon` entirely while it is up (`Unit.as:2334`).
+        ///
+        /// <para>Until the ramp gate existed, `CheckGroundCollisionAt`'s slope branch answered "ground"
+        /// no matter what the unit had asked for, so this test fell 0 px. The owner-run half of
+        /// <c>SlopeDropThroughTests</c> pins the same rule on the pure function; this one pins the motor
+        /// actually walking the fall, which is the part a player sees.</para>
+        /// </summary>
+        [Test]
+        public void S7_PressDownOnAStaircaseTread_DropsThroughIt()
+        {
+            // A single `/` tread at tile (4, 2): x 160..200, y 80..120, so its surface at the centre
+            // (x = 180) is y = 100. The floor is row 0, top edge 40.
+            string[] ascii = {
+                "########",
+                "..../###",
+                "........",
+                "########"
+            };
+            RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
+
+            using var harness = new GoldenTraceHarness(room, startX: 180f, startY: 100f);
+
+            // Settle onto the tread: one step is enough for the ground query to seat it, and the
+            // assertion below is what proves the test is about a unit that WAS standing on the ramp.
+            harness.StepN(3);
+            Assert.AreEqual(100f, harness.Motor.PixelPosition.y, 1.5f,
+                "precondition: the unit is standing on the tread's surface, not already falling");
+            Assert.IsTrue(harness.Motor.IsOnPlatform,
+                "a ramp is `stayPhis == 2` (checkDiagon, Unit.as:2795-2800), which is the port's " +
+                "isOnPlatform — without it the drop nudge has nothing to break contact with");
+
+            // Hold Down. AS3 keeps `throu` up while the unit is airborne with the key held
+            // (`:2640`), so the descent does not stop at the next surface down.
+            harness.StepN(15, down: true);
+
+            Assert.Less(harness.Motor.PixelPosition.y, 100f,
+                "the unit must fall through the tread it was standing on; before the ramp gate it was " +
+                "held at 100 for ever and this is the reported 'cannot fall through the stairs'");
+
+            ulong hash = harness.Recorder.ComputeHash();
+            Assert.AreNotEqual(0UL, hash);
+        }
+
+        /// <summary>
+        /// The control for <see cref="S7_PressDownOnAStaircaseTread_DropsThroughIt"/>: with no input the
+        /// tread is an ordinary floor and the unit stays on it. A gate that made ramps non-solid all the
+        /// time would pass S7 and fail this.
+        /// </summary>
+        [Test]
+        public void S8_StandStillOnAStaircaseTread_StaysOnIt()
+        {
+            string[] ascii = {
+                "########",
+                "..../###",
+                "........",
+                "########"
+            };
+            RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
+
+            using var harness = new GoldenTraceHarness(room, startX: 180f, startY: 100f);
+
+            harness.StepN(15);
+
+            Assert.AreEqual(100f, harness.Motor.PixelPosition.y, 1.5f,
+                "no `throu`, so the ramp still holds the unit");
 
             ulong hash = harness.Recorder.ComputeHash();
             Assert.AreNotEqual(0UL, hash);
@@ -925,6 +1062,47 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
 
             ulong hash = harness.Recorder.ComputeHash();
             Assert.AreNotEqual(0UL, hash);
+        }
+
+        /// <summary>
+        /// <c>CanTeleportTo</c> must probe the <b>body</b>, not twice the body.
+        ///
+        /// <para>The oracle tests <c>loc.collisionUnit(x, y, stayX, stayY)</c> — a box of exactly the
+        /// body's height standing on the landing point (<c>Location.as:2345-2352</c>). The port built
+        /// <c>height: halfHeight * 2f</c>, so any solid within two body heights above the feet refused
+        /// the teleport. Indoors that is the ceiling, so every teleport into a roofed room was refused
+        /// while open-sky destinations still worked — the reported "teleporting does not work in a
+        /// room".</para>
+        ///
+        /// <para>The room below is four tiles tall: floor at y 0-40, open 40-120, ceiling 120-160. A
+        /// body of 50 px standing at y=40 reaches 90 and clears the ceiling; the doubled probe reached
+        /// 140 and hit it. The second assertion is the absent control: a destination whose body really
+        /// does reach the ceiling must still be refused, so the test cannot pass by returning true
+        /// unconditionally.</para>
+        /// </summary>
+        [Test]
+        public void X7_CanTeleportTo_ProbesTheBodyNotTwiceTheBody()
+        {
+            string[] ascii = {
+                "########",   // y 120-160: ceiling
+                "........",   // y  80-120
+                "........",   // y  40-80
+                "########"    // y   0-40: floor
+            };
+            RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
+
+            using var harness = new GoldenTraceHarness(room, startX: 60f, startY: 40f);
+
+            // Feet on the floor, body 40..90 — one body height of headroom under a ceiling at 120.
+            bool canTeleportUnderCeiling = harness.Motor.CanTeleportTo(60f, 40f, 15f, 50f);
+            Assert.IsTrue(canTeleportUnderCeiling,
+                "A destination with a full body height of headroom must be allowed; the probe used to " +
+                "reach two body heights up and hit the ceiling.");
+
+            // Control: feet at 100, body 100..150 — that really does intersect the ceiling at 120.
+            bool canTeleportIntoCeiling = harness.Motor.CanTeleportTo(60f, 100f, 15f, 50f);
+            Assert.IsFalse(canTeleportIntoCeiling,
+                "A destination whose body intersects the ceiling must still be refused.");
         }
     }
 }

@@ -384,6 +384,12 @@ namespace PFE.Systems.Map
         public float visibilityMultiplier = 1f;
         public int lightsOn = 0;
         public bool returnsToDarkness = false;
+
+        /// <summary>
+        /// AS3 <c>Location.destroyOn</c> — false when the room authors <c>&lt;options desoff="1"&gt;</c>.
+        /// See <c>RoomEnvironment.destroyOn</c> for what false does to a hit; this is the authored half.
+        /// </summary>
+        public bool destroyOn = true;
         public int waterLevel = 100;
         public int waterType = 0;
         public float waterOpacity = 0f;

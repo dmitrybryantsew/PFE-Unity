@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using PFE.Systems.Physics;
 
@@ -252,21 +252,35 @@ namespace PFE.Systems.Map
                 {
                     TileData tile = room.GetTileAtCoord(new Vector2Int(x, y));
 
-                    // AS3 `if(param1.phis >= 1)` — a ladder/catwalk/ramp is scenery, not a target.
-                    if (tile == null || !tile.IsDamageable())
+                    // The rule is `TileHitRules` and nowhere else. This method used to carry its own
+                    // copy of `Tile.udar`, and the copy had already drifted from `TileCollider`'s: it
+                    // had no `damage <= 0` guard, so a zero-damage hit reported "damaged" here while
+                    // the collider refused it.
+                    //
+                    // `TileHitRules` rather than `TileDestruction` because the wrapper is what carries
+                    // the `desoff` gate: without it this path could open a wall the room authored
+                    // unbreakable. The decal type is 0 — this path has no weapon behind it and no layer
+                    // to stamp into; AS3's own default for a scripted area is `Area.damTiles(…, 11)`.
+                    bool destroyOn = room.environment == null || room.environment.destroyOn;
+                    TileHitDecision decision = TileHitRules.Resolve(tile, damage, 0, destroyOn, room.isActive);
+
+                    // The outcome is what distinguishes "refused because the hit is too weak" from
+                    // "refused because this is a ladder" — neither counts as damaged.
+                    if (decision.Outcome == TileHitOutcome.Ignored ||
+                        decision.Outcome == TileHitOutcome.Refused ||
+                        decision.Outcome == TileHitOutcome.VisualOnly)
                     {
                         continue;
                     }
 
-                    if (tile.TakeDamage(damage))
-                    {
-                        damaged = true;
+                    damaged = true;
 
-                        // Destroy tile if needed
-                        if (tile.IsDestroyed())
-                        {
-                            tile.Destroy();
-                        }
+                    // AS3 `Tile.die()`: the caller that owns the object runs the die sequence. Here the
+                    // tile has no GameObject — the visual side is told separately, by whoever raised
+                    // this (see `UnifiedTileQueryService.ApplyDamage`, which notifies the room).
+                    if (decision.ShouldDie)
+                    {
+                        tile.Destroy();
                     }
                 }
             }
@@ -311,9 +325,24 @@ namespace PFE.Systems.Map
                 // sight outright. The port used to test `IsSolid()` and then special-case platforms
                 // with `direction.y < 0`; that whole platform arm is unreachable once the predicate is
                 // `Wall`, because a shelf is `phis == 0` and never blocks sight in any direction.
-                if (tile != null && tile.physicsType == TilePhysicsType.Wall)
+                //
+                // The predicate is `phis == 1` *exactly*, so a level-2 solid is transparent here too:
+                // a closed grate (phis == 2) does not break line of sight in the oracle. That is the
+                // same fact that lets a bullet cross it — see TileData.levelTwoSolid.
+                if (tile != null && tile.physicsType == TilePhysicsType.Wall && !tile.levelTwoSolid)
                 {
-                    return (tile, currentPos);
+                    // …but a Wall only stops the ray if the ray is actually <b>inside</b> it. AS3 tests
+                    // the sample point against the tile's own box — `_loc13_ >= phX1 && _loc13_ <= phX2
+                    // && _loc14_ >= phY1 && _loc14_ <= phY2` (Unit.as:4626) — and `phY1` is lowered by
+                    // a quarter cell per `zForm` level (`Tile.setZForm`). Testing the cell instead made
+                    // a half-height step opaque across its whole cell, so a unit could not see over
+                    // the ledge it was standing on.
+                    Rect box = tile.GetBounds();
+                    if (localPos.x >= box.xMin && localPos.x <= box.xMax &&
+                        localPos.y >= box.yMin && localPos.y <= box.yMax)
+                    {
+                        return (tile, currentPos);
+                    }
                 }
 
                 currentPos += step;

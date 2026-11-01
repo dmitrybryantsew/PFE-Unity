@@ -22,6 +22,10 @@ namespace PFE.Systems.Map.TileQuery
     /// <list type="table">
     /// <item><term><see cref="SurfaceKind.Solid"/></term><description>blocks, if the candidate AABB
     /// overlaps the tile.</description></item>
+    /// <item><term><see cref="SurfaceKind.LevelTwoSolid"/></term><description>blocks exactly like a
+    /// wall. The oracle's first clause rejects only <c>phis</c> 0 and 3, so a <c>phis == 2</c> grate
+    /// stops a crate even though it lets a bullet through — the two consumers read different
+    /// fields.</description></item>
     /// <item><term><see cref="SurfaceKind.Shelf"/></term><description>blocks <b>from above only</b>:
     /// once the prop's bottom is already below the shelf top it is through, and
     /// <c>levit</c>/<c>isThrow</c> bypass it unconditionally.</description></item>
@@ -60,7 +64,9 @@ namespace PFE.Systems.Map.TileQuery
             bool isThrown)
         {
             // :1262 — a slope or a ladder (phis 0/3 without `shelf`) never blocks, and neither does
-            // air. Everything else — a wall, or a shelf — goes on to the overlap test.
+            // air. Everything else — a wall, a level-2 solid (a closed grate), or a shelf — goes on to
+            // the overlap test. `LevelTwoSolid` is deliberately NOT in this list: it is the one kind
+            // the bullet and the prop disagree about.
             if (kind == SurfaceKind.None ||
                 kind == SurfaceKind.Diagon ||
                 kind == SurfaceKind.Stair)

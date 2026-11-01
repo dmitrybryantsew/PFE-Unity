@@ -45,8 +45,12 @@ namespace PFE.Tests.Editor.Map
         }
 
         [Test]
-        public void GetBounds_WithHeightLevel_AdjustsY()
+        public void GetBounds_WithHeightLevel_LowersTheTopAndKeepsTheFoot()
         {
+            // AS3 `Tile.setZForm` (`loc/Tile.as:281-297`) writes ONLY `phY1` — the top — and leaves
+            // `phY2` alone. Mirrored into this port's y-up frame that is "the top comes down by a
+            // quarter cell per level, the bottom stays on the cell floor". The box therefore gets
+            // SHORTER; it does not move.
             TileData tile = new TileData
             {
                 gridPosition = new Vector2Int(0, 10),
@@ -54,9 +58,9 @@ namespace PFE.Tests.Editor.Map
             };
 
             Rect bounds = tile.GetBounds();
-            // Y position should be raised by 1/4 of tile height
-            float expectedY = 10 * 40f + 10f; // Y * 40 + heightLevel * 10
-            Assert.AreEqual(expectedY, bounds.yMin, 0.001f);
+            Assert.AreEqual(400f, bounds.yMin, 0.001f, "the foot stays on the cell floor");
+            Assert.AreEqual(430f, bounds.yMax, 0.001f, "the top drops by one quarter of a tile");
+            Assert.AreEqual(30f, bounds.height, 0.001f);
         }
 
         [Test]
@@ -376,8 +380,9 @@ namespace PFE.Tests.Editor.Map
             Rect bounds1 = tile1.GetBounds();
             Rect bounds2 = tile2.GetBounds();
 
-            // heightLevel 2 should be 20 pixels higher
-            Assert.AreEqual(20f, bounds2.yMin - bounds1.yMin, 0.001f);
+            // A raised tile keeps its foot: two levels shorten it from the top by 20 px.
+            Assert.AreEqual(bounds1.yMin, bounds2.yMin, 0.001f, "the foot does not move");
+            Assert.AreEqual(20f, bounds1.yMax - bounds2.yMax, 0.001f, "two levels take 20 px off the top");
         }
 
         [Test]

@@ -135,7 +135,8 @@ namespace PFE.Systems.Map.TileQuery
             return SurfaceKindRule.Of(Room.GetTileAtCoord(tileCoord));
         }
 
-        public TileMoveResult ResolveMove(in TileBox box, Vector2 delta, TileQueryFlags mask)
+        public TileMoveResult ResolveMove(in TileBox box, Vector2 delta, TileQueryFlags mask,
+                                          float stepUpPixels = 0f)
         {
             float maxDist = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
             int subSteps = TileCollisionMath.CalculateSubSteps(maxDist, TileQueryConstants.MaxDelta);
@@ -151,6 +152,7 @@ namespace PFE.Systems.Map.TileQuery
             bool hitLeft = false;
             bool hitRight = false;
             bool landedOnPlatform = false;
+            float stepUpTotal = 0f;
 
             bool checkPlatform = (mask & TileQueryFlags.Platform) != 0 && (mask & TileQueryFlags.IgnoreOneWay) == 0;
 
@@ -166,9 +168,28 @@ namespace PFE.Systems.Map.TileQuery
 
                     if (TileCollisionMath.CheckTileCollisionAt(Room, targetX, feetY, hw, hhHoriz, origin.x, origin.y))
                     {
-                        if (stepDelta.x < 0f) hitLeft = true;
-                        else hitRight = true;
-                        currentCenter.x = TileCollisionMath.ResolveHorizontal(Room, currentCenter.x, targetX, feetY, hw, hhHoriz, origin.x, origin.y);
+                        // AS3 answers a blocked horizontal step with a step-up BEFORE it stops: if
+                        // the obstacle's top is within `porog`, `Y = tile.phY1` and the step is
+                        // allowed (`Unit.as:2131` leftward, `:2208` rightward). `stepUpPixels` is
+                        // that allowance — 0 for anything that is not a walking unit, so this is a
+                        // pure no-op for every other caller.
+                        if (stepUpPixels > 0f &&
+                            TileCollisionMath.TryStepUp(
+                                Room, currentCenter.x, feetY, hw, hh, stepDelta.x, stepUpPixels,
+                                origin.x, origin.y, out float steppedFeetY) &&
+                            !TileCollisionMath.CheckTileCollisionAt(
+                                Room, targetX, steppedFeetY, hw, hhHoriz, origin.x, origin.y))
+                        {
+                            stepUpTotal += steppedFeetY - feetY;
+                            currentCenter.y = steppedFeetY + box.HalfSize.y;
+                            currentCenter.x = targetX;
+                        }
+                        else
+                        {
+                            if (stepDelta.x < 0f) hitLeft = true;
+                            else hitRight = true;
+                            currentCenter.x = TileCollisionMath.ResolveHorizontal(Room, currentCenter.x, targetX, feetY, hw, hhHoriz, origin.x, origin.y);
+                        }
                     }
                     else
                     {
@@ -231,7 +252,8 @@ namespace PFE.Systems.Map.TileQuery
                 hitLeft,
                 hitRight,
                 landedOnPlatform,
-                subSteps);
+                subSteps,
+                stepUpTotal);
         }
 
         // ── Mutations (host-only) ──────────────────────────────────────────────────────────

@@ -221,9 +221,16 @@ namespace PFE.Systems.Map.TileQuery
         /// <summary>
         /// Swept move of an AABB (pixel space) by delta, subdivided by maxdelta (9px).
         /// Returns final position, collision flags, and remainder. Deterministic.
+        ///
+        /// <para><b><paramref name="stepUpPixels"/> is AS3's <c>stay ? porog : porog_jump</c>.</b>
+        /// When a horizontal step is blocked and the obstacle's solid top is at most this far above
+        /// the feet, the body is placed on top of it and the move continues
+        /// (<c>Unit.as:2131</c> / <c>:2208</c>) — see <see cref="TileCollisionMath.TryStepUp"/>.
+        /// The default of <c>0</c> disables it, which is what every caller that is not a walking
+        /// unit wants: a projectile or a thrown object must not climb a ledge.</para>
         /// </summary>
         [LocalOnly]
-        TileMoveResult ResolveMove(in TileBox box, Vector2 delta, TileQueryFlags mask);
+        TileMoveResult ResolveMove(in TileBox box, Vector2 delta, TileQueryFlags mask, float stepUpPixels = 0f);
 
         // ── Mutations. Host-only. ──────────────────────────────────────────────────────────
 

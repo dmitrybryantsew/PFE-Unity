@@ -32,6 +32,17 @@ namespace PFE.Systems.Map.TileQuery
         /// <summary>Number of sub-steps used (for maxdelta verification).</summary>
         public readonly int StepsUsed;
 
+        /// <summary>
+        /// How far the body was lifted by a step-up this move, in pixels; <c>0</c> when it was not.
+        ///
+        /// <para>AS3's step-up writes <c>Y = tile.phY1</c> (<c>Unit.as:2131</c> / <c>:2208</c>) —
+        /// the body's Y changes, not just its X — so a caller that only applied
+        /// <see cref="Position"/>'s horizontal component would leave the unit standing inside the
+        /// step it just climbed. <see cref="Position"/> already carries the lift; this is here so a
+        /// caller that applies the move as a <i>delta</i> (the motor does) can apply it too.</para>
+        /// </summary>
+        public readonly float StepUpPixels;
+
         public TileMoveResult(
             Vector2 position,
             Vector2 remainder,
@@ -40,7 +51,8 @@ namespace PFE.Systems.Map.TileQuery
             bool hitLeft,
             bool hitRight,
             bool landedOnPlatform,
-            int stepsUsed)
+            int stepsUsed,
+            float stepUpPixels = 0f)
         {
             Position = position;
             Remainder = remainder;
@@ -50,6 +62,7 @@ namespace PFE.Systems.Map.TileQuery
             HitRight = hitRight;
             LandedOnPlatform = landedOnPlatform;
             StepsUsed = stepsUsed;
+            StepUpPixels = stepUpPixels;
         }
 
         public static TileMoveResult Unblocked(Vector2 position, int stepsUsed = 1)

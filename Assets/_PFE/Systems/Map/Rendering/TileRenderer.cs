@@ -8,7 +8,7 @@ namespace PFE.Systems.Map.Rendering
     /// Attached to each tile GameObject in the scene.
     /// </summary>
     [DisallowMultipleComponent]
-    public class TileRenderer : MonoBehaviour
+    public class TileRenderer : MonoBehaviour, ITileVisual
     {
         [Header("Tile Data")]
         [SerializeField] private TileData tileData = null;
@@ -24,6 +24,26 @@ namespace PFE.Systems.Map.Rendering
 
         [Header("Visual State")]
         [SerializeField] private bool isVisible = true;
+
+        /// <summary>
+        /// The sprite side is off, but the tile object — and therefore its
+        /// <see cref="TileCollider"/> — is not.
+        ///
+        /// <para><b>Currently unreachable from the game, and kept on purpose.</b> It was the mechanism
+        /// that let the quarter renderer draw the room while the shipped tiles still carried the
+        /// colliders: build both, hide one. The room now builds <i>either</i> sprites and colliders
+        /// (<c>TileVisualManager</c>, the fallback) or colliders alone (<c>TileCollisionBuilder</c>, the
+        /// default), so nothing suppresses anything — there is no second picture to hide. It stays
+        /// because it is the only way to switch renderers inside a live room, and because removing it
+        /// would mean re-deriving the same reasoning the day that becomes possible.</para>
+        ///
+        /// <para>Separate from <see cref="isVisible"/> on purpose: <c>isVisible</c> is the tile's own
+        /// state and is written by <see cref="Reset"/>, <see cref="DestroyTile"/> and every
+        /// <see cref="UpdateSprite"/> pass. A suppression folded into it would be undone by the next
+        /// destroyed-tile refresh, which is the kind of "the old renderer came back" that only shows up
+        /// after someone shoots a wall.</para>
+        /// </summary>
+        [SerializeField] private bool visualsSuppressed = false;
         [SerializeField] private float currentOpacity = 1f;
         [SerializeField] private Color currentColor = Color.white;
         [SerializeField] private Color secondaryColorTint = Color.white;
@@ -207,17 +227,36 @@ namespace PFE.Systems.Map.Rendering
             isVisible = visible;
             if (spriteRenderer != null)
             {
-                spriteRenderer.enabled = visible && spriteRenderer.sprite != null;
+                spriteRenderer.enabled = ShouldEnable(spriteRenderer, visible);
             }
             if (secondarySpriteRenderer != null)
             {
-                secondarySpriteRenderer.enabled = visible && secondarySpriteRenderer.sprite != null;
+                secondarySpriteRenderer.enabled = ShouldEnable(secondarySpriteRenderer, visible);
             }
             SetRendererVisibility(rearOverlaySpriteRenderer, visible);
             SetRendererVisibility(rearOverlaySpriteRenderer2, visible);
             SetRendererVisibility(frontOverlaySpriteRenderer, visible);
             SetRendererVisibility(frontOverlaySpriteRenderer2, visible);
         }
+
+        /// <summary>
+        /// Suppress (or restore) this tile's sprites without touching its GameObject, its collider or its
+        /// own <see cref="IsVisible"/> state.
+        ///
+        /// <para>Used by <c>RoomVisualController</c> when the quarter terrain renderer is drawing the
+        /// room instead: the shipped tile objects stay because they own the collision, and only their
+        /// renderers go quiet. Every <c>enabled</c> write in this class goes through
+        /// <see cref="ShouldEnable"/>, so a later <see cref="UpdateSprite"/>, <see cref="Reset"/> or
+        /// <see cref="DestroyTile"/> cannot turn the suppressed sprites back on.</para>
+        /// </summary>
+        public void SetVisualsSuppressed(bool suppressed)
+        {
+            visualsSuppressed = suppressed;
+            SetVisible(isVisible);
+        }
+
+        /// <summary>Whether this tile's sprites are being suppressed in favour of another renderer.</summary>
+        public bool VisualsSuppressed => visualsSuppressed;
 
         /// <summary>
         /// Flash tile (for damage, etc.).
@@ -322,7 +361,7 @@ namespace PFE.Systems.Map.Rendering
                 }
 
                 spriteRenderer.sprite = sprite;
-                spriteRenderer.enabled = isVisible && sprite != null;
+                spriteRenderer.enabled = ShouldEnable(spriteRenderer, isVisible);
             }
 
             AssignChildSprite(secondarySpriteRenderer, null);
@@ -584,7 +623,21 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
-            renderer.enabled = visible && renderer.sprite != null;
+            renderer.enabled = ShouldEnable(renderer, visible);
+        }
+
+        /// <summary>
+        /// The one place that decides whether a renderer may draw: the caller wants it, the tile is not
+        /// suppressed, and there is a sprite to draw.
+        ///
+        /// <para>Centralised because <see cref="SetVisible"/> and <see cref="ApplyVisualData"/> used to
+        /// write the expression twice; with a third input (the suppression) a copy that missed it would
+        /// re-enable one sprite slot and leave the room with, say, its background layer still on the old
+        /// renderer.</para>
+        /// </summary>
+        private bool ShouldEnable(SpriteRenderer renderer, bool visible)
+        {
+            return visible && !visualsSuppressed && renderer != null && renderer.sprite != null;
         }
     }
 }

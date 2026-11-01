@@ -8,8 +8,14 @@ namespace PFE.Systems.Map.Rendering
     /// <summary>
     /// Manages visual GameObjects for tiles in a room.
     /// Handles creation, pooling, updating, and destruction of tile sprites.
+    ///
+    /// <para><b>This is the fallback path now.</b> A room is drawn by the quarter renderer by default
+    /// (<c>RoomTerrainRenderer</c>) and its tile objects are built collider-only by
+    /// <see cref="TileCollisionBuilder"/>, which is what removes the compositing cost from the default
+    /// path. This class still runs when the quarter renderer cannot be built, and it is the A/B control
+    /// that proves the new picture is right, so it is kept whole rather than deleted.</para>
     /// </summary>
-    public class TileVisualManager
+    public class TileVisualManager : ITileOwner
     {
         private RoomInstance room;
         private TileAssetDatabase assetDatabase;
@@ -24,6 +30,19 @@ namespace PFE.Systems.Map.Rendering
         private Dictionary<Vector2Int, TileRenderer> tileRenderers = new Dictionary<Vector2Int, TileRenderer>();
 
         /// <summary>
+        /// The sprites of every tile this manager owns are hidden, while the tile objects — and so their
+        /// colliders — stay.
+        ///
+        /// <para>Set by <c>RoomVisualController</c> when another renderer (the quarter terrain renderer)
+        /// is drawing the room's terrain. Remembered rather than applied once, because
+        /// <see cref="CreateTile"/> keeps creating tile objects after the initial build
+        /// (<see cref="UpdateTile"/> creates one for a tile that has just become renderable), and a tile
+        /// created after the switch would otherwise appear in the old renderer's picture on top of the
+        /// new one.</para>
+        /// </summary>
+        private bool visualsSuppressed;
+
+        /// <summary>
         /// The room this manager renders.
         ///
         /// <para>Exposed so a per-tile <see cref="TileCollider"/> can route its mutation
@@ -32,6 +51,9 @@ namespace PFE.Systems.Map.Rendering
         /// <c>ITileQueryService.NotifyTilesMutated</c> is not reachable from there.</para>
         /// </summary>
         public RoomInstance Room => room;
+
+        /// <inheritdoc />
+        public TileDecalLayer Decals { get; set; }
 
         /// <summary>
         /// Initialize the tile visual manager.
@@ -179,6 +201,7 @@ namespace PFE.Systems.Map.Rendering
                     visualData = ResolveVisualData(tile);
                 }
                 renderer.Initialize(tile, assetDatabase, visualData);
+                renderer.SetVisualsSuppressed(visualsSuppressed);
                 renderer.SetSortingLayers(baseSortingLayerName, frontSortingLayerName);
                 renderer.SetSortingOrderOffset(sortingOrderOffset);
                 renderer.SetColorTint(tintColor);
@@ -200,6 +223,37 @@ namespace PFE.Systems.Map.Rendering
 
             return renderer;
         }
+
+        /// <summary>
+        /// Hide (or restore) every tile sprite this manager owns, without destroying a single tile
+        /// object.
+        ///
+        /// <para><b>Nothing in the game calls this any more.</b> It was how the quarter renderer's first
+        /// wiring kept the room's collision alive: build the sprites, build the colliders, hide the
+        /// sprites. Now a room builds <i>either</i> sprites and colliders (this manager, the fallback) or
+        /// colliders alone (<see cref="TileCollisionBuilder"/>, the default), so there is nothing to
+        /// suppress. Kept, and kept working, because it is the only way to change renderer inside a live
+        /// room — see <see cref="TileRenderer"/>'s <c>visualsSuppressed</c> for the whole reason.</para>
+        ///
+        /// <para><b>Why not <c>SetActive(false)</c> on the parent.</b> That would take the
+        /// <see cref="TileCollider"/>s with it — the room would lose its collision, and the first symptom
+        /// would be a player walking through a wall rather than a missing picture.</para>
+        /// </summary>
+        public void SetVisualsSuppressed(bool suppressed)
+        {
+            visualsSuppressed = suppressed;
+
+            foreach (TileRenderer renderer in tileRenderers.Values)
+            {
+                if (renderer != null)
+                {
+                    renderer.SetVisualsSuppressed(suppressed);
+                }
+            }
+        }
+
+        /// <summary>Whether this manager's sprites are suppressed in favour of another renderer.</summary>
+        public bool VisualsSuppressed => visualsSuppressed;
 
         /// <summary>
         /// Update a single tile's visuals.

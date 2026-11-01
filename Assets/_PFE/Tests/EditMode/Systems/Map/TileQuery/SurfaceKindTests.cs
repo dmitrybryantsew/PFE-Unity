@@ -36,7 +36,7 @@ namespace PFE.Tests.EditMode.Systems.Map.TileQuery
     {
         // ── The truth table: physicsType alone ──────────────────────────────────────────────
 
-        [TestCase(TilePhysicsType.Wall,     SurfaceKind.Solid,  "phis 1 (and 2) — a wall, the only occluder")]
+        [TestCase(TilePhysicsType.Wall,     SurfaceKind.Solid,  "phis 1 — a wall, the only occluder")]
         [TestCase(TilePhysicsType.Platform, SurfaceKind.Shelf,  "phis 0 + shelf — a one-way catwalk")]
         [TestCase(TilePhysicsType.Air,      SurfaceKind.None,   "phis 0 — empty space, no surface")]
         [TestCase(TilePhysicsType.Stair,    SurfaceKind.Stair,  "phis 3 with no climb metadata — still a stair kind")]
@@ -47,6 +47,25 @@ namespace PFE.Tests.EditMode.Systems.Map.TileQuery
 
             Assert.That(SurfaceKindRule.Of(tile), Is.EqualTo(expected),
                 $"{physicsType} should classify as {expected}: {why}.");
+        }
+
+        /// <summary>
+        /// A closed <c>grate</c> decodes to <c>Wall</c> plus the level-2 bit
+        /// (<c>AllData.as:4859-4860</c>), and the two must not be conflated: the kind is what a bullet
+        /// and a sight ray read, and both test <c>phis == 1</c> exactly (<c>Bullet.as:476</c>,
+        /// <c>Unit.as:4626</c>). Classifying it as <see cref="SurfaceKind.Solid"/> is the bug that made
+        /// bullets stop on a grate.
+        /// </summary>
+        [Test]
+        public void Of_SeparatesALevelTwoSolidFromAWall()
+        {
+            var wall = new TileData { physicsType = TilePhysicsType.Wall };
+            var grate = new TileData { physicsType = TilePhysicsType.Wall, levelTwoSolid = true };
+
+            Assert.That(SurfaceKindRule.Of(wall), Is.EqualTo(SurfaceKind.Solid),
+                "An ordinary phis == 1 wall is Solid.");
+            Assert.That(SurfaceKindRule.Of(grate), Is.EqualTo(SurfaceKind.LevelTwoSolid),
+                "A phis == 2 grate is a level-2 solid, not a wall.");
         }
 
         // ── The truth table: metadata fields the port decodes to Air ─────────────────────────

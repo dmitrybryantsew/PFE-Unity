@@ -220,6 +220,13 @@ namespace PFE.Systems.Map
                 // AS3 `Tile.inForm()` reads only `param1.phis` here (Tile.as:182-185); `shelf` is an
                 // independent flag assigned further down, so it must not colour this mapping.
                 tile.physicsType = MapPhysicsType(form.phis);
+
+                // ...and `phis == 2` is a level-2 solid, which the enum cannot express because it
+                // collapsed 1, 2 and 3 into `Wall`. Carry it beside the enum so the two consumers that
+                // test `phis == 1` exactly — projectiles (Bullet.as:476) and line of sight
+                // (Unit.as:4626) — can still tell a grate from a wall. Inside the `!= 0` guard because
+                // `Tile.inForm` is `if(param1.phis)`, so a zero form value never clears it (Tile.as:182).
+                tile.levelTwoSolid = form.phis == 2;
             }
 
             // AS3 `if(param1.shelf) this.shelf = true;` (Tile.as:186-189) — `shelf` is a FLAG; it
@@ -292,6 +299,12 @@ namespace PFE.Systems.Map
         /// walls. There is deliberately no <c>shelf</c> parameter: AS3 never lets the shelf flag
         /// change <c>phis</c> (<c>Tile.as:182-189</c>), and passing one in was how a shelf overlay
         /// came to overwrite a wall.</para>
+        ///
+        /// <para><b>2 is not lost here, only decanted.</b> It maps to <c>Wall</c> like 1 and 3, and
+        /// <see cref="ApplyForm"/> additionally sets <see cref="TileData.levelTwoSolid"/> so the two
+        /// consumers that test <c>phis == 1</c> exactly — a projectile and a sight ray — can still
+        /// distinguish it. Do not "simplify" the two assignments into one: the enum is the wide
+        /// movement answer, the bit is the narrow one.</para>
         /// </summary>
         private static TilePhysicsType MapPhysicsType(int phis)
         {
