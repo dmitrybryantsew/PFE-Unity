@@ -34,6 +34,8 @@ namespace PFE.Tests.EditMode.Systems.Magic
         public float OrganSpent;
         public readonly List<(string id, float value)> Effects = new List<(string, float)>();
         public float ShitHp = float.NaN;
+        public readonly List<(float radius, float damage, float power)> Blasts =
+            new List<(float, float, float)>();
 
         bool ISpellCaster.IsPlayer => IsPlayer;
         int ISpellCaster.Rat => Rat;
@@ -62,11 +64,19 @@ namespace PFE.Tests.EditMode.Systems.Magic
         void ISpellCaster.SetShitHp(float value) => ShitHp = value;
         float ISpellCaster.AlicornShitHp => AlicornShitHp;
 
+        /// <summary>AS3 <c>cast_blast</c> — recorded, because the pulse itself needs live units.</summary>
+        void ISpellCaster.ApplyRadialBlast(float radius, float damage, float power)
+            => Blasts.Add((radius, damage, power));
+
         int ISpellCaster.CrystalCooldown
         {
             get => CrystalCooldown;
             set => CrystalCooldown = value;
         }
+
+        /// <summary>Recorded, not performed — this fixture has no player and no companion.</summary>
+        public int MoonCasts;
+        void ISpellCaster.CastMoonPet() => MoonCasts++;
     }
 
     /// <summary>A plain <see cref="ISpellWorld"/>. Records the ray so the test can check the endpoints.</summary>

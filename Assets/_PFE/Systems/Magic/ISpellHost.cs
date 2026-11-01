@@ -135,11 +135,38 @@ namespace PFE.Systems.Magic
         float AlicornShitHp { get; }
 
         /// <summary>
+        /// AS3 <c>cast_blast</c> (<c>Spell.as:371-418</c>) — the <c>sp_blast</c> pulse: assign a radial
+        /// velocity to every eligible unit within <paramref name="radius"/> of the <b>caster's feet</b>.
+        ///
+        /// <para><b>No coordinates, because the oracle takes none.</b> <c>cast_blast</c> overwrites its
+        /// own <c>X</c>/<c>Y</c> from <c>owner.X</c>/<c>owner.Y</c> (<c>:382-383</c>), so the centre is
+        /// the owner's position by construction. Handing a point in from <see cref="Spell"/> would let a
+        /// caller centre the pulse on the aim point, which the oracle never does.</para>
+        ///
+        /// <para><b><paramref name="damage"/> is not damage.</b> It is the row's <c>dam</c> attribute
+        /// used as a velocity ceiling — see <see cref="PFE.Systems.Combat.SpellBlastMath"/>.</para>
+        /// </summary>
+        void ApplyRadialBlast(float radius, float damage, float power);
+
+        /// <summary>
         /// AS3 <c>gg.t_cryst</c> (<c>UnitPlayer.as:147</c>). Read and written by <c>cast_cryst</c>
         /// (<c>Spell.as:323-331</c>): <c>&gt; 0</c> downgrades the cast to <c>est = 2</c>, then it is
         /// set to 5 regardless.
         /// </summary>
         int CrystalCooldown { get; set; }
+
+        /// <summary>
+        /// AS3 <c>cast_moon</c> (<c>Spell.as:428-440</c>) — the <c>sp_moon</c> effect: summon the moon
+        /// companion, or full-heal it if it is already out.
+        ///
+        /// <para><b>Why the host and not the caster's own unit.</b> This is the one spell effect that
+        /// touches <i>nothing</i> belonging to the caster: the oracle reads <c>gg.currentPet</c> and
+        /// <c>gg.pet</c>, which are the player's global companion slots. So the port reaches the
+        /// player's <c>PetCompanion</c> — through <c>LiveSpellHost</c> for a player, and as a no-op for
+        /// an <c>NpcSpellHost</c>, which has no companion to speak of (see that implementation for why
+        /// an honest no-op beats resurrecting a global).</para>
+        /// </summary>
+        void CastMoonPet();
 
         /// <summary>
         /// AS3 <c>Snd.ps(id, x, y)</c>. Called on success when the row carries <c>snd</c> (all nine

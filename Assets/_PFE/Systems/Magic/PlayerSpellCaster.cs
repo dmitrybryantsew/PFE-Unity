@@ -526,6 +526,33 @@ namespace PFE.Systems.Magic
         float ISpellCaster.AlicornShitHp => _stats != null ? _stats.alicornShitHP : 2000f;
 
         /// <summary>
+        /// AS3 <c>cast_blast</c> (<c>Spell.as:371-418</c>) — the <c>sp_blast</c> pulse, centred on the
+        /// player's own feet.
+        ///
+        /// <para><b>The player's cast differs from the alicorn's in one line:</b>
+        /// <c>if(this.owner.player) this.loc.budilo(X, Y, 500)</c> (<c>:406-409</c>), so
+        /// <c>alertRoom</c> is <c>true</c> here and <c>false</c> from the alicorn reflex. A player's blast
+        /// is heard; a monster's is not.</para>
+        ///
+        /// <para>The controller is resolved lazily and not cached: this component and the player's
+        /// <c>UnitController</c> are both on the player root, and <c>GetComponent</c> here runs once per
+        /// <c>sp_blast</c> cast — a spell with a 10-second cooldown — rather than per tick.</para>
+        /// </summary>
+        void ISpellCaster.ApplyRadialBlast(float radius, float damage, float power)
+        {
+            UnitController unit = GetComponent<UnitController>();
+            if (unit == null)
+            {
+                Debug.LogWarning(
+                    "[PlayerSpellCaster] sp_blast cast but no UnitController is on this GameObject, " +
+                    "so the pulse has no centre and no room. Nothing moved.");
+                return;
+            }
+
+            SpellBlastExecutor.Execute(unit, radius, damage, power, alertRoom: true);
+        }
+
+        /// <summary>
         /// AS3 <c>gg.t_cryst</c> (<c>UnitPlayer.as:147</c>). <b>Per-player state, not per-spell</b> — the
         /// second crystal cast inside the window is the one that sets <c>est = 2</c>, which is why it
         /// cannot live on <see cref="Spell"/>.
@@ -534,6 +561,28 @@ namespace PFE.Systems.Magic
         {
             get => _crystCooldown;
             set => _crystCooldown = value;
+        }
+
+        /// <summary>
+        /// AS3 <c>cast_moon</c> (<c>Spell.as:428-440</c>) — forward to the player's companion manager.
+        ///
+        /// <para><b>Resolved lazily, not cached in a field.</b> <c>PlayerController.Awake</c> adds the
+        /// companion, and Unity does not order that against this component's <c>Awake</c> — the same
+        /// hazard <see cref="PFE.Systems.Inventory.PlayerInventory"/> documents. A one-shot
+        /// <c>GetComponent</c> here would be a null field on an unlucky load order, presenting as
+        /// "sp_moon does nothing".</para>
+        /// </summary>
+        void ISpellCaster.CastMoonPet()
+        {
+            var companion = GetComponentInParent<PFE.Entities.Pets.PetCompanion>();
+            if (companion == null)
+            {
+                Debug.LogWarning("[PlayerSpellCaster] sp_moon cast but no PetCompanion is on the " +
+                                 "player, so the moon could not be summoned.");
+                return;
+            }
+
+            companion.CastMoon();
         }
 
         // ── Test / debug seams for the three fields the port has no producer for ─────────────────────

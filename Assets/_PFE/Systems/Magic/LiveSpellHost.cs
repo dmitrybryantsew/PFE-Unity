@@ -99,11 +99,22 @@ namespace PFE.Systems.Magic
         void ISpellHost.SetShitHp(float value) => _caster.SetShitHp(value);
         float ISpellHost.AlicornShitHp => _caster.AlicornShitHp;
 
+        // `cast_blast` is a forward, not an implementation: the formula is `SpellBlastMath`, the loop is
+        // `SpellBlastExecutor`, and both live behind the caster because the pulse needs the unit that
+        // owns it. Nothing player-specific is decided here.
+        void ISpellHost.ApplyRadialBlast(float radius, float damage, float power)
+            => _caster.ApplyRadialBlast(radius, damage, power);
+
         int ISpellHost.CrystalCooldown
         {
             get => _caster.CrystalCooldown;
             set => _caster.CrystalCooldown = value;
         }
+
+        // `cast_moon` is the one effect with no placement, no mana and no target: it toggles the
+        // player's companion. Forwarded rather than implemented here so the pet rules stay in
+        // `PetCompanion`, where the cooldowns and the save field already live.
+        void ISpellHost.CastMoonPet() => _caster.CastMoonPet();
 
         // ---- refusal feedback ----------------------------------------------------------------------
 

@@ -133,6 +133,21 @@ namespace PFE.Systems.Magic
         /// </summary>
         void SetShitHp(float value);
 
+        /// <summary>
+        /// AS3 <c>cast_blast</c> (<c>Spell.as:371-418</c>) — the radial velocity pulse, centred on this
+        /// unit's own feet.
+        ///
+        /// <para><b>On the caster rather than on the world</b> because the pulse is the unit <i>acting
+        /// on other units</i>, and its origin is the unit's own position
+        /// (<c>this.X = this.owner.X</c>, <c>:382</c>). The world seam answers questions about the
+        /// surroundings; this one moves bodies.</para>
+        ///
+        /// <para>See <see cref="PFE.Systems.Combat.SpellBlastMath"/> for the formula and
+        /// <c>SpellBlastExecutor</c> for the loop. <paramref name="damage"/> is a velocity ceiling, not
+        /// HP damage.</para>
+        /// </summary>
+        void ApplyRadialBlast(float radius, float damage, float power);
+
         /// <summary>AS3 <c>World.w.pers.alicornShitHP</c> (<c>Pers.as:467</c>, default 2000).</summary>
         float AlicornShitHp { get; }
 
@@ -144,5 +159,17 @@ namespace PFE.Systems.Magic
         /// <see cref="Spell"/>.
         /// </summary>
         int CrystalCooldown { get; set; }
+
+        /// <summary>
+        /// AS3 <c>cast_moon</c> (<c>Spell.as:428-440</c>) — the <c>sp_moon</c> effect. Summons the moon
+        /// companion, or full-heals it when it is already out.
+        ///
+        /// <para><b>On the caster, although the pet is not the caster's.</b> The moon belongs to the
+        /// player's companion manager, and the caster is the only object on that player that a
+        /// <see cref="Spell"/> can already reach — so this member is the last hop, not a claim that the
+        /// spell owns the pet. An implementation with no companion behind it (an enemy caster) is a
+        /// no-op.</para>
+        /// </summary>
+        void CastMoonPet();
     }
 }

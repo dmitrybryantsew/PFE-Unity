@@ -41,6 +41,8 @@ namespace PFE.Tests.EditMode.Systems.Magic
         public float ManaSpent;
         public float ManaOrganDamaged;
         public float ShitHp = float.NaN;
+        public readonly List<(float radius, float damage, float power)> Blasts =
+            new List<(float, float, float)>();
 
         public bool IsPlayer_ => IsPlayer;
         public int Rat_ => Rat;
@@ -72,8 +74,17 @@ namespace PFE.Tests.EditMode.Systems.Magic
 
         void ISpellHost.AddEffect(string effectId, float value) => Effects.Add((effectId, value));
         void ISpellHost.SetShitHp(float value) => ShitHp = value;
+        void ISpellHost.ApplyRadialBlast(float radius, float damage, float power)
+            => Blasts.Add((radius, damage, power));
         float ISpellHost.AlicornShitHp => AlicornShitHp;
         int ISpellHost.CrystalCooldown { get => CrystalCooldown; set => CrystalCooldown = value; }
+
+        /// <summary>
+        /// Recorded rather than performed: the moon belongs to <c>PetCompanion</c>, which this fixture
+        /// deliberately does not build. The counter proves <c>cast_moon</c> was dispatched at all.
+        /// </summary>
+        public int MoonCasts;
+        void ISpellHost.CastMoonPet() => MoonCasts++;
 
         void ISpellHost.PlaySound(string soundId, float x, float y) => Sounds.Add(soundId);
         void ISpellHost.ShowInfoText(string key) => InfoTexts.Add(key);

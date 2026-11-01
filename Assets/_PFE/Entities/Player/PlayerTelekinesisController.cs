@@ -1236,7 +1236,17 @@ namespace PFE.Entities.Player
             // Release hold as throw
             string thrownId = _heldObject.objectId;
             bool treatAsThrow = _heldObject.CanBeThrown();
-            room.ObjectPhysicsLayer.TryReleaseTelekineticHold(_heldObject, releaseVelocity, treatAsThrow: true);
+
+            // The player is the ONLY thrower in the oracle that also stamps a damage grace on the prop
+            // (`UnitPlayer.as:1870-1871`: `isThrow = true; t_throw = 2;`). Two prop steps, because the
+            // crate leaves the player's hands from inside its own bounding box — without them the
+            // thrower would damage themselves on release. An enemy throw passes nothing here on
+            // purpose; see `PropThrowGrace`.
+            room.ObjectPhysicsLayer.TryReleaseTelekineticHold(
+                _heldObject,
+                releaseVelocity,
+                treatAsThrow: true,
+                throwGraceTicks: PropThrowGrace.PlayerThrowTicks);
 
             // Recorded because a throw was the one action on this path with no record at all: a press
             // that reached here left only a `[DROP]`-shaped silence behind, so "I threw it at the wall"

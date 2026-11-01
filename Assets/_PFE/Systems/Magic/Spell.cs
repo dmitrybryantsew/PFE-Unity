@@ -54,9 +54,10 @@ namespace PFE.Systems.Magic
     ///
     /// <para><b>What is ported here, and what is not.</b> The <b>whole prologue</b> is ported — the gate
     /// order, the mana cost, the line test, the range clamp, the cooldown stamp — because that is the
-    /// shared logic and the part a test can pin down. Of the nine effects, three need no subsystem the
-    /// port lacks: <c>sp_cryst</c> (pure state), <c>sp_slow</c> (<c>AddEffect("inhibitor")</c>) and
-    /// <c>sp_mshit</c> (a single stat write). The other six return
+    /// shared logic and the part a test can pin down. Of the nine effects, four need no subsystem the
+    /// port lacks: <c>sp_cryst</c> (pure state), <c>sp_slow</c> (<c>AddEffect("inhibitor")</c>),
+    /// <c>sp_mshit</c> (a single stat write) and <c>sp_blast</c> (a radial velocity pulse over the room's
+    /// units). The other five return
     /// <see cref="SpellCastRefusal.EffectNotPorted"/> rather than pretending to succeed — they need
     /// unit spawns, ghost tiles, pets, the blood pool, or a levitation impulse, each its own slice.</para>
     ///
@@ -180,7 +181,8 @@ namespace PFE.Systems.Magic
 
         /// <summary>The subset whose effect this port implements — see the class remarks.</summary>
         private static bool IsPortedEffect(string id)
-            => id == "sp_cryst" || id == "sp_mshit" || id == "sp_slow";
+            => id == "sp_cryst" || id == "sp_mshit" || id == "sp_slow" || id == "sp_blast" ||
+               id == "sp_moon";
 
         /// <summary>
         /// AS3 <c>step()</c> (<c>Spell.as:172-178</c>): the cooldown ticks down one frame at a time.
@@ -354,7 +356,7 @@ namespace PFE.Systems.Magic
             => new SpellCastResult(false, refusal, CooldownTicks, 0f, Cx, Cy);
 
         /// <summary>
-        /// The three ported effects, transcribed from <c>Spell.as:308-345, 418-424</c>. Each sets
+        /// The ported effects, transcribed from <c>Spell.as:308-345, 418-440</c>. Each sets
         /// <see cref="Est"/>; the tail of <see cref="Cast"/> reads it.
         /// </summary>
         private void RunEffect()
@@ -376,6 +378,14 @@ namespace PFE.Systems.Magic
                     _host.AddEffect("inhibitor", _data.rad * Power);
                     break;
 
+                // Spell.as:371-418
+                case "sp_blast":
+                    // `cast_blast()` — a radial velocity ASSIGNMENT over the owner's room. No damage,
+                    // despite the row's `dam='20'`: that attribute is the impulse ceiling. The
+                    // player-only `loc.budilo(X, Y, 500)` at :406-409 is the `IsPlayer` argument.
+                    _host.ApplyRadialBlast(_data.rad, _data.dam, Power);
+                    break;
+
                 // Spell.as:323-331
                 case "sp_cryst":
                     Est = EstSuccess;
@@ -384,6 +394,16 @@ namespace PFE.Systems.Magic
                         if (_host.CrystalCooldown > 0) Est = EstAlternate;
                         _host.CrystalCooldown = 5;
                     }
+                    break;
+
+                // Spell.as:428-440
+                case "sp_moon":
+                    // `if(gg.currentPet != "moon") { pets.moon.hp = maxhp; gg.callPet("moon", true); }
+                    //  else if(gg.pet) gg.pet.heal(gg.pet.maxhp);`
+                    // Two branches, both of them real: the second cast is a full heal. The whole thing
+                    // goes through the host because it is the *player's* companion, not the caster's
+                    // unit — see ISpellHost.CastMoonPet.
+                    _host.CastMoonPet();
                     break;
             }
         }
