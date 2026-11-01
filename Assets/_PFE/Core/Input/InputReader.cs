@@ -61,6 +61,14 @@ namespace PFE.Core.Input
         public InputAction Grenade { get; private set; }
 
         /// <summary>
+        /// <c>F</c> — AS3 <c>keyPunch</c>: the bare-hoof strike (<c>UnitPlayer.as:2377-2385</c>, key
+        /// default at <c>Ctr.as:23</c>). Separate from <see cref="Attack"/> because AS3 keeps the
+        /// punch weapon <i>alongside</i> whatever is in hand: you can hoof something with a rifle
+        /// equipped. See <see cref="PunchMessage"/>.
+        /// </summary>
+        public InputAction Punch { get; private set; }
+
+        /// <summary>
         /// The four favourite-spell slots — AS3 <c>keySpell1..4</c>. Slots 1-2 default to <c>Z</c>/<c>X</c>;
         /// slots 3-4 are <b>unbound</b>, exactly as in the oracle (<c>Ctr.as:64-65</c>).
         /// </summary>
@@ -131,6 +139,7 @@ namespace PFE.Core.Input
         private readonly IPublisher<SpellCastMessage> _spellCastPublisher;
         private readonly IPublisher<MagicWeaponMessage> _magicWeaponPublisher;
         private readonly IPublisher<GrenadeMessage> _grenadePublisher;
+        private readonly IPublisher<PunchMessage> _punchPublisher;
         private readonly IPublisher<SpellHotkeyMessage> _spellHotkeyPublisher;
         private readonly PfeDebugSettings _debugSettings;
 
@@ -145,6 +154,7 @@ namespace PFE.Core.Input
             IPublisher<SpellCastMessage> spellCastPublisher,
             IPublisher<MagicWeaponMessage> magicWeaponPublisher,
             IPublisher<GrenadeMessage> grenadePublisher,
+            IPublisher<PunchMessage> punchPublisher,
             IPublisher<SpellHotkeyMessage> spellHotkeyPublisher,
             PfeDebugSettings debugSettings,
             PfeInputSettings settings = null)
@@ -158,6 +168,7 @@ namespace PFE.Core.Input
             _spellCastPublisher = spellCastPublisher;
             _magicWeaponPublisher = magicWeaponPublisher;
             _grenadePublisher = grenadePublisher;
+            _punchPublisher = punchPublisher;
             _spellHotkeyPublisher = spellHotkeyPublisher;
             _debugSettings = debugSettings;
 
@@ -232,6 +243,11 @@ namespace PFE.Core.Input
             // grenade slot (UnitPlayer.as:2188-2204). See GrenadeMessage.
             Grenade = BuildButtonAction("Grenade", s?.grenade,
                 "<Keyboard>/g", "", "<Gamepad>/rightStick");
+
+            // F — `keyPunch` (Ctr.as:23). Its own button, because AS3's punchWeapon is a second
+            // weapon slot that exists beside the one in hand (UnitPlayer.as:431-433). See PunchMessage.
+            Punch = BuildButtonAction("Punch", s?.punch,
+                "<Keyboard>/f", "", "<Gamepad>/buttonLeft");
 
             SpellHotkeys = new InputAction[SpellHotkeySlots];
             ButtonBinding[] spellBindings =
@@ -411,6 +427,11 @@ namespace PFE.Core.Input
                 _grenadePublisher.Publish(new GrenadeMessage { IsHeld = true });
             Grenade.canceled += _ =>
                 _grenadePublisher.Publish(new GrenadeMessage { IsHeld = false });
+
+            Punch.started += _ =>
+                _punchPublisher.Publish(new PunchMessage { IsHeld = true });
+            Punch.canceled += _ =>
+                _punchPublisher.Publish(new PunchMessage { IsHeld = false });
 
             for (int i = 0; i < SpellHotkeys.Length; i++)
             {

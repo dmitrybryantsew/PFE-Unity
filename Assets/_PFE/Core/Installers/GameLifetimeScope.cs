@@ -135,7 +135,15 @@ public class GameLifetimeScope : LifetimeScope
         // === Audio System ===
         // SoundService is a MonoBehaviour — assign it in the scene and reference here.
         if (_soundService != null)
+        {
             builder.RegisterComponent(_soundService).AsImplementedInterfaces();
+
+            // ...and publish it to the static bus, because a container's open sound and a loot pile's
+            // landing sound are played by objects the container builds with `new GameObject`, which
+            // VContainer never constructs and so can never inject. See SoundBus for why this is a
+            // static and not a registration.
+            SoundBus.Current = _soundService;
+        }
         else
             Debug.LogWarning("[GameLifetimeScope] SoundService not assigned — audio will be silent. Add a SoundService component to the scene and assign it.");
 

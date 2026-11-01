@@ -38,6 +38,12 @@ namespace PFE.Core.Input
         // right stick button; there is no analogue in the oracle to copy for a pad.
         public ButtonBinding grenade = new ButtonBinding("<Keyboard>/g", "", "<Gamepad>/rightStick");
 
+        // F — AS3's own default for `keyPunch` (<key id='keyPunch' def={Keyboard.F}/>, Ctr.as:23).
+        // The bare-hoof strike, on its own button because AS3 keeps `punchWeapon` beside the weapon in
+        // hand (UnitPlayer.as:431-433): you can hoof something with a rifle equipped. Shift (AS3's
+        // `keyRun`) turns it into the back kick — see HoofStrikeRules.
+        public ButtonBinding punch    = new ButtonBinding("<Keyboard>/f", "", "<Gamepad>/buttonLeft");
+
         // Z and X are AS3's only BOUND spell hotkeys; slots 3 and 4 exist and are unbound
         // (Ctr.as:62-66, World.kolQS = 4). Kept unbound here rather than dropped, so the slot count
         // matches the oracle and a future default cannot silently invent a key.
@@ -88,6 +94,7 @@ namespace PFE.Core.Input
         public static ButtonBinding DefaultDefend   => new ButtonBinding("<Keyboard>/c",          "",                     "<Gamepad>/rightTrigger");
         public static ButtonBinding DefaultMagicWeapon => new ButtonBinding("<Keyboard>/t",       "",                     "<Gamepad>/leftTrigger");
         public static ButtonBinding DefaultGrenade => new ButtonBinding("<Keyboard>/g",           "",                     "<Gamepad>/rightStick");
+        public static ButtonBinding DefaultPunch   => new ButtonBinding("<Keyboard>/f",           "",                     "<Gamepad>/buttonLeft");
         public static ButtonBinding DefaultSpell1   => new ButtonBinding("<Keyboard>/z",          "",                     "<Gamepad>/dpadLeft");
         public static ButtonBinding DefaultSpell2   => new ButtonBinding("<Keyboard>/x",          "",                     "<Gamepad>/dpadRight");
         public static ButtonBinding DefaultSpell3   => new ButtonBinding("",                      "",                     "");

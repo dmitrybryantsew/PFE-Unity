@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using VContainer.Unity;
+// Alias, not `using System.Diagnostics;` — that namespace also declares Debug, which would make
+// `Debug.Log` ambiguous with UnityEngine.Debug in every file that copies this header.
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace PFE.Core
 {
@@ -75,6 +78,18 @@ namespace PFE.Core
         private readonly PfeDebugSettings _debugSettings;
         private readonly List<ISimTickable> _tickables = new();
 
+        /// <summary>
+        /// Per-tickable cost breakdown. Off by default; a measurement driver switches it on. See
+        /// <see cref="TickableCostTable"/> for why this is a table and not 50 profiler regions.
+        /// </summary>
+        private readonly PFE.Core.Profiling.TickableCostTable _tickableCosts = new();
+
+        /// <summary>Type name per registered tickable, index-aligned with dispatch order.</summary>
+        private string[] _tickableNames = System.Array.Empty<string>();
+
+        private double _frameTickMs;
+        private double _lastTickMs;
+
         private bool _orderDirty;
 
         // Accumulator state
@@ -135,6 +150,23 @@ namespace PFE.Core
 
         /// <summary>Number of registered simulation consumers.</summary>
         public int TickableCount => _tickables.Count;
+
+        /// <summary>
+        /// The per-tickable cost breakdown. Disabled unless a measurement driver sets
+        /// <see cref="PFE.Core.Profiling.TickableCostTable.Enabled"/>; a disabled table costs one
+        /// branch at the dispatch call site and never reaches the recorder.
+        /// </summary>
+        public PFE.Core.Profiling.TickableCostTable TickableCosts => _tickableCosts;
+
+        /// <summary>
+        /// Wall time this frame's dispatch loop spent inside tickables, in milliseconds. Zero unless
+        /// <see cref="TickableCosts"/> is enabled — it is measured by the same timestamps, so it can
+        /// never disagree with the table.
+        /// </summary>
+        public double LastFrameTickMs => _frameTickMs;
+
+        /// <summary>Wall time the most recent single tick spent in its dispatch loop, in milliseconds.</summary>
+        public double LastTickMs => _lastTickMs;
 
         public SimMetrics Metrics => new SimMetrics(
             _tickIndex,
@@ -217,6 +249,12 @@ namespace PFE.Core
                 // a tick — the Oracle reads allStat once per World.step, not once per subsystem.
                 bool worldPaused = _worldGate != null && _worldGate.IsWorldPaused;
 
+                // One bool read per tick, not per tickable: the breakdown is either on for the whole
+                // dispatch or off for the whole dispatch, so the branch inside the loop is predictable
+                // and a disabled table never touches Stopwatch at all.
+                bool timing = _tickableCosts.Enabled;
+                long tickStart = timing ? Stopwatch.GetTimestamp() : 0L;
+
                 for (int i = 0; i < _tickables.Count; i++)
                 {
                     ISimTickable tickable = _tickables[i];
@@ -229,7 +267,22 @@ namespace PFE.Core
                         continue;
                     }
 
-                    tickable.SimTick(_tickIndex);
+                    if (timing)
+                    {
+                        long callStart = Stopwatch.GetTimestamp();
+                        tickable.SimTick(_tickIndex);
+                        _tickableCosts.Note(i, Stopwatch.GetTimestamp() - callStart);
+                    }
+                    else
+                    {
+                        tickable.SimTick(_tickIndex);
+                    }
+                }
+
+                if (timing)
+                {
+                    _lastTickMs = ToMs(Stopwatch.GetTimestamp() - tickStart);
+                    _frameTickMs += _lastTickMs;
                 }
 
                 return _tickIndex;
@@ -282,6 +335,10 @@ namespace PFE.Core
                 "sim: one frame's advance — parent of sim.tick. Its self time is frame cost outside the sim."))
             {
             _ticksThisFrame = 0;
+
+            // Frame-scoped, like _ticksThisFrame: the breakdown reports "how much of THIS frame went
+            // into ticks", which is only meaningful if it is cleared every frame.
+            _frameTickMs = 0.0;
 
             // Dispatch is gated; accumulation is not, so the clock stays measurable before any
             // consumer is attached.
@@ -388,8 +445,26 @@ namespace PFE.Core
                 _tickables[i] = indexed[i].Value;
             }
 
+            // The cost rows are index-aligned with the dispatch order, so they are rebuilt here and
+            // nowhere else: this is the only place the order changes, and it runs once per
+            // registration change rather than once per tick.
+            if (_tickableNames.Length != _tickables.Count)
+            {
+                _tickableNames = new string[_tickables.Count];
+            }
+
+            for (int i = 0; i < _tickables.Count; i++)
+            {
+                _tickableNames[i] = _tickables[i].GetType().Name;
+            }
+
+            _tickableCosts.Rebuild(_tickableNames);
+
             _orderDirty = false;
         }
+
+        /// <summary>Converts raw <see cref="Stopwatch"/> ticks to milliseconds.</summary>
+        private static double ToMs(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
 
         private void CreateOverlay()
         {

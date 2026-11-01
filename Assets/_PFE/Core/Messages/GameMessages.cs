@@ -100,6 +100,26 @@ namespace PFE.Core.Messages
     }
 
     /// <summary>
+    /// Published on the <b>press</b> edge of the punch key — AS3 <c>ctr.keyPunch</c>, <c>F</c>
+    /// (<c>inter/Ctr.as:23</c>), handled at <c>UnitPlayer.as:2377-2385</c>.
+    ///
+    /// <para><b>One press, one strike.</b> AS3 reads a held boolean but clears it inside the block
+    /// (<c>this.ctr.keyPunch = false;</c>, <c>:2384</c>), and the flag itself is only set on KEY_DOWN,
+    /// so holding F does not chain punches — the 13-frame <c>t_work</c> paces them instead. That is
+    /// why this message carries no state: the press <i>is</i> the event.</para>
+    ///
+    /// <para><b>The run key is read at press time, not carried here.</b> AS3 does
+    /// <c>(punchWeapon as WKick).kick = this.ctr.keyRun</c> immediately before <c>attack()</c>, so the
+    /// caller passes the modifier alongside the press rather than the message snapshotting it — the
+    /// distinction matters only if the two ever disagree, and then the oracle's order wins.</para>
+    /// </summary>
+    public struct PunchMessage
+    {
+        /// <summary>True on press; false on release (no consumer, kept for symmetry with the others).</summary>
+        public bool IsHeld;
+    }
+
+    /// <summary>
     /// Published on <b>both</b> edges of the magic-weapon key — AS3 <c>ctr.keyMagic</c>, <c>T</c>
     /// (<c>inter/Ctr.as:24</c>).
     ///

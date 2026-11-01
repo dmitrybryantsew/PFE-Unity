@@ -33,6 +33,7 @@ namespace PFE.Core.Scripting
         private DevConsoleInventoryCommands _inventoryCommands;
         private DevConsoleUiCommands _uiCommands;
         private DevConsoleEnemyAICommands _enemyAiCommands;
+        private DevConsoleTerrainCommands _terrainCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -95,7 +96,8 @@ namespace PFE.Core.Scripting
             DevConsoleSpellCommands spellCommands = null,
             DevConsoleUiCommands uiCommands = null,
             DevConsoleInventoryCommands inventoryCommands = null,
-            DevConsoleEnemyAICommands enemyAiCommands = null)
+            DevConsoleEnemyAICommands enemyAiCommands = null,
+            DevConsoleTerrainCommands terrainCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
@@ -108,6 +110,7 @@ namespace PFE.Core.Scripting
             if (inventoryCommands != null) _inventoryCommands = inventoryCommands;
             if (uiCommands != null) _uiCommands = uiCommands;
             if (enemyAiCommands != null) _enemyAiCommands = enemyAiCommands;
+            if (terrainCommands != null) _terrainCommands = terrainCommands;
 
             if (_luaEngine == null) return;
 
@@ -126,6 +129,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleInventoryCommands>();
                 _luaEngine.RegisterType<DevConsoleUiCommands>();
                 _luaEngine.RegisterType<DevConsoleEnemyAICommands>();
+                _luaEngine.RegisterType<DevConsoleTerrainCommands>();
                 _commandObjectsRegistered = true;
             }
 
@@ -140,6 +144,7 @@ namespace PFE.Core.Scripting
             if (_inventoryCommands != null) _luaEngine.SetGlobal("inv", _inventoryCommands);
             if (_uiCommands != null) _luaEngine.SetGlobal("ui", _uiCommands);
             if (_enemyAiCommands != null) _luaEngine.SetGlobal("ai", _enemyAiCommands);
+            if (_terrainCommands != null) _luaEngine.SetGlobal("terrain", _terrainCommands);
         }
 
         /// <summary>
@@ -230,9 +235,12 @@ namespace PFE.Core.Scripting
                               "  -- console ui (the console's own chrome) --\n" +
                               "  ui              - Report whether the quick-action button grid is shown\n" +
                               "  ui buttons on|off - Show / hide the button grid (title bar has a toggle too)\n" +
+                              "  -- room terrain (which renderer draws a room) --\n" +
+                              "  terrain         - Flag, art asset, and which way the NEXT room is drawn\n" +
+                              "  terrain quad on|off - Quarter renderer / shipped per-tile compositor (next room)\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
-                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell, inv, ui";
+                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell, inv, ui, terrain";
                 AppendLog(help);
                 return help;
             }
@@ -604,6 +612,14 @@ namespace PFE.Core.Scripting
                     result = RunEnemyAIShortcut(parts);
                     return true;
 
+                // Which renderer draws a room's terrain. A behaviour switch, not an overlay: it decides
+                // what the room IS, and `col` paints on top of whatever that turned out to be.
+                case "terrain":
+                case "quad":
+                    if (_terrainCommands == null) return false;
+                    result = RunTerrainShortcut(parts);
+                    return true;
+
                 default:
                     return false;
             }
@@ -943,6 +959,57 @@ namespace PFE.Core.Scripting
 
                 default:
                     return $"Unknown ui subject '{parts[1]}'.\n" + _uiCommands.Help();
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the <c>terrain</c> shortcuts: which renderer draws a room's terrain.
+        /// <c>terrain</c> and <c>terrain quad</c> are <b>status</b>; <c>terrain quad on|off</c> sets the
+        /// flag that the next room build reads.
+        ///
+        /// <para>A bare verb is status, matching every other multi-purpose verb in this console
+        /// (<c>col</c>, <c>prof</c>, <c>rpg</c>, <c>eff</c>, <c>spell</c>, <c>inv</c>, <c>ui</c>): this one
+        /// swaps the renderer, and a typo that swapped it would be a bug report about "the room went
+        /// black", not about the console.</para>
+        /// </summary>
+        private string RunTerrainShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _terrainCommands.Status();
+
+            switch (parts[1].ToLowerInvariant())
+            {
+                case "quad":
+                case "quarters":
+                    if (parts.Length < 3) return _terrainCommands.Status();
+
+                    switch (parts[2].ToLowerInvariant())
+                    {
+                        case "on":
+                        case "1":
+                        case "true":
+                            return _terrainCommands.SetQuad(true);
+
+                        case "off":
+                        case "0":
+                        case "false":
+                            return _terrainCommands.SetQuad(false);
+
+                        default:
+                            // An unknown state is an error, not a fallback — the same rule `ui` follows,
+                            // and for the same reason: silently reporting status reads as a command that
+                            // did nothing.
+                            return $"Unknown terrain state '{parts[2]}'. Use: terrain quad on | terrain quad off";
+                    }
+
+                case "status":
+                    return _terrainCommands.Status();
+
+                case "help":
+                case "?":
+                    return _terrainCommands.Help();
+
+                default:
+                    return $"Unknown terrain subject '{parts[1]}'.\n" + _terrainCommands.Help();
             }
         }
 

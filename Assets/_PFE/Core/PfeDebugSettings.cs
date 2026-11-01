@@ -140,6 +140,33 @@ namespace PFE.Core
         [Tooltip("Logs each generated tile collider (TileCollider).")]
         private bool logTileColliderCreation = false;
 
+        [SerializeField]
+        [Tooltip("Logs every hit a tile or a door REFUSED, with the reason and the two numbers. " +
+                 "AS3 Tile.udar is `if (indestruct || thre > param1) return false` — damage below the " +
+                 "form's `thre` is ignored ENTIRELY, there is no chip damage and no accumulation, so a " +
+                 "weapon whose `destroy` is under a tile's `thre` can never break it however long you " +
+                 "fire. That reads exactly like a broken weapon, which is why this flag exists: it names " +
+                 "the threshold and the damage so 'my change broke it' and 'that tile needs a bigger " +
+                 "gun' stop looking the same. Gated by runtimeLoggingEnabled.")]
+        private bool logTileDamageRefusals = false;
+
+        [Header("Room Terrain")]
+
+        [SerializeField]
+        [Tooltip("Draws each room's terrain with the quarter renderer (RoomTerrainRenderer: half-cell Tilemaps " +
+                 "holding shape masks, with the material bitmap projected in world space). ON by default — " +
+                 "this is the shipped renderer now. " +
+                 "ON = the tile objects are built for COLLISION ONLY (TileCollisionBuilder: same transforms, same " +
+                 "TileCollider, no composited sprite, no TileCompositor work) and the quarter renderer draws the " +
+                 "picture. " +
+                 "OFF = the previous path, kept whole as the A/B control and the escape hatch: TileVisualManager " +
+                 "over TileCompositor, one baked sprite per cell. " +
+                 "Read once per room build, so a change lands on the next room load, not the current room. " +
+                 "Needs Assets/_PFE/Data/RoomTerrainArt.asset; with this on and the art missing, the room falls back " +
+                 "to the shipped path and says why in the console. " +
+                 "Console: `terrain quad on|off`. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool quadRoomTerrain = true;
+
         // ── Telekinesis ──────────────────────────────────────────────────────
 
         [Header("Telekinesis")]
@@ -322,6 +349,16 @@ namespace PFE.Core
         public bool LogRoomRenderingLifecycle                    => runtimeLoggingEnabled && logRoomRenderingLifecycle;
         public bool LogTileVisualCreationSummary                 => runtimeLoggingEnabled && logTileVisualCreationSummary;
         public bool LogTileColliderCreation                      => runtimeLoggingEnabled && logTileColliderCreation;
+
+        /// <summary>
+        /// Traces every tile or door hit that was refused, and why.
+        ///
+        /// <para><b>Why this is a separate flag from <see cref="LogTileColliderCreation"/>.</b> Collider
+        /// creation fires ~1 136 times per room at load; refusals fire only when a weapon actually hits
+        /// something and does nothing, which is the moment someone is asking "did I break this?". Sharing
+        /// one flag would either flood the log at load or require the other side to be silent.</para>
+        /// </summary>
+        public bool LogTileDamageRefusals                        => runtimeLoggingEnabled && logTileDamageRefusals;
 
         /// <summary>
         /// Traces the telekinesis / teleport Q path (see <c>TelekinesisTrace</c>).
@@ -587,6 +624,31 @@ namespace PFE.Core
         {
             get => showConsoleQuickButtons;
             set => showConsoleQuickButtons = value;
+        }
+
+        // ── Room terrain ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Whether a room is drawn by the quarter renderer instead of the shipped per-tile compositor.
+        ///
+        /// <para><b>On by default, and it is a real switch in both directions.</b> Turning it off restores
+        /// the previous path exactly — composited sprites plus colliders on the same objects — which is
+        /// the escape hatch if the new picture turns out to be wrong in a room, and the control side of
+        /// the A/B that proves it is right.</para>
+        ///
+        /// <para><b>Settable, and read once per room build.</b> <see cref="RoomVisualController"/> reads
+        /// it at the top of <c>Initialize</c> and nowhere else, so the two paths cannot be half-applied to
+        /// one room; the console verb therefore says "next room" rather than pretending to redraw the one
+        /// you are standing in. Making the getter the only reader is also what keeps the flag from
+        /// becoming a per-frame query.</para>
+        ///
+        /// <para>Deliberately a plain bool and not a <see cref="DebugOverlayChannel"/> bit: it changes
+        /// what the renderer <i>is</i>, not what an overlay paints on top of it.</para>
+        /// </summary>
+        public bool QuadRoomTerrain
+        {
+            get => quadRoomTerrain;
+            set => quadRoomTerrain = value;
         }
     }
 }
