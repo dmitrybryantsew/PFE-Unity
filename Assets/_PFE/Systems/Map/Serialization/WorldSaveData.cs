@@ -255,6 +255,17 @@ namespace PFE.Systems.Map.Serialization
         public PFE.Systems.Weapons.WeaponRuntimeSaveData weaponRuntime;
 
         /// <summary>
+        /// The companion — AS3 <c>Pers</c>'s <c>pet</c> and <c>owlhp</c> fields (<c>Pers.as:753-755</c>,
+        /// <c>:617-620</c>) plus <c>gg.currentPet</c>/<c>gg.noPet</c>/<c>gg.retPet</c>.
+        ///
+        /// <para><b>Null means "no pet system in this save", not "no pet out".</b> A save written before
+        /// the pets landed has no key here, and the loader must leave the companion at its defaults
+        /// rather than overwrite a live pet with an empty record. An <i>empty</i>
+        /// <see cref="PFE.Entities.Pets.PetSaveData"/> is the "nothing summoned" answer.</para>
+        /// </summary>
+        public PFE.Entities.Pets.PetSaveData pets;
+
+        /// <summary>
         /// Create snapshot from player controller.
         /// TODO: Implement when player controller exists.
         /// </summary>

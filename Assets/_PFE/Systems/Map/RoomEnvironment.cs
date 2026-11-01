@@ -25,6 +25,21 @@ namespace PFE.Systems.Map
         public int lightsOn = 0;
         public bool returnsToDarkness = false;
 
+        /// <summary>
+        /// AS3 <c>Location.destroyOn</c> — <b>false in a room authored <c>&lt;options desoff="1"&gt;</c></b>
+        /// (<c>Location.as:209</c> default, <c>:488-492</c> the override).
+        ///
+        /// <para><b>What false does.</b> <c>Location.hitTile</c> short-circuits at <c>:2513</c>: a hit
+        /// against a tile still above 500 hp leaves a decal and is then thrown away. The wall scars but
+        /// never yields, which is how the game seals a room without making its walls
+        /// <c>indestruct</c> — and why a <c>desoff</c> room's walls still show every bullet hole the
+        /// player put in them.</para>
+        ///
+        /// <para><b>Default true</b> is AS3's own (<c>Location.as:209</c>), so a room that authors
+        /// nothing behaves exactly as it did before this field existed.</para>
+        /// </summary>
+        public bool destroyOn = true;
+
         // Water/Lava
         public int waterLevel = 100;        // Pixel Y position (from bottom)
         public int waterType = 0;           // 0=none, 1=water, 2=lava

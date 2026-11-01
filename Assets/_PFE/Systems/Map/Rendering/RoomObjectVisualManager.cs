@@ -160,10 +160,39 @@ namespace PFE.Systems.Map.Rendering
         /// <c>scrTouch</c>/<c>scrDie</c>) and must not make an object clickable on its own — a crate with
         /// only a death script is not a button. <see cref="ObjectInstance.scripts"/> stores the event in
         /// <c>eventName</c>, blank for the default.</para>
+        ///
+        /// <para><b>The second form is a reference, not an action list.</b> AS3 also accepts
+        /// <c>xml.@scr</c> — <c>&lt;obj id="term" scr="stableStory"/&gt;</c> — and resolves it through
+        /// <c>Game.getScript</c> into the same <c>inter.scrAct</c> (<c>Box.as:341-343</c>). That is a
+        /// <i>different</i> node from the <c>&lt;scr&gt;</c> children, so it survives the importer as a
+        /// placement attribute with <see cref="ObjectInstance.scripts"/> still empty. Reading only the
+        /// list made every such object invisible to this test, and this test is what admits an object to
+        /// the one <c>IInteractable</c> in the project — so a terminal that authors nothing but
+        /// <c>scr=</c> was drawn, placed, and permanently unpressable. Four placements in the shipped
+        /// data are exactly that shape: the garages sprite-bot wreck, the raiders stable terminal, and
+        /// two more <c>term</c> consoles (<c>workshop/room_2_2</c>, <c>art/room_9_1</c>).</para>
         /// </summary>
         public static bool HasInteractScript(ObjectInstance obj)
         {
-            if (obj?.scripts == null) return false;
+            if (obj == null) return false;
+
+            // `Box.as:310` admits an object on `xml.@scr.length()` alone, and `:341` then makes that
+            // the click script — so the reference counts even with no `<scr>` child at all.
+            //
+            // **Box placements only.** `Location.as:1999-2001` builds a `Box` for
+            // `tip == "box" || tip == "door"` and a `Unit` for everything else, and `Unit.as:1580-1582`
+            // reads the same attribute as `scrDie` — a *death* script, not a click script. Six shipped
+            // placements are that shape (`megaboss`/`megaboss2` in `thunder`, `zebra` in `hql`, a
+            // ranger in `mbase/конец.зад`, two in `comm/room_2_0`); without this gate they would have
+            // been handed a `DoorPropPresenter` and pressing E on the thunderhead would have fired its
+            // death script.
+            if (obj.IsBoxPlacement &&
+                !string.IsNullOrEmpty(obj.GetAttribute("scr", string.Empty)))
+            {
+                return true;
+            }
+
+            if (obj.scripts == null) return false;
 
             for (int i = 0; i < obj.scripts.Count; i++)
             {

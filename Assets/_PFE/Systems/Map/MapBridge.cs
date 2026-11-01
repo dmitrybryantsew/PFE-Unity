@@ -756,6 +756,26 @@ public class MapBridge : MonoBehaviour
             }
         }
 
+        // The player's own per-frame blocks — the swim impulse, mana, radiation (the geiger), spells,
+        // auto-pickup — belong on the sim clock, and deliberately NOT behind SimTickMotor: that flag
+        // chooses which clock drives the *motor*, while these are AS3 frame counts and need the sim
+        // tick to mean anything (the same argument the action interactor below makes).
+        //
+        // Nothing else calls this for the player. The player is a prefab instance, so
+        // PlayerRigBuilder's attach — the only other caller — never runs for it, and every one of
+        // those blocks silently fell back to Unity's FixedUpdate: 50 Hz against the oracle's 30, with
+        // catch-up bursts of up to 16 steps in one frame when a frame ran long. That is what made the
+        // geiger click in clumps (up to 25/s instead of 15) and bill radiation 1.67x too fast.
+        // Gated on the sim actually dispatching as well as on the clock existing: with
+        // SimTickEnabled off, SimLoop accumulates nothing, so a block registered here would simply
+        // never run — and a silent never-run reads exactly like "radiation does nothing".
+        bool simTicks = _debugSettings == null || _debugSettings.SimTickEnabled;
+        var player = playerObj.GetComponent<PFE.Entities.Player.PlayerController>();
+        if (player != null && simTicks && _simClock != null && _simLoop != null)
+        {
+            player.AttachSimulation(_simClock, _simLoop);
+        }
+
         // Hand the telekinesis controller the LandMap — not the room.
         //
         // The component is created by PlayerController.Awake via AddComponent, and VContainer's

@@ -6,6 +6,7 @@ using PFE.Core.Ids;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Campaign;
+using PFE.Systems.Combat;
 using EntityId = PFE.Core.Ids.EntityId;
 
 namespace PFE.Systems.Map
@@ -258,7 +259,10 @@ namespace PFE.Systems.Map
                         // The unit's own <item> children — the boss's `key_sewer` lives here. Without this
                         // parameter the whole authored chain (parser -> converter -> RoomObjectData ->
                         // this spawn descriptor) terminated at a method with no field to receive it.
-                        items: spawnData.items);
+                        items: spawnData.items,
+                        // ...and its <scr> children, for the same reason: `Unit.as:1566-1575` turns them
+                        // into `scrDie`/`scrAlarm`, and 17 shipped placements depend on the death half.
+                        scripts: spawnData.scripts);
                     break;
 
                 case "box":
@@ -366,7 +370,8 @@ namespace PFE.Systems.Map
             IObjectDefinitionProvider objectDefinitions = null,
             string uid = null,
             string code = null,
-            List<MapObjectItemData> items = null)
+            List<MapObjectItemData> items = null,
+            List<MapObjectScriptData> scripts = null)
         {
             // ── Step 1 of the oracle's createUnit: which FAMILY is this really?
             //
@@ -466,6 +471,39 @@ namespace PFE.Systems.Map
             int facing = UnitController.ResolveFacing(turn, 1, rng);
             int digger = ResolveDiggerTier(resolvedId, attributes, difficulty, rng);
 
+            // AS3's last two draws at a spawn: the hero roll (`Location.as:1192-1198`) and, when it
+            // fired, the name pick (`Unit.as:1493`). They come after the digger roll because the oracle
+            // reaches them after `Unit.create` returns, and this stream is shared with room layout — a
+            // draw moved earlier shifts every later placement in the room.
+            RollEliteTier(room, context, resolvedId, attributes, unitDefinitions, rng,
+                          out int eliteTier, out string eliteName);
+
+            // The promotion travels to the unit the same way an authored one does — as the placement's
+            // `hero` attribute — because `UnitController.ApplyPlacement` is the single place a placement
+            // is read. `name` carries the generated name for the same reason: `ApplyPlacement` resolves
+            // it exactly like an authored id (`Res.txt("u", …)` with a raw fallback), so no second code
+            // path is needed to tell a literal from a localisation key.
+            List<MapObjectAttributeData> placementAttributes = MapObjectDataUtility.CloneAttributes(attributes);
+            if (eliteTier > 0)
+            {
+                // An AUTHORED `hero="3"` is already in the clone; adding a second entry for the same key
+                // would leave two values on one placement, and every reader here takes the first — so it
+                // would work by luck rather than by construction.
+                if (!MapObjectDataUtility.HasAttribute(attributes, "hero"))
+                {
+                    placementAttributes.Add(new MapObjectAttributeData
+                    {
+                        key = "hero",
+                        value = eliteTier.ToString(CultureInfo.InvariantCulture)
+                    });
+                }
+
+                if (!string.IsNullOrEmpty(eliteName))
+                {
+                    placementAttributes.Add(new MapObjectAttributeData { key = "name", value = eliteName });
+                }
+            }
+
             var unit = new UnitInstance
             {
                 entityId = entityId.IsValid ? entityId.ToString() : string.Empty,
@@ -483,11 +521,16 @@ namespace PFE.Systems.Map
                 maxHealth = health,
                 currentHealth = health,
                 controllerId = controllerId ?? string.Empty,
-                attributes = MapObjectDataUtility.CloneAttributes(attributes),
+                attributes = placementAttributes,
                 // The unit's own <item> children — AS3 Unit.create builds `inter` from the placed node and
                 // Unit.dropLoot opens with `if(inter) inter.loot()` (Unit.as:4450-4455). Cloned for the same
                 // reason `attributes` is: the caller's spawn descriptor outlives this unit.
                 items = MapObjectDataUtility.CloneItems(items),
+                // The unit's own <scr> children — AS3 `Unit.as:1566-1575` builds `scrDie`/`scrAlarm`
+                // from `mapxml.scr`, and `die()` runs `scrDie` through `runScript()` (`:4392`, `:4483`).
+                // Cloned for the same reason `attributes` and `items` are: the caller's spawn descriptor
+                // outlives this unit.
+                scripts = MapObjectDataUtility.CloneScripts(scripts),
                 fraction = ResolvePlacementFaction(attributes),
                 facingDirection = facing,
                 digger = digger
@@ -613,6 +656,114 @@ namespace PFE.Systems.Map
 
             float chance = Mathf.Min(difficulty / 20f + 0.25f, 0.75f);
             return rng != null && rng.Chance(chance) ? 1 : 0;
+        }
+
+        /// <summary>
+        /// The "starred enemy" promotion — AS3 <c>Location.createUnit</c>'s roll
+        /// (<c>Location.as:1191-1198</c>), the <c>hero</c> attribute <c>Unit.as:645</c> reads off the
+        /// placed node, and the name pick that follows either of them (<c>Unit.setHero</c> →
+        /// <c>getName()</c>, <c>Unit.as:1640-1645</c>, <c>:1477-1497</c>).
+        ///
+        /// <code>
+        /// _loc11_ = 0;
+        /// if(this.land.rnd &amp;&amp; this.landProb == "") {
+        ///    if(Math.random() &lt; Math.min(0.05, this.locDifLevel / 100 + 0.02)) {
+        ///       _loc11_ = Math.floor(Math.random() * 4 + 1);
+        ///    }
+        /// }
+        /// …
+        /// _loc9_.setHero(_loc11_);
+        /// </code>
+        ///
+        /// <para><b>Two ways to be promoted, and only one of them rolls.</b> A <i>procedural</i> land
+        /// rolls the chance and the tier above. A hand-authored room instead writes <c>hero="3"</c> on
+        /// the placed node, which the unit's constructor copies into <c>this.hero</c> (<c>Unit.as:645</c>)
+        /// <b>before</b> <c>setHero(0)</c> runs — and <c>setHero</c> only assigns
+        /// <c>if(this.hero == 0)</c>, so the authored tier survives and its stat branch still fires.
+        /// Counted on 2026-10-29: 41 placements across 33 room assets author it — 24 at tier 1, 6 at
+        /// tier 2, 6 at tier 3, 5 at tier 4. The roll is gated on <c>land.rnd</c> and therefore never
+        /// runs for those rooms; the <i>name</i> draw does, because it lives inside
+        /// <c>setHero</c>/<c>getName()</c> and is not gated at all. Both arms are handled here.</para>
+        ///
+        /// <para><b>Why the gate is <c>noHolesPlace</c> + an empty <c>probId</c>.</b> <c>land.rnd</c> is
+        /// the flag that says "this land was generated, not authored", and the port already carries it
+        /// on the room as <c>noHolesPlace</c> — <c>Land.newLoc</c> passes <c>this.rnd</c> straight into
+        /// that parameter (<c>Land.as:947</c>), which is why <c>LocationBuildContext.IsProcedural</c>
+        /// reads the same field. <c>landProb</c> is the prob-room id, i.e. <see cref="RoomInstance.probId"/>.
+        /// So a hand-authored camp or a prob room never <i>rolls</i> anyone, exactly as in the oracle.</para>
+        ///
+        /// <para><b>Draw order is part of the contract.</b> The chance test is drawn <i>always</i> inside
+        /// the gate (a failed test is still a draw), the tier only when it passes, and the name only when
+        /// a tier was produced, the unit can carry a hero, and the placement did not author a name. All
+        /// three come off the shared spawn stream — see <see cref="CreateUnit"/>'s note on why a draw
+        /// moved earlier shifts every later placement in the room.</para>
+        ///
+        /// <para><b>The <c>hero</c> attribute is written only for a unit the oracle would promote.</b>
+        /// <c>setHero</c> opens with <c>if(!this.mHero) return;</c>, so a rolled tier on a row that cannot
+        /// be a hero leaves <c>this.hero</c> at 0 — no stats, no star, and no essence drop. Writing the
+        /// attribute anyway would hand such a unit a star the original never draws, which is why the
+        /// mHero question is asked here rather than inside the controller.</para>
+        /// </summary>
+        private static void RollEliteTier(
+            RoomInstance room,
+            in LocationEnemyContext context,
+            string resolvedId,
+            List<MapObjectAttributeData> attributes,
+            IUnitDefinitionProvider unitDefinitions,
+            PFE.Core.Rng.IRngService rng,
+            out int tier,
+            out string name)
+        {
+            tier = 0;
+            name = null;
+
+            // `Unit.as:645` — `this.hero = param3.@hero`. An authored tier IS the promotion; the block
+            // below is the procedural arm and must not run for it (`land.rnd` is false in an authored
+            // room anyway, so this is the same fact stated twice rather than a second rule).
+            string authoredTier = MapObjectDataUtility.GetAttribute(attributes, "hero", null);
+            if (!string.IsNullOrEmpty(authoredTier) &&
+                int.TryParse(authoredTier, NumberStyles.Integer, CultureInfo.InvariantCulture, out int authored) &&
+                authored > 0)
+            {
+                tier = authored;
+            }
+            else
+            {
+                // `if(this.land.rnd && this.landProb == "")`
+                if (room == null || rng == null) return;
+                if (!room.noHolesPlace || !string.IsNullOrEmpty(room.probId)) return;
+
+                float chance = EliteEnemyRules.RollChance(context.Difficulty);
+                if (rng.NextFloat() >= chance) return;
+
+                tier = EliteEnemyRules.RollTier(rng.NextFloat());
+            }
+
+            if (tier <= 0) return;
+
+            // `if(!this.mHero) return;` — see the remarks above. This is a data question about the row,
+            // so it does not consume a draw either way.
+            IUnitDefinitionProvider provider = unitDefinitions ?? ResourcesUnitDefinitionProvider.Shared;
+            if (!provider.TryGetUnit(resolvedId, out UnitDefinition definition) ||
+                !UnitController.CanCarryHero(definition))
+            {
+                tier = 0;
+                return;
+            }
+
+            // `if(!this.uniqName) { … getName() … }` — an authored name wins and consumes no draw.
+            string authoredName = MapObjectDataUtility.GetAttribute(attributes, "name", null);
+            if (!string.IsNullOrEmpty(authoredName)) return;
+
+            // An authored tier in an authored room still reaches here, and the oracle still draws: the
+            // name pick is inside `setHero`, not inside the `land.rnd` gate. A null rng is the one case
+            // that skips it, and that is a test seam rather than a game state.
+            if (rng == null) return;
+
+            // The draw happens even when the list is exhausted: `Math.floor(Math.random() * 0)` is
+            // still one call in the oracle, and skipping it here would shift every later spawn.
+            double draw = rng.NextFloat();
+            UnitNameTable.Shared.TryTake(UnitController.ResolveEliteNameKey(definition), draw, out name);
         }
 
         /// <summary>
@@ -1401,9 +1552,13 @@ namespace PFE.Systems.Map
         /// Port of AS3 <c>Location.setRandomUnits()</c> (<c>Location.as:1053-1109</c>).
         ///
         /// <para><b>What this replaced, and why the old shape could not work.</b> The previous version
-        /// looked for <see cref="SpawnType.Enemy"/> entries on <c>room.spawnPoints</c>. Nothing has ever
-        /// produced one: <c>AS3ToUnityConverter.FindSpawnPoints</c> emits exactly one point, the
-        /// <see cref="SpawnType.Player"/> one, and no importer writes <c>SpawnType.Enemy</c> anywhere.
+        /// looked for <see cref="SpawnType.Enemy"/> entries on <c>room.spawnPoints</c>. At the time
+        /// nothing produced one: <c>AS3ToUnityConverter.FindSpawnPoints</c> emits exactly one point, the
+        /// <see cref="SpawnType.Player"/> one, and no importer wrote <c>SpawnType.Enemy</c> anywhere.
+        /// (It does now — <see cref="RecordEnemySpawnPoints"/> writes one per authored <c>enspawn</c>
+        /// row, for the alarm's reinforcement and for a boss's summons. Those are <i>not</i> this
+        /// method's input: an <c>enspawn</c> marker is a runtime spawn position, while this method
+        /// consumes the <c>up</c> groups that were authored to be populated at build time.)
         /// So the method returned at its first guard in every room, always. The count it would have used
         /// was zero as well, because <c>RoomDifficulty.SetEnemyCount</c> had no production caller.</para>
         ///
@@ -1851,12 +2006,15 @@ namespace PFE.Systems.Map
         /// <c>MapObjectDefinition.GetResolvedPlacementType</c>, which reads the same field for the same
         /// reason.</para>
         ///
-        /// <para><b><c>enspawn</c> rows are collected but not consumed.</b> The oracle sends them to
-        /// <c>addEnSpawn</c>, which fills <c>Location.enspawn</c> and <c>kolEnSpawn</c>; that list is read
-        /// by <c>Location.enemySpawn()</c> and <c>waveSpawn()</c> (<c>Location.as:2977-3030</c>), the
-        /// alarm/wave spawner. Neither is ported, so there is no consumer. They are still removed from the
-        /// spawnable set, because AS3 never instantiates them — leaving them in is what produced 89 junk
-        /// props per import.</para>
+        /// <para><b><c>enspawn</c> rows are collected here and consumed elsewhere.</b> The oracle sends
+        /// them to <c>addEnSpawn</c>, which fills <c>Location.enspawn</c> and <c>kolEnSpawn</c>; that
+        /// list is read by <c>Location.enemySpawn()</c> and <c>waveSpawn()</c>
+        /// (<c>Location.as:2977-3030</c>) — the alarm's reinforcement and a boss's summons. Both of
+        /// those now exist: <c>RecordEnemySpawnPoints</c> turns these rows into
+        /// <see cref="SpawnType.Enemy"/> entries on <c>room.spawnPoints</c>, <i>in authored order</i>,
+        /// which is the order <c>enspawn[param2]</c> indexes. They are still removed from the spawnable
+        /// set, because AS3 never instantiates them — leaving them in is what produced 89 junk props per
+        /// import.</para>
         /// </summary>
         private static ObjectTablePartition PartitionObjectTable(RoomTemplate template)
         {

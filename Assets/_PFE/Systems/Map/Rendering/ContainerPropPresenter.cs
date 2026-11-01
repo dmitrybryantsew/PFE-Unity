@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using PFE.Core.Rng;
 using PFE.Data.Definitions;
+using PFE.Systems.Audio;
 using PFE.Systems.Interaction;
 using PFE.Systems.Inventory;
 using PFE.Systems.Loot;
@@ -40,14 +41,13 @@ namespace PFE.Systems.Map.Rendering
         public const float ActionReach = WorldConstants.ACTION_REACH;
 
         /// <summary>
-        /// Half-extent of the eject scatter, in world units. AS3's loot <i>falls</i> and settles; the
-        /// port has no falling-loot model (that needs <c>Loot.checkShelf</c> against a physics layer
-        /// that does not exist yet), so the burst is placed with a small deterministic scatter instead.
-        /// Recorded rather than silently shipped as a static pile — see
-        /// <c>docs/DeviceInteractionAndLoot/04_IMPLEMENTATION_PLAN.md</c> D7 Problem B.
+        /// <b>Removed: the eject scatter.</b> It existed only because the port had no falling-loot model,
+        /// so a burst of items would otherwise have stacked on one point. Every item is now spawned at the
+        /// container's own position and lobbed by <c>LootFallRules.JumpVelocity</c>, which is the oracle's
+        /// own mechanism (<c>LootGen.newLoot</c> → <c>new Loot(..., jump = true)</c>, <c>LootGen.as:293</c>),
+        /// so the spread comes from the throw. If loot ever starts landing in a neat pile again, this is
+        /// the note that says where the spread used to come from.
         /// </summary>
-        private const float ScatterRadius = 0.3f;
-
         private RoomInstance _room;
         private ObjectInstance _objectInstance;
         private MapObjectVisualDefinition _visual;
@@ -55,6 +55,18 @@ namespace PFE.Systems.Map.Rendering
         private BoxCollider2D _triggerCollider;
 
         private int _lastInteractFrame = -1;
+
+        /// <summary>
+        /// The sound this container makes when it opens — AS3 <c>Box.sndOpen</c>, read off the definition
+        /// row's <c>@open</c> (<c>Box.as:242</c>, played at <c>:510-513</c>). Null when the row has none.
+        ///
+        /// <para><b>It was silent, and the data was there all along.</b> <c>chest.asset</c> ships
+        /// <c>open: metal_open</c> inside its <c>legacyAttributes</c>; nothing read it. The whole family of
+        /// ids the oracle references (<c>metal_open</c>, <c>wood_open</c>, <c>safe_open</c>,
+        /// <c>small_open</c>, <c>metal_door_open</c>, <c>wood_door_open</c>) already resolves in
+        /// <c>SoundCatalog</c>, so this needed no importer run and no new content.</para>
+        /// </summary>
+        public string OpenSoundId { get; private set; }
 
         /// <summary>
         /// The resolved <c>cont</c> for this prop — <see cref="ContainerRule.ResolveCont"/> of the
@@ -150,6 +162,8 @@ namespace PFE.Systems.Map.Rendering
             ResolvedCont = ContainerRule.ResolveCont(
                 obj?.GetAttribute("cont", null),
                 obj?.definition != null ? obj.definition.containerId : null);
+
+            OpenSoundId = MapObjectSoundRule.OpenSound(obj?.definition?.legacyAttributes);
 
             _triggerCollider = GetComponent<BoxCollider2D>();
             if (_triggerCollider != null)
@@ -250,6 +264,31 @@ namespace PFE.Systems.Map.Rendering
             // values draw the same sprite today; 2 is stored because it is the oracle's value and
             // because `RoomStateSnapshot` round-trips it.
             _objectInstance.runtimeState.lootState = anyImportant ? 2 : 1;
+
+            // AS3 setAct("loot", n) ends with `this.owner.setVisState("open")` (:842), and
+            // `Box.setVisState` plays sndOpen on the open branch (:510-513). Played last, so a container
+            // that yields nothing still clicks — the oracle's itsEmpty path reaches setAct too.
+            PlayOpenSound();
+        }
+
+        /// <summary>
+        /// The open click — <c>Box.setVisState("open")</c>'s sound branch (<c>Box.as:510-513</c>).
+        ///
+        /// <para><b>The gate is <c>!World.w.testLoot</c>, and it is on the open branch only.</b>
+        /// <see cref="MapObjectSoundRule.PlaysOnOpen"/> owns that rule; the close branch deliberately has
+        /// no such gate. A scene with no <c>SoundService</c> is already silent
+        /// (<c>SoundBus.Current</c> is null), which is the same answer the oracle gives for a prop with no
+        /// <c>@open</c>.</para>
+        /// </summary>
+        private void PlayOpenSound()
+        {
+            // AS3 `World.w.testLoot` — the loot-test sweep that suppresses the click. The port has no such
+            // global yet, so it is false; named here so landing the flag is one assignment, not an edit.
+            const bool testLoot = false;
+
+            if (!MapObjectSoundRule.PlaysOnOpen(OpenSoundId, testLoot)) return;
+
+            SoundBus.Current?.Play(OpenSoundId, transform.position);
         }
 
         /// <summary>
@@ -295,7 +334,9 @@ namespace PFE.Systems.Map.Rendering
                 return 0;
             }
 
-            IRngService rng = ctx.Rng;
+            // No scatter and no RNG here: the spread comes from the throw (LootFallRules.JumpVelocity),
+            // which is the oracle's own mechanism and is seeded through the loot stream inside the
+            // pickup. `ctx.Rng` is still consumed by the roll itself, above.
             int spawned = 0;
 
             for (int i = 0; i < _objectInstance.items.Count; i++)
@@ -313,14 +354,16 @@ namespace PFE.Systems.Map.Rendering
                 bool important = !string.IsNullOrEmpty(row.GetAttribute("imp", null));
                 if (important) anyImportant = true;
 
-                Vector3 where = transform.position + Scatter(rng);
+                Vector3 where = transform.position;
 
                 // itemTip()'s order: the item table first (which holds the armour rows too), then the
                 // weapon table. `mont` is the row in the shipped data that needs the second half.
                 ItemDefinition itemDefinition = inventory.ResolveItem(row.id);
                 if (itemDefinition != null)
                 {
-                    if (WorldItemPickup.Spawn(itemDefinition, count, where, autoCollect: true) != null) spawned++;
+                    string fall = FallSoundFor(false, itemDefinition.legacyTip, row.id);
+                    if (WorldItemPickup.Spawn(itemDefinition, count, where, autoCollect: true,
+                                              jump: true, room: _room, fallSoundId: fall) != null) spawned++;
                     continue;
                 }
 
@@ -329,7 +372,9 @@ namespace PFE.Systems.Map.Rendering
                 {
                     // A weapon is one instance with its own condition and magazine, so the count is 1
                     // whatever the row asked for — AS3 forces weapons to kol 1 (Item.as:176-178).
-                    if (WorldItemPickup.Spawn(weaponDefinition, 1, where, autoCollect: true) != null) spawned++;
+                    string fall = FallSoundFor(true, LootTips.Weapon, row.id);
+                    if (WorldItemPickup.Spawn(weaponDefinition, 1, where, autoCollect: true,
+                                              jump: true, room: _room, fallSoundId: fall) != null) spawned++;
                     continue;
                 }
 
@@ -453,7 +498,9 @@ namespace PFE.Systems.Map.Rendering
                 return 0;
             }
 
-            IRngService rng = ctx.Rng;
+            // No scatter and no RNG here: the spread comes from the throw (LootFallRules.JumpVelocity),
+            // which is the oracle's own mechanism and is seeded through the loot stream inside the
+            // pickup. `ctx.Rng` is still consumed by the roll itself, above.
             int spawned = 0;
 
             for (int i = 0; i < ctx.Results.Count; i++)
@@ -478,8 +525,10 @@ namespace PFE.Systems.Map.Rendering
 
                     // A weapon is one instance with its own condition, magazine and respect state, so the
                     // count is 1 whatever the roll asked for — AS3 forces weapons to kol 1 (Item.as:176-178).
-                    Vector3 weaponWhere = transform.position + Scatter(rng);
-                    if (WorldItemPickup.Spawn(weapon, 1, weaponWhere, autoCollect: true) != null)
+                    Vector3 weaponWhere = transform.position;
+                    if (WorldItemPickup.Spawn(weapon, 1, weaponWhere, autoCollect: true,
+                                              jump: true, room: _room,
+                                              fallSoundId: FallSoundFor(true, LootTips.Weapon, roll.ItemId)) != null)
                     {
                         spawned++;
                     }
@@ -499,8 +548,10 @@ namespace PFE.Systems.Map.Rendering
                     continue;
                 }
 
-                Vector3 where = transform.position + Scatter(rng);
-                if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true) != null)
+                Vector3 where = transform.position;
+                if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true,
+                                          jump: true, room: _room,
+                                          fallSoundId: FallSoundFor(false, roll.Tip, roll.ItemId)) != null)
                 {
                     spawned++;
                 }
@@ -510,16 +561,16 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// A small deterministic offset for one ejected item — the stand-in for AS3's fall/bounce. Uses
-        /// the injected loot RNG so a seeded test can predict it.
+        /// The landing sample for one ejected item — AS3 <c>Loot.sndFall</c>, resolved by
+        /// <see cref="LootFallRules.ResolveFallSoundId(ILootItemCatalog, bool, string, string)"/>.
+        ///
+        /// <para>Kept as a one-line local rather than inlined at the four call sites, because the three
+        /// drop sites in the game must pass the same arguments in the same order: the ladder is
+        /// tip-routed, and a call site that passed <c>isWeapon: false</c> for a weapon would silently fall
+        /// back to <c>fall_item</c>.</para>
         /// </summary>
-        private static Vector3 Scatter(IRngService rng)
-        {
-            if (rng == null) return Vector3.zero;
-            float dx = (rng.NextFloat() * 2f - 1f) * ScatterRadius;
-            float dy = (rng.NextFloat() * 2f - 1f) * ScatterRadius;
-            return new Vector3(dx, dy, 0f);
-        }
+        private static string FallSoundFor(bool isWeapon, string tip, string itemId)
+            => LootFallRules.ResolveFallSoundId(LootRuntime.Catalog, isWeapon, tip, itemId);
 
         /// <summary>
         /// Report any table key that matched no branch. AS3 is silent (the <c>if/else if</c> chain falls

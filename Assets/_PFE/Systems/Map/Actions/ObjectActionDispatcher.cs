@@ -93,6 +93,14 @@ namespace PFE.Systems.Map.Actions
         /// </summary>
         public const string ProbEntryReportId = "prob";
 
+        /// <summary>
+        /// The tagged broadcast this dispatcher falls back to, or <c>null</c> when it was built without
+        /// one (<see cref="CreateDefault"/>). Exposed so a caller that needs to broadcast <i>without</i>
+        /// dispatching a script — the alicorn's <c>pole</c> objective — can reach the same instance the
+        /// scripts use, rather than constructing a second one whose verb host has no platforms bound.
+        /// </summary>
+        public ObjectInteractionBroadcast Broadcast { get; internal set; }
+
         /// <param name="reportUnhandled">
         /// Sink for the once-per-id "no handler" notice. Defaults to <c>Debug.LogWarning</c>; a test
         /// supplies a collector so the notice is asserted rather than merely printed.
@@ -249,6 +257,11 @@ namespace PFE.Systems.Map.Actions
                 new ObjectVerbCommand(verbs),
                 unitVerbs: null,
                 report: reportUnhandled);
+
+            // Published so a unit can broadcast without holding a dispatcher — the alicorn's `pole`
+            // objective is the one such caller. See ObjectInteractionBroadcast.Current.
+            dispatcher.Broadcast = broadcast;
+            ObjectInteractionBroadcast.Current = broadcast;
 
             // AS3 `Area.command`'s tail — `if(lift != 1) setLift()` (Area.as:271-274) — runs for
             // every verb an area receives, and the `allact` broadcast is the second way an area is

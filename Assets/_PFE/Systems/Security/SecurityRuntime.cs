@@ -1011,10 +1011,11 @@ namespace PFE.Systems.Security
         /// player's own position is a behaviour no player would read as intended, so hostiles only — a
         /// deliberate, documented deviation.</para>
         /// </summary>
-        private void AlertUnitsInRoom(RoomInstance room, Vector2 originPixels)
+        private int AlertUnitsInRoom(RoomInstance room, Vector2 originPixels, float radius = RoomAlarm.BudiloRadius)
         {
-            if (room == null) return;
+            if (room == null) return 0;
 
+            int woken = 0;
             UnitController[] units = FindObjectsByType<UnitController>(FindObjectsSortMode.None);
             for (int i = 0; i < units.Length; i++)
             {
@@ -1026,7 +1027,7 @@ namespace PFE.Systems.Security
 
                 Vector2 delta = (Vector2)unit.transform.position * 100f - originPixels;
                 float ear = unit.Ear > 0f ? unit.Ear : 1f;
-                if (delta.sqrMagnitude > RoomAlarm.BudiloRadius * RoomAlarm.BudiloRadius * ear * ear)
+                if (delta.sqrMagnitude > radius * radius * ear * ear)
                 {
                     continue;
                 }
@@ -1036,12 +1037,36 @@ namespace PFE.Systems.Security
                 // PFE.Entities.Enemies — the earlier PFE.Entities.Enemies.Core spelling was CS0234.)
                 if (unit is PFE.Entities.Enemies.EnemyController enemy && enemy.Brain != null)
                 {
-                    float jitter = Mathf.Min(RoomAlarm.BudiloRadius * 0.5f, 400f);
+                    float jitter = Mathf.Min(radius * 0.5f, 400f);
                     enemy.Brain.Alarma(
                         originPixels.x + (Rng.NextFloat() - 0.5f) * jitter,
                         originPixels.y + (Rng.NextFloat() - 0.5f) * jitter);
+                    woken++;
                 }
             }
+
+            return woken;
+        }
+
+        /// <summary>
+        /// A unit-shaped shout into a room — AS3 <c>loc.budilo(x, y, rad)</c>
+        /// (<c>Location.as:2861-2885</c>), the variant a <b>unit</b> calls.
+        ///
+        /// <para><b>The second caller, and why it needed its own entry point.</b> The alarm's pulse uses
+        /// the 1500 px radius (<c>Interact.as:642</c>); <c>sp_blast</c> uses
+        /// <c>loc.budilo(X, Y, 500)</c> (<c>Spell.as:408</c>) — a room-wide bang, not a land-wide one.
+        /// Before this the radius was a constant inside the private method, so the only way to reach it
+        /// was to raise an alarm, which is a different mechanic.</para>
+        ///
+        /// <para><b>Same deliberate faction filter as the pulse.</b> The oracle's location-level
+        /// <c>budilo</c> wakes everyone including the player's own allies; this wakes hostiles only. See
+        /// <c>AlertUnitsInRoom</c>.</para>
+        /// </summary>
+        /// <returns>The number of units woken.</returns>
+        public static int AlertRoom(RoomInstance room, Vector2 originPixels, float radius)
+        {
+            if (_instance == null || room == null || radius <= 0f) return 0;
+            return _instance.AlertUnitsInRoom(room, originPixels, radius);
         }
 
         /// <summary>
@@ -1061,7 +1086,20 @@ namespace PFE.Systems.Security
         /// conversion itself — writing <c>room.units</c> directly (as an earlier draft did) appends a
         /// record no spawner ever sees, which looks like a working alarm that produces nothing.</para>
         /// </summary>
-        private void SpawnReinforcement(RoomInstance room, Vector2 originPixels)
+        /// <param name="alarmAtPlayer">
+        /// AS3 <c>enemySpawn</c>'s <c>param2</c> — alert the new arrival at the <b>player's</b> position
+        /// (<c>alarma(gg.X, gg.Y)</c>, <c>:2990-2993</c>) rather than with a bare <c>alarma()</c>. The
+        /// difference is not cosmetic: <c>alarma()</c> with no coordinates falls back to the unit's own
+        /// position, so the reinforcement only ever looks where it is standing; with the player's
+        /// position it gets a <c>setCel</c> objective and walks to the fight it was called into. The
+        /// alarm path passes <c>false</c> (it alerts the room separately); a boss's quarter-HP call for
+        /// help passes <c>true</c>, because nothing else will point the newcomers at the arena.
+        /// </param>
+        private void SpawnReinforcement(
+            RoomInstance room,
+            Vector2 originPixels,
+            string familyOverride = null,
+            bool alarmAtPlayer = false)
         {
             if (room == null) return;
 
@@ -1085,12 +1123,14 @@ namespace PFE.Systems.Security
                 return;
             }
 
-            string unitId = ResolveReinforcementUnitId(point.unitId, room);
+            string unitId = familyOverride != null
+                ? ResolveFamilyUnitId(familyOverride, room)
+                : ResolveReinforcementUnitId(point.unitId, room);
             if (string.IsNullOrEmpty(unitId))
             {
                 Debug.LogWarning(
-                    $"[Security] Alarm in '{room.id}': spawn group '{point.unitId}' resolved to no " +
-                    "unit id. Skipped.");
+                    $"[Security] Alarm in '{room.id}': spawn group '{(familyOverride ?? point.unitId)}' " +
+                    "resolved to no unit id. Skipped.");
                 return;
             }
 
@@ -1143,7 +1183,17 @@ namespace PFE.Systems.Security
                 spawned.TryGetComponent(out PFE.Entities.Enemies.EnemyController enemy) &&
                 enemy.Brain != null)
             {
-                enemy.Brain.Alarma();
+                // `if(param2) _loc5_.alarma(gg.X, gg.Y); else _loc5_.alarma();` (:2990-2997).
+                GameObject player = alarmAtPlayer ? PlayerObject : null;
+                if (player != null)
+                {
+                    Vector2 playerPixels = (Vector2)player.transform.position * 100f;
+                    enemy.Brain.Alarma(playerPixels.x, playerPixels.y);
+                }
+                else
+                {
+                    enemy.Brain.Alarma();
+                }
             }
 
             Debug.Log($"[Security] Alarm reinforcement '{unitId}' spawned in '{room.id}' " +
@@ -1153,6 +1203,101 @@ namespace PFE.Systems.Security
         /// <summary>Serial for reinforcement entity ids — a monotonic counter, so two reinforcements of
         /// the same family in one alarm never share an id even after one of them dies.</summary>
         private int _reinforcementSerial;
+
+        /// <summary>
+        /// <c>loc.enemySpawn(false, false, "alicorn")</c> (<c>Location.as:2977-2998</c>) — a
+        /// reinforcement of a <b>named family</b> rather than the room's spawn group.
+        ///
+        /// <para><b>Why this is not the alarm's spawner.</b> <c>enemySpawn</c>'s third parameter
+        /// overrides <c>tipSpawn</c> (<c>:2989</c>), so the caller decides which family arrives. The
+        /// alarm passes nothing and gets the room's group; an alicorn's <c>t_alarm</c> passes
+        /// <c>"alicorn"</c> and gets another alicorn. Both spend the <b>same</b> <c>kolEnSpawn</c>
+        /// counter (<c>--kolEnSpawn</c>, <c>:2983</c>), which is why this shares
+        /// <see cref="RoomAlarm.SpawnBudget"/> with the alarm rather than keeping its own.</para>
+        ///
+        /// <para><b>The budget is spent before the attempt, as the oracle spends it.</b>
+        /// <c>enemySpawn</c> decrements and <i>then</i> calls <c>createUnit</c>, so a room with no
+        /// <c>enspawn</c> marker still burns a point. Faithful, and the reason the return value is "was
+        /// a point spent" rather than "did a unit appear".</para>
+        ///
+        /// <para><b>The family is resolved through <c>randomCid</c>, not used as a unit id.</b>
+        /// <c>createUnit</c> hands <c>randomCid(family)</c> to the constructor
+        /// (<c>Location.as:1185</c>), and <c>randomCid("alicorn")</c> is
+        /// <c>floor(random()*3+1)</c> — so the reinforcement is a random <i>tier</i>. Spawning the id
+        /// <c>"alicorn"</c> directly would produce the untiered base definition instead.</para>
+        /// </summary>
+        /// <returns>True when a spawn budget point was spent.</returns>
+        public static bool SpawnFamilyReinforcement(RoomInstance room, string familyId, Vector2 originPixels)
+        {
+            if (_instance == null || room == null || string.IsNullOrEmpty(familyId)) return false;
+
+            RoomAlarm alarm = GetAlarm(room);
+
+            // `if(kolEnSpawn <= 0 || enspawn == null || enspawn.length == 0) return;` (:2979-2982).
+            if (alarm == null || alarm.SpawnBudget <= 0) return false;
+
+            // `--kolEnSpawn;` (:2983).
+            alarm.SpawnBudget--;
+
+            _instance.SpawnReinforcement(room, originPixels, familyId);
+            return true;
+        }
+
+        /// <summary>
+        /// <c>loc.enemySpawn(true, true)</c> (<c>Location.as:2977-2998</c>) — one reinforcement from the
+        /// room's <b>own</b> spawn group, arriving already pointed at the player.
+        ///
+        /// <para><b>This is the alarm's spawner with two parameters flipped, and both matter.</b>
+        /// <c>param3</c> is null, so <c>tipSpawn</c> decides the family (<c>:2989</c>) — unlike
+        /// <see cref="SpawnFamilyReinforcement"/>, which names one. <c>param1</c> is true, so
+        /// <c>t_alarmsp</c> is <i>not</i> re-rolled (<c>:2984-2987</c>): the caller is mid-fight, not
+        /// raising a new alarm, and resetting the delay would postpone the room's own wave. <c>param2</c>
+        /// is true, so the newcomer gets <c>alarma(gg.X, gg.Y)</c> and walks to the player instead of
+        /// looking around where it spawned (<c>:2990-2993</c>).</para>
+        ///
+        /// <para><b>Called by bosses, not by the alarm.</b> <c>UnitBossRaider.damage</c>
+        /// (<c>UnitBossRaider.as:233-241</c>) spends one <c>kolEnSpawn</c> point per crossed HP quarter
+        /// — and only on the flamer variant at difficulty above 1. It shares
+        /// <see cref="RoomAlarm.SpawnBudget"/> with the alarm for the reason
+        /// <see cref="SpawnFamilyReinforcement"/> documents: AS3 has one <c>kolEnSpawn</c> per location,
+        /// so a boss that calls for help is spending the same points the alarm panel would.</para>
+        /// </summary>
+        /// <returns>True when a spawn budget point was spent.</returns>
+        public static bool SpawnRoomReinforcement(
+            RoomInstance room,
+            Vector2 originPixels,
+            bool alarmAtPlayer = true)
+        {
+            if (_instance == null || room == null) return false;
+
+            RoomAlarm alarm = GetAlarm(room);
+
+            // `if(kolEnSpawn <= 0 || enspawn == null || enspawn.length == 0) return;` (:2979-2982).
+            if (alarm == null || alarm.SpawnBudget <= 0) return false;
+
+            // `--kolEnSpawn;` (:2983). Spent before the attempt, as the oracle spends it.
+            alarm.SpawnBudget--;
+
+            _instance.SpawnReinforcement(room, originPixels, null, alarmAtPlayer);
+            return true;
+        }
+
+        /// <summary>
+        /// <c>randomCid(family)</c> for a caller that named a family outright.
+        ///
+        /// <para>Separate from <see cref="ResolveReinforcementUnitId"/> because that one starts from a
+        /// spawn <i>group</i> and runs <c>randomUnit</c> first; a family id must skip straight to the
+        /// variant roll, or <c>randomUnit("alicorn")</c> — which has no case for it — would return
+        /// nothing and the spawn would be dropped.</para>
+        /// </summary>
+        private static string ResolveFamilyUnitId(string familyId, RoomInstance room)
+        {
+            if (string.IsNullOrEmpty(familyId)) return null;
+
+            LocationEnemyContext context = RoomPopulator.EnemyContextFor(room);
+            return UnitVariantResolver.ResolveSpawnId(
+                familyId, context.Difficulty, Rng, context.ToVariantContext());
+        }
 
         /// <summary>
         /// Resolve the unit a spawn marker names into a concrete, spawnable id.
@@ -1172,8 +1317,7 @@ namespace PFE.Systems.Security
         /// seed — which is exactly what AS3 does.</para>
         /// </summary>
         private static string ResolveReinforcementUnitId(string groupId, RoomInstance room)
-        {
-            if (string.IsNullOrEmpty(groupId)) return null;
+        {            if (string.IsNullOrEmpty(groupId)) return null;
 
             // An authored marker that already names a unit (a hand-placed `enl2` variant, or the F2
             // debug spawn) is used as-is: `randomUnit` has no case for it and would return "".

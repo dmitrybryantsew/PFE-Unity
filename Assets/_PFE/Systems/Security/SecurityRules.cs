@@ -266,19 +266,19 @@ namespace PFE.Systems.Security
                 {
                     case SecurityLockTip.Pick:
                     case SecurityLockTip.RepairPart:
-                        ResolvePickFailure(profile, actor, rng, delta, result, hasPin);
+                        ResolvePickFailure(profile, actor, rng, delta, ref result, hasPin);
                         break;
                     case SecurityLockTip.Terminal:
-                        ResolveTerminalFailure(profile, actor, result);
+                        ResolveTerminalFailure(profile, actor, ref result);
                         break;
                     case SecurityLockTip.RepairWeapon:
-                        ResolveRepairFailure(profile, delta, rng, result);
+                        ResolveRepairFailure(profile, delta, rng, ref result);
                         break;
                     default:
                         // Tip 0/3/6 cannot reach here (Classify refuses 0; 3 is the mine path; 6 is a
                         // mine tip, not a lock tip). Treated as a plain damage roll so a data typo is
                         // visible rather than silent.
-                        ResolveRepairFailure(profile, delta, rng, result);
+                        ResolveRepairFailure(profile, delta, rng, ref result);
                         break;
                 }
 
@@ -306,7 +306,7 @@ namespace PFE.Systems.Security
             in SecurityActor actor,
             IRngService rng,
             int delta,
-            SecurityAttemptResult result,
+            ref SecurityAttemptResult result,
             bool hasPin)
         {
             // `_loc3_ = 0; _loc4_ = 2;` then the band by delta (:1021-1030).
@@ -377,7 +377,7 @@ namespace PFE.Systems.Security
         private static void ResolveTerminalFailure(
             SecurityProfile profile,
             in SecurityActor actor,
-            SecurityAttemptResult result)
+            ref SecurityAttemptResult result)
         {
             // `if(this.lockAtt == -100) this.lockAtt = World.w.pers.hackAtt;` (:1112-1115)
             if (Mathf.Approximately(profile.LockAtt, -100f))
@@ -426,7 +426,7 @@ namespace PFE.Systems.Security
             SecurityProfile profile,
             int delta,
             IRngService rng,
-            SecurityAttemptResult result)
+            ref SecurityAttemptResult result)
         {
             float baseDamage;
             float spread = 4f;

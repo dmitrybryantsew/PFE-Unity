@@ -32,7 +32,7 @@ namespace PFE.Systems.Map.Rendering
     /// <c>gotoAndPlay("comein")</c> for the one Z-door clip (<c>Box.as:508-532</c>).</para>
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
-    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IInteractableName, IDestructibleTile, ISecurityObject
+    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IInteractableName, IDestructibleTile, ISecurityObject, IProjectilePassThrough
     {
         /// <summary>
         /// Seconds per frame of a played clip. The map-object sprites ship in
@@ -261,6 +261,11 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         private static TerminalActionHost CreateTerminalHost()
         {
+            // `pip.workTip = allact` then `pip.onoff(7)` (Interact.as:1621-1625). The two calls are one
+            // branch in the oracle and two host members here, so the station is captured between them:
+            // SetWorkTip always runs first (TerminalActions.cs:309-311), and OpenPipPage carries it.
+            string pendingWorkTip = string.Empty;
+
             return new TerminalActionHost
             {
                 // AS3 `World.w.gui.infoText(key)`. The port has no info strip; the log is the honest
@@ -301,6 +306,19 @@ namespace PFE.Systems.Map.Rendering
 
                     PFE.Systems.Map.Scripting.AreaTriggerSystem.UpdateDoorTileCollision(room, obj, true);
                     SecurityRuntime.ClearAlarm(room);
+                },
+
+                // AS3 `World.w.pip.workTip = this.allact` (Interact.as:1621).
+                SetWorkTip = workTip =>
+                {
+                    pendingWorkTip = workTip ?? string.Empty;
+                },
+
+                // AS3 `World.w.pip.onoff(page, 0)` — page 7 for `work`/`lab`/`stove` (Interact.as:1624),
+                // page 8 for `app` (:1626-1629), page 9 for `vault` (:1646-1649).
+                OpenPipPage = (page, subPage) =>
+                {
+                    PFE.Core.PipPageRouter.Open(page, subPage, page == 7 ? pendingWorkTip : string.Empty);
                 },
             };
         }
@@ -406,6 +424,23 @@ namespace PFE.Systems.Map.Rendering
         /// trigger collider and the <c>allact</c> dispatch hang off the other.</para>
         /// </summary>
         public bool IsDoorBox => _objectInstance != null && _objectInstance.IsDoorBox();
+
+        /// <summary>
+        /// AS3 <c>phis == 2</c> — true while this closed door is a <b>level-2 solid</b>, so a bullet
+        /// flies through it (<c>weapon/Bullet.as:476</c> tests <c>phis == 1</c>).
+        ///
+        /// <para><b>Only <c>grate</c> and <c>hgrate</c> answer true</b> — the two rows in the data that
+        /// author <c>phis='2'</c> (<c>AllData.as:4859-4860</c>). Every other door, including the
+        /// <c>phis</c>-less ones that default to 1 (<c>Box.as:52</c>), answers false and stops rounds
+        /// exactly as before.</para>
+        ///
+        /// <para><b>Why the answer is "closed and alive" as well.</b> The solid collider only exists in
+        /// that state (<see cref="RefreshSolidCollider"/>), and AS3 zeroes <c>phis</c> on both the open
+        /// and the dead path (<c>Box.as:684</c>, <c>:807</c>), so there is no level-2 solid left to ask
+        /// about. Answering true there would be harmless but would claim a surface that is not there.</para>
+        /// </summary>
+        public bool PassesProjectiles =>
+            IsDoorBox && !IsOpen && !IsDestroyed && ResolveClosedDoorPhisLevel() == 2;
 
         public string ActionText
         {
@@ -781,6 +816,14 @@ namespace PFE.Systems.Map.Rendering
 
             TilePhysicsType targetType = isOpen ? TilePhysicsType.Air : TilePhysicsType.Wall;
 
+            // AS3 `setDoor` writes the door's own `phis` onto every covered tile (Box.as:684), and
+            // `initDoor` does the same when it stamps (Box.as:666). For 22 of the 24 shipped doors that
+            // value is 1, i.e. an ordinary wall — but `grate`/`hgrate` author `phis='2'`
+            // (AllData.as:4859-4860), the level-2 solid that a bullet flies through while a crate and a
+            // unit still stop on it. Collapsing both to `Wall` is what made a closed grate absorb fire
+            // in this port; the bit is the part of `phis` the enum could not carry.
+            bool levelTwoSolid = !isOpen && ResolveClosedDoorPhisLevel() == 2;
+
             // AS3 Box.setDoor() writes `opac` alongside `phis` on every tile the door covers
             // (Box.as:684-685): 0 while open, the door's own `@opac` while closed. The default is 1
             // (Box.as:72), so an unauthored door blocks light completely — only a door that authors
@@ -789,8 +832,8 @@ namespace PFE.Systems.Map.Rendering
             //
             // Without this term the port closed every door to a full Wall, i.e. opacity 1, so a closed
             // grate or window was solid black where AS3 costs a shadow ray only 0.1-0.2 and lets you
-            // see through. `phis` stays 1 for both cases, so this changes light only — enemy LOS and
-            // movement still treat a closed door as solid, which is what Box.as:684 does.
+            // see through. `physicsType` stays `Wall` either way, so this changes light only — enemy
+            // LOS and movement still treat a closed door as solid, which is what Box.as:684 does.
             float doorOcclusion = isOpen ? 0f : ResolveClosedDoorOcclusion();
 
             for (int x = txMin; x <= txMax; x++)
@@ -801,6 +844,7 @@ namespace PFE.Systems.Map.Rendering
                     if (tile != null)
                     {
                         tile.physicsType = targetType;
+                        tile.levelTwoSolid = levelTwoSolid;
                         tile.doorOcclusion = doorOcclusion;
                     }
                 }
@@ -931,8 +975,18 @@ namespace PFE.Systems.Map.Rendering
 
             // AS3 `Tile.udar()`'s own head: `if (indestruct || thre > param1) return false`. Both
             // terms are kept, in the oracle's order, rather than relying on the 10000 sentinel alone.
-            if (_doorIndestructible) return;
-            if (DoorDestructionMath.IgnoresDamage(_doorThreshold, destroyAmount)) return;
+            if (_doorIndestructible)
+            {
+                LogRefusal(destroyAmount, "the door is authored indestructible");
+                return;
+            }
+
+            if (DoorDestructionMath.IgnoresDamage(_doorThreshold, destroyAmount))
+            {
+                LogRefusal(destroyAmount,
+                    $"thre {_doorThreshold} > {destroyAmount} — the hit is below this door's threshold");
+                return;
+            }
 
             _doorHitPoints = DoorDestructionMath.ApplyDamage(_doorHitPoints, destroyAmount);
             if (DoorDestructionMath.IsDestroyed(_doorHitPoints))
@@ -940,6 +994,46 @@ namespace PFE.Systems.Map.Rendering
                 Die();
             }
         }
+
+        /// <summary>
+        /// Says why a hit on this door did nothing, when the owner has asked for that.
+        ///
+        /// <para><b>A door is the worst case for this confusion, because the shipped data gives wooden
+        /// doors two different thresholds.</b> <c>door1</c>/<c>hatch1</c> carry <c>thre='10'</c> and
+        /// <c>door1a</c> carries <c>thre='50'</c> (<c>AllData.as:4864-4865</c>), so a minigun carrying
+        /// <c>destroy = 10</c> breaks the first in six rounds and can never scratch the second. Two
+        /// doors that look identical therefore behave differently, and nothing on screen says why.</para>
+        /// </summary>
+        private void LogRefusal(float destroyAmount, string reason)
+        {
+            if (!LogDamageRefusals) return;
+
+            string id = _objectInstance?.definition != null ? _objectInstance.definition.ID : "(no definition)";
+            Debug.Log($"[TileDamage] door '{id}' REFUSED {destroyAmount:0} damage: {reason}. " +
+                      "AS3 Tile.udar drops anything under `thre` outright — no chip damage.");
+        }
+
+        /// <summary>
+        /// <see cref="PfeDebugSettings.LogTileDamageRefusals"/>, resolved once and cached.
+        ///
+        /// <para>This class has no injected settings — it reaches the asset the same way
+        /// <see cref="ShowDebugVisuals"/> does — so the lookup is cached here rather than repeated on
+        /// every refused hit, which is the one path that can fire dozens of times in a burst.</para>
+        /// </summary>
+        private static bool LogDamageRefusals
+        {
+            get
+            {
+                if (_damageLogSettings == null)
+                {
+                    _damageLogSettings = Resources.Load<PfeDebugSettings>("PfeDebugSettings");
+                }
+
+                return _damageLogSettings != null && _damageLogSettings.LogTileDamageRefusals;
+            }
+        }
+
+        private static PfeDebugSettings _damageLogSettings;
 
         /// <summary>
         /// Wrecks the door — AS3 <c>Box.die()</c> (<c>Box.as:789-880</c>). Sets the flag the renderer
@@ -977,7 +1071,8 @@ namespace PFE.Systems.Map.Rendering
         /// routes the same hit here because the door box owns the surface a round can actually reach —
         /// see <see cref="_solidCollider"/>.
         /// </summary>
-        public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType)
+        public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType,
+                                     DecalType decal)
         {
             DamageDoor(destroyAmount);
         }
@@ -989,7 +1084,7 @@ namespace PFE.Systems.Map.Rendering
         /// <c>TileCollider.ApplyDestructionRadius</c>.
         /// </summary>
         public void ApplyDestructionRadius(Vector3 worldPosition, float radius,
-                                           float destroyAmount, DamageType damageType)
+                                           float destroyAmount, DamageType damageType, DecalType decal)
         {
             DamageDoor(destroyAmount);
         }
@@ -1007,6 +1102,22 @@ namespace PFE.Systems.Map.Rendering
             return _objectInstance?.definition != null
                 ? _objectInstance.definition.GetDoorOcclusion()
                 : 1f;
+        }
+
+        /// <summary>
+        /// AS3 <c>Box.phis</c> for this door — the solidity level it stamps onto its tiles
+        /// (<c>Box.as:666</c>, <c>:684</c>). 1 is an ordinary wall and is the default
+        /// (<c>Box.as:52</c>); 2 is the level-2 solid that only <c>grate</c>/<c>hgrate</c> author
+        /// (<c>AllData.as:4859-4860</c>), which a bullet and a sight ray pass through.
+        ///
+        /// <para>A door with no definition falls back to 1 — the oracle's declared default — so a
+        /// missing asset can only reproduce the old behaviour, never invent a see-through wall.</para>
+        /// </summary>
+        private int ResolveClosedDoorPhisLevel()
+        {
+            return _objectInstance?.definition != null
+                ? _objectInstance.definition.GetDoorPhisLevel()
+                : 1;
         }
 
         /// <summary>

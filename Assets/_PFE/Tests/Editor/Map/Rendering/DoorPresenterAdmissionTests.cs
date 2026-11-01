@@ -207,5 +207,56 @@ namespace PFE.Tests.Editor.Map.Rendering
             script.actions.Add(new PFE.Systems.Map.MapObjectScriptActionData { act = "on", targ = "nioLift1" });
             return script;
         }
+
+        /// <summary>
+        /// AS3's fourth admission fact is the <c>scr=</c> <b>reference</b>, not a <c>&lt;scr&gt;</c> child
+        /// (<c>Box.as:310</c>: <c>xml.@scr.length()</c>), and <c>:341-343</c> turns it into the same
+        /// <c>inter.scrAct</c>. The importer keeps it as a placement attribute, so
+        /// <see cref="PFE.Systems.Map.ObjectInstance.scripts"/> stays empty — which is the exact shape of
+        /// the four shipped placements that author nothing else: the garages sprite-bot wreck
+        /// (<c>rooms_garages/room_2_0</c>, <c>scr="brspr"</c>), the raiders stable terminal
+        /// (<c>rooms_raiders/room_10_1</c>, <c>scr="stableStory"</c>) and two more <c>term</c> consoles
+        /// (<c>rooms_workshop/room_2_2</c>, <c>rooms_art/room_9_1</c>).
+        ///
+        /// <para>Reading only the list rejected all four, and rejection here means no
+        /// <c>DoorPropPresenter</c> — no collider, no <c>IInteractable</c> — so the object was drawn,
+        /// placed and permanently unpressable. Both story transitions the branch depends on are behind
+        /// one of those four.</para>
+        /// </summary>
+        [Test]
+        public void AnAuthoredScriptReferenceIsAnInteractScript()
+        {
+            var reference = new PFE.Systems.Map.ObjectInstance { objectType = "box" };
+            reference.attributes.Add(new PFE.Systems.Map.MapObjectAttributeData { key = "scr", value = "stableStory" });
+
+            Assert.IsTrue(RoomObjectVisualManager.HasInteractScript(reference),
+                "`scr=` is a reference to an authored script; it makes the object a button.");
+
+            // Controls. Without the attribute the same object is not a button, so it is the new clause —
+            // not the object's type or id — that admits it; and an empty value is not a reference.
+            Assert.IsFalse(RoomObjectVisualManager.HasInteractScript(
+                new PFE.Systems.Map.ObjectInstance { objectType = "box" }));
+
+            var blank = new PFE.Systems.Map.ObjectInstance { objectType = "box" };
+            blank.attributes.Add(new PFE.Systems.Map.MapObjectAttributeData { key = "scr", value = "" });
+            Assert.IsFalse(RoomObjectVisualManager.HasInteractScript(blank));
+        }
+
+        /// <summary>
+        /// The other half of the same attribute, and the reason the clause above is gated on the
+        /// placement type: on a <b>unit</b>, <c>@scr</c> is <c>scrDie</c> (<c>Unit.as:1580-1582</c>), a
+        /// death script. Six shipped placements author it — <c>megaboss</c>/<c>megaboss2</c>
+        /// (<c>thunder</c>), <c>zebra</c> (<c>hql</c>), a ranger (<c>mbase/конец.зад</c>) and two in
+        /// <c>comm/room_2_0</c>. Admitting those would hand them a <c>DoorPropPresenter</c>, so pressing
+        /// E on the thunderhead would fire its death script.
+        /// </summary>
+        [Test]
+        public void AUnitsScrReferenceIsADeathScriptNotAClickScript()
+        {
+            var unit = new PFE.Systems.Map.ObjectInstance { objectType = "unit" };
+            unit.attributes.Add(new PFE.Systems.Map.MapObjectAttributeData { key = "scr", value = "megabossDie" });
+
+            Assert.IsFalse(RoomObjectVisualManager.HasInteractScript(unit));
+        }
     }
 }

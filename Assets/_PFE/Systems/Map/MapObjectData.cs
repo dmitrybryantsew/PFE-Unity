@@ -17,8 +17,47 @@ namespace PFE.Systems.Map
         public bool hasTelekineticTarget;
         public Vector2 velocity;
         public Vector2 telekineticTarget;
-        public float throwGraceTime;
+
+        /// <summary>
+        /// AS3 <c>Box.t_throw</c> (<c>fe/loc/Box.as:94</c>) — remaining <b>prop steps</b> of the damage
+        /// grace a thrown prop carries, in the oracle's own unit (a counter, not a duration; see
+        /// <see cref="PFE.Systems.Physics.PropThrowGrace"/>).
+        ///
+        /// <para><b>Deliberately NOT the same thing as <see cref="isThrown"/>.</b> <c>isThrown</c> is
+        /// <c>Box.isThrow</c>: set by every thrower, read only by the collision predicates, and cleared
+        /// by the first wall/floor contact. This field is set only by the player's throw
+        /// (<c>UnitPlayer.as:1871</c>, <c>t_throw = 2</c>), counts down on its own, and is the only
+        /// thing that stops a flying prop from damaging what it hits. An enemy throw leaves it at
+        /// <c>0</c> on purpose — <c>UnitAlicorn.as:1238</c> writes <c>isThrow</c> and nothing else.</para>
+        /// </summary>
+        public int throwGraceTicks;
+
         public float lastImpactSpeed;
+
+        /// <summary>
+        /// The <b>holder's</b> <c>teleSpeed</c>, in AS3's px per 30 Hz frame — AS3 <c>UnitPlayer.as:57</c>
+        /// (8) for the player and <c>UnitAlicorn.as:65/161</c> (16, or 20 on <c>tr2</c>) for an alicorn.
+        ///
+        /// <para><b>Zero means "the player's", and that is the safe sentinel.</b> A state serialised
+        /// before this field existed deserialises to <c>0</c>, and a cap of zero would freeze every held
+        /// prop — so <c>StepHeldObject</c> treats a non-positive value as
+        /// <see cref="PFE.Systems.Telekinesis.TelekinesisMath.PlayerTeleSpeed"/>. Only a holder that
+        /// actually differs (an enemy) has to write it.</para>
+        ///
+        /// <para><b>Why it lives on the prop rather than on the holder.</b> The step runs inside the
+        /// room's physics pass, which has no idea who is holding what — the oracle has the same split,
+        /// with the caster writing <c>teleObj.dx</c> from its own tick and the box integrating it in
+        /// <c>Box.forces()</c>. Putting the two constants where the integrator can read them keeps the
+        /// casters from having to re-derive the motion.</para>
+        /// </summary>
+        public float telekineticHoldSpeedPerFrame;
+
+        /// <summary>
+        /// The holder's <c>teleAccel</c>, px/frame² — <c>UnitPlayer.as:59</c> (1) or
+        /// <c>UnitAlicorn.as:67/162</c> (4, or 5 on <c>tr2</c>). Zero means "the player's"; see
+        /// <see cref="telekineticHoldSpeedPerFrame"/>.
+        /// </summary>
+        public float telekineticHoldAccelPerFrame;
 
         /// <summary>
         /// AS3 <c>Obj.levitPoss</c> (<c>Obj.as:32</c>) — can this instance be picked up by

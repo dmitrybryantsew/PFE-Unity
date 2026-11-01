@@ -1159,7 +1159,10 @@ namespace PFE.Tests.Editor.Map
             // ── enc1 (Location.as:1610-1647) ───────────────────────────────────────────────────────
             rows.Add(Case("turret", "floor", "turret0"));
             rows.Add(Case("bloodwing", null, "bloodwing"));
-            rows.Add(Case("cturret", "combat", "turret0"));   // cid 'combat' -> tip 0, same as the null seed
+            // cid 'combat' is tip 4, not tip 0: `if(param1 == "combat") turrettip = 4;` runs before
+            // `id = "turret" + turrettip` (UnitTurret.as:86-94). Resolving this to turret0 would give
+            // the 19 cturret placements in the shipped rooms the floor turret's art and weapon table.
+            rows.Add(Case("cturret", "combat", "turret4"));
 
             // ── enf1 (Location.as:1648-1682) ───────────────────────────────────────────────────────
             rows.Add(Case("bloat", null, "bloat0"));

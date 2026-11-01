@@ -274,11 +274,28 @@ namespace PFE.Systems.Map.Scripting
     /// handed to the tick. This interface is that snapshot's script-relevant half: a latch the frame
     /// layer sets and the runner consumes. Reading <c>InputReader</c> from inside a tick would work today
     /// and break the determinism contract the moment a second peer exists.</para>
+    ///
+    /// <para><b>Both members are EVENT latches, and that is the whole contract.</b> In the oracle
+    /// <c>keyPressed</c> is assigned in exactly two places, and both are mouse handlers —
+    /// <c>Ctr.onMouseDown1</c> (<c>Ctr.as:551</c>) and <c>Ctr.onRightMouseDown1</c> (<c>:586</c>), the
+    /// latter setting <c>keyPressed2</c> as well. Nothing re-asserts it while a button stays down, and
+    /// <c>Script.step</c> clears it after consuming it (<c>Script.as:183</c>) and at the top of every
+    /// command (<c>:215</c>). So it behaves as "a press happened since the last clear" — <b>one press,
+    /// one line</b>.</para>
+    ///
+    /// <para><b>Why that distinction is load-bearing.</b> Sampling a held level here is not a cosmetic
+    /// difference: the runner steps at 30 Hz, so a held key would walk the monologue at thirty lines a
+    /// second. That was a real defect — holding the interact key machine-gunned a conversation past the
+    /// player's eyes. A released key must leave the dialogue blocked, which is also why neither member
+    /// may be derived from a release edge.</para>
     /// </summary>
     public interface IScriptInputProbe
     {
-        /// <summary>Whether the action key is down. AS3 <c>ctr.keyPressed</c> — held, not edge.</summary>
-        bool ActionKeyHeld { get; }
+        /// <summary>
+        /// Whether the "advance one line" input was pressed since the last clear. AS3
+        /// <c>ctr.keyPressed</c> — an event latch, <b>not</b> a held level (see the interface remarks).
+        /// </summary>
+        bool ActionKeyPressed { get; }
 
         /// <summary>
         /// Whether the "skip the rest of this dialogue" input was pressed since the last clear. AS3

@@ -120,7 +120,7 @@ namespace PFE.Tests.Map.Serialization
                         isDynamic = true,
                         isThrown = true,
                         velocity = new Vector2(80f, 120f),
-                        throwGraceTime = 0.15f
+                        throwGraceTicks = 2
                     }
                 },
                 position = new Vector2(250, 150)

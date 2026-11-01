@@ -114,6 +114,17 @@ namespace PFE.Systems.Map.Scripting
         {
             public RoomInstance Room;
             public ObjectInstance Owner;
+
+            /// <summary>
+            /// The <c>uid</c>/<c>code</c> of the unit this script hangs off, when the owner is a
+            /// <b>unit</b> rather than an object — AS3's <c>Script.owner</c> for a unit's own script.
+            ///
+            /// <para>See <see cref="CommandOwner"/>: the two owner kinds resolve <c>@targ="this"</c>
+            /// through different hosts, and a running script has to remember which one it was started
+            /// with because the <c>this</c> action may be several steps later.</para>
+            /// </summary>
+            public string UnitOwner;
+
             public List<MapObjectScriptActionData> Actions;
 
             /// <summary>Index of the action last fired — AS3 <c>ncom</c>.</summary>
@@ -152,7 +163,14 @@ namespace PFE.Systems.Map.Scripting
         /// <param name="room">The room the script belongs to — AS3 <c>Script.land</c>.</param>
         /// <param name="script">The authored action list.</param>
         /// <param name="owner">The object the script hangs off, for <c>@targ="this"</c>.</param>
-        public void Run(RoomInstance room, MapObjectScriptData script, ObjectInstance owner = null)
+        /// <param name="unitOwner">
+        /// The <c>uid</c>/<c>code</c> of the <b>unit</b> the script hangs off, when it hangs off a unit
+        /// rather than an object — a unit's authored death script (<c>Unit.as:4483-4489</c>), whose
+        /// <c>Script.owner</c> is the <c>Unit</c> itself. Ignored when <paramref name="owner"/> is set:
+        /// AS3 has one owner, not two.
+        /// </param>
+        public void Run(RoomInstance room, MapObjectScriptData script, ObjectInstance owner = null,
+                        string unitOwner = null)
         {
             if (room == null || script?.actions == null || script.actions.Count == 0) return;
 
@@ -162,7 +180,7 @@ namespace PFE.Systems.Map.Scripting
             {
                 for (int i = 0; i < script.actions.Count; i++)
                 {
-                    Execute(room, owner, script.actions[i], null);
+                    Execute(room, owner, unitOwner, script.actions[i], null);
                 }
 
                 return;
@@ -172,11 +190,12 @@ namespace PFE.Systems.Map.Scripting
             {
                 Room = room,
                 Owner = owner,
+                UnitOwner = unitOwner,
                 Actions = script.actions,
                 Ncom = 0,
             };
 
-            Execute(room, owner, script.actions[0], running);
+            Execute(room, owner, unitOwner, script.actions[0], running);
             running.Tcom = FramesOf(script.actions[0]);
             _running.Add(running);
         }
@@ -196,7 +215,8 @@ namespace PFE.Systems.Map.Scripting
         /// </summary>
         /// <returns><c>false</c> when the id could not be resolved, so a caller can distinguish "the
         /// area fired and its script was missing" from "the area never fired".</returns>
-        public bool RunAuthored(RoomInstance room, string scriptId, ObjectInstance owner = null)
+        public bool RunAuthored(RoomInstance room, string scriptId, ObjectInstance owner = null,
+                                string unitOwner = null)
         {
             if (string.IsNullOrEmpty(scriptId)) return false;
 
@@ -214,7 +234,7 @@ namespace PFE.Systems.Map.Scripting
                 return false;
             }
 
-            Run(room, script, owner);
+            Run(room, script, owner, unitOwner);
             return true;
         }
 
@@ -295,6 +315,12 @@ namespace PFE.Systems.Map.Scripting
                 // `dial_n` does not exist, so the loop walks a monologue one press at a time and only
                 // releases when it runs off the end. A port that released after a single press would
                 // show `begDial`'s first Littlepip line and drop the other two.
+                //
+                // ONE PRESS, ONE LINE. Both probe members are event latches, not levels: the oracle
+                // sets `keyPressed` in a mouse-down handler and clears it after consuming it, so
+                // holding a button down advances exactly once. Reading the held state instead — which
+                // this branch used to do — walks the monologue at the tick rate (30 lines a second),
+                // which reads as "the dialogue skipped itself".
                 if (_input == null)
                 {
                     // No probe: the script must NOT block for ever. Release the block and let the
@@ -307,7 +333,7 @@ namespace PFE.Systems.Map.Scripting
                     {
                         running.DialN = 10000;
                     }
-                    else if (!_input.ActionKeyHeld)
+                    else if (!_input.ActionKeyPressed)
                     {
                         return;
                     }
@@ -360,7 +386,7 @@ namespace PFE.Systems.Map.Scripting
             }
 
             MapObjectScriptActionData next = running.Actions[running.Ncom];
-            Execute(running.Room, running.Owner, next, running);
+            Execute(running.Room, running.Owner, running.UnitOwner, next, running);
             running.Tcom = FramesOf(next);
         }
 
@@ -374,8 +400,8 @@ namespace PFE.Systems.Map.Scripting
         /// <c>openland</c> is a campaign one — so dispatching by name alone would send an object command
         /// into the campaign chain.</para>
         /// </summary>
-        private void Execute(RoomInstance room, ObjectInstance owner, MapObjectScriptActionData action,
-                             RunningScript running)
+        private void Execute(RoomInstance room, ObjectInstance owner, string unitOwner,
+                             MapObjectScriptActionData action, RunningScript running)
         {
             if (action == null) return;
 
@@ -412,7 +438,7 @@ namespace PFE.Systems.Map.Scripting
                 // "no object matches that uid or code" warning. See the overload's remarks.
                 if (string.Equals(action.targ, "this", StringComparison.OrdinalIgnoreCase))
                 {
-                    CommandOwner(room, owner, command, action.val);
+                    CommandOwner(room, owner, unitOwner, command, action.val);
                     return;
                 }
 
@@ -681,9 +707,37 @@ namespace PFE.Systems.Map.Scripting
         /// commanded 'this' and there was no 'this'" is a <i>wiring</i> fault (a caller that dropped the
         /// owner) rather than authored data, and the silent form is what let it go unnoticed while 57
         /// room scripts quietly did nothing.</para>
+        ///
+        /// <para><b>A unit owner is a different host, not a missing object.</b> AS3's <c>Script.owner</c>
+        /// for a unit's own script — the death script <c>Unit.as:1580-1582</c> builds, and the dialogue
+        /// scripts <c>NPC.as:322</c> builds — is the <c>Unit</c>, and <c>Unit.command</c>
+        /// (<c>Unit.as:4784-4811</c>) forwards to <c>Obj.command</c> (<c>Obj.as:221-229</c>), whose whole
+        /// vocabulary is <c>show</c> plus the <c>activate</c>/<c>fraction</c> pair <c>Unit</c> adds. So
+        /// <c>off this</c> — the last action of <c>commStory2</c>, a unit death script — is a
+        /// <b>no-op</b> in the oracle, not an error. Routing it through the unit host keeps the verb
+        /// that <i>does</i> exist working, and says plainly once when one does not.</para>
         /// </summary>
-        private void CommandOwner(RoomInstance room, ObjectInstance owner, string command, string value)
+        private void CommandOwner(RoomInstance room, ObjectInstance owner, string unitOwner,
+                                  string command, string value)
         {
+            if (owner == null && !string.IsNullOrEmpty(unitOwner))
+            {
+                if (_units == null)
+                {
+                    ReportOnce("(unit owner)", $"`{command}` targets 'this' on a unit, but no unit host is " +
+                                               "wired, so nothing was commanded.");
+                    return;
+                }
+
+                if (_units.UnitCommand(room, unitOwner, command, value)) return;
+
+                ReportOnce("(unit owner)",
+                    $"[ScriptRunner] `{command}` targets 'this' on unit '{unitOwner}', which does not " +
+                    "understand it. AS3's `Unit.command` forwards to `Obj.command`, whose only verb is " +
+                    "`show`, so the oracle treats this as a no-op — nothing is broken.");
+                return;
+            }
+
             if (owner == null)
             {
                 ReportOnce("(no owner)",

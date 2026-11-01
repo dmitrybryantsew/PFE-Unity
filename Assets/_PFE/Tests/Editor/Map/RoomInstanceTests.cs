@@ -473,12 +473,52 @@ namespace PFE.Tests.Editor.Map
 
             room.AddObject(prop);
 
-            bool applied = room.TryApplyObjectImpulse(prop, new Vector2(120f, -50f), true);
+            bool applied = room.TryApplyObjectImpulse(prop, new Vector2(120f, -50f), true,
+                                                      PFE.Systems.Physics.PropThrowGrace.PlayerThrowTicks);
 
             Assert.IsTrue(applied);
             Assert.IsTrue(prop.runtimeState.dynamicState.isThrown);
-            Assert.Greater(prop.runtimeState.dynamicState.throwGraceTime, 0f);
+            Assert.AreEqual(PFE.Systems.Physics.PropThrowGrace.PlayerThrowTicks,
+                prop.runtimeState.dynamicState.throwGraceTicks);
             Assert.AreEqual(new Vector2(120f, -50f), prop.runtimeState.dynamicState.velocity);
+        }
+
+        /// <summary>
+        /// The control for the test above: the same call with <b>no</b> grace asked for — which is what
+        /// an alicorn's throw does (<c>UnitAlicorn.as:1238</c> sets <c>isThrow</c> only) — must leave the
+        /// prop able to damage on the very next sweep. Before this was separated, the layer granted the
+        /// player's window to every thrower, so an enemy-thrown crate could not hurt anyone until it
+        /// happened to touch a wall.
+        /// </summary>
+        [Test]
+        public void ThrowWithoutAGrace_LeavesThePropAbleToDamageImmediately()
+        {
+            RoomInstance room = CreateTestRoom();
+
+            // Built from attributes rather than a `MapObjectDefinition`: a `ScriptableObject` cannot be
+            // constructed outside the editor (ECall), and a fixture that dies there pins nothing.
+            var prop = new ObjectInstance
+            {
+                objectId = "mcrate4",
+                objectType = "box",
+                position = new Vector2(160f, 160f),
+                attributes = new System.Collections.Generic.List<MapObjectAttributeData>
+                {
+                    new MapObjectAttributeData { key = "size", value = "2" },
+                    new MapObjectAttributeData { key = "wid", value = "2" },
+                    new MapObjectAttributeData { key = "tip", value = "box" },
+                },
+            };
+
+            room.AddObject(prop);
+
+            Assert.IsTrue(room.TryReleaseHeldObject(prop, new Vector2(600f, 0f), treatAsThrow: true));
+
+            Assert.IsTrue(prop.runtimeState.dynamicState.isThrown,
+                "`isThrow` is still set — it is what lets the crate pass over shelves, and the oracle " +
+                "keeps it until the first wall/floor hit.");
+            Assert.AreEqual(0, prop.runtimeState.dynamicState.throwGraceTicks,
+                "No `t_throw` write means no grace: the crate damages the first unit it overlaps.");
         }
 
         [Test]

@@ -490,33 +490,96 @@ namespace PFE.Systems.Map.Rendering
             return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
         }
 
+        /// <summary>
+        /// A tile as this overlay can see it: the GameObject that carries the collider, the sprite and
+        /// the data — <b>whether or not it is drawn</b>.
+        ///
+        /// <para><b>Why this is not a <see cref="TileRenderer"/>.</b> A tile object no longer has to be
+        /// drawn to be collided with: with the quarter renderer as the default terrain path, the room's
+        /// tiles are built by <see cref="TileCollisionBuilder"/> and carry a <see cref="TileCollider"/>
+        /// and nothing else. Enumerating <see cref="TileRenderer"/> therefore finds <i>zero</i> tiles in
+        /// the default mode — and a diagnostic that silently measures nothing is worse than no
+        /// diagnostic, because `col` is the tool used to verify that collision survived the swap.</para>
+        /// </summary>
+        private sealed class TileProbe
+        {
+            public GameObject go;
+            public TileData data;
+        }
+
+        /// <summary>
+        /// Every tile object in the scene, from both halves of the room: colliders first (the default
+        /// path, and the only half that exists for an air-free room), then renderers (the shipped path,
+        /// and any air tile that is drawn without being solid).
+        ///
+        /// <para>Deduplicated by GameObject, so a shipped tile — which has both components — appears
+        /// once and reference comparison of two probes still means "the same tile".</para>
+        /// </summary>
+        private static List<TileProbe> CollectTiles()
+        {
+            var probes = new List<TileProbe>(1024);
+            var seen = new HashSet<GameObject>();
+
+            TileCollider[] colliders = FindObjectsByType<TileCollider>(
+                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                TileCollider collider = colliders[i];
+                if (collider == null) continue;
+
+                TileData data = collider.GetTileData();
+                if (data == null) continue;
+
+                GameObject go = collider.gameObject;
+                if (!seen.Add(go)) continue;
+
+                probes.Add(new TileProbe { go = go, data = data });
+            }
+
+            TileRenderer[] renderers = FindObjectsByType<TileRenderer>(
+                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                TileRenderer renderer = renderers[i];
+                if (renderer == null || renderer.TileData == null) continue;
+
+                GameObject go = renderer.gameObject;
+                if (!seen.Add(go)) continue;
+
+                probes.Add(new TileProbe { go = go, data = renderer.TileData });
+            }
+
+            return probes;
+        }
+
         private void DrawTiles(ColliderDebugTileFilter filter, Rect view)
         {
             if (filter == ColliderDebugTileFilter.None) return;
 
-            TileRenderer[] tiles = FindObjectsByType<TileRenderer>(
-                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            List<TileProbe> tiles = CollectTiles();
 
-            for (int i = 0; i < tiles.Length; i++)
+            for (int i = 0; i < tiles.Count; i++)
             {
-                TileRenderer tr = tiles[i];
-                if (tr == null) continue;
+                TileProbe tr = tiles[i];
 
-                TileData data = tr.TileData;
+                TileData data = tr.data;
                 if (data == null) continue;
                 if (!ColliderDebugFilters.Matches(filter, data.physicsType)) continue;
 
                 _tilesMatched++;
 
-                Collider2D collider = tr.GetComponent<Collider2D>();
-                SpriteRenderer sprite = tr.GetComponent<SpriteRenderer>();
+                Collider2D collider = tr.go.GetComponent<Collider2D>();
+                SpriteRenderer sprite = tr.go.GetComponent<SpriteRenderer>();
 
                 Rect colliderRect = collider != null ? WorldRect(collider.bounds) : Rect.zero;
-                Rect visualRect = ResolveVisualRect(tr, sprite, colliderRect);
+                Rect visualRect = ResolveVisualRect(tr.go.transform, sprite, colliderRect);
 
-                // The mismatch pair. TileVisualManager.CreateTile only attaches a TileCollider when
+                // The mismatch pair. Both tile builders — TileCollisionBuilder on the quarter terrain
+                // path, TileVisualManager on the shipped one — attach a TileCollider only when
                 // physicsType != Air, so "solid in the data, absent in physics" is the shape of a
-                // tile that renders as floor and cannot be stood on — which is the whole question.
+                // tile that renders as floor and cannot be stood on, which is the whole question.
                 //
                 // Counted BEFORE the view test, so the number in the legend is a property of the
                 // room rather than of where the camera happens to be. A count that silently changes
@@ -763,7 +826,7 @@ namespace PFE.Systems.Map.Rendering
         /// approximation that is visible and labelled by its colour, which is the property that
         /// matters for a diagnostic.</para>
         /// </summary>
-        private static Rect ResolveVisualRect(TileRenderer tr, SpriteRenderer sprite, Rect colliderRect)
+        private static Rect ResolveVisualRect(Transform tileTransform, SpriteRenderer sprite, Rect colliderRect)
         {
             if (sprite != null && sprite.sprite != null) return WorldRect(sprite.bounds);
             if (colliderRect.width > 0f && colliderRect.height > 0f) return colliderRect;
@@ -772,7 +835,7 @@ namespace PFE.Systems.Map.Rendering
             // give the same answer, but it is in room-local pixel space and would need the room
             // origin — this needs no convention at all.
             const float halfCell = 0.2f; // 40 px / 2 / 100
-            Vector3 p = tr.transform.position;
+            Vector3 p = tileTransform.position;
             return new Rect(p.x - halfCell, p.y - halfCell, halfCell * 2f, halfCell * 2f);
         }
 
@@ -970,22 +1033,27 @@ namespace PFE.Systems.Map.Rendering
             // player's own box. 0.01 world units is exactly 1 px (TileQueryConstants.PixelToUnit).
             var footPoint = new Vector2(bounds.center.x, bounds.min.y - 0.01f);
 
-            TileRenderer[] tiles = FindObjectsByType<TileRenderer>(
-                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            List<TileProbe> tiles = CollectTiles();
 
-            TileRenderer physicsTile = null;
+            TileProbe physicsTile = null;
             float physicsTileTop = float.NegativeInfinity;
             Collider2D physicsCollider = null;
 
-            TileRenderer visualTile = null;
+            TileProbe visualTile = null;
             float visualTileTop = float.NegativeInfinity;
 
-            for (int i = 0; i < tiles.Length; i++)
-            {
-                TileRenderer tr = tiles[i];
-                if (tr == null || tr.TileData == null) continue;
+            // Whether ANY tile in this room carries a sprite. On the quarter terrain path none does —
+            // the terrain is a mesh — and "collider only" is then the expected shape rather than the
+            // invisible-floor defect this probe exists to find. Without this the verdict would cry wolf
+            // on every step in the default mode, and a diagnostic that always alarms gets ignored.
+            bool anyTileSprite = false;
 
-                Collider2D collider = tr.GetComponent<Collider2D>();
+            for (int i = 0; i < tiles.Count; i++)
+            {
+                TileProbe tr = tiles[i];
+                if (tr == null || tr.data == null) continue;
+
+                Collider2D collider = tr.go.GetComponent<Collider2D>();
                 if (collider != null)
                 {
                     Rect cr = WorldRect(collider.bounds);
@@ -997,9 +1065,10 @@ namespace PFE.Systems.Map.Rendering
                     }
                 }
 
-                SpriteRenderer sprite = tr.GetComponent<SpriteRenderer>();
+                SpriteRenderer sprite = tr.go.GetComponent<SpriteRenderer>();
                 if (sprite != null && sprite.sprite != null)
                 {
+                    anyTileSprite = true;
                     Rect vr = WorldRect(sprite.bounds);
                     if (Contains(vr, footPoint) && vr.yMax > visualTileTop)
                     {
@@ -1023,10 +1092,9 @@ namespace PFE.Systems.Map.Rendering
             }
             else
             {
-                TileData d = physicsTile.TileData;
                 float gapPixels = (bounds.min.y - physicsTileTop) * PixelsPerUnit;
 
-                sb.Append($"\n  physics  tile : {Describe(physicsTile, d)}");
+                sb.Append($"\n  physics  tile : {Describe(physicsTile)}");
                 sb.Append($"\n                  collider={physicsCollider.GetType().Name}" +
                           $" usedByEffector={physicsCollider.usedByEffector}" +
                           $" top={physicsTileTop * PixelsPerUnit:0.#} px");
@@ -1041,13 +1109,16 @@ namespace PFE.Systems.Map.Rendering
                           " running or holding Up (UnitPlayer.as:2533)");
             }
 
-            sb.Append(visualTile == null
-                ? "\n  visual   tile : NONE — nothing is drawn under the feet."
-                : $"\n  visual   tile : {Describe(visualTile, visualTile.TileData)}" +
-                  $" spriteTop={visualTileTop * PixelsPerUnit:0.#} px");
+            sb.Append(visualTile != null
+                ? $"\n  visual   tile : {Describe(visualTile)}" +
+                  $" spriteTop={visualTileTop * PixelsPerUnit:0.#} px"
+                : anyTileSprite
+                    ? "\n  visual   tile : NONE — nothing is drawn under the feet."
+                    : "\n  visual   tile : not applicable — no tile in this room has a sprite " +
+                      "(the quarter terrain renderer draws the room as a mesh)");
 
             sb.Append("\n  verdict       : ").Append(Verdict(
-                physicsTile, visualTile, physicsTileTop, bounds.min.y));
+                physicsTile, visualTile, physicsTileTop, bounds.min.y, anyTileSprite));
 
             return sb.ToString();
         }
@@ -1106,23 +1177,22 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public static string Gaps()
         {
-            TileRenderer[] tiles = FindObjectsByType<TileRenderer>(
-                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            List<TileProbe> tiles = CollectTiles();
 
             var byType = new Dictionary<TilePhysicsType, GapStats>();
             var unreadableTypes = new HashSet<string>();
             int considered = 0;
 
-            for (int i = 0; i < tiles.Length; i++)
+            for (int i = 0; i < tiles.Count; i++)
             {
-                TileRenderer tr = tiles[i];
-                if (tr == null || tr.TileData == null) continue;
+                TileProbe tr = tiles[i];
+                if (tr == null || tr.data == null) continue;
 
-                TilePhysicsType type = tr.TileData.physicsType;
+                TilePhysicsType type = tr.data.physicsType;
                 if (!byType.TryGetValue(type, out GapStats stats)) stats = new GapStats();
 
-                Collider2D collider = tr.GetComponent<Collider2D>();
-                SpriteRenderer sprite = tr.GetComponent<SpriteRenderer>();
+                Collider2D collider = tr.go.GetComponent<Collider2D>();
+                SpriteRenderer sprite = tr.go.GetComponent<SpriteRenderer>();
                 bool hasSprite = sprite != null && sprite.sprite != null;
 
                 if (collider == null && hasSprite) stats.SpriteOnly++;
@@ -1158,7 +1228,9 @@ namespace PFE.Systems.Map.Rendering
             if (considered == 0)
             {
                 sb.Append("\n  NOTHING to measure. Either no tile has a collider, or none has a sprite,");
-                sb.Append("\n  or the room is not built. Try `col probe` for the tile under the player.");
+                sb.Append("\n  or the room is not built. On the quarter terrain path the tiles have NO");
+                sb.Append("\n  sprites at all by design, so this is the expected answer there — use");
+                sb.Append("\n  `col probe` for the tile under the player, or `col tiles` for the boxes.");
                 return sb.ToString();
             }
 
@@ -1258,9 +1330,10 @@ namespace PFE.Systems.Map.Rendering
             return true;
         }
 
-        private static string Describe(TileRenderer tr, TileData data)
+        private static string Describe(TileProbe tr)
         {
-            if (data == null) return $"({tr.GridPosition.x},{tr.GridPosition.y}) <no TileData>";
+            TileData data = tr != null ? tr.data : null;
+            if (data == null) return "<no TileData>";
 
             return $"({data.gridPosition.x},{data.gridPosition.y})" +
                    $" physics={data.physicsType}" +
@@ -1268,8 +1341,8 @@ namespace PFE.Systems.Map.Rendering
                    $" slope={data.slopeType}";
         }
 
-        private static string Verdict(TileRenderer physicsTile, TileRenderer visualTile,
-                                      float physicsTileTop, float feetY)
+        private static string Verdict(TileProbe physicsTile, TileProbe visualTile,
+                                      float physicsTileTop, float feetY, bool anyTileSprite)
         {
             if (physicsTile == null && visualTile == null)
                 return "NOTHING here — neither a collider nor a sprite. The feet are in empty space.";
@@ -1277,6 +1350,11 @@ namespace PFE.Systems.Map.Rendering
             if (physicsTile == null)
                 return "SPRITE ONLY — something is drawn here but no collider is. " +
                        "This is the 'standing on air' shape: the floor is visible and not solid.";
+
+            if (visualTile == null && !anyTileSprite)
+                return "COLLIDER ONLY, and no tile in this room has a sprite at all — the terrain is " +
+                       "drawn by the quarter renderer, so this is the EXPECTED shape, not a defect. " +
+                       "The gap number below is the part that still means something.";
 
             if (visualTile == null)
                 return "COLLIDER ONLY — the feet are supported by a tile that is not drawn. " +

@@ -382,6 +382,15 @@ namespace PFE.Systems.Map.Serialization
         public string doorId;
         public string trapId;
 
+        /// <summary>
+        /// AS3 <c>phis == 2</c> — see <see cref="TileData.levelTwoSolid"/>. Snapshot because the tile
+        /// grid is restored wholesale and a grate's tiles are only re-stamped when its door presenter
+        /// initialises; without this a save taken with grates closed would come back with ordinary
+        /// walls. A save written before the field existed deserialises it as <c>false</c>, which is the
+        /// same answer an unauthored door gives.
+        /// </summary>
+        public bool levelTwoSolid;
+
         public static TileStateSnapshot CreateFrom(TileData tile)
         {
             if (tile == null) return null;
@@ -407,7 +416,8 @@ namespace PFE.Systems.Map.Serialization
                 material = (int)tile.material,
                 canPlaceObjects = tile.canPlaceObjects,
                 doorId = tile.doorId,
-                trapId = tile.trapId
+                trapId = tile.trapId,
+                levelTwoSolid = tile.levelTwoSolid
             };
         }
 
@@ -434,6 +444,7 @@ namespace PFE.Systems.Map.Serialization
             tile.canPlaceObjects = canPlaceObjects;
             tile.doorId = doorId;
             tile.trapId = trapId;
+            tile.levelTwoSolid = levelTwoSolid;
         }
     }
 
@@ -1061,7 +1072,7 @@ namespace PFE.Systems.Map.Serialization
         public float velocityY;
         public float telekineticTargetX;
         public float telekineticTargetY;
-        public float throwGraceTime;
+        public int throwGraceTicks;
         public float lastImpactSpeed;
 
         public static MapObjectDynamicStateSnapshot CreateFrom(MapObjectDynamicStateData state)
@@ -1078,7 +1089,7 @@ namespace PFE.Systems.Map.Serialization
                 velocityY = state.velocity.y,
                 telekineticTargetX = state.telekineticTarget.x,
                 telekineticTargetY = state.telekineticTarget.y,
-                throwGraceTime = state.throwGraceTime,
+                throwGraceTicks = state.throwGraceTicks,
                 lastImpactSpeed = state.lastImpactSpeed
             };
         }
@@ -1094,7 +1105,7 @@ namespace PFE.Systems.Map.Serialization
                 hasTelekineticTarget = hasTelekineticTarget,
                 velocity = new Vector2(velocityX, velocityY),
                 telekineticTarget = new Vector2(telekineticTargetX, telekineticTargetY),
-                throwGraceTime = throwGraceTime,
+                throwGraceTicks = throwGraceTicks,
                 lastImpactSpeed = lastImpactSpeed
             };
         }

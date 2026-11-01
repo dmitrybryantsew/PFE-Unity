@@ -361,16 +361,18 @@ namespace PFE.Systems.Map
             return ObjectPhysicsLayer.TrySetTelekineticHold(obj, targetPosition);
         }
 
-        public bool TryReleaseHeldObject(ObjectInstance obj, Vector2 releaseVelocity, bool treatAsThrow = true)
+        public bool TryReleaseHeldObject(ObjectInstance obj, Vector2 releaseVelocity, bool treatAsThrow = true,
+                                         int throwGraceTicks = 0)
         {
             ObjectPhysicsLayer.EnsureSynchronized(objects);
-            return ObjectPhysicsLayer.TryReleaseTelekineticHold(obj, releaseVelocity, treatAsThrow);
+            return ObjectPhysicsLayer.TryReleaseTelekineticHold(obj, releaseVelocity, treatAsThrow, throwGraceTicks);
         }
 
-        public bool TryApplyObjectImpulse(ObjectInstance obj, Vector2 deltaVelocity, bool treatAsThrow = false)
+        public bool TryApplyObjectImpulse(ObjectInstance obj, Vector2 deltaVelocity, bool treatAsThrow = false,
+                                          int throwGraceTicks = 0)
         {
             ObjectPhysicsLayer.EnsureSynchronized(objects);
-            return ObjectPhysicsLayer.TryApplyImpulse(obj, deltaVelocity, treatAsThrow);
+            return ObjectPhysicsLayer.TryApplyImpulse(obj, deltaVelocity, treatAsThrow, throwGraceTicks);
         }
 
         /// <summary>
@@ -964,6 +966,32 @@ namespace PFE.Systems.Map
         /// </summary>
         public bool ambushArmed = false;
 
+        /// <summary>
+        /// The <c>&lt;scr&gt;</c> children this placement authored — the unit's death script
+        /// (<c>eve="die"</c> or no <c>eve</c> at all) and its alarm script (<c>eve="alarm"</c>).
+        ///
+        /// <para><b>Why a unit needs these and the field was missing.</b> <c>Unit.as:1566-1575</c> walks
+        /// <c>mapxml.scr</c> exactly as <c>Box.as:313-340</c> does for a box, but keeps the result in a
+        /// <i>different</i> slot: <c>if(_loc5_.eve == "die" || _loc5_.eve == null) this.scrDie = _loc5_;</c>
+        /// and <c>eve == "alarm"</c> → <c>scrAlarm</c>. <c>scrDie.start()</c> then runs from
+        /// <c>runScript()</c> (<c>Unit.as:4483-4489</c>), which <c>die()</c> calls at <c>:4392</c>.
+        /// </para>
+        ///
+        /// <para><b>Seventeen shipped placements author a death script and two an alarm script</b>
+        /// (across 12 room assets) — <c>workshop/room_0_2</c>'s four platform operators
+        /// (<c>open plat1m…plat5</c>), <c>prob/pit</c>'s three (<c>up pitU1…</c>), the
+        /// <c>allact open</c> gates in <c>mbase/конец</c> and <c>конец1</c>, and <c>prob/lair</c>'s
+        /// <c>stage killMadfox</c>. Before this field existed the parse survived all the way to
+        /// <c>RoomPopulator.CreateUnit</c>, which had no parameter for it — the same one-step-later drop
+        /// that <see cref="items"/> documents.</para>
+        ///
+        /// <para><b>Not the same thing as the <c>scr</c> attribute.</b> <c>@scr</c> is a <i>reference</i>
+        /// to a <c>&lt;scr id&gt;</c> in the campaign data and lands in <see cref="attributes"/>; it is
+        /// read by the death latch too, and it <b>overrides</b> this list when both exist
+        /// (<c>Unit.as:1580-1582</c> assigns <c>scrDie</c> after the loop).</para>
+        /// </summary>
+        public List<MapObjectScriptData> scripts = new List<MapObjectScriptData>();
+
         public string GetAttribute(string key, string defaultValue = "")
         {
             return MapObjectDataUtility.GetAttribute(attributes, key, defaultValue);
@@ -1331,6 +1359,25 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// Whether this placement is one AS3 builds a <c>Box</c> for — <c>tip == "box" || tip == "door"</c>
+        /// (<c>Location.as:1999-2001</c>).
+        ///
+        /// <para><b>Why a class question has to be asked at all.</b> <c>@scr</c> is two different latches
+        /// on two different classes: on a <c>Box</c> it is the click script
+        /// (<c>Box.as:341</c> → <c>inter.scrAct</c>), and on a <c>Unit</c> it is the <i>death</i> script
+        /// (<c>Unit.as:1580-1582</c> → <c>scrDie</c>). Six shipped unit placements author it —
+        /// <c>megaboss</c>/<c>megaboss2</c> (<c>thunder</c>), <c>zebra</c> (<c>hql</c>), a ranger
+        /// (<c>mbase/конец.зад</c>) and two in <c>comm/room_2_0</c> — so a consumer that keyed on the
+        /// attribute without asking this would turn a boss's death script into a button.</para>
+        ///
+        /// <para><see cref="objectType"/> is the imported <c>tip</c>, which is exactly the value
+        /// <c>Location.as</c> branches on.</para>
+        /// </summary>
+        public bool IsBoxPlacement =>
+            string.Equals(objectType, "box", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(objectType, "door", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Parses a <c>time</c> attribute. False means "no usable number here, try the next source" —
         /// i.e. the attribute is absent, blank, or not a number.
         ///
@@ -1638,7 +1685,7 @@ namespace PFE.Systems.Map
                 runtimeState.dynamicState.hasTelekineticTarget = false;
                 runtimeState.dynamicState.velocity = Vector2.zero;
                 runtimeState.dynamicState.telekineticTarget = Vector2.zero;
-                runtimeState.dynamicState.throwGraceTime = 0f;
+                runtimeState.dynamicState.throwGraceTicks = 0;
                 runtimeState.dynamicState.lastImpactSpeed = 0f;
             }
         }

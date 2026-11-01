@@ -620,6 +620,20 @@ namespace PFE.Systems.Map.Rendering
                         EmitSegmentPixels(a, b, ThinLineThickness, VisionColorDim);
                     }
                 }
+
+                // ── The far edge, and why the picture needs two radii ────────────────────────────────
+                //
+                // `look()` culls at `range² · 16` (Unit.as:4594-4597) and returns the graded
+                // `range²/d² · 4` for everything between `range` and `4 · range` (:4640). So the arc
+                // above is where a sighting is a full 4 per tick, and this dimmer ring is the outer
+                // limit of "can see at all". A single circle at `rangePx` described a unit that went
+                // blind exactly where the oracle's soft band starts — which is the band most
+                // engagements begin in, so the drawing agreed with the bug.
+                float farPx = NoiseMath.VisionMaxDistancePixels(rangePx);
+                if (farPx > rangePx)
+                {
+                    EmitCirclePixels(eyePx, farPx, ThinLineThickness, VisionColorDim, CircleSegments);
+                }
             }
 
             EmitEyeCross(eyePx, isSelected ? EyeColor : VisionColorDim);
@@ -1539,6 +1553,7 @@ namespace PFE.Systems.Map.Rendering
             sb.Append($"\n              ");
             sb.Append($"cone={(sensors.Omnidirectional ? "360" : "180")}");
             sb.Append($"  close={sensors.CloseProximityPixels:0}");
+            sb.Append($"  far={NoiseMath.VisionMaxDistancePixels(EffectiveSightRangePixels(brain)):0}");
             sb.Append($"  rayEvery={sensors.RaycastThrottleInterval}t");
 
             // Where the unit IS, in the same pixels the tile grid is addressed in. A unit standing on

@@ -3,6 +3,7 @@ using System.Text;
 using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Streaming;
+using PFE.Systems.Map.Rendering.RoomTerrain;
 using PFE.Entities.Player;
 using PFE.Core;
 using Profiler = PFE.Core.Profiling.PfeProfiler;
@@ -28,6 +29,19 @@ namespace PFE.Systems.Map.Rendering
         [SerializeField] private TileTextureLookup tileTextureLookup = null;
         [SerializeField] private MaterialRenderDatabase materialRenderDb = null;
         [SerializeField] private TileMaskLookup tileMaskLookup = null;
+
+        /// <summary>
+        /// The art the quarter terrain renderer needs, when <see cref="PfeDebugSettings.QuadRoomTerrain"/>
+        /// is on.
+        ///
+        /// <para><b>Optional, and that is deliberate.</b> It is resolved through
+        /// <see cref="RoomTerrainWiring.ResolveArt"/>, which falls back to the editor's asset database at
+        /// the importer's own output path — so the flag can be flipped from the console and tried without
+        /// a scene edit first. A Player build has no asset database, so a build that wants the quarter
+        /// renderer must have this assigned; the log line names that case rather than drawing an empty
+        /// room.</para>
+        /// </summary>
+        [SerializeField] private RoomTerrainArt roomTerrainArt = null;
 
         /// <summary>
         /// Baked tile sprites, shared across every room this controller renders.
@@ -81,6 +95,43 @@ namespace PFE.Systems.Map.Rendering
 
         private TileVisualManager tileVisualManager;
         private TileVisualManager backgroundTileVisualManager;
+
+        /// <summary>
+        /// The quarter terrain renderer, when the debug flag put it in place of the shipped tile sprites.
+        /// Null on the shipped path, which is the escape hatch (<c>terrain quad off</c>).
+        /// </summary>
+        /// <remarks>
+        /// Held so <see cref="ClearVisuals"/> can destroy it with the room and so a caller can read the
+        /// build's own numbers (<c>ShapesPlaced</c>, <c>LayerCount</c>, <c>LastBuildMilliseconds</c>)
+        /// without hunting for the component. Nothing in the game reads it for drawing — the tile
+        /// objects are already collision-only by the time this is set, so there is no picture to suppress
+        /// and no state to keep in sync.
+        /// </remarks>
+        private RoomTerrainRenderer roomTerrainRenderer;
+
+        /// <summary>
+        /// The collision-only tile objects, when the quarter renderer draws this room. Null on the
+        /// shipped path, where <see cref="TileVisualManager"/> owns the tiles (and their colliders).
+        ///
+        /// <para><b>Exactly one of the two is non-null</b> after a successful <see cref="Initialize"/>.
+        /// That invariant is the whole point of the change: the room's collision no longer rides on the
+        /// renderer's GameObjects, so "which renderer" and "which objects hold the colliders" are one
+        /// decision instead of two that can disagree.</para>
+        /// </summary>
+        private TileCollisionBuilder tileCollisionBuilder;
+
+        /// <summary>
+        /// Where this room's tiles stamp the decals a hit leaves — AS3's <c>Grafon.frontBmp</c>, minus
+        /// the bitmap.
+        ///
+        /// <para><b>Created for both terrain paths.</b> The decal is the one piece of the picture that
+        /// neither renderer owns: the quarter renderer draws the terrain as a mesh and the shipped path
+        /// composites one sprite per cell, and neither can accept a stamp at an arbitrary pixel. A layer
+        /// of pooled sprites above <see cref="MapSortingLayers.MainTiles"/> is the answer for both, so
+        /// this is built once in <c>Initialize</c> regardless of which path runs.</para>
+        /// </summary>
+        private TileDecalLayer tileDecalLayer;
+
         private RoomBackdropRenderer roomBackdropRenderer;
         private RoomObjectVisualManager roomObjectVisualManager;
         private RoomUnitSpawner roomUnitSpawner;
@@ -189,6 +240,23 @@ namespace PFE.Systems.Map.Rendering
             get => fogOfWarDisabled;
             set => SetFogOfWarDisabled(value);
         }
+
+        /// <summary>
+        /// The quarter terrain renderer for the current room, or null when the room is drawn the shipped
+        /// way.
+        ///
+        /// <para>Read-only and read by nothing in the game: it exists so a debug tool can answer "did the
+        /// flag actually take" without searching the hierarchy, and so the console and the hierarchy
+        /// agree about which renderer is live. Exposing it cannot make the two paths depend on each
+        /// other, because the shipped path never calls it.</para>
+        ///
+        /// <para><b>Deliberately not named <c>RoomTerrainRenderer</c>.</b> A member with a type's name
+        /// hides that type inside its own class, and this file uses
+        /// <c>AddComponent&lt;RoomTerrainRenderer&gt;()</c> a few lines below — the generic argument would
+        /// then resolve against the property and fail with a message that names the property, not the
+        /// shadowing.</para>
+        /// </summary>
+        public RoomTerrainRenderer QuadTerrainRenderer => roomTerrainRenderer;
 
         /// <summary>
         /// Enable or disable fog of war in this room.
@@ -572,6 +640,7 @@ namespace PFE.Systems.Map.Rendering
             EnsureOverlayParents();
             EnsureObjectParents();
             CleanupLegacyOverlayChildren();
+            EnsureDecalLayer();
 
             // Create tile visual managers
             if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
@@ -594,6 +663,7 @@ namespace PFE.Systems.Map.Rendering
                 MapSortingLayers.MainTiles,
                 MapSortingLayers.Foreground);
                 Profiler.Mark("room.tileVisualManager.ctor");
+            tileVisualManager.Decals = tileDecalLayer;
 
             // Create background layer if exists
             if (room.hasBackgroundLayer && room.backgroundRoom != null)
@@ -645,19 +715,52 @@ namespace PFE.Systems.Map.Rendering
             {
                 KonturCalculator.CalculateAll(room);
             }
-            // Create all tiles
-            if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
+
+            // Which renderer draws this room is decided BEFORE anything is built, because the decision
+            // is what decides whether a tile object needs a sprite at all. Building the tiles first and
+            // then hiding them (which is what this used to do) pays for every composited sprite the
+            // quarter renderer immediately covers up — 1 136 objects and ~570 ms of pixel work per room
+            // for a picture nobody sees. See TileCollisionBuilder for the collision-only half.
+            bool quarterTerrain;
+            using (Profiler.Region("room.terrain.quad", "S3: quarter renderer — measured against tiles.createAll"))
             {
-                Debug.Log("[RoomVisualController] Creating main layer tiles...");
+                quarterTerrain = TryBuildRoomTerrain(room);
             }
-            using (Profiler.Region("tiles.createAll", "boot: MEASURED 2518ms (2026-09-25) — was ~31s before the TileCompositor fixes"))
+
+            int mainTiles;
+            if (quarterTerrain)
             {
-                tileVisualManager.CreateAllTiles();
+                // Collision without a picture: same objects, same transforms, same TileCollider, no
+                // TileRenderer and no compositor. The quarter renderer already drew the room above.
+                using (Profiler.Region("room.tiles.collisionOnly", "replaces tiles.createAll on the default path — no compositing at all"))
+                {
+                    tileCollisionBuilder = new TileCollisionBuilder(room, tileParent, debugSettings);
+                    tileCollisionBuilder.Decals = tileDecalLayer;
+                    mainTiles = tileCollisionBuilder.BuildAll();
+                }
+
+                if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
+                {
+                    Debug.Log($"[RoomVisualController] Built {mainTiles} collision-only tile object(s); " +
+                              "the quarter renderer draws this room's terrain.");
+                }
             }
-            int mainTiles = tileVisualManager.GetTileCount();
-            if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
+            else
             {
-                Debug.Log($"[RoomVisualController] Created {mainTiles} main layer tiles");
+                // Create all tiles
+                if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
+                {
+                    Debug.Log("[RoomVisualController] Creating main layer tiles...");
+                }
+                using (Profiler.Region("tiles.createAll", "boot: MEASURED 2518ms (2026-09-25) — was ~31s before the TileCompositor fixes"))
+                {
+                    tileVisualManager.CreateAllTiles();
+                }
+                mainTiles = tileVisualManager.GetTileCount();
+                if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
+                {
+                    Debug.Log($"[RoomVisualController] Created {mainTiles} main layer tiles");
+                }
             }
 
             if (backgroundTileVisualManager != null)
@@ -746,6 +849,94 @@ namespace PFE.Systems.Map.Rendering
             {
                 Debug.Log($"[RoomVisualController] Room {room.id} initialized successfully with {mainTiles} tiles!");
             }
+        }
+
+        /// <summary>
+        /// Builds the quarter terrain renderer for this room, and reports whether it will draw it.
+        ///
+        /// <para><b>The answer decides what the tiles are.</b> <see langword="true"/> means the caller
+        /// builds collision-only tiles (<see cref="TileCollisionBuilder"/>) and no sprites at all;
+        /// <see langword="false"/> means the shipped path builds both, exactly as it always did. This
+        /// method does not touch the tile objects — it runs before them, which is why there is no
+        /// "suppress the other renderer" state left to keep honest.</para>
+        ///
+        /// <para><b>Failure is a fallback, not an empty room.</b> Every way this can fail — flag off,
+        /// art asset absent, no material database, the shader missing — returns
+        /// <see langword="false"/>, and the shipped renderer then draws the room from nothing. That is
+        /// structural rather than defensive: the replacement is built <i>before</i> anything is skipped,
+        /// so "sprites skipped, replacement never built" cannot be reached at all. It used to be a
+        /// condition on <see cref="RoomTerrainRenderer.IsBuilt"/> instead, because the sprites were built
+        /// first and then hidden.</para>
+        ///
+        /// <para><b>Read once, here.</b> The flag is sampled at build time and never again, so a room
+        /// cannot be half-quarter and half-shipped; the console verb therefore takes effect on the next
+        /// room. That is a deliberate limitation, not an oversight: rebuilding terrain mid-room would have
+        /// to rebuild the tile colliders too, and that is a different, riskier change.</para>
+        /// </summary>
+        /// <returns>True when the quarter renderer was built and owns this room's terrain.</returns>
+        private bool TryBuildRoomTerrain(RoomInstance room)
+        {
+            PfeDebugSettings settings = ResolveDebugSettings();
+            bool enabled = settings != null && settings.QuadRoomTerrain;
+
+            if (!enabled)
+            {
+                // The escape hatch, and it must cost nothing: no log, no allocation, no asset lookup.
+                return false;
+            }
+
+            RoomTerrainArt art = RoomTerrainWiring.ResolveArt(roomTerrainArt);
+
+            if (!RoomTerrainWiring.TryResolve(enabled, art, materialRenderDb, out string reason))
+            {
+                Debug.LogWarning(
+                    $"[RoomTerrain] Quarter renderer NOT built for room '{room.id}': {reason}. " +
+                    "The shipped per-tile renderer draws this room — this is a fallback, not a failure.");
+                return false;
+            }
+
+            var go = new GameObject("RoomTerrain");
+            // worldPositionStays: false — the renderer's coordinates are the room's own local grid
+            // (`x * cell`, `y * cell` with the top of the room at `height * cell`), so a parent offset
+            // would move every shape and put the bitmap fill's origin somewhere else.
+            go.transform.SetParent(transform, false);
+
+            var renderer = go.AddComponent<RoomTerrainRenderer>();
+            renderer.Build(room, art, materialRenderDb, RoomTerrainWiring.ResolveOptions(RoomTerrainWiring.ShippedCellSize));
+
+            if (!renderer.IsBuilt)
+            {
+                // Build() already logged why (no shader). Nothing has been skipped yet, so the shipped
+                // renderer can simply be the one that runs.
+                Debug.LogWarning(
+                    $"[RoomTerrain] Quarter renderer failed to build for room '{room.id}'; " +
+                    "the shipped per-tile renderer draws this room.");
+                DestroyObject(go);
+                return false;
+            }
+
+            roomTerrainRenderer = renderer;
+
+            Debug.Log(
+                $"[RoomTerrain] Room '{room.id}' drawn by the quarter renderer: " +
+                $"{renderer.ShapesPlaced} shape(s) in {renderer.LayerCount} layer(s) " +
+                $"× {renderer.MeshesPerLayer} mesh(es) (chunk {renderer.ChunkSize}), " +
+                $"{renderer.OverlaysPlaced} overlay(s), {renderer.LastBuildMilliseconds:0.0} ms. " +
+                "Tile objects are built for collision only — no composited sprites. " +
+                "Layers is the terrain's own floor on the HUD's Batches count.");
+
+            if (renderer.OverwrittenShapes != 0)
+            {
+                // Four quarters of a cell belong on four different half-cell slots, so a correct build
+                // replaces nothing. Non-zero means the mask grid and the Tilemap grid disagree about the
+                // cell size, and the picture is missing three quarters out of four while ShapesPlaced
+                // reports all of them.
+                Debug.LogError(
+                    $"[RoomTerrain] {renderer.OverwrittenShapes} shape(s) replaced a shape already in that cell — " +
+                    "the half-cell grid is wrong and the room is missing quarters.");
+            }
+
+            return true;
         }
 
         private TileAssetDatabase ResolveTileAssetDatabase(TileAssetDatabase requestedDatabase)
@@ -955,6 +1146,22 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
+        /// How much of the fog this room has revealed at a world point, in <c>[0, 1]</c>; <c>false</c>
+        /// when nothing is drawn over that point (no fog, no mask, outside the room) — in which case the
+        /// caller must treat it as fully visible.
+        ///
+        /// <para><b>For HUD elements anchored to a world position</b> — the starred-enemy marker is the
+        /// first caller. The oracle composites those under the fog mask; this port draws them on the
+        /// canvas, so they have to ask. See <see cref="RoomBackdropRenderer.TryGetFogVisibility"/>.</para>
+        /// </summary>
+        public bool TryGetFogVisibility(Vector3 worldPosition, out float visibility)
+        {
+            visibility = 1f;
+            return roomBackdropRenderer != null &&
+                roomBackdropRenderer.TryGetFogVisibility(worldPosition, out visibility);
+        }
+
+        /// <summary>
         /// The GameObject a runtime-added <see cref="UnitInstance"/> was built into, or false when the
         /// room has no spawner or the record is not live. See
         /// <see cref="RoomUnitSpawner.TryGetSpawnedObject"/> for why the caller cannot find it itself.
@@ -968,6 +1175,46 @@ namespace PFE.Systems.Map.Rendering
 
             spawned = null;
             return false;
+        }
+
+        /// <summary>
+        /// The live controller that owns <paramref name="room"/>, or <c>null</c>.
+        ///
+        /// <para><b>Needed by anything that spawns a unit from inside the simulation.</b> A brain holds a
+        /// <see cref="RoomInstance"/>, not a GameObject — <c>UnitController.Room</c> comes from the tile
+        /// query — so it has no way to reach <see cref="SpawnUnitNow"/>, which is where a runtime unit is
+        /// actually built. The map bridge's own controller is tried first because that is the room the
+        /// player is in; the scene scan is the same fallback <c>SecurityRuntime</c> uses for alarm
+        /// reinforcements.</para>
+        ///
+        /// <para><b>A scene scan per call is acceptable here and would not be per tick.</b> The callers
+        /// are a nest's 100-tick emit and a bloat's death split, not a movement path.</para>
+        /// </summary>
+        public static RoomVisualController FindForRoom(RoomInstance room)
+        {
+            if (room == null)
+            {
+                return null;
+            }
+
+            var bridge = FindFirstObjectByType<MapBridge>();
+            if (bridge != null && bridge.VisualController != null &&
+                bridge.VisualController.RoomInstance == room)
+            {
+                return bridge.VisualController;
+            }
+
+            RoomVisualController[] controllers =
+                FindObjectsByType<RoomVisualController>(FindObjectsSortMode.None);
+            for (int i = 0; i < controllers.Length; i++)
+            {
+                if (controllers[i] != null && controllers[i].RoomInstance == room)
+                {
+                    return controllers[i];
+                }
+            }
+
+            return null;
         }
 
         public bool SpawnUnitNow(UnitInstance unit, Vector3 worldPosition)
@@ -1096,10 +1343,27 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Update a specific tile.
+        ///
+        /// <para><b>Two different things, depending on who draws the room.</b> The shipped path redraws
+        /// one <see cref="TileRenderer"/>. A collision-only room has no renderer to redraw — its picture
+        /// is a function of the tile grid — so the equivalent action is to refresh the cell's collider and
+        /// say the cell changed. Saying nothing would leave the quarter renderer drawing the old shape
+        /// after an edit, which is the picture-lying failure the <c>TilesMutated</c> subscription exists
+        /// to prevent.</para>
         /// </summary>
         public void UpdateTile(Vector2Int coord)
         {
-            if (!isInitialized || tileVisualManager == null)
+            if (!isInitialized)
+                return;
+
+            if (tileCollisionBuilder != null)
+            {
+                tileCollisionBuilder.RebuildCell(coord);
+                roomInstance?.NotifyTilesMutated(new RectInt(coord.x - 1, coord.y - 1, 3, 3));
+                return;
+            }
+
+            if (tileVisualManager == null)
                 return;
 
             tileVisualManager.UpdateTile(coord);
@@ -1124,10 +1388,24 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Destroy a specific tile.
+        ///
+        /// <para>A collision-only tile is destroyed through its builder, which also tells the room the
+        /// cell changed. Going through <see cref="TileCollider"/> instead is what the runtime path does
+        /// (the projectile hits the collider), so this is the same two steps in the same order.</para>
         /// </summary>
         public void DestroyTile(Vector2Int coord)
         {
-            if (!isInitialized || tileVisualManager == null)
+            if (!isInitialized)
+                return;
+
+            if (tileCollisionBuilder != null)
+            {
+                tileCollisionBuilder.DestroyTile(coord);
+                roomInstance?.NotifyTilesMutated(new RectInt(coord.x - 1, coord.y - 1, 3, 3));
+                return;
+            }
+
+            if (tileVisualManager == null)
                 return;
 
             tileVisualManager.DestroyTile(coord);
@@ -1135,9 +1413,22 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Flash a tile (for damage).
+        ///
+        /// <para><b>The quarter renderer has its own answer, and it is not the same mechanism.</b> A
+        /// flashed tile in the shipped path is one <see cref="SpriteRenderer"/> whose colour is replaced
+        /// for a moment. The quarter renderer's terrain is a mesh tinted per cell by the <i>material</i>,
+        /// so there is no per-cell colour to replace — it draws a transient quad over the cell instead
+        /// (<see cref="RoomTerrainRenderer.FlashCell"/>). Routing this to the visual manager in a
+        /// collision-only room would have been a silent no-op: there is no renderer to flash.</para>
         /// </summary>
         public void FlashTile(Vector2Int coord, Color color, float duration = 0.1f)
         {
+            if (roomTerrainRenderer != null && roomTerrainRenderer.IsBuilt)
+            {
+                roomTerrainRenderer.FlashCell(coord, color, duration);
+                return;
+            }
+
             if (!isInitialized || tileVisualManager == null)
                 return;
 
@@ -1174,6 +1465,8 @@ namespace PFE.Systems.Map.Rendering
         public void DestroyRoom()
         {
             tileVisualManager?.DestroyAllTiles();
+            tileCollisionBuilder?.DestroyAll();
+            tileCollisionBuilder = null;
             backgroundTileVisualManager?.DestroyAllTiles();
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
@@ -1207,6 +1500,10 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Get tile renderer for a specific coordinate.
+        ///
+        /// <para>Null in a collision-only room, by construction: there is no per-tile renderer to return.
+        /// Kept because the editor preview and a few diagnostics still ask, and a null is the honest
+        /// answer rather than a stale object.</para>
         /// </summary>
         public TileRenderer GetTileRenderer(Vector2Int coord)
         {
@@ -1217,11 +1514,22 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Get total number of rendered tiles.
+        /// Get total number of tile objects this room built — collider-only or drawn.
+        ///
+        /// <para><b>Counts objects, not sprites.</b> The number is used in the build log and in the debug
+        /// overlay as "how many tiles does this room have", and on the default path those tiles have no
+        /// sprites at all. Reporting the visual manager's count there would report zero for a room that
+        /// built 1 136 colliders.</para>
         /// </summary>
         public int GetTileCount()
         {
-            if (!isInitialized || tileVisualManager == null)
+            if (!isInitialized)
+                return 0;
+
+            if (tileCollisionBuilder != null)
+                return tileCollisionBuilder.Count;
+
+            if (tileVisualManager == null)
                 return 0;
 
             return tileVisualManager.GetTileCount();
@@ -1249,6 +1557,8 @@ namespace PFE.Systems.Map.Rendering
             particleRenderer = null;
 
             tileVisualManager?.DestroyAllTiles();
+            tileCollisionBuilder?.DestroyAll();
+            tileCollisionBuilder = null;
             backgroundTileVisualManager?.DestroyAllTiles();
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
@@ -1385,6 +1695,42 @@ namespace PFE.Systems.Map.Rendering
             backgroundObjectParent = EnsureNamedChild(transform, backgroundObjectParent, "BackgroundObjects");
             backgroundPhysicalObjectParent = EnsureNamedChild(transform, backgroundPhysicalObjectParent, "BackgroundPhysicalObjects");
         }
+
+        /// <summary>
+        /// Creates the room's decal layer if it does not exist yet.
+        ///
+        /// <para><b>Idempotent, because <c>Initialize</c> is not called once.</b> A land transition
+        /// re-enters it on the same controller, and <see cref="ClearVisuals"/> is allowed to have taken
+        /// the layer down in between — so the field is the source of truth and the child lookup is only
+        /// the fallback, exactly like <see cref="EnsureNamedChild"/>.</para>
+        /// </summary>
+        private void EnsureDecalLayer()
+        {
+            if (tileDecalLayer != null)
+            {
+                tileDecalLayer.transform.localPosition = Vector3.zero;
+                return;
+            }
+
+            Transform existing = transform.Find(DecalLayerName);
+            if (existing != null)
+            {
+                tileDecalLayer = existing.GetComponent<TileDecalLayer>();
+            }
+
+            if (tileDecalLayer == null)
+            {
+                var layerObject = new GameObject(DecalLayerName);
+                layerObject.transform.SetParent(transform, false);
+                tileDecalLayer = layerObject.AddComponent<TileDecalLayer>();
+            }
+
+            tileDecalLayer.transform.localPosition = Vector3.zero;
+            tileDecalLayer.transform.localRotation = Quaternion.identity;
+            tileDecalLayer.transform.localScale = Vector3.one;
+        }
+
+        private const string DecalLayerName = "TileDecals";
 
         private static Transform EnsureNamedChild(Transform parent, Transform current, string childName)
         {
@@ -1650,6 +1996,7 @@ namespace PFE.Systems.Map.Rendering
             destination.vid2Rear = source.vid2Rear;
             destination.opacity = source.opacity;
             destination.doorOcclusion = source.doorOcclusion;
+            destination.levelTwoSolid = source.levelTwoSolid;
             destination.heightLevel = source.heightLevel;
             destination.slopeType = source.slopeType;
             destination.stairType = source.stairType;
@@ -1682,10 +2029,39 @@ namespace PFE.Systems.Map.Rendering
         /// </remarks>
         public void ClearVisuals()
         {
+            // The quarter renderer first: it owns Tilemaps, materials and tiles created for this room,
+            // and RoomTerrainRenderer.Clear (run from OnDestroy) destroys exactly those. Left behind, it
+            // would keep drawing the previous room's terrain through the next room's walls.
+            if (roomTerrainRenderer != null)
+            {
+                // Cleared *before* the GameObject is destroyed, and that ordering is load-bearing:
+                // `DestroyObject` is `Destroy` in play mode, which is deferred to the end of the frame,
+                // so `OnDestroy` — and therefore the `TilesMutated` unsubscribe inside `Clear` — would
+                // not run until after the next room had been built. Clearing here unsubscribes and sets
+                // `IsBuilt` false synchronously, so the old renderer cannot service a pending region
+                // into a room that is being torn down. `Clear` is idempotent, so the later OnDestroy
+                // call is a no-op.
+                roomTerrainRenderer.Clear();
+                DestroyObject(roomTerrainRenderer.gameObject);
+                roomTerrainRenderer = null;
+            }
+
             tileVisualManager?.DestroyAllTiles();
+
+            // The other half of "exactly one of the two owns the tiles": a room drawn by the quarter
+            // renderer has no TileRenderers to destroy, and its collider-only objects are the only thing
+            // standing between the next room and this one's walls.
+            tileCollisionBuilder?.DestroyAll();
+            tileCollisionBuilder = null;
+
             backgroundTileVisualManager?.DestroyAllTiles();
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
+
+            // AS3 clears every decal at the top of a room redraw — `frontBmp.fillRect(this.allRect, 0)`
+            // at `Grafon.as:418` — so a decal's lifetime is the room view's, not the tile's. The layer
+            // object survives (EnsureDecalLayer re-finds it); only its stamped marks go.
+            tileDecalLayer?.Clear();
 
             tileVisualManager = null;
             backgroundTileVisualManager = null;
@@ -1722,6 +2098,31 @@ namespace PFE.Systems.Map.Rendering
 
             Transform doorParent = transform.Find("DoorTriggers");
             DestroyChildren(doorParent);
+        }
+
+        /// <summary>
+        /// <c>Destroy</c> throws in edit mode, and the editor preview path builds rooms outside play
+        /// mode. Same seam, and same reason, as <c>TileRenderer.DestroyTile</c> and
+        /// <c>RoomTerrainRenderer.DestroyObject</c>.
+        /// <para><c>new</c> is required: <c>UnityEngine.Object</c> has a deprecated
+        /// <c>DestroyObject</c> of its own, and without it every call here would be a CS0108. The
+        /// two sibling helpers above omit it and carry that warning; this one does not have to.</para>
+        /// </summary>
+        private static new void DestroyObject(UnityEngine.Object target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(target);
+            }
+            else
+            {
+                DestroyImmediate(target);
+            }
         }
 
         private static void DestroyChildren(Transform parent)

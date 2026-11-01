@@ -208,6 +208,7 @@ namespace PFE.Systems.Map
                 visibilityMultiplier = template.environment.visibilityMultiplier,
                 lightsOn = template.environment.lightsOn,
                 returnsToDarkness = template.environment.returnsToDarkness,
+                destroyOn = template.environment.destroyOn,
                 waterLevel = template.environment.waterLevel,
                 waterType = template.environment.waterType,
                 waterOpacity = template.environment.waterOpacity,

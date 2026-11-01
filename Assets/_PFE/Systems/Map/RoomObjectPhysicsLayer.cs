@@ -73,7 +73,6 @@ namespace PFE.Systems.Map
         // ────────────────────────────────────────────────────────────────────────────────────────
 
         const float MinimumImpactSpeed = 220f;
-        const float ThrowGraceDuration = 0.18f;
 
         /// <summary>
         /// Maximum movement per collision check. AS3 substeps with <c>World.maxdelta = 9</c> px
@@ -698,7 +697,17 @@ namespace PFE.Systems.Map
             return true;
         }
 
-        public bool TryApplyImpulse(ObjectInstance obj, Vector2 deltaVelocity, bool treatAsThrow = false)
+        /// <param name="throwGraceTicks">
+        /// AS3 <c>Box.t_throw</c> — the damage grace this throw carries, in prop steps. <b>The caller
+        /// owns it because it is a property of the thrower, not of the prop:</b>
+        /// <see cref="PFE.Systems.Physics.PropThrowGrace.PlayerThrowTicks"/> for the player,
+        /// <see cref="PFE.Systems.Physics.PropThrowGrace.EnemyThrowTicks"/> (the default) for an alicorn
+        /// or the boss, whose <c>throwTele</c> writes <c>isThrow</c> and never <c>t_throw</c>. Passing
+        /// the player's window here for an enemy throw is what made every alicorn-thrown crate
+        /// harmless; see the type's remarks.
+        /// </param>
+        public bool TryApplyImpulse(ObjectInstance obj, Vector2 deltaVelocity, bool treatAsThrow = false,
+                                    int throwGraceTicks = 0)
         {
             if (obj == null)
             {
@@ -717,7 +726,7 @@ namespace PFE.Systems.Map
             state.velocity += deltaVelocity;
             state.isGrounded = false;
             state.isThrown = treatAsThrow && obj.CanBeThrown();
-            state.throwGraceTime = state.isThrown ? ThrowGraceDuration : 0f;
+            state.throwGraceTicks = state.isThrown ? Mathf.Max(0, throwGraceTicks) : 0;
             return true;
         }
 
@@ -811,6 +820,23 @@ namespace PFE.Systems.Map
 
         public bool TrySetTelekineticHold(ObjectInstance obj, Vector2 targetPosition)
         {
+            return TrySetTelekineticHold(obj, targetPosition, 0f, 0f);
+        }
+
+        /// <summary>
+        /// The same hold, with the <b>holder's</b> controller constants — AS3 keeps <c>teleSpeed</c> /
+        /// <c>teleAccel</c> per class (<c>UnitPlayer.as:57-59</c>: 8/1; <c>UnitAlicorn.as:65-67</c>:
+        /// 16/4, and 20/5 on <c>tr2</c>), so a prop held by an alicorn accelerates differently from one
+        /// held by the player.
+        /// </summary>
+        /// <param name="speedPerFrame">
+        /// AS3 <c>teleSpeed</c>, px per frame. <b>Zero or negative means "the player's"</b> — see
+        /// <c>MapObjectDynamicStateData.telekineticHoldSpeedPerFrame</c> for why zero is the sentinel
+        /// rather than a literal.
+        /// </param>
+        public bool TrySetTelekineticHold(ObjectInstance obj, Vector2 targetPosition,
+                                          float speedPerFrame, float accelPerFrame)
+        {
             if (obj == null || !obj.SupportsTelekinesis())
             {
                 return false;
@@ -827,9 +853,11 @@ namespace PFE.Systems.Map
             state.hasTelekineticTarget = true;
             state.telekineticTarget = targetPosition;
             state.isThrown = false;
-            state.throwGraceTime = 0f;
+            state.throwGraceTicks = 0;
             state.velocity = Vector2.zero;
             state.isGrounded = false;
+            state.telekineticHoldSpeedPerFrame = speedPerFrame > 0f ? speedPerFrame : 0f;
+            state.telekineticHoldAccelPerFrame = accelPerFrame > 0f ? accelPerFrame : 0f;
 
             // AS3 clears `stay` at the end of actTele (UnitPlayer.as:1831) -- it is a CONSEQUENCE of
             // being picked up, not a precondition for it. Kept because it is real oracle state (a
@@ -838,7 +866,11 @@ namespace PFE.Systems.Map
             return true;
         }
 
-        public bool TryReleaseTelekineticHold(ObjectInstance obj, Vector2 releaseVelocity, bool treatAsThrow = true)
+        /// <param name="throwGraceTicks">
+        /// AS3 <c>Box.t_throw</c> — see <see cref="TryApplyImpulse"/>; the thrower owns the window.
+        /// </param>
+        public bool TryReleaseTelekineticHold(ObjectInstance obj, Vector2 releaseVelocity, bool treatAsThrow = true,
+                                              int throwGraceTicks = 0)
         {
             if (obj == null || obj.runtimeState == null || obj.runtimeState.dynamicState == null)
             {
@@ -856,7 +888,7 @@ namespace PFE.Systems.Map
             state.hasTelekineticTarget = false;
             state.velocity = releaseVelocity;
             state.isThrown = treatAsThrow && obj.CanBeThrown();
-            state.throwGraceTime = state.isThrown ? ThrowGraceDuration : 0f;
+            state.throwGraceTicks = state.isThrown ? Mathf.Max(0, throwGraceTicks) : 0;
             state.isGrounded = false;
             return true;
         }
@@ -908,6 +940,17 @@ namespace PFE.Systems.Map
                     }
 
                     StepDynamicObject(room, obj, dt);
+
+                    // AS3 `Box.as:646` — the throw window counts down at the END of the box's own step,
+                    // outside the `wall == 0` moving branch and outside `attDrop`, so a prop that is held,
+                    // resting or refused still ticks it. One tick per prop step, never scaled by
+                    // `deltaTime`: this is AS3's frame counter, and a duration here would make the
+                    // window depend on the frame rate (`SimLoop`'s ISimTickable rule).
+                    MapObjectDynamicStateData stepped = obj.runtimeState?.dynamicState;
+                    if (stepped != null)
+                    {
+                        stepped.throwGraceTicks = PFE.Systems.Physics.PropThrowGrace.Tick(stepped.throwGraceTicks);
+                    }
                 }
             }
 
@@ -1080,11 +1123,6 @@ namespace PFE.Systems.Map
                 return;
             }
 
-            if (state.throwGraceTime > 0f)
-            {
-                state.throwGraceTime = Mathf.Max(0f, state.throwGraceTime - deltaTime);
-            }
-
             if (state.isHeldByTelekinesis && obj.SupportsTelekinesis())
             {
                 StepHeldObject(room, obj, state, deltaTime);
@@ -1145,8 +1183,21 @@ namespace PFE.Systems.Map
             // AS3's controller, in the port's px/s units. The oracle's teleSpeed/teleAccel are px per
             // FRAME at 30 fps, so both need converting before they can meet a velocity that is
             // integrated as position += velocity * deltaTime. TelekinesisMath owns the conversion.
-            float speedCap = TelekinesisMath.PerFrameVelocityToPerSecond(TelekinesisMath.PlayerTeleSpeed);
-            float accelStep = TelekinesisMath.PerFrameAccelToPerSecondSquared(TelekinesisMath.PlayerTeleAccel) * deltaTime;
+            //
+            // The constants are the HOLDER's, not always the player's: AS3 hard-codes teleSpeed/teleAccel
+            // per class (UnitPlayer.as:57-59 = 8/1, UnitAlicorn.as:65-67 = 16/4 and 20/5 on tr2), so an
+            // alicorn that picks a crate up accelerates four to five times as hard as the player does.
+            // A zero here means "nobody said otherwise" and falls back to the player's pair — see
+            // MapObjectDynamicStateData.telekineticHoldSpeedPerFrame.
+            float speedPerFrame = state.telekineticHoldSpeedPerFrame > 0f
+                ? state.telekineticHoldSpeedPerFrame
+                : TelekinesisMath.PlayerTeleSpeed;
+            float accelPerFrame = state.telekineticHoldAccelPerFrame > 0f
+                ? state.telekineticHoldAccelPerFrame
+                : TelekinesisMath.PlayerTeleAccel;
+
+            float speedCap = TelekinesisMath.PerFrameVelocityToPerSecond(speedPerFrame);
+            float accelStep = TelekinesisMath.PerFrameAccelToPerSecondSquared(accelPerFrame) * deltaTime;
 
             // Compare the object's AABB CENTRE to the cursor on BOTH axes, matching AS3.
             //
@@ -1613,12 +1664,6 @@ namespace PFE.Systems.Map
         /// prop's bottom belongs.</param>
         public bool TryFindSupportProp(ObjectInstance obj, float deltaY, out ObjectInstance support, out float surfaceY)
         {
-            // Prop-side shelf search (Box.checkShelf) — a full pass over tracked props per falling
-            // prop per substep. Separate from phys.prop.surfaceUnder because this one is asked BY the
-            // prop layer's own stepping loop, so its cost lands inside phys.objects.step.
-            using (PFE.Core.Profiling.PfeProfiler.Region("phys.prop.supportQuery",
-                "physics: prop-side shelf search (Box.checkShelf) — per falling prop, per substep."))
-            {
             support = null;
             surfaceY = 0f;
 
@@ -1628,13 +1673,61 @@ namespace PFE.Systems.Map
             }
 
             Rect myBounds = obj.GetApproximateBounds();
-            float myCentreX = myBounds.center.x;
-            float myBottom = myBounds.yMin;
+            return TryFindShelfSurface(myBounds.center.x, myBounds.yMin, deltaY, obj, out support, out surfaceY);
+        }
+
+        /// <summary>
+        /// The same search asked by something that is <b>not</b> an <see cref="ObjectInstance"/> — the
+        /// port of AS3 <c>Loot.checkShelf</c> (<c>Loot.as:511-525</c>).
+        ///
+        /// <para><b>The oracle's two <c>checkShelf</c> methods are the same predicate.</b>
+        /// <c>Box.checkShelf</c> (<c>Box.as:1191-1203</c>) and <c>Loot.checkShelf</c>
+        /// (<c>Loot.as:511-525</c>) test <c>!invis &amp;&amp; stay &amp;&amp; shelf &amp;&amp; wall == 0</c>,
+        /// the caller's <b>centre</b> inside the support's span, and the caller's bottom crossing the
+        /// support's top this step. They differ only in whose geometry is the subject, so they share one
+        /// implementation here rather than two copies of the y-flip translation — which is the part that
+        /// was written inverted the first time.</para>
+        ///
+        /// <para><b>Why loot needed it at all.</b> A container's eject starts at the container's own
+        /// centre, and a crate is a shelf; without this, loot would fall straight through the crate it
+        /// came out of and land on the floor beneath it. AS3 stacks it on the crate.</para>
+        /// </summary>
+        /// <param name="centreXRoomLocal">The falling object's centre X, room-local pixels.</param>
+        /// <param name="bottomRoomLocal">Its bottom edge, room-local pixels.</param>
+        /// <param name="deltaY">This substep's vertical motion in pixels. <b>Negative is downward</b> in
+        /// the port's y-up space, which is the only direction that can land.</param>
+        /// <param name="surfaceY">The support's top edge in room-local pixels, or 0 when none.</param>
+        public bool TryFindLootSupport(float centreXRoomLocal, float bottomRoomLocal, float deltaY,
+                                       out float surfaceY)
+        {
+            return TryFindShelfSurface(centreXRoomLocal, bottomRoomLocal, deltaY, null, out _, out surfaceY);
+        }
+
+        /// <summary>
+        /// The one scan behind <see cref="TryFindSupportProp"/> and <see cref="TryFindLootSupport"/>.
+        /// </summary>
+        private bool TryFindShelfSurface(float centreX, float bottom, float deltaY, ObjectInstance exclude,
+                                         out ObjectInstance support, out float surfaceY)
+        {
+            // Prop-side shelf search (Box.checkShelf / Loot.checkShelf) — a full pass over tracked props
+            // per falling object per substep. Separate from phys.prop.surfaceUnder because this one is
+            // asked BY the prop layer's own stepping loop and by the loot fall, so its cost lands inside
+            // phys.objects.step rather than a state query.
+            using (PFE.Core.Profiling.PfeProfiler.Region("phys.prop.supportQuery",
+                "physics: prop-side shelf search (Box/Loot.checkShelf) — per falling object, per substep."))
+            {
+            support = null;
+            surfaceY = 0f;
+
+            if (_dynamicObjects.Count == 0)
+            {
+                return false;
+            }
 
             for (int i = 0; i < _dynamicObjects.Count; i++)
             {
                 ObjectInstance candidate = _dynamicObjects[i];
-                if (candidate == null || ReferenceEquals(candidate, obj))
+                if (candidate == null || ReferenceEquals(candidate, exclude))
                 {
                     continue;
                 }
@@ -1657,7 +1750,7 @@ namespace PFE.Systems.Map
 
                 Rect candidateBounds = candidate.GetApproximateBounds();
 
-                if (myCentreX < candidateBounds.xMin || myCentreX > candidateBounds.xMax)
+                if (centreX < candidateBounds.xMin || centreX > candidateBounds.xMax)
                 {
                     continue;
                 }
@@ -1675,13 +1768,13 @@ namespace PFE.Systems.Map
                 // across untranslated inverts the whole test and the search then never finds anything:
                 // which is exactly how this was written the first time, and what
                 // `FallingProp_FindsAShelfPropBelowIt` caught.
-                if (myBottom < candidateBounds.yMax)
+                if (bottom < candidateBounds.yMax)
                 {
                     continue;
                 }
 
                 // This substep does not reach its top, so it is not a landing. (`!(Y2 + dy > box.Y1)`)
-                if (myBottom + deltaY >= candidateBounds.yMax)
+                if (bottom + deltaY >= candidateBounds.yMax)
                 {
                     continue;
                 }

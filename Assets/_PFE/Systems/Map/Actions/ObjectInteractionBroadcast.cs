@@ -47,6 +47,24 @@ namespace PFE.Systems.Map.Actions
             new HashSet<string>(StringComparer.Ordinal);
 
         /// <summary>
+        /// The session's broadcast, published by the composition root so a <b>non-scripted</b> caller can
+        /// reach it.
+        ///
+        /// <para><b>Why a static and not a parameter.</b> Every other caller of <see cref="Run"/> is a
+        /// script action, and those are handed the broadcast by the dispatcher they came from. The
+        /// alicorn's <c>pole</c> objective is not a script: it is a unit deciding, mid-tick, to open a
+        /// door it was placed to guard (<c>UnitAlicorn.as:549-551</c>). A brain has no dispatcher
+        /// reference and no scene graph to walk, so the alternative is a new dependency threaded from the
+        /// world build through the spawner into every enemy controller — for one call site that the
+        /// oracle makes with a global (<c>loc.allAct</c>). This is that global, made explicit.</para>
+        ///
+        /// <para>Last write wins. Several dispatchers can exist (one per object visual manager) and they
+        /// are interchangeable for this purpose: they all resolve the room's platforms per call rather
+        /// than at build time.</para>
+        /// </summary>
+        public static ObjectInteractionBroadcast Current { get; set; }
+
+        /// <summary>
         /// Sink for the unit half of the broadcast — AS3's <c>Unit.command</c>
         /// (<c>unit/Unit.as:4784-4810</c>: <c>activate</c>, <c>fraction</c>) and
         /// <c>UnitTurret.command</c> (<c>unit/UnitTurret.as:465-489</c>: <c>shoot</c>, <c>alarma</c>,
@@ -210,6 +228,29 @@ namespace PFE.Systems.Map.Actions
         public int RunFromScript(RoomInstance room, string verb, string allId)
         {
             return Run(room, null, verb, allId);
+        }
+
+        /// <summary>
+        /// One verb at <b>one</b> object, with no tag sweep — the port of AS3's
+        /// <c>pumpObj.setDoor()</c> path (<c>UnitRaider.as:1378-1387</c>, <c>UnitAIRobot.as:452-461</c>).
+        ///
+        /// <para><b>Why this cannot be expressed with <see cref="Run"/>.</b> A door pushed open by a
+        /// body touching it is addressed by <i>identity</i>, not by tag: the oracle holds the
+        /// <c>Interact</c> it collided with in <c>pumpObj</c> and calls it directly. Routing it through
+        /// <see cref="Run"/> would need a tag the door does not carry and would sweep every other object
+        /// sharing that tag — a door opening its neighbours is not the same mechanic.</para>
+        ///
+        /// <para>Also used by <c>EnemyBrain.TryPushDoorOpen</c>, which is the only caller today.</para>
+        /// </summary>
+        /// <returns>True when the object accepted the verb.</returns>
+        public bool RunOn(RoomInstance room, ObjectInstance target, string verb, string param = null)
+        {
+            if (room == null || target == null || string.IsNullOrEmpty(verb))
+            {
+                return false;
+            }
+
+            return _verbs.Apply(room, target, verb, param);
         }
 
         private int SendToUnit(RoomInstance room, UnitInstance unit, string verb, string param)

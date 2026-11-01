@@ -6,6 +6,7 @@ using PFE.Data.Definitions.Campaign;
 using PFE.Entities.Enemies;
 using PFE.Entities.Enemies.Archetypes;
 using PFE.Entities.Enemies.Bosses;
+using PFE.Entities.Pets;
 using PFE.Entities.Units;
 using PFE.Systems.Audio;
 using PFE.Systems.Campaign;
@@ -51,6 +52,13 @@ namespace PFE.Systems.Map.Rendering
             {
                 // Training
                 [TrainingDummyController.ControllerId] = typeof(TrainingDummyController),
+
+                // Companions — AS3 `UnitPet` is one class for the phoenix, the owl and the moon
+                // (`UnitPlayer.as:446-465`). The row ids themselves must NOT map here: `phoenix` already
+                // resolves to the wild bird's `PhoenixController`, which is a different class reading the
+                // same row. A pet therefore carries `controllerId = "pet"`, which is what
+                // `PetSpawner` writes. See `PetController.ControllerId`.
+                [PetController.ControllerId] = typeof(PetController),
 
                 // NPCs — the one row that is not a family. `<obj id='npc' cl='UnitNPC'/>`
                 // (AllData.as:4926) is what every authored NPC placement resolves to, and `vendor` and
@@ -510,6 +518,24 @@ namespace PFE.Systems.Map.Rendering
             _scriptObjects = objects;
             _scriptUnits = units;
 
+            // The same instance serves all three roles (`AreaTriggerSystem` implements every host
+            // interface), but it is asked for by name here because the death latch is the one thing on
+            // it that needs the room's <see cref="PFE.Systems.Map.Scripting.ScriptRunner"/> rather than
+            // a lookup. Null is legal: a spawner built without a scripting layer keeps the latch off.
+            _deathScripts = objects as PFE.Systems.Map.Scripting.AreaTriggerSystem;
+
+            // A host that is not the trigger system would leave every death script silently unstarted,
+            // and "the boss died and nothing happened" is indistinguishable from "that boss has no
+            // script". Say it once instead.
+            if (objects != null && _deathScripts == null && !_warnedNoDeathHost)
+            {
+                _warnedNoDeathHost = true;
+                Debug.LogWarning(
+                    $"[RoomUnitSpawner] the script host is a {objects.GetType().Name}, not an " +
+                    "AreaTriggerSystem, so no unit death script (`scrDie`) can be started. Units still " +
+                    "die and drop loot; only the authored death scripts are skipped.");
+            }
+
             foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
             {
                 if (pair.Value != null && pair.Value.TryGetComponent(out UnitNPCController npc))
@@ -517,6 +543,79 @@ namespace PFE.Systems.Map.Rendering
                     npc.SetScriptHosts(_scriptObjects, _scriptUnits);
                 }
             }
+        }
+
+        /// <summary>
+        /// The scripting host that turns a unit's death into its authored script — AS3
+        /// <c>Unit.die()</c>'s <c>runScript()</c> (<c>Unit.as:4392</c>, <c>:4483-4489</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the spawner and not the unit.</b> <c>UnitController</c> is built with
+        /// <c>AddComponent</c>, so nothing injects it and it holds no reference to the room's scripting
+        /// layer. This class is the only place that has both the live controller and the room, which is
+        /// the same argument <see cref="CheckDeaths"/> makes for polling — except that a death script
+        /// cannot be polled: a unit removed from <c>room.units</c> in the frame it dies disappears from
+        /// <c>_spawned</c> before any scan sees it, and its script would silently not run.</para>
+        ///
+        /// <para><b>Subscribed per spawn, released per destroy.</b> The controller's
+        /// <c>Died</c> event fires once per death it stays dead from, so the latch is the controller's,
+        /// not a second one here.</para>
+        /// </remarks>
+        private PFE.Systems.Map.Scripting.AreaTriggerSystem _deathScripts;
+
+        /// <summary>Guards the "the host is not a trigger system" warning against one line per room.</summary>
+        private bool _warnedNoDeathHost;
+
+        /// <summary>
+        /// The record behind each subscribed controller — the reverse of <see cref="_spawned"/>.
+        ///
+        /// <para>A death script needs the <see cref="UnitInstance"/> (for its <c>scr</c> attribute and
+        /// its <c>&lt;scr&gt;</c> children), and the event only carries the controller. Keyed on the
+        /// controller rather than searched per death so a room of twenty units does not walk a list on
+        /// every kill.</para>
+        /// </summary>
+        private readonly Dictionary<UnitController, UnitInstance> _deathOwners =
+            new Dictionary<UnitController, UnitInstance>();
+
+        void SubscribeDeath(UnitInstance unit, UnitController controller)
+        {
+            if (controller == null) return;
+
+            // `-=` before `+=` so a respawned record cannot end up subscribed twice — `Spawn` is only
+            // reached for a record that is not in `_spawned`, but a controller is reused across a
+            // room rebuild in the editor's domain-reload-off mode.
+            controller.Died -= OnUnitDied;
+            controller.Died += OnUnitDied;
+            _deathOwners[controller] = unit;
+        }
+
+        void UnsubscribeDeath(UnitInstance unit)
+        {
+            if (unit == null) return;
+
+            // Looked up first and removed after the walk: mutating a dictionary inside its own
+            // enumeration is a habit that works until someone adds a line after the removal.
+            UnitController owner = null;
+            foreach (KeyValuePair<UnitController, UnitInstance> pair in _deathOwners)
+            {
+                if (!ReferenceEquals(pair.Value, unit)) continue;
+
+                owner = pair.Key;
+                break;
+            }
+
+            if (owner == null) return;
+
+            owner.Died -= OnUnitDied;
+            _deathOwners.Remove(owner);
+        }
+
+        void OnUnitDied(UnitController controller)
+        {
+            if (controller == null || _room == null) return;
+            if (!_deathOwners.TryGetValue(controller, out UnitInstance unit)) return;
+
+            _deathScripts?.OnUnitDestroyed(_room, unit);
         }
 
         /// <summary>
@@ -917,6 +1016,14 @@ namespace PFE.Systems.Map.Rendering
                 DestroyObject(pair.Value);
             }
 
+            // The death subscriptions go with the controllers they were made on, or a torn-down room's
+            // spawner keeps a callback alive on a destroyed component for the next room's lifetime.
+            foreach (KeyValuePair<UnitController, UnitInstance> pair in _deathOwners)
+            {
+                if (pair.Key != null) pair.Key.Died -= OnUnitDied;
+            }
+
+            _deathOwners.Clear();
             _spawned.Clear();
             _stale.Clear();
         }
@@ -1043,6 +1150,19 @@ namespace PFE.Systems.Map.Rendering
             }
             Type controllerType = ResolveControllerType(effectiveControllerId);
             var controller = (UnitController)unitObject.AddComponent(controllerType);
+
+            // ── The renderer, for EVERY unit and not only for an NPC ─────────────────────────────
+            //
+            // This used to sit inside the `npc` branch below, so an enemy's `_visualRenderer` was null
+            // for its whole life: `SetVisible` wrote to nothing, `ApplyVisualVisibility` found nothing,
+            // and the corpse dissolve's fallback fade had nothing to fade. It is handed over here,
+            // immediately after AddComponent and before Initialize, because `Initialize` is where a
+            // subclass applies its own art and the seam's contract is that the renderer already exists.
+            //
+            // The NPC branch below calls it AGAIN on purpose — not redundancy, but ordering: an NPC's
+            // persona is resolved in `SetPlacement`, and the visibility that call pushes has to land on a
+            // renderer that is already there. Re-pushing afterwards costs one property write.
+            controller.SetVisualRenderer(renderer);
 
             // ...and the seam that turns an `npc` placement into a PERSONA. It has to run before the
             // weapon handover below, because the persona is what carries the weapon id
@@ -1260,6 +1380,10 @@ namespace PFE.Systems.Map.Rendering
 
             controller.ApplyPlacement(unit);
 
+            // ...and the seam that runs the unit's authored DEATH script. Subscribed last, so the
+            // controller is fully built by the time a death could reach it.
+            SubscribeDeath(unit, controller);
+
             return unitObject;
         }
 
@@ -1319,16 +1443,36 @@ namespace PFE.Systems.Map.Rendering
         {
             Sprite sprite = definition != null ? definition.sprite : null;
 
+            // A villager pony is not one sprite: `ponpon`'s `<vis>` names a symbol whose own timeline
+            // is one frame over `pon`, and `pon` holds 27 different ponies selected by the placement's
+            // `tr` (UnitPonPon.as:112). Without this every villager in the game is frame 1 — the
+            // "it is just one mare" report. Falls through to the single sprite when the variant art
+            // has not been imported, so an un-run import degrades to the old picture, not to nothing.
+            if (PonPonVariants.TryResolve(definition, unit.GetAttribute(PonPonVariants.Attribute),
+                                          out Sprite variantSprite, out Vector2 variantScale,
+                                          out float variantFeetGap))
+            {
+                // The anchor comes from the art: a DisplayObject's origin is where the artist put it
+                // (8.54 px above the frame's bottom for these frames), not the bitmap rule's flat 10.
+                UnitSpriteAnchor.ApplyWithFeetGap(renderer, variantSprite, variantFeetGap, variantScale);
+                renderer.enabled = variantSprite != null;
+                ApplySpriteMaterial(renderer);
+                return;
+            }
+
             // The registration point comes from the ART, not only from the definition. A turret's
             // resting frame is a DisplayObject MovieClip whose origin is neither the frame's centre nor
             // a 10 px feet gap (UnitTurret.setVisPos is `vis.x = X; vis.y = Y`), and no turret row
             // authors `sprDX`/`sprDY`, so `registrationPoint` is (-1,-1) for all six mounts and the
             // blit rule below drew them 28.5 px left and 56 px high. TurretSpriteOrigin carries the
             // measured origin; every other unit falls through to its own declared value unchanged.
-            UnitSpriteAnchor.ApplyTo(
-                renderer,
-                sprite,
-                TurretSpriteOrigin.Resolve(unit.unitId, definition != null ? definition.registrationPoint : new Vector2Int(-1, -1)));
+            //
+            // `ApplyResolved` also routes the DisplayObject units that are NOT turrets — `bossnecr`,
+            // `bossraider`, `bloat*`, `dron*` and 34 more — to `VisualSpriteOrigins`, because the blit
+            // rule is the wrong question for a symbol placed with `vis.y = Y`. `visualNecrBoss` is the
+            // worst case: a 435x435 frame whose art is 96x101 with 212 px of empty canvas underneath,
+            // which a centre pivot plus `desiredY = 10` lifts 202 px — five tiles — above the collider.
+            UnitSpriteAnchor.ApplyResolved(renderer, sprite, definition, unit.unitId);
             renderer.enabled = sprite != null;
 
             // A turret is not one sprite: UnitTurret animates a gun and a lamp inside the mount's own
@@ -1347,6 +1491,24 @@ namespace PFE.Systems.Map.Rendering
                     $"`stay` cell lies outside its sheet (the importer lists both).");
             }
 
+            Material material = SpritePresenterMaterial.Get();
+            if (material != null)
+            {
+                renderer.sharedMaterial = material;
+            }
+        }
+
+        /// <summary>
+        /// The shared presenter material, which every unit sprite needs — a renderer left on Unity's
+        /// default sprite material is drawn by the built-in sprite shader and ignores the room's light
+        /// and fog passes.
+        ///
+        /// <para>Separate from <see cref="ApplySprite"/> because the villager path returns early with
+        /// its own sprite and anchor, and a material applied at only one of the two exits is how half
+        /// the ponies in a room end up lit differently from the other half.</para>
+        /// </summary>
+        static void ApplySpriteMaterial(SpriteRenderer renderer)
+        {
             Material material = SpritePresenterMaterial.Get();
             if (material != null)
             {
@@ -1396,6 +1558,7 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
+            UnsubscribeDeath(unit);
             _spawned.Remove(unit);
             DestroyObject(unitObject);
         }

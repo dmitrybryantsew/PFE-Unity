@@ -554,6 +554,10 @@ namespace PFE.Systems.Map.DataMigration
             if (int.TryParse(ResolveOption(as3Room, inheritedOptions, "lon", "0"), out int lon))
                 env.lightsOn = lon;
             env.returnsToDarkness = ResolveFlag(as3Room, inheritedOptions, "retdark");
+            // `desoff` is a NEGATIVE flag: its presence means `destroyOn = false`. Reading it with
+            // ResolveFlag and inverting is the whole rule (`Location.as:488-492`); defaulting to true
+            // is `Location.as:209`.
+            env.destroyOn = !ResolveFlag(as3Room, inheritedOptions, "desoff");
             if (int.TryParse(ResolveOption(as3Room, inheritedOptions, "wlevel", "100"), out int wl))
                 env.waterLevel = wl;
             if (int.TryParse(ResolveOption(as3Room, inheritedOptions, "wtip", "0"), out int wt))

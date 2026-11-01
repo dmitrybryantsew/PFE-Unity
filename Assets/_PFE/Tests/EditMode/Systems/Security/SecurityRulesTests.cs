@@ -114,7 +114,7 @@ namespace PFE.Tests.EditMode.Systems.Security
                 failing, Picker(3), new QueueRng(0.0f), hasPin: true);
 
             Assert.That(failed.Kind, Is.EqualTo(SecurityAttemptKind.Failed),
-                "0.0 < 1 - getChance(2) = 0.5, so the hit branch runs — and the hit branch is FAILURE.");
+                "0.0 < 1 - getChance(2) = 0.85, so the hit branch runs — and the hit branch is FAILURE.");
             Assert.That(failing.LockHp, Is.LessThan(10f), "a failure drains the pool.");
             Assert.That(failing.Lock, Is.EqualTo(5), "a failure does not change the difficulty.");
             Assert.That(failing.SaveLock, Is.Not.EqualTo(SecurityRules.SaveLockOpen));
@@ -124,10 +124,11 @@ namespace PFE.Tests.EditMode.Systems.Security
                 succeeding, Picker(3), new QueueRng(0.99f), hasPin: true);
 
             Assert.That(opened.Kind, Is.EqualTo(SecurityAttemptKind.Opened),
-                "0.99 >= 0.5, so the else branch runs — and the else branch OPENS the lock.");
+                "0.99 >= 0.85, so the else branch runs — and the else branch OPENS the lock.");
             Assert.That(succeeding.Lock, Is.EqualTo(0), "setAct(\"lock\",101) zeroes the difficulty.");
             Assert.That(succeeding.SaveLock, Is.EqualTo(SecurityRules.SaveLockOpen));
-            Assert.That(opened.SuccessChance, Is.EqualTo(0.5f).Within(1e-5f));
+            // delta 2 indexes the table at delta+2 = 4 → chanceUnlock[4] = 0.15 (Interact.as:1250-1262).
+            Assert.That(opened.SuccessChance, Is.EqualTo(0.15f).Within(1e-5f));
         }
 
         /// <summary>
@@ -169,10 +170,12 @@ namespace PFE.Tests.EditMode.Systems.Security
         public void AMasteryBelowTheLockLevel_ForcesFailure_EvenOnASuccessfulDraw()
         {
             SecurityProfile profile = Pick(3, lockLevel: 3);
-            SecurityActor weak = Picker(5, master: 2);   // skill 5 vs lock 3 → delta -2 → chance 1.0
+            SecurityActor weak = Picker(5, master: 2);   // skill 5 vs lock 3 → delta -2 → chance 0.9
 
-            Assert.That(SecurityRules.GetChance(profile.Lock - weak.SkillPick, false), Is.EqualTo(1f),
-                "premise: without the gate this attempt cannot fail.");
+            // `Interact.as:1250` is `< -2`, not `<= -2`: delta -2 still indexes the table
+            // (`chanceUnlock[0]` = 0.9). Only -3 and below is the certain success.
+            Assert.That(SecurityRules.GetChance(profile.Lock - weak.SkillPick, false), Is.EqualTo(0.9f),
+                "premise: without the gate this attempt can still succeed.");
 
             SecurityAttemptResult result = SecurityRules.Resolve(
                 profile, weak, new QueueRng(0.99f), hasPin: true);
@@ -243,14 +246,15 @@ namespace PFE.Tests.EditMode.Systems.Security
         {
             SecurityProfile profile = Pick(5);
 
-            // One draw only: if the pin branch were taken the queue would need a second value, and the
-            // damage would come from the repeated last value (0.0) instead of 0.5.
+            // One draw only: if the pin branch were taken the base would stay at 2 and the queue would
+            // need a second value, so the damage would come out as 2 rather than 4.
             SecurityAttemptResult result = SecurityRules.Resolve(
                 profile, Picker(3, pins: 0), new QueueRng(0.0f), hasPin: true);
 
             Assert.That(result.PinBroke, Is.False);
-            Assert.That(result.Damage, Is.EqualTo(2f).Within(1e-4f),
-                "(base 0 + flat 2 + draw 0.0 * spread 4) * 1 — the +2 is the no-pin penalty.");
+            Assert.That(result.Damage, Is.EqualTo(4f).Within(1e-4f),
+                "(base 2 + flat 2 + draw 0.0 * spread 4) * 1 — the +2 is the no-pin penalty. "
+                + "delta is 2, so the band is already base 2 (Interact.as:1022-1027), not base 0.");
         }
 
         // ── Terminals ────────────────────────────────────────────────────────────────────────
@@ -473,13 +477,16 @@ namespace PFE.Tests.EditMode.Systems.Security
             Assert.That(actor.Runa, Is.EqualTo(0), "the runa is consumed.");
             Assert.That(actor.Reboot, Is.EqualTo(1), "…and the reboot is not.");
 
-            // A pick you can make is not bypassable even with the item in hand.
+            // A pick you can make is not *offered* a bypass even with the item in hand — that is
+            // `needRuna` (Interact.as:1484-1509), asserted above. `useRuna` (:1511-1545) does NOT
+            // re-check it: it looks only at the tip, `lock > 0` and the item count, so the consume
+            // itself is unconditional. The offer is the gate; the use is not.
             SecurityProfile easyPick = Pick(2);
             SecurityActor rich = Picker(5);
             rich.Runa = 5;
             Assert.That(SecurityRules.NeedBypass(easyPick, rich), Is.False);
-            Assert.That(SecurityRules.ApplyBypass(easyPick, ref rich), Is.Null);
-            Assert.That(rich.Runa, Is.EqualTo(5), "nothing was spent.");
+            Assert.That(SecurityRules.ApplyBypass(easyPick, ref rich), Is.EqualTo("useRuna"));
+            Assert.That(rich.Runa, Is.EqualTo(4), "the runa is spent even though the pick was makeable.");
 
             // A terminal needs the reboot, not the runa.
             SecurityProfile terminal = Pick(10);
@@ -548,8 +555,18 @@ namespace PFE.Tests.EditMode.Systems.Security
             SecurityProfile hacked = SecurityRules.Build(terminal, SecurityBuildContext.Authored, new QueueRng(0.5f));
 
             Assert.That(hacked.LockTip, Is.EqualTo(SecurityLockTip.Terminal));
-            Assert.That(hacked.Lock, Is.EqualTo(SecurityRules.MaxMechanicalLevel));
+            // `if(this.lockTip == 1 || this.lockTip == 2)` (Interact.as:493) — a terminal is clamped by
+            // maxLockLvl like a pick, NOT by maxMechLvl. `maxMechLvl` is the *else* arm.
+            Assert.That(hacked.Lock, Is.EqualTo(SecurityRules.MaxLockLevel));
             Assert.That(hacked.SaveLock, Is.EqualTo(30));
+
+            // The mechanical arm, for contrast: a broken part (tip 5) falls through to maxMechLvl.
+            ObjectInstance part = Object("lock", "30", "locktip", "5");
+            SecurityProfile repaired = SecurityRules.Build(part, SecurityBuildContext.Authored, new QueueRng(0.5f));
+
+            Assert.That(repaired.LockTip, Is.EqualTo(SecurityLockTip.RepairPart));
+            Assert.That(repaired.Lock, Is.EqualTo(SecurityRules.MaxMechanicalLevel));
+            Assert.That(repaired.SaveLock, Is.EqualTo(30));
         }
 
         /// <summary>

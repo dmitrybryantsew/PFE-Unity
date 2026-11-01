@@ -500,6 +500,15 @@ namespace PFE.Systems.Map.Serialization
                         snapshot.equippedWeaponId = loadout.Current.State.Def.weaponId;
                     }
                 }
+
+                // The companion. `Pers.as:753-755` saves `owlhp` as a FRACTION of the owl's maximum,
+                // because the maximum is a function of the player's level and their own pet stats — an
+                // absolute number would be wrong the moment the player levelled up between save and
+                // load. `CreateSaveData` is that fraction for all three pets, plus the cooldown.
+                if (player.Pets != null)
+                {
+                    snapshot.pets = player.Pets.CreateSaveData();
+                }
             }
 
             return snapshot;
@@ -591,6 +600,16 @@ namespace PFE.Systems.Map.Serialization
                 if (loadout != null && playerState.weaponRuntime != null && loadout.Current?.State != null)
                 {
                     playerState.weaponRuntime.RestoreTo(loadout.Current.State);
+                }
+
+                // The companion. Restored BEFORE the room is entered would be wrong (the pet is
+                // spawned against the player's room), so this only records the state: the pet itself
+                // is built on the next sim tick by `PetCompanion.SimTick` -> `EnsureSpawned`, at the
+                // player, with the saved fraction. `null` means the save predates the pets and the
+                // companion keeps its defaults.
+                if (player.Pets != null && playerState.pets != null)
+                {
+                    player.Pets.RestoreFromSaveData(playerState.pets);
                 }
             }
 

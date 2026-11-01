@@ -385,7 +385,33 @@ namespace PFE.Systems.Map.Scripting
         /// </summary>
         public void OnObjectInteracted(RoomInstance room, ObjectInstance obj)
         {
-            if (obj == null || obj.scripts == null) return;
+            if (obj == null) return;
+
+            // ---- The authored-script reference on an object (AS3 Box.as:341-343) ----
+            //
+            // `<obj id="term" scr="stableStory"/>` is the *object* half of the join the area path
+            // already makes: `scr=` is a reference to a `<scr id>` in the game data, not an inline
+            // action list, so it survives the importer as a placement attribute and never appears in
+            // `obj.scripts`. Nothing read it, which is why the two terminals this branch depends on
+            // were inert: the garages sprite-bot wreck (`brspr`, the step that starts `storyMane` and
+            // so unlocks Manehattan) and the raiders stable terminal (`term`, `scr="stableStory"`,
+            // whose `gotoland random_stable` is the only way into Stable 88).
+            //
+            // AS3 assigns `inter.scrAct` from `xml.@scr` *after* the `<scr>`-child loop
+            // (`Box.as:313-340` then `:341-343`), so when both exist the reference wins and the press
+            // runs one script, not two. That ordering is the `return` below, not a comment.
+            //
+            // Gated on the placement class for the same reason `HasInteractScript` is: on a unit the
+            // same attribute is `scrDie` (`Unit.as:1580-1582`), and running a boss's death script on a
+            // press is not a transition, it is a skip.
+            string authored = obj.GetAttribute("scr", string.Empty);
+            if (obj.IsBoxPlacement && !string.IsNullOrEmpty(authored))
+            {
+                Runner?.RunAuthored(room, authored, obj);
+                return;
+            }
+
+            if (obj.scripts == null) return;
 
             for (int i = 0; i < obj.scripts.Count; i++)
             {
@@ -424,6 +450,81 @@ namespace PFE.Systems.Map.Scripting
         }
 
         /// <summary>
+        /// Runs a <b>unit's</b> authored death script — AS3 <c>Unit.die()</c>'s <c>runScript()</c>
+        /// (<c>Unit.as:4392</c> → <c>:4483-4489</c>).
+        ///
+        /// <para><b>Why this is a separate entry point from <see cref="OnObjectDestroyed"/>.</b> The
+        /// oracle stores a unit's death script in <c>scrDie</c>, which is built in
+        /// <c>Unit.as:1566-1582</c> from <i>two</i> sources with a fixed precedence: the
+        /// <c>&lt;scr&gt;</c> children first, keeping any whose <c>eve</c> is <c>"die"</c> <b>or absent</b>
+        /// (<c>:1568-1575</c> — a bare <c>&lt;scr&gt;</c> on a unit is a death script, unlike on a box
+        /// where a bare one is the <i>click</i> script), and then the <c>scr="id"</c> attribute, which
+        /// <b>replaces</b> whatever the loop found (<c>:1580-1582</c>). Only one script ever runs.</para>
+        ///
+        /// <para><b>What that costs if it is wrong.</b> <c>mbase/конец.зад</c>'s ranger authors both an
+        /// inline <c>&lt;scr allact open 2/&gt;</c> and <c>scr="rangerStoryOk"</c>; running both would
+        /// fire the opening twice. Seventeen shipped placements carry the inline half — <c>pit</c>'s
+        /// three <c>up</c> lifts, <c>workshop/room_0_2</c>'s four platforms, <c>lair</c>'s
+        /// <c>stage killMadfox</c> — and six carry the attribute half.</para>
+        ///
+        /// <para><b>Not covered: <c>scrAlarm</c>.</b> <c>eve="alarm"</c> and <c>@alarm</c> fill the same
+        /// shape (<c>:1576-1585</c>) but fire on the alarm path, not on death — two shipped placements
+        /// (<c>raiders/room_6_0</c>, <c>surf/room_3_1</c>). Left alone deliberately; this method is the
+        /// death latch only.</para>
+        /// </summary>
+        public void OnUnitDestroyed(RoomInstance room, UnitInstance unit)
+        {
+            if (unit == null) return;
+
+            // The attribute wins, and it wins by *replacing* — see the remarks. `Unit.as:1580-1582`
+            // assigns `scrDie` after the `<scr>` loop has already run, so this `return` is the
+            // precedence rule, not an optimisation.
+            string authored = unit.GetAttribute("scr", string.Empty);
+            if (!string.IsNullOrEmpty(authored))
+            {
+                Runner?.RunAuthored(room, authored, null, UnitOwnerKey(unit));
+                return;
+            }
+
+            if (unit.scripts == null) return;
+
+            // AS3 keeps the LAST match (`:1568-1575` assigns on every iteration), so a placement with
+            // two death blocks runs the second and not both. No shipped placement has two, but the
+            // loop is the rule and a `foreach`-and-run-all would be a different one.
+            MapObjectScriptData death = null;
+            for (int i = 0; i < unit.scripts.Count; i++)
+            {
+                MapObjectScriptData script = unit.scripts[i];
+                if (script == null) continue;
+
+                if (string.IsNullOrEmpty(script.eventName) ||
+                    string.Equals(script.eventName, "die", StringComparison.OrdinalIgnoreCase))
+                {
+                    death = script;
+                }
+            }
+
+            if (death == null) return;
+
+            ExecuteScript(room, death, null, UnitOwnerKey(unit));
+        }
+
+        /// <summary>
+        /// The key a <c>@targ="this"</c> in a unit's own script resolves through — the <c>uid</c> when
+        /// the room authored one, else the generated <c>code</c>.
+        ///
+        /// <para>Same precedence as <c>AreaTriggerSystem.ObjectCommand(room, target, …)</c>'s label, and
+        /// the same reason: a unit usually has a <c>code</c> and no <c>uid</c> (only ~1 placement in 20
+        /// authors a <c>uid</c>), and <c>RoomUnitSpawner.UnitCommand</c> accepts either.</para>
+        /// </summary>
+        static string UnitOwnerKey(UnitInstance unit)
+        {
+            if (!string.IsNullOrEmpty(unit.uid)) return unit.uid;
+            if (!string.IsNullOrEmpty(unit.code)) return unit.code;
+            return null;
+        }
+
+        /// <summary>
         /// Runs an inline <c>&lt;scr&gt;</c> block through the stepwise interpreter.
         ///
         /// <para><b>Why this is a delegation and not a loop.</b> It used to walk the action list and call
@@ -435,11 +536,14 @@ namespace PFE.Systems.Map.Scripting
         /// <param name="room">The room the script belongs to — AS3 <c>Script.land</c>.</param>
         /// <param name="script">The authored action list.</param>
         /// <param name="owner">The object the script hangs off, for <c>@targ="this"</c>.</param>
-        public void ExecuteScript(RoomInstance room, MapObjectScriptData script, ObjectInstance owner = null)
+        /// <param name="unitOwner">The unit the script hangs off, when it hangs off a unit — see
+        /// <see cref="OnUnitDestroyed"/>.</param>
+        public void ExecuteScript(RoomInstance room, MapObjectScriptData script, ObjectInstance owner = null,
+                                  string unitOwner = null)
         {
             if (room == null || script == null || script.actions == null) return;
 
-            Runner?.Run(room, script, owner);
+            Runner?.Run(room, script, owner, unitOwner);
         }
 
         /// <summary>
