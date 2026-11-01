@@ -642,6 +642,24 @@ namespace PFE.Data.Definitions
         [Tooltip("AS3 UnitMerc.arm — the separate aiming limb (visualGrifArmN); null for every other unit")]
         public Sprite armSprite;
 
+        /// <summary>
+        /// The villager ponies' per-look frames, in <c>tr</c> order — AS3
+        /// <c>UnitPonPon.as:112 vis.osn.pon.gotoAndStop(this.tr)</c>.
+        ///
+        /// <para><b>Why the definition carries an array for one unit.</b> <c>ponpon</c>'s
+        /// <c>&lt;vis&gt;</c> names <c>visualPonPon</c>, whose own timeline is a single frame that
+        /// places <c>osn</c> → <c>pon</c>; <c>pon</c> is where the 27 villager looks live, and the
+        /// placement's <c>tr</c> picks one. <see cref="sprite"/> keeps the composite frame the importer
+        /// has always written, so a project that has not run the villager pass still draws a pony —
+        /// the same one for everybody, which is the defect this field exists to end.</para>
+        ///
+        /// <para>Empty for every unit but <c>ponpon</c>. Written by <c>UnitSpriteImporter</c>'s
+        /// villager pass; <see cref="PFE.Entities.Units.PonPonVariants"/> owns the scale and the feet
+        /// gap that go with them.</para>
+        /// </summary>
+        [Tooltip("Villager pony looks in `tr` order (ponpon only); empty until the villager pass runs")]
+        public Sprite[] variantSprites;
+
         [Tooltip("Gender")]
         public Gender gender = Gender.Other;
 

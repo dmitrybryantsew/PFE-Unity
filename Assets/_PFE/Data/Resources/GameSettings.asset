@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: GameSettings
   m_EditorClassIdentifier: PFE.Core::PFE.Core.GameSettings
   sfxVolume: 0.086
-  musicVolume: 0
+  musicVolume: 0.049
   simulationTicksPerSecond: 30

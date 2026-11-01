@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -198,6 +198,75 @@ namespace PFE.Systems.Items
             }
 
             return rows;
+        }
+
+        /// <summary>
+        /// Parses the <c>&lt;craft id kol/&gt;</c> children out of a scheme row's body. Empty body →
+        /// empty list, which is also the honest answer for the 32 <c>&lt;sk&gt;</c> rows and the 393
+        /// self-closing ones.
+        ///
+        /// <para><b>Count defaults to 1 and never to 0.</b> AS3 reads <c>_loc2_.@kol</c> directly
+        /// (<c>PipPageWork.as:381</c>), so an absent attribute would compare as <c>0</c> and the gate
+        /// would always pass while <c>minusItem(id, 0)</c> removed nothing — a free recipe. Every one of
+        /// the 75 shipped rows carries <c>kol</c>, so the default is unreachable on shipped data; 1 is
+        /// chosen because it is the only value that cannot turn a malformed row into free output.</para>
+        /// </summary>
+        private static readonly Regex CraftRowPattern = new Regex(@"<craft\b([^>]*)>", RegexOptions.Singleline);
+
+        public static List<CraftMaterialRow> ParseCraftRows(string body)
+        {
+            var rows = new List<CraftMaterialRow>();
+            if (string.IsNullOrEmpty(body)) return rows;
+
+            foreach (Match m in CraftRowPattern.Matches(body))
+            {
+                string attrs = m.Groups[1].Value;
+                string id = WeaponXmlAttrs.Attr(attrs, "id");
+                if (string.IsNullOrEmpty(id)) continue;
+
+                string kol = WeaponXmlAttrs.Attr(attrs, "kol");
+                int count = 1;
+                if (!string.IsNullOrEmpty(kol) &&
+                    int.TryParse(kol, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) &&
+                    parsed > 0)
+                {
+                    count = parsed;
+                }
+
+                rows.Add(new CraftMaterialRow(id, count));
+            }
+
+            return rows;
+        }
+    }
+
+    /// <summary>
+    /// One <c>&lt;craft id kol/&gt;</c> child of a <c>tip='scheme'</c> row — one material of a recipe.
+    ///
+    /// <para><b>This is the crafting subsystem's whole data payload</b> and it was already being
+    /// captured: <see cref="ItemXmlRow.Body"/> documents that the 107 item rows with bodies are the 32
+    /// carrying <c>&lt;sk&gt;</c> children "plus the 75 <c>tip='scheme'</c> rows carrying their
+    /// recipe's component list". Nothing read the second half until now.</para>
+    ///
+    /// <para><b>Read by <c>PipPageWork.checkScheme</c>/<c>minusCraftComp</c></b>
+    /// (<c>PipPageWork.as:379-397</c>): the gate is <c>items[id].kol + items[id].vault &gt;= kol</c>,
+    /// so a material can be satisfied from the vault at <i>any</i> location — unlike
+    /// <c>Invent.checkKol</c> (<c>Invent.as:1413-1428</c>), which only counts the vault at base.</para>
+    /// </summary>
+    public readonly struct CraftMaterialRow
+    {
+        /// <summary><c>@id</c> — the material's item id.</summary>
+        public readonly string Id;
+
+        /// <summary><c>@kol</c> — how many are consumed. Defaults to 1, which is what the oracle's
+        /// <c>_loc2_.@kol</c> reads when the attribute is absent (AS3 treats an absent attribute as
+        /// <c>0</c> for arithmetic, so every shipped row carries it — all 75 do).</summary>
+        public readonly int Count;
+
+        public CraftMaterialRow(string id, int count)
+        {
+            Id = id;
+            Count = count;
         }
     }
 

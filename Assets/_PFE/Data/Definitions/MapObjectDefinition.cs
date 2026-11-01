@@ -233,6 +233,26 @@ namespace PFE.Data.Definitions
                 : 1f;
         }
 
+        /// <summary>
+        /// AS3 <c>Box.phis</c> — the solidity level a door stamps onto every tile it covers
+        /// (<c>Box.as:666</c> in <c>initDoor</c>, <c>:684</c> in <c>setDoor</c>).
+        ///
+        /// <para><c>Box.as:52</c> declares <c>phis = 1</c> and <c>:232-234</c> parses <c>@phis</c>
+        /// into it, so an unauthored door is an ordinary wall. Exactly two rows in the data author
+        /// something else — <c>grate</c> and <c>hgrate</c>, both <c>phis='2'</c>
+        /// (<c>AllData.as:4859-4860</c>) — and 2 is the <b>level-2 solid</b>: solid to units, props
+        /// and damage, transparent to bullets and to line of sight. See
+        /// <see cref="TileData.levelTwoSolid"/> for the split and its citations.</para>
+        ///
+        /// <para>A reader rather than a stored field, for the same reason as
+        /// <see cref="GetDoorOcclusion"/>: the importer preserves <c>phis</c> verbatim in
+        /// <see cref="legacyAttributes"/> (both grate assets carry it), so no re-import is needed.</para>
+        /// </summary>
+        public int GetDoorPhisLevel()
+        {
+            return ParseIntAttribute("phis", 1);
+        }
+
         public MapObjectPhysicalCapability GetResolvedPhysicalCapability()
         {
             if (physicalCapability != MapObjectPhysicalCapability.Unknown)

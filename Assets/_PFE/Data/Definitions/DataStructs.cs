@@ -331,6 +331,25 @@ namespace PFE.Data.Definitions
         /// </summary>
         public AnimationFrame super;
 
+        /// <summary>
+        /// <c>bac</c> — a <b><c>vclass</c> label, not an <c>AllData</c> <c>&lt;blit&gt;</c> row</b>, and the
+        /// port had no field for it, so the importer dropped it.
+        ///
+        /// <para><b>What authors it.</b> <c>UnitBossRaider.animate()</c> selects it for
+        /// <c>aiState == 4 || aiState == 6</c> (<c>UnitBossRaider.as:144-151</c>) — the quake wind-up and
+        /// the retreat. The clip exists in the SWF: <c>visualRaiderBoss2</c>'s <c>osn</c> is an 11-frame
+        /// state selector whose frame-4 label is <c>bac</c> (<c>DefineSprite_2042</c>, label at frame 4,
+        /// body clip 2030). <see cref="DisplayObjectClipLayout.As3IdForLabel"/> passes a label through
+        /// unchanged, so <c>bac</c> reached <see cref="TrySet"/>, found no field, and was reported as
+        /// unmapped — which is why <c>bossraider.asset</c> has 210 frames and no <c>bac</c> row: the 31
+        /// frames of that clip (46-76 of the concatenated timeline) are in the sheet and unreachable.</para>
+        ///
+        /// <para><b>Nothing else may return it.</b> No family <c>animate()</c> names <c>bac</c>, and no
+        /// <c>AllData</c> row declares it — so a brain returning it is either the raider boss or a bug.
+        /// </para>
+        /// </summary>
+        public AnimationFrame bac;
+
         /// <summary>No oracle id — never populated.</summary>
         public AnimationFrame drag;
 
@@ -393,6 +412,7 @@ namespace PFE.Data.Definitions
                 case "attack": attack = frame; break;
                 case "derg": derg = frame; break;
                 case "super": super = frame; break;
+                case "bac": bac = frame; break;
             }
         }
 
@@ -400,7 +420,7 @@ namespace PFE.Data.Definitions
         public static readonly string[] As3Ids =
         {
             "stay", "walk", "trot", "run", "jump", "die", "death", "fall", "sit", "fly", "dig",
-            "plav", "polz", "laz", "pre", "attack", "derg", "super"
+            "plav", "polz", "laz", "pre", "attack", "derg", "super", "bac"
         };
 
         AnimationFrame GetMapped(string as3Id)
@@ -425,6 +445,7 @@ namespace PFE.Data.Definitions
                 case "attack": return attack;
                 case "derg": return derg;
                 case "super": return super;
+                case "bac": return bac;
                 default: return default;
             }
         }

@@ -365,27 +365,84 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
-    /// Decal type from AS3 — tipdec values in weapon XML vis node.
-    /// Values match the original tipdec integers directly.
+    /// Decal type from AS3 — <c>tipdec</c> in the weapon XML <c>&lt;vis&gt;</c> node (or on the weapon tag
+    /// for a melee weapon). <b>Values match the original integers exactly</b>; they are the argument
+    /// <c>Grafon.dyrka(type, …)</c> switches on, so a value that is not declared here is a value the
+    /// importer cannot express.
+    ///
+    /// <para><b>The names are a size ladder per family, not a material.</b> <c>Grafon.dyrka</c>
+    /// (<c>Grafon.as:1067-1258</c>) reads the type as a band: <c>1..3</c> is the bullet ladder (hole
+    /// sprite plus <c>bullet_tre</c>, scale +0 / +0.5 / +1), <c>4..6</c> the impact ladder
+    /// (<c>punch_tre</c>, same scale steps), and everything from 9 up is a distinct effect. The old
+    /// names said the opposite — <c>Metal = 1</c>, <c>Wood = 5</c>, <c>Rail = 3</c> — which is why a
+    /// weapon author reading this enum would pick <c>Wood</c> for splinters and get a punched-metal
+    /// mark instead. Material is a <i>separate</i> argument (<c>Tile.mat</c>), never this.</para>
+    ///
+    /// <para><b>16, 17 and 18 are authored and were missing.</b> <c>AllData.as</c> carries
+    /// <c>tipdec='16'</c> five times (blue plasma), <c>'17'</c> five times (pink plasma) and <c>'18'</c>
+    /// once (cryo). <c>WeaponDataImporter</c> maps through <c>Enum.IsDefined</c>, so an undeclared value
+    /// became <see cref="None"/> and those eleven weapons left <b>no mark at all</b> on a wall — a
+    /// silent hole in the feature, not a crash.</para>
     /// </summary>
     public enum DecalType
     {
-        None        = 0,
-        Metal       = 1,   // metal bullet hole
-        Stone       = 2,   // stone/rock impact
-        Rail        = 3,   // railgun / piercing
-        Blade       = 4,   // melee / blade slash
-        Wood        = 5,   // wood splinter
-        // 6-8 unused in source
-        Explosive   = 9,   // explosion scorch
-        // 10 unused
-        FireEnergy  = 11,  // fire / energy burn
-        Laser       = 12,  // laser scorch
-        EnergyBeam  = 13,  // energy beam mark
-        // 14 unused
-        Plasma      = 15,  // plasma burn
-        // 16-18 unused
-        Sparkle     = 19,  // special sparkle / pink
+        None            = 0,
+
+        /// <summary><c>1..3</c>: bullet holes. Only 2 and 3 may punch an actual hole (a
+        /// <c>random &gt; 0.5</c> gate), and each step up is +0.5 scale.</summary>
+        BulletSmall     = 1,
+        BulletMedium    = 2,
+        BulletLarge     = 3,
+
+        /// <summary><c>4..6</c>: impact marks (<c>punch_tre</c>) — a blade, a fist, a ramming body.
+        /// <see cref="Ram"/> is rewritten to <see cref="ImpactSmall"/> by <c>Location.hitTile</c>.</summary>
+        ImpactSmall     = 4,
+        ImpactMedium    = 5,
+        ImpactLarge     = 6,
+
+        // 7, 8, 10, 14 have no arm in Grafon.as — they draw nothing, like None.
+
+        /// <summary><c>9</c>: explosion. <c>expl_tre</c>, gated on <c>random*0.5 &lt; damage/hp</c>.</summary>
+        Explosive       = 9,
+
+        /// <summary><c>11</c>: fire. One hit in ten leaves <c>fire_soft</c>; <b>normal</b> blend.</summary>
+        Fire            = 11,
+
+        /// <summary><c>12</c>: laser. Always <c>laser_tre</c> unless a blocked hit escapes to fire.</summary>
+        Laser           = 12,
+
+        /// <summary><c>13</c>: energy beam — the laser arm at <b>0.6×</b> scale.</summary>
+        Beam            = 13,
+
+        /// <summary><c>15</c>: plasma. Blocked → <c>plasma_soft</c>; else a <c>plasma_dyr</c> hole under
+        /// <c>plasma_tre</c>.</summary>
+        Plasma          = 15,
+
+        /// <summary><c>16</c>: blue plasma. Blocked falls back to <c>fire_soft</c> — there is no
+        /// <c>bluplasma_soft</c> symbol in the SWF.</summary>
+        BluePlasma      = 16,
+
+        /// <summary><c>17</c>: pink plasma. Same fallback as <see cref="BluePlasma"/>.</summary>
+        PinkPlasma      = 17,
+
+        /// <summary><c>18</c>: cryo. The one energy decal with no hole and no blocked variant.</summary>
+        Cryo            = 18,
+
+        /// <summary><c>19</c>: pink explosive plasma. <c>plaexpl_tre</c>, ratio-gated, <b>normal</b>
+        /// blend — the only energy type that is not hardlight.</summary>
+        PinkExplosive   = 19,
+
+        /// <summary>
+        /// <b>Not a decal.</b> The marker a <i>body</i> passes instead of a decal type when a unit rams
+        /// a wall (<c>Unit.as:3311,3319</c>; <c>UnitVortex</c> uses <c>4</c> instead). Two things happen
+        /// to it in <c>Location.hitTile</c> (<c>Location.as:2505-2511</c>): a hit of 50 or less against a
+        /// tile that has a <c>thre</c> or is <c>indestruct</c> is dropped outright, and anything that
+        /// survives that test is <b>rewritten to <see cref="ImpactSmall"/></b> before a decal is chosen.
+        ///
+        /// <para>Kept as an enum member rather than a magic 100 at the call sites so the "this is not a
+        /// decal" case cannot be mistaken for one.</para>
+        /// </summary>
+        Ram             = 100,
     }
 
     /// <summary>
