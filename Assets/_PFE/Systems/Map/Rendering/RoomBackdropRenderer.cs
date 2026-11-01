@@ -32,6 +32,29 @@ namespace PFE.Systems.Map.Rendering
         private const int ShadowBlurIterations = 3;
         private const float ShadowOpacity = 0.75f;
         private const float ShadowResolutionScale = 0.25f;
+
+        /// <summary>
+        /// The S2 backdrop shader. Resolved the same way the terrain renderer resolves its own
+        /// (<c>Resources.Load</c> first, then <c>Shader.Find</c>), because a shader that is only reachable
+        /// by name is stripped from a player build.
+        /// </summary>
+        private const string BackdropShaderResourcePath = "RoomBackdrop/PFE_BackdropMultiply";
+        private const string BackdropShaderName = "PFE/BackdropMultiply";
+
+        /// <summary>
+        /// The second half of S2: the decorations' shader. Same composite as the wall's, but it samples the
+        /// sprite's own texture instead of a tiling fill — a decoration is a picture, not a fill.
+        /// </summary>
+        private const string DecorationShaderResourcePath = "RoomBackdrop/PFE_BackdropDecorationMultiply";
+        private const string DecorationShaderName = "PFE/BackdropDecorationMultiply";
+
+        /// <summary>
+        /// Pixels per Unity unit. Named rather than inlined because three separate things have to agree
+        /// on it: <c>WorldCoordinates.PixelToUnity</c> (which divides by 100), the sprites this class
+        /// creates (<c>Sprite.Create(..., pixelsPerUnit)</c>), and the shader's <c>_PixelsPerUnit</c>.
+        /// </summary>
+        private const float PixelsPerUnityUnit = 100f;
+
         private const float DefaultInnerLightRadiusPixels = 300f;
         private const float DefaultOuterLightRadiusPixels = 1000f;
         private const float LightRevealRiseSpeed = 0.1f;
@@ -100,6 +123,48 @@ namespace PFE.Systems.Map.Rendering
         private readonly List<UnityEngine.Object> _generatedAssets = new List<UnityEngine.Object>();
         private readonly Dictionary<Texture2D, Texture2D> _readableTextureCache = new Dictionary<Texture2D, Texture2D>();
         private bool _fogOfWarDisabled;
+
+        /// <summary>Created once per <see cref="CreateVisuals"/>, owned by <see cref="_generatedAssets"/>.</summary>
+        private Material _backdropMaterial;
+        private Sprite _backdropUnitSprite;
+        private Texture2D _backdropShadowTexture;
+        private bool _backdropShaderWarned;
+
+        /// <summary>
+        /// The decorations' shared material — one per room, not one per placement, so every decoration in
+        /// the room draws with the same draw setup and only the sprite texture differs.
+        /// </summary>
+        private Material _decorationMaterial;
+
+        /// <summary>
+        /// <c>source sprite → a sprite over the readable copy of its texture</c>. The GPU path needs the
+        /// same sRGB-flagged-holding-linear texture the CPU path composites from, and a <see cref="Sprite"/>
+        /// is the only way to get a <see cref="SpriteRenderer"/> to bind it — see
+        /// <see cref="GetReadableDecorationSprite"/>. Cached because a room places the same id many times.
+        /// </summary>
+        private readonly Dictionary<Sprite, Sprite> _readableDecorationSprites = new Dictionary<Sprite, Sprite>();
+
+        /// <summary>Which implementation composites the backdrop wall.</summary>
+        public enum BackdropMode
+        {
+            /// <summary>The shader, unless the room configures a sharpen pass — only the CPU path has one.</summary>
+            Auto = 0,
+
+            /// <summary>Always the pre-S2 per-pixel compositor. This is the rollback and the A/B control.</summary>
+            Cpu = 1,
+
+            /// <summary>Always the shader; falls back to <see cref="Cpu"/> if any of its inputs is missing.</summary>
+            Gpu = 2,
+        }
+
+        /// <summary>
+        /// Process-wide selection of the backdrop implementation. <c>Auto</c> in the shipped game.
+        ///
+        /// <para><b>Static on purpose.</b> The A/B in doc 09 §16.6 has to be runnable without editing the
+        /// three call sites that construct this renderer, and a per-instance switch would make "which
+        /// path drew this room" depend on a constructor argument that nobody passes.</para>
+        /// </summary>
+        public static BackdropMode Mode { get; set; } = BackdropMode.Auto;
 
         public bool FogOfWarDisabled => _fogOfWarDisabled;
 
@@ -400,6 +465,14 @@ namespace PFE.Systems.Map.Rendering
             DestroyGeneratedAssets();
             _visibilityMaskTexture = null;
             _visibilityMaskSprite = null;
+            // Destroyed by DestroyGeneratedAssets above; nulled so a rebuild cannot reuse a dead object.
+            _backdropMaterial = null;
+            _backdropUnitSprite = null;
+            _backdropShadowTexture = null;
+            _decorationMaterial = null;
+            // The sprites are destroyed with the assets above, and they point at readable copies that are
+            // destroyed too — a stale entry would hand the next room a sprite over a dead texture.
+            _readableDecorationSprites.Clear();
             _visibilityMaskTextureSize = Vector2Int.zero;
             _visibilityMaskCurrentVisibility = Array.Empty<float>();
             _visibilityMaskTargetVisibility = Array.Empty<float>();
@@ -632,6 +705,51 @@ namespace PFE.Systems.Map.Rendering
             _visibilityMaskTexture.SetPixels(_visibilityMaskPixels);
             _visibilityMaskTexture.Apply(false, false);
             _visibilityMaskUploadPending = false;
+        }
+
+        /// <summary>
+        /// How much light the fog pass has revealed at a world point, in <c>[0, 1]</c> — AS3's
+        /// <c>Tile.visi</c>.
+        ///
+        /// <para><b>For HUD elements that hang off a world position.</b> AS3 composites such a marker
+        /// into <c>Grafon.visObjs[3]</c>, which is added before <c>visLight</c> (<c>Grafon.as:193-200</c>),
+        /// so the fog covers it. The port draws them on the canvas, above every world layer, and they
+        /// therefore stayed lit in the dark — the "gold star floating in the fog" report. This is the
+        /// read-back that lets a caller apply the same fade; see
+        /// <see cref="FogVisibilitySampling.ResolveWorldAnchoredAlpha"/> for why alpha = visibility is the
+        /// exact composite rather than an approximation.</para>
+        ///
+        /// <para><b>False means "not covered", not "dark".</b> Fog switched off (the dev console's
+        /// toggle), no mask built yet, a collision-only room, or a point outside the room all return
+        /// <c>false</c> with <paramref name="visibility"/> at 1 — because in every one of those cases
+        /// nothing is drawn over the marker.</para>
+        ///
+        /// <para><b>The value is the smoothed one, not the target.</b> <c>_visibilityMaskCurrentVisibility</c>
+        /// is what the mask texture holds, so a marker fades with the reveal it is standing in rather than
+        /// snapping to where the light pass last aimed.</para>
+        /// </summary>
+        public bool TryGetFogVisibility(Vector3 worldPosition, out float visibility)
+        {
+            visibility = 1f;
+
+            if (_fogOfWarDisabled || _room == null || !UsesVisibilityMask())
+            {
+                return false;
+            }
+
+            if (_visibilityMaskCurrentVisibility.Length == 0 ||
+                !TryGetRoomLocalPixelPosition(worldPosition, out Vector2 localPixels))
+            {
+                return false;
+            }
+
+            return FogVisibilitySampling.TrySample(
+                _visibilityMaskCurrentVisibility,
+                _visibilityMaskTextureSize.x,
+                _visibilityMaskTextureSize.y,
+                localPixels,
+                TileSizePixels,
+                out visibility);
         }
 
         private bool ShouldRefreshVisibilityMask(Vector3? playerWorldPosition, Vector2Int roomPixelSize)
@@ -1076,6 +1194,20 @@ namespace PFE.Systems.Map.Rendering
             }
             Color tint = ResolveBackdropColor();
 
+            // S2: the shader path. Same rects, same tint, same texture — no per-pixel loop. It returns
+            // false when one of its inputs is missing (no readable copy, no shader), and the CPU loop
+            // below is then the answer, which is why that loop is not deleted.
+            if (ShouldUseBackdropShader())
+            {
+                using (Profiler.Region("backdrop.quads", "boot: one SpriteRenderer per fill rect, composited by PFE/BackdropMultiply"))
+                {
+                    if (TryCreateRoomBackdropQuads(sourceTexture, contentOriginPixels, contentPixelSize, fillRects, compositeData, tint))
+                    {
+                        return;
+                    }
+                }
+            }
+
             // The pixel work. Was 1197 ms per call because CreateBackdropSprite called GetPixel
             // once per pixel (1.92M interop calls for a 48x25 room) and re-read Texture2D.width/
             // .height up to four times per pixel. Both are now hoisted/cached, so this region
@@ -1111,6 +1243,397 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
+        /// <summary>
+        /// Whether this room composites the backdrop with the shader. Two things can say no: an explicit
+        /// <see cref="BackdropMode.Cpu"/>, and a configured sharpen pass — which only the CPU path has.
+        /// </summary>
+        private bool ShouldUseBackdropShader()
+        {
+            if (Mode == BackdropMode.Cpu)
+            {
+                return false;
+            }
+
+            if (_backdropSharpenStrength <= 0.001f)
+            {
+                return true;
+            }
+
+            // Dropping a configured effect to win a benchmark is not a trade this renderer gets to make,
+            // so a sharpened room keeps the slow path. `Gpu` still forces the shader, because that is the
+            // only way to A/B such a room — and then the console says what was skipped.
+            if (Mode != BackdropMode.Gpu)
+            {
+                return false;
+            }
+
+            if (!_backdropShaderWarned)
+            {
+                _backdropShaderWarned = true;
+                Debug.LogWarning(
+                    $"[RoomBackdrop] Room '{_room?.id}' configures sharpen strength " +
+                    $"{_backdropSharpenStrength:0.###} and BackdropMode was forced to Gpu — " +
+                    "the sharpen pass is not applied on the shader path.");
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// The S2 path: one <see cref="SpriteRenderer"/> per fill rect, drawing a 1×1 white sprite scaled
+        /// to the rect, with one shared material that computes the fill, the shadow and the darkness per
+        /// fragment instead of per pixel on the main thread.
+        ///
+        /// <para>Returns false — never a partial backdrop — when an input is missing, so the caller can
+        /// run the CPU compositor instead.</para>
+        /// </summary>
+        private bool TryCreateRoomBackdropQuads(
+            Texture2D sourceTexture,
+            Vector2 contentOriginPixels,
+            Vector2Int contentPixelSize,
+            List<RectInt> fillRects,
+            BackdropCompositeData compositeData,
+            Color tint)
+        {
+            Material material;
+            Sprite unitSprite;
+            Texture2D backdropTexture;
+            using (Profiler.Region("backdrop.quads.material", "boot: readable copy + shadow upload + the one shared material"))
+            {
+                // The readable copy, NOT the authored texture. It is the sRGB-flagged texture that holds
+                // linear numbers, which is what the shipped compositor samples and displays — so binding
+                // it reproduces the shipped picture including its gamma round trip (doc 09 §16.1).
+                // Binding `sourceTexture` here would brighten every room in the game.
+                backdropTexture = GetReadableTexture(sourceTexture);
+                material = GetBackdropMaterial(backdropTexture, contentOriginPixels, contentPixelSize, compositeData);
+                unitSprite = GetBackdropUnitSprite();
+            }
+
+            if (material == null || unitSprite == null)
+            {
+                return false;
+            }
+
+            // One line per room, because "the backdrop is too bright" has exactly three causes and this
+            // separates them without a second build: no shadow map (the shadow term becomes 1), a
+            // darkness of 0, or a texture that is not the sRGB-flagged readable copy. The expected
+            // darkness for a room with `environment.darkness = d` is (170 + d) / 255.
+            Debug.Log(
+                $"[RoomBackdrop] '{_room?.id}' composited by {BackdropShaderName}: " +
+                $"darkness {compositeData.DarknessAlpha:0.000} " +
+                $"(expect {(BackdropBaseDarkness + (_room?.environment?.darkness ?? 0)) / 255f:0.000}), " +
+                $"shadow {(compositeData.ShadowAlpha != null && compositeData.ShadowAlpha.Length > 0 ? $"{compositeData.ShadowSize.x}x{compositeData.ShadowSize.y}" : "MISSING - no shadow term")}, " +
+                $"tex {backdropTexture.width}x{backdropTexture.height}, tint {tint}, rects {fillRects.Count}");
+
+            string wallName = _room.environment.backgroundWall;
+            for (int i = 0; i < fillRects.Count; i++)
+            {
+                RectInt fillRect = fillRects[i];
+                if (fillRect.width <= 0 || fillRect.height <= 0)
+                {
+                    continue;
+                }
+
+                GameObject backdropObject = new GameObject($"Backdrop_{wallName}_{i}");
+                backdropObject.transform.SetParent(_backgroundParent, false);
+
+                SpriteRenderer renderer = backdropObject.AddComponent<SpriteRenderer>();
+                renderer.sprite = unitSprite;
+                renderer.sharedMaterial = material;
+                renderer.sortingLayerName = MapSortingLayers.Backwall;
+                renderer.sortingOrder = BackdropSortingOrder;
+
+                // The tint goes through the same call the CPU path uses, so it reaches the shader as the
+                // mesh's vertex colour exactly as it does today. Whether Unity gamma-converts that value
+                // is then a question neither path has to answer, because both take the same route.
+                renderer.color = tint;
+
+                // A 1×1 sprite at 100 px/unit is 0.01 world units wide; scaling by the rect's pixel size
+                // makes it cover the rect exactly. `GetBackdropSegmentPosition` cannot be reused because
+                // it reads `sprite.bounds.extents`, and this sprite's extents are one texel, not the rect.
+                Vector2 bottomLeftPixels = new Vector2(
+                    contentOriginPixels.x + fillRect.x,
+                    contentOriginPixels.y + (contentPixelSize.y - fillRect.y - fillRect.height));
+                renderer.transform.localPosition = WorldCoordinates.PixelToUnity(
+                    bottomLeftPixels + new Vector2(fillRect.width * 0.5f, fillRect.height * 0.5f));
+                renderer.transform.localScale = new Vector3(fillRect.width, fillRect.height, 1f);
+
+                _backdropRenderers.Add(renderer);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// The shared material for the shader path, built once per <see cref="CreateVisuals"/>. Every
+        /// fill rect differs only in its quad, so every fill rect shares one material and one draw setup.
+        /// </summary>
+        private Material GetBackdropMaterial(
+            Texture2D backdropTexture,
+            Vector2 contentOriginPixels,
+            Vector2Int contentPixelSize,
+            BackdropCompositeData compositeData)
+        {
+            if (_backdropMaterial != null)
+            {
+                return _backdropMaterial;
+            }
+
+            if (backdropTexture == null)
+            {
+                return null;
+            }
+
+            Shader shader = ResolveBackdropShader();
+            if (shader == null)
+            {
+                // Once per room, not once per frame: the CPU path still draws the backdrop, so this is
+                // information, not a failure the player can see.
+                Debug.LogError(
+                    $"[RoomBackdrop] Shader '{BackdropShaderName}' not found (expected at " +
+                    $"Resources/{BackdropShaderResourcePath}). The backdrop uses the CPU compositor.");
+                return null;
+            }
+
+            Material material = new Material(shader);
+            material.name = $"Backdrop_{_room?.id}";
+            material.hideFlags = HideFlags.DontSave;
+
+            Texture2D shadowTexture = GetBackdropShadowTexture(compositeData);
+
+            // A null `_ShadowTex` makes the shader sample the property's declared default ("black"), and a
+            // 1×1 default whose alpha is 1 would multiply the whole room by zero. Rather than depend on
+            // what that default's alpha happens to be, the size is zeroed when there is no map: the
+            // shader's bounds test is `px < _ShadowSize.x / _ShadowScale`, which is then false for every
+            // fragment and the shadow term is exactly 0 — the same answer the CPU reference gives.
+            Vector2Int shadowSize = shadowTexture != null ? compositeData.ShadowSize : Vector2Int.zero;
+
+            material.SetTexture("_BackdropTex", backdropTexture);
+            material.SetTexture("_ShadowTex", shadowTexture);
+            material.SetVector("_ContentOrigin", new Vector4(contentOriginPixels.x, contentOriginPixels.y, 0f, 0f));
+            material.SetVector("_ContentSize", new Vector4(contentPixelSize.x, contentPixelSize.y, 0f, 0f));
+            material.SetFloat("_PixelsPerUnit", PixelsPerUnityUnit);
+            material.SetVector("_TexScale", new Vector4(_backdropTextureScale.x, _backdropTextureScale.y, 0f, 0f));
+            material.SetVector("_TexOffset", new Vector4(_backdropTextureOffset.x, _backdropTextureOffset.y, 0f, 0f));
+            material.SetVector("_Flip", new Vector4(
+                _flipBackdropTextureX ? 1f : 0f,
+                _flipBackdropTextureY ? 1f : 0f,
+                0f,
+                0f));
+            material.SetFloat("_Darkness", compositeData.DarknessAlpha);
+            material.SetFloat("_ShadowScale", ShadowResolutionScale);
+            material.SetVector("_ShadowSize", new Vector4(shadowSize.x, shadowSize.y, 0f, 0f));
+
+            _backdropMaterial = material;
+            _generatedAssets.Add(material);
+            return material;
+        }
+
+        private static Shader ResolveBackdropShader()
+        {
+            Shader shader = Resources.Load<Shader>(BackdropShaderResourcePath);
+            if (shader != null)
+            {
+                return shader;
+            }
+
+            return Shader.Find(BackdropShaderName);
+        }
+
+        /// <summary>
+        /// The baked shadow map as a texture, uploaded once per room. The value rides in <c>.a</c>, which
+        /// no sRGB decode touches — the RGB channels of an sRGB-flagged texture are gamma-decoded on
+        /// sample, and this is data, not colour.
+        /// </summary>
+        private Texture2D GetBackdropShadowTexture(BackdropCompositeData compositeData)
+        {
+            if (_backdropShadowTexture != null)
+            {
+                return _backdropShadowTexture;
+            }
+
+            if (compositeData.ShadowAlpha == null ||
+                compositeData.ShadowAlpha.Length == 0 ||
+                compositeData.ShadowSize.x <= 0 ||
+                compositeData.ShadowSize.y <= 0)
+            {
+                return null;
+            }
+
+            Texture2D texture = new Texture2D(
+                compositeData.ShadowSize.x,
+                compositeData.ShadowSize.y,
+                TextureFormat.RGBA32,
+                false);
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.name = $"BackdropShadow_{_room?.id}";
+
+            // No row flip here, unlike CreateBackgroundTileShadowOverlay. That one draws the map as a
+            // sprite, whose own v runs the other way; this one is read with v = (row + 0.5) / height,
+            // so array row 0 must be content row 0 (the room's top row). See the shader's shadow block.
+            Color[] pixels = new Color[compositeData.ShadowAlpha.Length];
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                float alpha = compositeData.ShadowAlpha[i];
+                pixels[i] = new Color(0f, 0f, 0f, alpha);
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply(false, false);
+
+            _backdropShadowTexture = texture;
+            _generatedAssets.Add(texture);
+            return texture;
+        }
+
+        /// <summary>
+        /// One white texel at 100 px/unit, scaled per fill rect. It exists only to give
+        /// <see cref="SpriteRenderer"/> a quad to draw — the shader derives the fill from world position
+        /// and never reads a UV.
+        /// </summary>
+        private Sprite GetBackdropUnitSprite()
+        {
+            if (_backdropUnitSprite != null)
+            {
+                return _backdropUnitSprite;
+            }
+
+            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.SetPixel(0, 0, Color.white);
+            texture.Apply();
+
+            _backdropUnitSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), PixelsPerUnityUnit);
+            _backdropUnitSprite.name = $"BackdropUnit_{_room?.id}";
+
+            _generatedAssets.Add(texture);
+            _generatedAssets.Add(_backdropUnitSprite);
+            return _backdropUnitSprite;
+        }
+
+        /// <summary>
+        /// The decorations' shared material, built once per room. Every placement differs only in its
+        /// sprite, so one material serves them all — the sprite texture arrives through
+        /// <c>SpriteRenderer</c>'s own <c>_MainTex</c> binding, which is why the property is declared
+        /// <c>[PerRendererData]</c> in the shader.
+        ///
+        /// <para>Returns null — never a partially configured material — when the shader is missing, and the
+        /// caller then runs the CPU composite per placement.</para>
+        /// </summary>
+        private Material GetDecorationMaterial(
+            Vector2 contentOriginPixels,
+            Vector2Int contentPixelSize,
+            BackdropCompositeData compositeData)
+        {
+            if (_decorationMaterial != null)
+            {
+                return _decorationMaterial;
+            }
+
+            Shader shader = ResolveDecorationShader();
+            if (shader == null)
+            {
+                // Once per room, like the wall's, and information rather than a failure: the CPU path
+                // still draws the decorations, so nothing the player sees is missing.
+                Debug.LogError(
+                    $"[RoomBackdrop] Shader '{DecorationShaderName}' not found (expected at " +
+                    $"Resources/{DecorationShaderResourcePath}). Decorations use the CPU compositor.");
+                return null;
+            }
+
+            Material material = new Material(shader);
+            material.name = $"BackdropDecorations_{_room?.id}";
+            material.hideFlags = HideFlags.DontSave;
+
+            // Shared with the wall's material — the same room, the same baked shadow. `GetBackdropShadowTexture`
+            // caches it, and both materials read it in the same direction (top-down, no flip).
+            Texture2D shadowTexture = GetBackdropShadowTexture(compositeData);
+            Vector2Int shadowSize = shadowTexture != null ? compositeData.ShadowSize : Vector2Int.zero;
+
+            material.SetTexture("_ShadowTex", shadowTexture);
+            material.SetVector("_ContentOrigin", new Vector4(contentOriginPixels.x, contentOriginPixels.y, 0f, 0f));
+            material.SetVector("_ContentSize", new Vector4(contentPixelSize.x, contentPixelSize.y, 0f, 0f));
+            material.SetFloat("_PixelsPerUnit", PixelsPerUnityUnit);
+            material.SetFloat("_Darkness", compositeData.DarknessAlpha);
+            material.SetFloat("_ShadowScale", ShadowResolutionScale);
+            material.SetVector("_ShadowSize", new Vector4(shadowSize.x, shadowSize.y, 0f, 0f));
+
+            _decorationMaterial = material;
+            _generatedAssets.Add(material);
+            return material;
+        }
+
+        private static Shader ResolveDecorationShader()
+        {
+            Shader shader = Resources.Load<Shader>(DecorationShaderResourcePath);
+            if (shader != null)
+            {
+                return shader;
+            }
+
+            return Shader.Find(DecorationShaderName);
+        }
+
+        /// <summary>
+        /// A <see cref="Sprite"/> over the <b>readable copy</b> of the source sprite's texture, at the
+        /// source's own rect, pivot and pixels-per-unit.
+        ///
+        /// <para><b>Why a sprite and not the source.</b> The GPU path must sample the same texture the CPU
+        /// path composites from, and that is <see cref="GetReadableTexture"/>'s sRGB-flagged copy holding
+        /// linear numbers — the shipped picture is <c>art^2.2</c> (doc 09 §4.2). A <see cref="SpriteRenderer"/>
+        /// binds <c>_MainTex</c> from its sprite, so the only way to point it at that copy without a new
+        /// texture is a sprite built over it. This allocates a <see cref="Sprite"/> and nothing else: no
+        /// pixel copy, no <c>Texture2D</c> — which is the whole point of the change.</para>
+        ///
+        /// <para><b>Nothing else may move.</b> The rect, the pivot fraction and the pixels-per-unit are the
+        /// source's, so the drawn quad and the pivot-relative placement are identical to the CPU composite
+        /// sprite's; <see cref="GetAnchoredPosition"/> then computes the same position from the same bounds.
+        /// The readable copy is the same size as the source texture, so the rect still addresses the same
+        /// texels. All 328 background folders import as single sprites (<c>spriteMode: 1</c>), i.e. the rect
+        /// is the whole texture and the clamp wrap cannot bleed a neighbour in.</para>
+        /// </summary>
+        private Sprite GetReadableDecorationSprite(Sprite source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            if (_readableDecorationSprites.TryGetValue(source, out Sprite cached))
+            {
+                return cached;
+            }
+
+            Texture2D readableTexture = GetReadableTexture(source.texture);
+            if (readableTexture == null)
+            {
+                return null;
+            }
+
+            Rect textureRect = source.textureRect;
+            if (textureRect.width <= 0f || textureRect.height <= 0f)
+            {
+                return null;
+            }
+
+            Sprite readable = Sprite.Create(
+                readableTexture,
+                textureRect,
+                new Vector2(source.pivot.x / textureRect.width, source.pivot.y / textureRect.height),
+                source.pixelsPerUnit,
+                0,
+                SpriteMeshType.FullRect,
+                source.border);
+
+            readable.name = $"BackgroundReadable_{source.name}_{Mathf.RoundToInt(textureRect.width)}x{Mathf.RoundToInt(textureRect.height)}";
+
+            _readableDecorationSprites[source] = readable;
+            _generatedAssets.Add(readable);
+            return readable;
+        }
+
         private void CreateBackgroundDecorations(Vector2 contentOriginPixels, Vector2Int contentPixelSize, BackdropCompositeData compositeData)
         {
             if (_backgroundLookup == null)
@@ -1119,6 +1642,17 @@ namespace PFE.Systems.Map.Rendering
             }
 
             HashSet<string> spawnedKeys = new HashSet<string>();
+
+            // Built once for the whole room: every decoration differs only in its sprite, and the
+            // composite's inputs are the room's, not the placement's.
+            Material decorationMaterial = null;
+            if (ShouldUseDecorationShader())
+            {
+                using (Profiler.Region("backdrop.decorations.material", "boot: the shared decoration material — shadow upload only"))
+                {
+                    decorationMaterial = GetDecorationMaterial(contentOriginPixels, contentPixelSize, compositeData);
+                }
+            }
 
             if (_room.backgroundDecorations != null)
             {
@@ -1133,11 +1667,24 @@ namespace PFE.Systems.Map.Rendering
                     string key = $"{decoration.decorationId}_{decoration.tileCoord.x}_{decoration.tileCoord.y}";
                     if (spawnedKeys.Add(key))
                     {
-                        CreateBackgroundSprite(decoration.decorationId, decoration.tileCoord, _backgroundRenderers, contentOriginPixels, contentPixelSize, compositeData);
+                        CreateBackgroundSprite(decoration.decorationId, decoration.tileCoord, _backgroundRenderers, contentOriginPixels, contentPixelSize, compositeData, decorationMaterial);
                     }
                 }
             }
 
+        }
+
+        /// <summary>
+        /// Whether this room composites its decorations with the shader.
+        ///
+        /// <para><b>Not the wall's predicate.</b> A configured sharpen strength sends the <i>wall</i> to the
+        /// CPU path because the 5-tap convolution exists only there; decorations never had a sharpen pass,
+        /// so a sharpened room still gets shader decorations. Only an explicit
+        /// <see cref="BackdropMode.Cpu"/> turns both off, which is what the A/B needs.</para>
+        /// </summary>
+        private bool ShouldUseDecorationShader()
+        {
+            return Mode != BackdropMode.Cpu;
         }
 
         private void CreateBackgroundTileShadowOverlay(Vector2 contentOriginPixels, Vector2Int contentPixelSize, BackdropCompositeData compositeData)
@@ -1315,7 +1862,8 @@ namespace PFE.Systems.Map.Rendering
             List<SpriteRenderer> targetList,
             Vector2 contentOriginPixels,
             Vector2Int contentPixelSize,
-            BackdropCompositeData compositeData)
+            BackdropCompositeData compositeData,
+            Material decorationMaterial)
         {
             IReadOnlyList<Sprite> frames = _backgroundLookup.GetFrames(id);
             if (frames == null || frames.Count == 0)
@@ -1355,18 +1903,46 @@ namespace PFE.Systems.Map.Rendering
             bool flipY = _backgroundLookup.GetFlipY(id);
             Vector2 pixelOffset = _backgroundLookup.GetPixelOffset(id);
             Vector2 anchorPixelPosition = WorldCoordinates.TileToPixel(renderTileCoord) + pixelOffset;
-            Sprite compositeSprite = CreateDecorationCompositeSprite(
-                sprite,
-                id,
-                anchorPixelPosition,
-                flipX,
-                flipY,
-                contentOriginPixels,
-                contentPixelSize,
-                compositeData);
+
+            // S2's second half: the same composite as a fragment shader, so the placement costs one
+            // renderer instead of a texture, a pixel loop and a sprite. Falls back to the CPU composite
+            // when the material is unavailable — and for a flipped entry, because the CPU flips the pixels
+            // *inside* the rect while `SpriteRenderer.flipX` mirrors around the pivot, which is a different
+            // picture for a non-centred pivot. No entry in `RoomBackgroundLookup.asset` sets either flag.
+            Sprite readableSprite = null;
+            if (decorationMaterial != null && !flipX && !flipY)
+            {
+                using (Profiler.Region("backdrop.decorations.sprite", "boot: a sprite over the readable copy — no pixel copy"))
+                {
+                    readableSprite = GetReadableDecorationSprite(sprite);
+                }
+            }
+
+            Sprite drawSprite;
+            if (readableSprite != null)
+            {
+                drawSprite = readableSprite;
+            }
+            else
+            {
+                Sprite compositeSprite = CreateDecorationCompositeSprite(
+                    sprite,
+                    id,
+                    anchorPixelPosition,
+                    flipX,
+                    flipY,
+                    contentOriginPixels,
+                    contentPixelSize,
+                    compositeData);
+                drawSprite = compositeSprite != null ? compositeSprite : sprite;
+            }
 
             SpriteRenderer renderer = backgroundObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = compositeSprite != null ? compositeSprite : sprite;
+            renderer.sprite = drawSprite;
+            if (readableSprite != null)
+            {
+                renderer.sharedMaterial = decorationMaterial;
+            }
             renderer.sortingLayerName = MapSortingLayers.BackgroundDecor;
             renderer.sortingOrder = DecorationSortingBase - renderTileCoord.y;
             renderer.color = ResolveDecorationColor(id);
@@ -1797,10 +2373,16 @@ namespace PFE.Systems.Map.Rendering
             result.filterMode = FilterMode.Point;
             result.wrapMode = TextureWrapMode.Clamp;
 
-            float sourceOffsetX = _backdropTextureOffset.x * texWidth;
-            float sourceOffsetY = _backdropTextureOffset.y * texHeight;
-            bool flipX = _flipBackdropTextureX;
-            bool flipY = _flipBackdropTextureY;
+            // The tiling fill, as the tested reference rather than as loop body. This is the same
+            // arithmetic the shader transcribes, so `BackdropCompositeMathTests` pins both.
+            var tiling = new BackdropCompositeMath.TilingSample(
+                texWidth,
+                texHeight,
+                _backdropTextureScale,
+                _backdropTextureOffset,
+                _flipBackdropTextureX,
+                _flipBackdropTextureY);
+
             Color[] pixels = new Color[fillRect.width * fillRect.height];
             using (Profiler.Region("backdrop.sprites.sample", "boot: per-pixel sample + composite. Was 1.92M GetPixel interop calls before the pixel cache"))
             {
@@ -1810,23 +2392,7 @@ namespace PFE.Systems.Map.Rendering
                     int srcRowBase = fillRect.y + y;
                     for (int x = 0; x < fillRect.width; x++)
                     {
-                        // Keep the division exactly as it was. (a / s) and (a * (1/s)) are not
-                        // bit-identical, and a 1-ULP difference flips FloorToInt for boundary values —
-                        // that would silently shift the sampled texel by one pixel.
-                        int scaledX = Mathf.FloorToInt((fillRect.x + x) / _backdropTextureScale.x + sourceOffsetX);
-                        int scaledY = Mathf.FloorToInt(srcRowBase / _backdropTextureScale.y + sourceOffsetY);
-                        if (flipX)
-                        {
-                            scaledX = texWidth - 1 - scaledX;
-                        }
-
-                        if (flipY)
-                        {
-                            scaledY = texHeight - 1 - scaledY;
-                        }
-
-                        int sourceX = PositiveModulo(scaledX, texWidth);
-                        int sourceY = PositiveModulo(scaledY, texHeight);
+                        tiling.Texel(fillRect.x + x, srcRowBase, out int sourceX, out int sourceY);
                         Color sampledColor = sourcePixels != null
                             ? sourcePixels[sourceY * texWidth + sourceX]
                             : readableTexture.GetPixel(sourceX, sourceY);
@@ -1909,17 +2475,6 @@ namespace PFE.Systems.Map.Rendering
             return readable;
         }
 
-        private static int PositiveModulo(int value, int modulo)
-        {
-            if (modulo <= 0)
-            {
-                return 0;
-            }
-
-            int remainder = value % modulo;
-            return remainder < 0 ? remainder + modulo : remainder;
-        }
-
         private static Color[] ApplySharpen(Color[] source, int width, int height, float strength)
         {
             if (source == null || source.Length != width * height || width <= 2 || height <= 2)
@@ -1986,8 +2541,7 @@ namespace PFE.Systems.Map.Rendering
 
         private float ResolveBackdropDarknessAlpha()
         {
-            int darkness = Mathf.Clamp(BackdropBaseDarkness + (_room?.environment?.darkness ?? 0), 0, 255);
-            return darkness / 255f;
+            return BackdropCompositeMath.DarknessAlpha(BackdropBaseDarkness, _room?.environment?.darkness ?? 0);
         }
 
         private float[] BuildBackdropShadowAlpha(Vector2 contentOriginPixels, Vector2Int contentPixelSize, out Vector2Int shadowSize)
@@ -2184,35 +2738,15 @@ namespace PFE.Systems.Map.Rendering
 
         private static float SampleShadowAlpha(BackdropCompositeData compositeData, float topDownX, float topDownY)
         {
-            if (compositeData.ShadowAlpha == null || compositeData.ShadowAlpha.Length == 0 || compositeData.ShadowSize.x <= 0 || compositeData.ShadowSize.y <= 0)
-            {
-                return 0f;
-            }
-
-            if (topDownX < 0f || topDownY < 0f || topDownX >= compositeData.ShadowSize.x / ShadowResolutionScale || topDownY >= compositeData.ShadowSize.y / ShadowResolutionScale)
-            {
-                return 0f;
-            }
-
-            float scaledX = Mathf.Clamp((topDownX + 0.5f) * ShadowResolutionScale - 0.5f, 0f, compositeData.ShadowSize.x - 1f);
-            float scaledY = Mathf.Clamp((topDownY + 0.5f) * ShadowResolutionScale - 0.5f, 0f, compositeData.ShadowSize.y - 1f);
-
-            int x0 = Mathf.FloorToInt(scaledX);
-            int y0 = Mathf.FloorToInt(scaledY);
-            int x1 = Mathf.Min(x0 + 1, compositeData.ShadowSize.x - 1);
-            int y1 = Mathf.Min(y0 + 1, compositeData.ShadowSize.y - 1);
-
-            float tx = scaledX - x0;
-            float ty = scaledY - y0;
-
-            float a = compositeData.ShadowAlpha[y0 * compositeData.ShadowSize.x + x0];
-            float b = compositeData.ShadowAlpha[y0 * compositeData.ShadowSize.x + x1];
-            float c = compositeData.ShadowAlpha[y1 * compositeData.ShadowSize.x + x0];
-            float d = compositeData.ShadowAlpha[y1 * compositeData.ShadowSize.x + x1];
-
-            float top = Mathf.Lerp(a, b, tx);
-            float bottom = Mathf.Lerp(c, d, tx);
-            return Mathf.Lerp(top, bottom, ty);
+            // Delegated, not duplicated: the shader is a transcription of `BackdropCompositeMath`, and
+            // the fixtures pin that. A second copy here would be a second thing to keep in step, and the
+            // copy that drifts would be the one the A/B screenshot is compared against.
+            return BackdropCompositeMath.ShadowAlphaAt(
+                topDownX,
+                topDownY,
+                compositeData.ShadowAlpha,
+                compositeData.ShadowSize,
+                ShadowResolutionScale);
         }
 
         private Vector2Int ConvertAs3TileCoord(Vector2Int tileCoord, Sprite sprite)
