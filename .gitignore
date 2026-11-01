@@ -155,3 +155,6 @@ InitTestScene*.unity*
 # Unity recovery/temp content
 /Assets/_Recovery/
 .claude/settings.local.json
+
+# Scratch folder for ad-hoc analysis scripts and crops (not project source)
+/tmp/
