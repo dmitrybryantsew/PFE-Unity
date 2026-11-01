@@ -55,11 +55,12 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public int DirectCalls;
             public int RadiusCalls;
 
-            public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType)
+            public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType,
+                                         DecalType decal)
                 => DirectCalls++;
 
             public void ApplyDestructionRadius(Vector3 worldPosition, float radius,
-                                               float destroyAmount, DamageType damageType)
+                                               float destroyAmount, DamageType damageType, DecalType decal)
                 => RadiusCalls++;
         }
 
@@ -170,7 +171,9 @@ namespace PFE.Tests.EditMode.Systems.Weapons
 
             if (withTileCollider)
             {
-                // RequireComponent(TileRenderer) is satisfied by AddComponent.
+                // No TileRenderer is needed: `TileCollider` no longer carries
+                // [RequireComponent(typeof(TileRenderer))] — a collider-only tile is now a legal
+                // shape, which is what LLP2D §8.3 step 1 was for.
                 go.AddComponent<TileCollider>();
             }
             else

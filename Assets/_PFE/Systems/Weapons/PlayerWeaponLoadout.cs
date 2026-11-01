@@ -49,6 +49,12 @@ namespace PFE.Systems.Weapons
         [Tooltip("WeaponDefinition asset equipped at game start. Assign any pistol/rifle for testing.")]
         private WeaponDefinition _startingWeaponDef;
 
+        [Header("Bare hooves")]
+        [SerializeField]
+        [Tooltip("AS3's `punch` weapon row (WKick). Leave empty to load Resources/Weapons/punch, " +
+                 "which is what the game ships.")]
+        private WeaponDefinition _punchWeaponDef;
+
         [Header("References")]
         [SerializeField]
         [Tooltip("WeaponMounts component providing hold point and horn point positions.")]
@@ -66,6 +72,20 @@ namespace PFE.Systems.Weapons
         [Tooltip("MeleeHitVolume on a trigger child of the weapon GameObject. " +
                  "Assigned to MeleeWeaponController.HitVolume on equip. Leave null if not using melee.")]
         private MeleeHitVolume _meleeHitVolume;
+
+        /// <summary>
+        /// The rig that draws the player, used for one thing: reading the head's <c>konec</c> part,
+        /// which is where magic leaves from (<c>UnitPlayer.as:3563</c>). Auto-resolved in
+        /// <see cref="Awake"/>; null is legal and means "no rig", which is AS3's <c>catch</c> branch.
+        ///
+        /// <para>A component reference rather than a Transform because the point is not a node: the
+        /// part is invisible marker art with no GameObject, and its position changes with the
+        /// animation — see <see cref="PFE.Character.CharacterSpriteAssembler.TryGetPartWorldPosition"/>.
+        /// </para>
+        /// </summary>
+        [SerializeField]
+        [Tooltip("Character rig to read the magic horn point from. Auto-found on this object or a child.")]
+        private PFE.Character.CharacterSpriteAssembler _characterAssembler;
 
         [Header("Aim")]
         [SerializeField]
@@ -149,6 +169,39 @@ namespace PFE.Systems.Weapons
                                                    _ammoResolver, _weaponStatSource as IManaSource);
         }
 
+        /// <summary>
+        /// Points <see cref="_weaponStatSource"/> at the owner's live <see cref="PFE.Systems.RPG.CharacterStats"/>,
+        /// rebuilding the factory when the reference actually changed. Returns whether it changed.
+        ///
+        /// <para><b>Two callers, and the second one is why this exists.</b> <see cref="Equip"/> resolves
+        /// it because AS3's <c>Weapon.setPers</c> runs at equip time. But the bare hooves are built in
+        /// <see cref="Awake"/> — before any equip, and before <c>Construct</c> has even run — so the
+        /// punch controller used to be born with a null source and keep it forever. Everything the
+        /// hooves read through <c>IWeaponStatSource</c> then fell back to its "no owner" value:
+        /// <c>PunchDamMult</c> 1 (so a kick's ×2 and ×1.5 never applied) and <c>KickDestroy</c> 0 (so
+        /// the kick kept the row's <c>destroy='4'</c> instead of <c>Pers.kickDestroy</c> 30).</para>
+        ///
+        /// <para>Deliberately silent about the punch controller: it is the <i>caller's</i> job to
+        /// rebuild it, because this method is itself called from <see cref="BuildPunchWeapon"/> and
+        /// rebuilding there would recurse.</para>
+        /// </summary>
+        private bool ResolveOwnerStatSource()
+        {
+            if (_ownerUnit == null)
+                _ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
+
+            var charStats = _ownerUnit != null
+                ? _ownerUnit.GetComponent<PFE.Systems.RPG.CharacterStats>()
+                : null;
+
+            if (ReferenceEquals(charStats, _weaponStatSource))
+                return false;
+
+            _weaponStatSource = charStats;
+            RebuildFactory();
+            return true;
+        }
+
         [Inject]
         public void Construct(IProjectileFactory projectileFactory, IObjectResolver resolver,
                               PfeDebugSettings debugSettings, ISoundService soundService,
@@ -194,6 +247,38 @@ namespace PFE.Systems.Weapons
 
         /// <summary>Set by <see cref="ThrowGrenade"/>, consumed by the next <c>FixedUpdate</c>.</summary>
         private bool _throwRequested;
+
+        // ── The bare hooves — AS3 `punchWeapon` ───────────────────────────────────────────────
+
+        /// <summary>
+        /// The player's bare-hoof strike weapon — AS3 <c>punchWeapon = new WKick(this,"punch")</c>
+        /// (<c>UnitPlayer.as:431</c>), kept beside the weapon in hand
+        /// (<c>childObjs = new Array(currentWeapon, this.punchWeapon)</c>, <c>:433</c>).
+        ///
+        /// <para><b>It is NOT built by the factory's dispatch.</b> The <c>punch</c> row is
+        /// <c>tip='0'</c> with no <c>punch</c> attribute (<c>AllData.as:25</c>), so <c>Weapon.create()</c>
+        /// would classify it as a base <i>ranged</i> weapon; AS3 never asks — it constructs
+        /// <c>WKick</c> directly. See <see cref="WeaponControllerFactory.CreateHoofStrike"/>.</para>
+        /// </summary>
+        private UnarmedWeaponController _punchController;
+
+        /// <summary>Set by <see cref="Punch"/>, consumed by the next <c>FixedUpdate</c>.</summary>
+        private bool _punchRequested;
+
+        /// <summary>The run key as it was when the punch was requested — AS3 reads <c>keyRun</c> at
+        /// the press (<c>UnitPlayer.as:2379</c>), not per frame.</summary>
+        private bool _punchKick;
+
+        /// <summary>Where the punch weapon comes from when the Inspector leaves it empty.</summary>
+        private const string DefaultPunchResourcePath = "Weapons/punch";
+
+        /// <summary>
+        /// The character's animation driver, for the two strike clips (<c>punch</c>/<c>kick</c>).
+        /// Auto-resolved in <see cref="Awake"/>; null is legal (a bare test object) and then the strike
+        /// simply has no animation — which is what the port shipped with: the clips and the two action
+        /// states existed, and nothing ever called <c>TriggerAction</c>.
+        /// </summary>
+        private PFE.Character.Animation.CharacterAnimationDriver _animationDriver;
 
         /// <summary>
         /// The weapon the grenade key will fire, or null when the player has none. Exposed so the HUD
@@ -321,14 +406,17 @@ namespace PFE.Systems.Weapons
             // UnitController / CharacterStats may be added to the hierarchy after this component
             // wakes, and because the reference only needs refreshing when it actually changes: the
             // source is read live on every shot, so a perk taken mid-fight needs no re-equip.
-            var charStats = ownerUnit != null
-                ? ownerUnit.GetComponent<PFE.Systems.RPG.CharacterStats>()
-                : null;
-            if (!ReferenceEquals(charStats, _weaponStatSource))
-            {
-                _weaponStatSource = charStats;
-                RebuildFactory();
-            }
+            //
+            // The bare hooves read the same object (`Pers.kickDestroy`, `Pers.punchDamMult`), so a
+            // source that appears here has to reach the punch controller too — it is built in Awake,
+            // before any equip, and would otherwise keep the null source it was born with. That is
+            // exactly the defect that made a kick carry the row's `destroy='4'` instead of
+            // `kickDestroy` 30: a septum barricade (hp 30) could never be opened by a kick.
+            bool statsChanged = ResolveOwnerStatSource();
+            var charStats = _weaponStatSource as PFE.Systems.RPG.CharacterStats;
+
+            if (statsChanged && _punchController != null)
+                BuildPunchWeapon();
 
             _current = _factory.Create(def, ownerFaction);
 
@@ -459,6 +547,196 @@ namespace PFE.Systems.Weapons
             return true;
         }
 
+        // ── The bare hooves ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Build the punch weapon — AS3 <c>UnitPlayer</c>'s constructor, where <c>punchWeapon</c> is
+        /// created <b>directly</b> as a <c>WKick</c> (<c>:431</c>) rather than through
+        /// <c>Weapon.create()</c>.
+        ///
+        /// <para><b>Why that distinction matters.</b> The <c>punch</c> row is
+        /// <c>&lt;weapon id='punch' tip='0' cat='0' skill='1' tipdec='5'&gt;</c> with no
+        /// <c>punch</c> attribute (<c>AllData.as:25</c>). <c>Weapon.create()</c> tests <c>tip</c> first
+        /// and <c>punch</c> second, so the factory would hand this row to the <b>ranged</b> controller —
+        /// correct for the dispatch, wrong for this weapon. AS3 sidesteps its own factory here, and so
+        /// does the port.</para>
+        /// </summary>
+        private void BuildPunchWeapon()
+        {
+            // The owner's RPG stats must be in hand *before* the controller is constructed: the
+            // constructor takes the source by reference and every accessor reads it live, but a
+            // source that is null at construction time is null for the object's whole life.
+            ResolveOwnerStatSource();
+
+            if (_factory == null) RebuildFactory();
+
+            WeaponDefinition def = _punchWeaponDef;
+            if (def == null)
+                def = Resources.Load<WeaponDefinition>(DefaultPunchResourcePath);
+
+            if (def == null)
+            {
+                Debug.LogWarning(
+                    "[PlayerWeaponLoadout] No punch weapon definition (Resources/" +
+                    DefaultPunchResourcePath + ") — F will do nothing. AS3 always has one: " +
+                    "UnitPlayer.as:431 constructs it unconditionally.", this);
+                return;
+            }
+
+            if (_ownerUnit == null)
+                _ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
+
+            FactionType ownerFaction = _ownerUnit != null ? _ownerUnit.Faction : FactionType.Neutral;
+
+            // Rebuilds happen when the stat source is resolved after Awake (see Equip), so the old
+            // controller's reactive subscriptions are released rather than leaked.
+            _punchController?.Dispose();
+
+            _punchController = _factory?.CreateHoofStrike(def, ownerFaction);
+            if (_punchController == null)
+            {
+                Debug.LogWarning("[PlayerWeaponLoadout] Could not build the punch weapon.", this);
+                return;
+            }
+
+            _punchController.HitVolume = _meleeHitVolume;
+            _punchController.ProbeTile = ProbeTileForHoofStrike;
+        }
+
+        /// <summary>
+        /// The player's <c>F</c> key — AS3 <c>keyPunch</c>, <c>UnitPlayer.as:2377-2385</c>.
+        ///
+        /// <para><b><paramref name="runHeld"/> is the whole difference between the two strikes.</b>
+        /// <c>(this.punchWeapon as WKick).kick = this.ctr.keyRun;</c> (<c>:2379</c>): hold run and the
+        /// same button throws the back hooves — ×2 damage, ×1.5 knock, and <c>Pers.kickDestroy</c>'s
+        /// 30 points of tile damage instead of the row's 4. It is not the cursor, and it is not "am I
+        /// facing away from the mouse": <c>WKick</c> never reads <c>celX</c>/<c>celY</c>.</para>
+        ///
+        /// <para>Deferred to the next <c>FixedUpdate</c> for the same reason the grenade is: a strike is
+        /// only produced by <c>Tick</c>, and firing from the input callback would make its cadence
+        /// depend on the render rate.</para>
+        /// </summary>
+        public bool Punch(bool runHeld)
+        {
+            if (_punchController == null) return false;
+
+            _punchRequested = true;
+            _punchKick      = runHeld;
+
+            // AS3 switches the label when the 13-frame `t_work` starts (UnitPlayer.as:4271-4283), i.e.
+            // on the press, not on the impact frame.
+            TriggerStrikeAnimation(runHeld);
+            return true;
+        }
+
+        /// <summary>
+        /// Advance the punch weapon by one fixed step — AS3 runs <c>punchWeapon.actions()</c> every
+        /// frame regardless of what is in hand (<c>UnitPlayer.as:1202-1205</c>), which is why this is
+        /// ticked even when <c>_current</c> is null.
+        /// </summary>
+        private void TickPunch()
+        {
+            // The owner's stats are added by PlayerController's own Awake, which may run after this
+            // component's — so the source can be missing when the hooves are first built. Re-resolve
+            // once it appears and rebuild, otherwise the kick keeps `kickDestroy` 0 and the row's
+            // `destroy='4'` for the rest of the run (a septum barricade is 30 hp: unbreakable).
+            // Guarded on the null source, so the steady state costs one reference test per tick.
+            if (_weaponStatSource == null && ResolveOwnerStatSource())
+                BuildPunchWeapon();
+
+            if (_punchController == null) return;
+
+            Vector2 holdPoint = ResolveHoldPoint();
+            Vector2 hornPoint = ResolveHornPoint();
+
+            // Same per-tick push the melee controller gets: the controller is a plain class with no
+            // unit, and every line it binds is measured from the FEET (WKick.as:60-101).
+            _punchController.Owner = ResolveHoofOwnerFrame();
+
+            bool fire = _punchRequested;
+            _punchRequested = false;
+
+            if (fire)
+            {
+                _punchController.Kick = _punchKick;
+                _punchController.BeginAttack();
+            }
+
+            _punchController.Tick(Time.fixedDeltaTime, holdPoint, hornPoint, _aimTarget);
+
+            // One press, one strike — AS3 clears `keyPunch` inside the block (:2384).
+            if (fire) _punchController.EndAttack();
+
+            string strikeSound = _punchController.ConsumeStrikeSound();
+            if (!string.IsNullOrEmpty(strikeSound))
+                _soundService?.Play(strikeSound, holdPoint);
+
+            foreach (ShotPlan plan in _punchController.FlushShotPlans())
+                _pendingPlans.Add(plan);
+        }
+
+        /// <summary>
+        /// The body the hooves strike from. <c>owner.Y</c> is the <b>feet</b> here, not the body centre
+        /// the melee spring wants — see <see cref="HoofOwnerFrame"/>.
+        /// </summary>
+        private HoofOwnerFrame ResolveHoofOwnerFrame()
+        {
+            if (_ownerUnit == null)
+                return new HoofOwnerFrame(transform.position.x, transform.position.y, 1f);
+
+            return new HoofOwnerFrame(
+                _ownerUnit.transform.position.x,
+                _ownerUnit.FeetWorldY,
+                _ownerUnit.FacingDirection);
+        }
+
+        /// <summary>
+        /// AS3's <c>loc.getAbsTile(X + storona*60, Y - 30|50)</c> (<c>WKick.as:60-61</c>), as a physics
+        /// probe.
+        ///
+        /// <para><b>Air is a tile with <c>thre</c> 0, not a missing tile.</b> <c>getAbsTile</c> returns
+        /// the cell's <c>Tile</c> object whatever is in it (<c>Location.as:2333-2340</c>), and
+        /// <c>Tile.thre</c> defaults to 0 (<c>Tile.as:24</c>) — so "no collider here" must answer
+        /// <c>(exists: true, threshold: 0)</c>, which is exactly what makes the probe fire for the case
+        /// it exists for: a wall at 30 px and air at 50 px. Answering "no tile" would invert the flag
+        /// on every wall in the game.</para>
+        ///
+        /// <para>The 2 px box is the same idiom <c>MeleeHitVolume.DestructibleColliderAtPixel</c> uses,
+        /// and for the same reason: <c>Physics2D</c> has no cheap non-deprecated point query, and 2 px
+        /// is well inside a 40 px cell.</para>
+        /// </summary>
+        private static HoofTileProbe ProbeTileForHoofStrike(Vector2 world)
+        {
+            Collider2D[] hits = Physics2D.OverlapBoxAll(world, new Vector2(0.02f, 0.02f), 0f);
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider2D hit = hits[i];
+                if (hit == null || hit.isTrigger) continue;
+
+                var tile = hit.GetComponent<PFE.Systems.Map.Rendering.TileCollider>();
+                if (tile == null) continue;
+
+                PFE.Systems.Map.TileData data = tile.GetTileData();
+                return new HoofTileProbe(true, data != null ? data.damageThreshold : 0f);
+            }
+
+            return new HoofTileProbe(true, 0f);
+        }
+
+        /// <summary>
+        /// Play the <c>punch</c> or <c>kick</c> clip. Both exist in the shipped animation data
+        /// (<c>SWFData.StateLabels</c>: <c>punch</c> 3664, <c>kick</c> 3665) and both action states were
+        /// already written — nothing had ever called <c>TriggerAction</c>, so the player had no strike
+        /// animation at all.
+        /// </summary>
+        private void TriggerStrikeAnimation(bool kick)
+        {
+            _animationDriver?.TriggerAction(kick
+                ? PFE.Character.Animation.AnimationAction.Kick
+                : PFE.Character.Animation.AnimationAction.Punch);
+        }
+
         /// <summary>
         /// The player's <see cref="PlayerSpellCaster"/>, or null when the rig has none.
         ///
@@ -530,6 +808,16 @@ namespace PFE.Systems.Weapons
             if (_meleeHitVolume == null)
                 _meleeHitVolume = GetComponentInChildren<MeleeHitVolume>();
 
+            // The character rig, for the magic horn point. Optional: an enemy rig or a bare test
+            // object has none, and then ResolveHornPoint takes AS3's `catch` branch.
+            if (_characterAssembler == null)
+                _characterAssembler = GetComponentInChildren<PFE.Character.CharacterSpriteAssembler>();
+
+            if (_animationDriver == null)
+                _animationDriver = GetComponentInParent<PFE.Character.Animation.CharacterAnimationDriver>();
+
+            BuildPunchWeapon();
+
             if (_mounts == null)
                 Debug.LogWarning("[PlayerWeaponLoadout] No WeaponMounts found — mount positions will use transform.position. " +
                                  "Add WeaponMounts to the player and assign hold point Transforms.", this);
@@ -548,6 +836,14 @@ namespace PFE.Systems.Weapons
                 // IS its feet — a unit's collider bottom is its origin — which is exactly the point
                 // the oracle picks, so no offset is applied. `_ownerUnit` is resolved in Awake.
                 _projectileSpawner.Owner = _ownerUnit != null ? _ownerUnit.transform : transform;
+
+                // …and the gun itself, for a beam's post-impact re-anchor (`Bullet.as:233-237`). Same
+                // presenter the per-tick `MuzzleWorldPoint` above comes from, read live rather than
+                // copied, so a round fired while walking keeps its tail on a barrel that is still
+                // moving. A loadout with no presenter leaves it null — a beam then keeps the tail it
+                // was fired with, which is AS3's `if(this.weap)` guard.
+                _projectileSpawner.SetMuzzleSource(
+                    () => _weaponPresenter != null ? _weaponPresenter.MuzzleWorldPosition : null);
 
                 if (_debugSettings?.LogProjectileSpawning == true)
                     Debug.Log("[PlayerWeaponLoadout] ProjectileSpawner initialized with IProjectileFactory.");
@@ -582,7 +878,18 @@ namespace PFE.Systems.Weapons
             // return so a weaponless player can still lob a grenade.
             TickThrowWeapon();
 
-            if (_current == null) return;
+            // The hooves are a SECOND weapon slot (AS3 `childObjs`), so they tick whether or not
+            // something is in hand — and a punch with no weapon equipped is the normal case.
+            // `_pendingPlans` is cleared here rather than below so both paths can share the
+            // plan-consumption block.
+            _pendingPlans.Clear();
+            TickPunch();
+
+            if (_current == null)
+            {
+                ConsumePendingPlans(ResolveHoldPoint());
+                return;
+            }
 
             Vector2 holdPoint = ResolveHoldPoint();
             Vector2 hornPoint = ResolveHornPoint();
@@ -631,8 +938,7 @@ namespace PFE.Systems.Weapons
             }
             _wasReloading = nowReloading;
 
-            // Collect ShotPlans for this tick.
-            _pendingPlans.Clear();
+            // Collect ShotPlans for this tick. The hooves' plans are already in the buffer.
             _pendingPlans.AddRange(_current.FlushShotPlans());
 
             if (_debugSettings?.LogWeaponControllerDiagnostics == true)
@@ -647,39 +953,51 @@ namespace PFE.Systems.Weapons
                 }
             }
 
-            if (_pendingPlans.Count > 0)
+            ConsumePendingPlans(holdPoint);
+        }
+
+        /// <summary>
+        /// Hand this tick's <see cref="ShotPlan"/>s to the volume, the sound service and the spawner.
+        ///
+        /// <para><b>Split out of <c>FixedUpdate</c> so the unarmed path can reach it.</b> The hooves are
+        /// ticked before the "is anything in hand?" guard — a punch with no weapon equipped is the
+        /// normal case — and that path has no <c>_current</c> to read a sound id from, so the id comes
+        /// from the plan's own cue instead.</para>
+        /// </summary>
+        private void ConsumePendingPlans(Vector2 holdPoint)
+        {
+            if (_pendingPlans.Count == 0) return;
+
+            // Forward damage context of the latest MeleeSweep plan to MeleeHitVolume.
+            // Multiple plans per tick are rare for melee, but we take the last one.
+            if (_meleeHitVolume != null)
             {
-                // Forward damage context of the latest MeleeSweep plan to MeleeHitVolume.
-                // Multiple plans per tick are rare for melee, but we take the last one.
-                if (_meleeHitVolume != null)
+                for (int i = _pendingPlans.Count - 1; i >= 0; i--)
                 {
-                    for (int i = _pendingPlans.Count - 1; i >= 0; i--)
+                    if (_pendingPlans[i].Kind == ShotKind.MeleeSweep)
                     {
-                        if (_pendingPlans[i].Kind == ShotKind.MeleeSweep)
-                        {
-                            _meleeHitVolume.SetDamageContext(_pendingPlans[i].Damage);
-                            break;
-                        }
+                        _meleeHitVolume.SetDamageContext(_pendingPlans[i].Damage);
+                        break;
                     }
                 }
-
-                // ── Fire sound — first plan with PlayShootSound flag ──────────
-                if (_soundService != null)
-                {
-                    for (int i = 0; i < _pendingPlans.Count; i++)
-                    {
-                        if (_pendingPlans[i].Cues.PlayShootSound)
-                        {
-                            var sSnd = _current.State.Def.soundShoot;
-                            if (!string.IsNullOrEmpty(sSnd))
-                                _soundService.Play(sSnd, holdPoint);
-                            break;
-                        }
-                    }
-                }
-
-                _projectileSpawner?.SpawnFromPlans(_pendingPlans);
             }
+
+            // ── Fire sound — first plan with PlayShootSound flag ──────────
+            if (_soundService != null && _current != null)
+            {
+                for (int i = 0; i < _pendingPlans.Count; i++)
+                {
+                    if (_pendingPlans[i].Cues.PlayShootSound)
+                    {
+                        var sSnd = _current.State.Def.soundShoot;
+                        if (!string.IsNullOrEmpty(sSnd))
+                            _soundService.Play(sSnd, holdPoint);
+                        break;
+                    }
+                }
+            }
+
+            _projectileSpawner?.SpawnFromPlans(_pendingPlans);
         }
 
         /// <summary>
@@ -859,19 +1177,51 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
-        /// The magic / horn mount. AS3 derives it from the rig's muzzle bone and falls back to the
-        /// body (<c>UnitPlayer.as:3561-3584</c>); the port takes an authored Transform when there is
-        /// one and otherwise uses the oracle's own fallback heights.
+        /// The magic / horn mount — <b>the <c>konec</c> bone of the head</b>, read live
+        /// (<c>UnitPlayer.as:3563-3584</c>). AS3 takes <c>vis.osn.body.head.morda.konec</c> through
+        /// <c>localToGlobal</c> every frame; the port asks the rig that draws the character for the
+        /// same point, and only falls back to the body when there is no rig to ask.
+        ///
+        /// <para><b>Why the bone, and not the authored mount or a body height.</b> This is where magic
+        /// actually leaves from: <c>Weapon.actions()</c> snaps a <c>tip==5</c> weapon to
+        /// <c>owner.magicX/magicY</c> (<c>Weapon.as:1070-1074</c>) and a magic symbol has no
+        /// <c>emit</c> child, so <c>getBulXY()</c> returns that snapped point. The port used
+        /// <c>ResolveMagicFallback</c> — the oracle's <c>catch</c> branch — as if it were the answer,
+        /// which put every spell at a fixed chest height instead of on the horn. The bone also
+        /// <i>moves</i>: 687 distinct positions across the shipped clips, because it rides the head.
+        /// </para>
         ///
         /// <para><b>Why the authored mount does not simply win.</b> The shipped rig points
         /// <c>_magicHoldPoint</c> at the same <c>muzzle</c> node inside the weapon, so reading it
         /// unguarded is the identical feedback loop the weapon hold point had — and worse for magic,
         /// because the magic controller <i>snaps</i> the weapon to the horn point rather than lerping
-        /// toward it, so the loop has no damping at all. The mount is honoured only where the point
-        /// cannot be derived and the mount is not inside the weapon.</para>
+        /// toward it, so the loop has no damping at all. The mount is honoured only where the bone
+        /// cannot be read and the mount is not inside the weapon.</para>
         /// </summary>
         private Vector2 ResolveHornPoint()
         {
+            // The bone first — this is the oracle's `try` branch, and the only one that runs in play.
+            if (_characterAssembler != null &&
+                _characterAssembler.TryGetPartWorldPosition(MagicHornPartName, out Vector2 hornBone))
+            {
+                if (_ownerUnit == null)
+                    return hornBone;
+
+                UnitDefinition boneStats = _ownerUnit.Stats;
+
+                // No tile predicate, for the same reason ResolveHoldPoint passes none: the loadout has
+                // no room reference. A null predicate means AS3's wall guard never fires, which is its
+                // own open-ground result. Wiring it is a one-argument change once the loadout can reach
+                // the land.
+                return WeaponHoldPointMath.ResolveMagicHorn(
+                    hornBone,
+                    ownerX:      _ownerUnit.transform.position.x,
+                    ownerFeetY:  _ownerUnit.FeetWorldY,
+                    bodyHeight:  boneStats != null && boneStats.Height > 0f ? boneStats.Height : 0.7f,
+                    isSitting:   false,          // the port has no seated state
+                    isSolidAt:   null);
+            }
+
             if (_ownerUnit == null)
             {
                 if (_mounts == null) return (Vector2)transform.position;
@@ -884,12 +1234,20 @@ namespace PFE.Systems.Weapons
                 return (Vector2)transform.position;
             }
 
+            // No rig to ask — AS3's `catch` branch.
             UnitDefinition stats = _ownerUnit.Stats;
             return WeaponHoldPointMath.ResolveMagicFallback(
                 _ownerUnit.transform.position.x,
                 _ownerUnit.FeetWorldY,
                 stats != null && stats.Height > 0f ? stats.Height : 0.7f);
         }
+
+        /// <summary>
+        /// AS3 <c>vis.osn.body.head.morda.konec</c> — the head part the magic point is read from.
+        /// Named here rather than inline so the one string that ties the weapon system to the rig's
+        /// part table is findable.
+        /// </summary>
+        public const string MagicHornPartName = "konec";
 
         /// <summary>
         ///
@@ -953,6 +1311,8 @@ namespace PFE.Systems.Weapons
             _soundService?.StopLoop(_prepSoundKey);
             _current?.Dispose();
             _current = null;
+            _punchController?.Dispose();
+            _punchController = null;
             _weaponPresenter?.ClearState();
         }
 

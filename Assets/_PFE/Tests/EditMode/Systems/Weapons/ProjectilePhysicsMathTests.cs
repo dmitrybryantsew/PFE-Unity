@@ -321,6 +321,40 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         }
 
         [Test]
+        public void BeamMuzzleShift_SlidesTheBeamOntoTheGunOnlyDuringTheFade()
+        {
+            Vector2 firedFrom = new Vector2(1f, 0.5f);
+            Vector2 walkedTo  = new Vector2(1.4f, 0.5f);
+
+            // AS3 `Bullet.as:233-237` — during `liv < 4` the view is moved by (bulX − begx, bulY − begy),
+            // i.e. by how far the muzzle has travelled since the shot left. A gun that walked 0.4 units
+            // to the right pulls its beam's tail 0.4 units after it.
+            Vector2 slide = ProjectilePhysicsMath.BeamMuzzleShift(4, true, walkedTo, firedFrom);
+            Assert.AreEqual(0.4f, slide.x, Tolerance, "the beam follows the barrel by the muzzle's displacement");
+            Assert.AreEqual(0f,   slide.y, Tolerance, "no vertical muzzle travel, no vertical slide");
+
+            // The same call with the gun standing still is a no-op, not a 0.4 shift.
+            Vector2 still = ProjectilePhysicsMath.BeamMuzzleShift(4, true, firedFrom, firedFrom);
+            Assert.AreEqual(0f, still.x, Tolerance, "a stationary gun must not move its beam");
+            Assert.AreEqual(0f, still.y, Tolerance);
+
+            // ⚠ THE GATE. In flight (fade counter 0) AS3 keeps `begx/begy` frozen — a missed laser's
+            // streak stays pointing at where the shot was taken for its whole 100-frame life. Widening
+            // this to "while flying" is the obvious-looking improvement and it is a different game, so
+            // the flight case is asserted to be zero even though the muzzle HAS moved.
+            Vector2 inFlight = ProjectilePhysicsMath.BeamMuzzleShift(0, true, walkedTo, firedFrom);
+            Assert.AreEqual(0f, inFlight.x, Tolerance,
+                "in flight the tail is frozen at the firing point — Bullet.as only re-anchors under liv<4");
+            Assert.AreEqual(0f, inFlight.y, Tolerance);
+
+            // `if(this.weap)` — a round with no weapon behind it (an explosion's throwaway bullet, a
+            // test rig) has no muzzle to read and keeps the tail it was fired with.
+            Vector2 noGun = ProjectilePhysicsMath.BeamMuzzleShift(4, false, walkedTo, firedFrom);
+            Assert.AreEqual(0f, noGun.x, Tolerance, "no muzzle source means no re-anchor — AS3's `if(this.weap)` guard");
+            Assert.AreEqual(0f, noGun.y, Tolerance);
+        }
+
+        [Test]
         public void BeamFade_CountsDownFromOpaqueOverFourFrames()
         {
             // AS3 `Bullet.as:385-388` caps `liv` at 4 when a round detonates, and `:229-231` writes

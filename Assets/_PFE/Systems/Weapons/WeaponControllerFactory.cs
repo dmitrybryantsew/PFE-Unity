@@ -84,6 +84,36 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
+        /// Build the player's bare-hoof weapon — AS3 <c>UnitPlayer</c>'s constructor,
+        /// <c>punchWeapon = new WKick(this,"punch")</c> (<c>:431</c>).
+        ///
+        /// <para><b>This deliberately bypasses <see cref="Create"/>'s dispatch.</b> The <c>punch</c>
+        /// row is <c>&lt;weapon id='punch' tip='0' ...&gt;</c> with no <c>punch</c> attribute
+        /// (<c>AllData.as:25</c>), so <c>Weapon.create()</c> — which tests <c>tip</c> before
+        /// <c>punch</c> — would classify it as a base <i>ranged</i> weapon and hand it a
+        /// <c>RangedWeaponController</c>. AS3 never asks the factory for this weapon, and neither does
+        /// the port; <c>punch</c> is the one row whose class comes from its construction site rather
+        /// than its data.</para>
+        /// </summary>
+        public UnarmedWeaponController CreateHoofStrike(
+            WeaponDefinition def, PFE.Data.Definitions.FactionType ownerFaction = PFE.Data.Definitions.FactionType.Neutral)
+        {
+            if (def == null)
+            {
+                Debug.LogError("[WeaponControllerFactory] CreateHoofStrike: definition is null.");
+                return null;
+            }
+
+            var state = new WeaponRuntimeState(def);
+            state.OwnerFaction = ownerFaction;
+
+            if (_debugSettings?.LogWeaponControllerDiagnostics == true)
+                Debug.Log($"[WeaponControllerFactory] Created UnarmedWeaponController (WKick) for '{def.weaponId}'.");
+
+            return new UnarmedWeaponController(state, _statSource);
+        }
+
+        /// <summary>
         /// Create a fully initialised controller for the given weapon definition.
         ///
         /// The returned controller owns its WeaponRuntimeState. Dispose() the

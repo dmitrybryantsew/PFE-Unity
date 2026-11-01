@@ -110,14 +110,22 @@ namespace PFE.Systems.Weapons
         /// (<c>UnitRaider.as:1521</c>) — which is the gap the debounce needs. An NPC's is
         /// unconditional, which is what turns a debounce into a permanent lockout.</para>
         ///
-        /// <para><b>Recorded divergence, not a transcription.</b> Setting this does not reproduce the
-        /// oracle: it makes a held NPC trigger fire at the weapon's authored <c>rapid</c> cadence, which
-        /// is what <c>attack(true)</c> means for <c>sats</c>. Set by
-        /// <c>UnitNPCController.EquipPersonaWeapons</c> only — every other owner keeps the debounce, so
-        /// the player's semi-autos and the raiders' <c>isrnd</c> cadence are untouched. Deliberately
-        /// NOT honoured by <c>MeleeWeaponController</c>, whose same branch also accumulates
-        /// <c>Pow</c> for the power attack (<c>WClub.as:340-351</c>) — its lockout and its charge are
-        /// one code path and need their own decision.</para>
+        /// <para><b>Recorded divergence, not a transcription — for the NPC caller.</b> Setting this
+        /// does not reproduce the oracle for <c>UnitNPC</c>: it makes a held NPC trigger fire at the
+        /// weapon's authored <c>rapid</c> cadence, which is what <c>attack(true)</c> means for
+        /// <c>sats</c>. Set by <c>UnitNPCController.EquipPersonaWeapons</c> for that reason, and every
+        /// other owner keeps the debounce, so the player's semi-autos and the raiders' <c>isrnd</c>
+        /// cadence are untouched. Deliberately NOT honoured by <c>MeleeWeaponController</c>, whose
+        /// same branch also accumulates <c>Pow</c> for the power attack
+        /// (<c>WClub.as:340-351</c>) — its lockout and its charge are one code path and need their own
+        /// decision.</para>
+        ///
+        /// <para><b>The turret caller is a transcription, not a divergence.</b>
+        /// <c>UnitTurret</c>'s constructor writes <c>currentWeapon.auto = true</c> directly
+        /// (<c>UnitTurret.as:130</c>), overriding the row's <c>auto = rapid &lt;= 6</c> default
+        /// (<c>Weapon.as:856</c>). Four of the eight turret rows are slower than 6 frames, so without
+        /// this they take the debounce branch above on every frame and fire <b>once</b> per
+        /// engagement. Set by <c>TrapController.BindTurretParts</c>.</para>
         /// </remarks>
         public bool AutomaticTrigger;
 

@@ -97,6 +97,21 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public void BindMove(Vector2 prevTip, Vector2 currTip) { }
         }
 
+        /// <summary>Records what the controller asked the sweep surface to do.</summary>
+        private sealed class RecordingHitVolume : IMeleeHitVolume
+        {
+            public readonly List<(Vector2 from, Vector2 to)> Binds = new List<(Vector2, Vector2)>();
+            public int EnableCount;
+            public int DisableCount;
+
+            public void SetActive(bool active)
+            {
+                if (active) EnableCount++; else DisableCount++;
+            }
+
+            public void BindMove(Vector2 prevTip, Vector2 currTip) => Binds.Add((prevTip, currTip));
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static WeaponDefinition MakeMelee(float rapid, float damage,
@@ -159,11 +174,19 @@ namespace PFE.Tests.EditMode.Systems.Weapons
 
         private static List<ShotPlan> RunPunch(WeaponDefinition def, IWeaponStatSource stats,
                                                Vector2 aim, int frames,
-                                               Vector2 holdPoint = default)
+                                               Vector2 holdPoint = default, bool kick = false,
+                                               IMeleeHitVolume volume = null,
+                                               HoofOwnerFrame? owner = null)
         {
             var ctrl = new UnarmedWeaponController(new WeaponRuntimeState(def), stats);
             var plans = new List<ShotPlan>();
 
+            ctrl.HitVolume = volume;
+            ctrl.Owner     = owner;
+
+            // AS3 assigns `kick` immediately before attack() (UnitPlayer.as:2379-2380), so it is set
+            // here, not passed to Tick.
+            ctrl.Kick = kick;
             ctrl.BeginAttack();
             var hold = holdPoint;
             for (int i = 0; i < frames; i++)
@@ -443,32 +466,65 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(3f, plans[plans.Count - 1].Damage.Knockback, 0.001f);
         }
 
-        // ── Back-hit (zadok) composes with punchDamMult ────────────────────────
+        // ── The kick composes with punchDamMult ────────────────────────────────
 
         [Test]
-        public void Punch_BackHit_ComposesItsDoublingWithTheOwnerMultiplier()
+        public void Kick_ComposesItsDoublingWithTheOwnerMultiplier()
         {
-            // AS3 WKick.as:64-65 puts `b.damage *= 2` INSIDE `if(this.kick)`, and a kick sets
-            // `storona = -owner.storona` (:59) -- you strike BEHIND you. So the doubling is a property
-            // of the ATTACK (a kick), not of the aim vector.
-            //
-            // The port has no kick input, so it approximates: `_storona` is derived from
-            // `aimTarget.x >= holdPoint.x` (UnarmedWeaponController.cs:143) instead of the owner's
-            // facing, and a "back hit" is inferred when the punch points opposite to that derived
-            // facing. This fixture therefore has to produce the state that inference looks for:
-            // hold to the RIGHT of the aim, so `_storona = -1`, while the punch lands to the LEFT --
-            // which puts `punchAngle` outside (-PI/2, PI/2) and trips the zadok branch.
-            //
-            // The old fixture aimed at (-5, 0) from a hold point of (0, 0). That sets _storona = -1
-            // on the SAME frame, so the two conditions cancel and no double was applied -- the test
-            // measured 2x, not the 4x it asserted.
+            // AS3 WKick.as:67-68 puts `b.damage *= 2` / `b.otbros *= 1.5` INSIDE `if(this.kick)`.
+            // The flag is the RUN KEY (UnitPlayer.as:2379), not the aim: this fixture used to have to
+            // manufacture an aim/facing disagreement to trip the old zadok heuristic, which modelled
+            // WPunch's dead branch. Now the mode is stated.
             var def = MakeUnarmed(rapid: 10f, damage: 10f, knockback: 4f);
             var plans = RunPunch(def, new FakeStats { PunchDamMult = 2f },
-                                 holdPoint: new Vector2(50f, 0f), aim: new Vector2(-5f, 0f), frames: 10);
+                                 aim: new Vector2(5f, 0f), frames: 10, kick: true);
 
-            Assert.IsNotEmpty(plans, "the back-punch must emit a plan.");
+            Assert.IsNotEmpty(plans, "the kick must emit a plan.");
             Assert.AreEqual(40f, plans[plans.Count - 1].Damage.BaseDamage, 0.001f,
-                "back-hit x2 composed with punchDamMult x2 = x4 (WKick.as:47,64).");
+                "kick x2 composed with punchDamMult x2 = x4 (WKick.as:47,67).");
+            Assert.AreEqual(12f, plans[plans.Count - 1].Damage.Knockback, 0.001f,
+                "kick knock x1.5 composed with punchDamMult x2 (WKick.as:48,68).");
+        }
+
+        [Test]
+        public void Kick_TakesTheOwnersKickDestroy_AndThePunchKeepsTheWeaponsDestroy()
+        {
+            // WKick.as:69 replaces the bullet's tile budget with Pers.kickDestroy on the kick only;
+            // the punch keeps the weapon row's destroy (4 on the player's `punch` row, AllData.as:26).
+            // This is the whole reason a bare kick can break a wall a punch cannot.
+            var kickDef  = MakeUnarmed(rapid: 10f, damage: 10f, knockback: 4f);
+            var punchDef = MakeUnarmed(rapid: 10f, damage: 10f, knockback: 4f);
+
+            // The `punch` row's own destroy is 4 (AllData.as:26); the kick must ignore it.
+            kickDef.destroyTiles  = 4f;
+            punchDef.destroyTiles = 4f;
+
+            var kick  = RunPunch(kickDef,  new FakeStats { KickDestroy = 80f }, new Vector2(5f, 0f), 10, kick: true);
+            var punch = RunPunch(punchDef, new FakeStats { KickDestroy = 80f }, new Vector2(5f, 0f), 10);
+
+            Assert.AreEqual(80f, kick[kick.Count - 1].Damage.DestroyTiles, 0.001f,
+                "the kick's tile budget is Pers.kickDestroy (WKick.as:69), here raised by powerkick.");
+            Assert.AreEqual(4f, punch[punch.Count - 1].Damage.DestroyTiles, 0.001f,
+                "the punch keeps the weapon's own destroy (4 on the punch row).");
+        }
+
+        [Test]
+        public void Kick_DrivesTheHitVolume_WhichThePunchAlsoDoes()
+        {
+            // The defect this closes: the unarmed controller emitted a MeleeSweep plan and nothing
+            // read it. ProjectileSpawner ignores that kind, and no hit volume was ever assigned, so a
+            // punch had never dealt damage or broken a tile. Both modes now enable the volume, sweep
+            // their lines and close it again.
+            var rec = new RecordingHitVolume();
+            var def = MakeUnarmed(rapid: 13f, damage: 10f, knockback: 4f);
+
+            RunPunch(def, null, new Vector2(5f, 0f), frames: 20, kick: true, volume: rec);
+
+            Assert.AreEqual(1, rec.EnableCount, "the volume is enabled exactly once per strike.");
+            Assert.AreEqual(1, rec.DisableCount, "and closed when the path is spent.");
+            Assert.AreEqual(2, rec.Binds.Count, "the kick binds two lines (WKick.as:73-79).");
+            Assert.Greater(rec.Binds[0].from.x, rec.Binds[0].to.x,
+                "facing right, the kick sweeps RIGHT-to-LEFT: it strikes behind the body.");
         }
 
         // ── The seam itself ───────────────────────────────────────────────────

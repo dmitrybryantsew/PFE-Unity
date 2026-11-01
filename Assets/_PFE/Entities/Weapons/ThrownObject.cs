@@ -151,6 +151,18 @@ namespace PFE.Entities.Weapons
         private DamageType _damageType;
 
         /// <summary>
+        /// The blast's tile half — AS3 <c>Weapon.setBullet</c> copies <c>destroy</c> and <c>tipDecal</c>
+        /// onto the bullet (<c>Weapon.as:1676</c>), so a thrown grenade carries exactly what a fired round
+        /// does and reaches the same <c>explDestroy()</c>.
+        ///
+        /// <para><b>These were missing, and the symptom was a wall that shrugged off a grenade.</b> Every
+        /// throwable detonated for unit damage and drew its blast; none of them could destroy or even scar
+        /// a tile, because the port's only tile sweep lived inside <see cref="Projectile"/>.</para>
+        /// </summary>
+        private float    _destroyTiles;
+        private DecalType _decalType;
+
+        /// <summary>
         /// The weapon's explosion <b>shape</b> and <b>pulse count</b> — AS3 <c>explTip</c> /
         /// <c>explKol</c> (<c>weapon/Weapon.as:152/154</c>, imported from <c>char.@expltip</c> /
         /// <c>char.@explkol</c> and copied to the bullet by <c>setBullet</c>, <c>:1676/:1678</c>).
@@ -396,7 +408,11 @@ namespace PFE.Entities.Weapons
             // existing editor/test callers keep working; the spawner always passes both. The defaults
             // are AS3's declaration defaults (Weapon.as:152/154), i.e. one pulse of the blast shape.
             int     explTip   = 1,
-            int     explKol   = 0)
+            int     explKol   = 0,
+            // The blast's TILE half — the same two values a fired round carries. Optional for the same
+            // reason as the rest; the spawner always passes both.
+            float   destroyTiles = 0f,
+            DecalType decalType  = DecalType.None)
         {
             _velocity         = initialVelocity;
             _explRadius       = explRadius;
@@ -405,6 +421,8 @@ namespace PFE.Entities.Weapons
             _soundFall        = soundFall;
             _explTip          = explTip;
             _explKol          = explKol;
+            _destroyTiles     = destroyTiles;
+            _decalType        = decalType;
             _bumc             = bumc;
             _sticky           = sticky;
             _skok             = skok;
@@ -1042,6 +1060,11 @@ namespace PFE.Entities.Weapons
         private void RunPulse(int pulseIndex)
         {
             Vector3 centre = transform.position;
+
+            // AS3 `explRun()` (`Bullet.as:707-710`): `if(this.destroy > 0) this.explDestroy()` runs on
+            // **every** pulse and is not gated on the blast's shape — a gas-only pulse still chews the
+            // wall. Placed first because the oracle sweeps tiles before it damages bodies.
+            ExplosionTileDamage.Apply(centre, _explRadius, _destroyTiles, _damageType, _decalType);
 
             if (ExplosionPulseRules.DamagesAt(_explTip, pulseIndex))
             {

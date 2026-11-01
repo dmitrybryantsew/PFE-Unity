@@ -99,6 +99,16 @@ namespace PFE.Entities.Weapons
         private DamageType _damageType;
 
         /// <summary>
+        /// AS3 <c>Bullet.tipDecal</c> — copied off the weapon by <c>setBullet</c>
+        /// (<c>Weapon.as:1669-1670</c>) and handed to <c>Location.hitTile</c> as its fifth argument
+        /// (<c>Bullet.as:489</c>). It is what decides <i>which</i> mark a wall takes, and it is
+        /// deliberately independent of <see cref="_damageType"/>: a plasma pistol and a plasma cannon
+        /// share a damage type and can author different decals, and <c>DecalType.Ram</c> is a marker
+        /// rather than a mark.
+        /// </summary>
+        private DecalType  _decalType;
+
+        /// <summary>
         /// The weapon's <c>vis.@visexpl</c> override, or null/empty for none — AS3
         /// <c>Bullet.explVis()</c>'s first branch (<c>weapon/Bullet.as:878-909</c>), which is the ONLY
         /// arm gated on it. Non-empty means the whole damage-type table below it is skipped, so this is
@@ -195,6 +205,20 @@ namespace PFE.Entities.Weapons
         /// bleach it on the way out).
         /// </summary>
         private Color         _beamFadeBaseColor = Color.white;
+
+        /// <summary>
+        /// Live world-space muzzle of the weapon that fired this round — the port's <c>weap.bulX/bulY</c>
+        /// in AS3's <c>Bullet.as:235-237</c>. Pushed in by <see cref="PFE.Systems.Weapons.ProjectileSpawner"/>
+        /// from the same <c>WeaponPresenter</c> the shot's own spawn point came from, so the two cannot
+        /// disagree about where the barrel is.
+        ///
+        /// <para><b>Read only during the beam fade.</b> AS3 calls <c>getBulXY()</c> here and nowhere
+        /// else after the shot is built, so a round in flight must not consult it — see
+        /// <see cref="ProjectilePhysicsMath.BeamMuzzleShift"/>. Null is the normal state for a round
+        /// with no gun behind it (an explosion's throwaway bullet, a test rig), and then the beam keeps
+        /// the tail it was fired with, which is what AS3's <c>if(this.weap)</c> guard does.</para>
+        /// </summary>
+        private Func<Vector2?> _muzzleSource;
 
         // ── Unit collision — the sim's sub-stepped probe (Stage C) ──────────────────────────────
         // AS3's bullet keeps `parr`: the units it has already struck (`Bullet.as:69`, and `udar()` at
@@ -932,13 +956,15 @@ namespace PFE.Entities.Weapons
                                int   flame        = 0,
                                float navod        = 0f,
                                float penetration  = 0f,
-                               string visExpl     = null)
+                               string visExpl     = null,
+                               DecalType decal    = DecalType.None)
         {
             _damage       = damage;
             _destroyTiles = destroyTiles;
             _explRadius   = explRadius;
             _explDamage   = explDamage;
             _damageType   = damageType;
+            _decalType    = decal;
             _visExpl      = visExpl;
             _penetration  = Mathf.Clamp01(penetration);
             _remainingDamage = damage;
@@ -1214,6 +1240,16 @@ namespace PFE.Entities.Weapons
         /// </summary>
         public void SetSpringMode(int springMode) => _springMode = springMode;
 
+        /// <summary>
+        /// Hand the round a way to read the firing weapon's muzzle <i>now</i> — AS3's <c>this.weap</c>
+        /// on a <c>Bullet</c>, which the beam fade dereferences (<c>Bullet.as:233-237</c>).
+        ///
+        /// <para>Called by the spawner immediately after the factory hands the instance over, so a
+        /// pooled round never carries the previous shot's gun. The delegate is read at most once per
+        /// rendered frame and only while the beam is fading.</para>
+        /// </summary>
+        public void SetMuzzleSource(Func<Vector2?> source) => _muzzleSource = source;
+
         private int _springMode = 1;
 
         /// <summary>
@@ -1241,7 +1277,7 @@ namespace PFE.Entities.Weapons
         /// At 2000 px/frame that dash is up to 50 tiles ahead of the gun, which is the owner-reported
         /// "laser beams spawn far away from the character". The visual now plays the beam when no child
         /// exists (<see cref="BeamTransform"/>), and its centre-pivoted art is anchored back to the
-        /// muzzle (<see cref="AnchorBeamToMuzzle"/>). The smear arm, by contrast, has been live all
+        /// muzzle (<see cref="PlaceBeam"/>). The smear arm, by contrast, has been live all
         /// along: it applies to any <c>spring == 1</c> weapon whose round exceeds 100 px/frame, which is
         /// the owner's "rail — I am not sure but worth to check".</para>
         /// </summary>
@@ -1286,8 +1322,81 @@ namespace PFE.Entities.Weapons
             // …and the beam's art has to be pushed back so it grows toward the muzzle rather than
             // straddling the round. Only the centre-pivoted export needs this; a child authored the
             // way AS3's `vis.laser` is (far end on the registration point) is already anchored.
-            if (beam && beamTransform == _visualTransform)
-                AnchorBeamToMuzzle(targetTransform, scaleX);
+            if (beam)
+                PlaceBeam(beamTransform, scaleX);
+        }
+
+        /// <summary>
+        /// Anchors the beam between the muzzle it was fired from and the round, and — during the
+        /// post-impact fade only — slides it onto the muzzle the gun has <i>now</i>.
+        ///
+        /// <para><b>Two separate things, one write.</b> The anchor is
+        /// <see cref="ProjectilePhysicsMath.BeamAnchorOffsetX"/> and applies to the centre-pivoted
+        /// export only. The slide is <see cref="ProjectilePhysicsMath.BeamMuzzleShift"/> and applies to
+        /// the whole view, which is why it is written to <see cref="_visualTransform"/> in both beam
+        /// shapes: when the beam <i>is</i> the visual that is the same object, and when a real
+        /// <c>laser</c> child exists the parent is AS3's <c>vis</c> — the object whose <c>x/y</c> the
+        /// oracle writes.</para>
+        ///
+        /// <para><b>Written absolutely, never accumulated.</b> The slide is derived from the current
+        /// muzzle every frame, so adding it would compound over the four fade frames; both components
+        /// are therefore recomputed from the authored <c>localOffset</c> each time. The world-space
+        /// shift goes through <c>InverseTransformVector</c> because the round's own rotation is the
+        /// flight direction, and the muzzle displacement is in world axes.</para>
+        /// </summary>
+        private void PlaceBeam(Transform beamTransform, float scaleX)
+        {
+            if (_visualTransform == null) return;
+
+            bool beamIsVisual = beamTransform == _visualTransform;
+
+            Vector2 shift = BeamMuzzleShiftNow();
+            Vector3 localShift = shift.sqrMagnitude > 0f
+                ? transform.InverseTransformVector(new Vector3(shift.x, shift.y, 0f))
+                : Vector3.zero;
+
+            // A real `laser` child carries its own anchor and is not slid unless the gun moved.
+            if (!beamIsVisual && localShift.sqrMagnitude <= 0f) return;
+
+            Sprite sprite = _visualRenderer != null ? _visualRenderer.sprite : null;
+            float lengthUnits = sprite != null && sprite.pixelsPerUnit > 0f
+                ? sprite.rect.width / sprite.pixelsPerUnit
+                : ProjectilePhysicsMath.ViewStretchReferencePx / TileQueryConstants.UnitToPixel;
+
+            float authoredX = _currentVisual != null ? _currentVisual.localOffset.x : 0f;
+            float authoredY = _currentVisual != null ? _currentVisual.localOffset.y : _defaultLocalPosition.y;
+
+            Vector3 local = _visualTransform.localPosition;
+            local.x = authoredX + localShift.x
+                      + (beamIsVisual
+                          ? ProjectilePhysicsMath.BeamAnchorOffsetX(lengthUnits, scaleX)
+                          : 0f);
+            local.y = authoredY + localShift.y;
+            _visualTransform.localPosition = local;
+        }
+
+        /// <summary>
+        /// The muzzle slide for this frame, from the live source — <c>Vector2.zero</c> unless the beam
+        /// is in its post-impact fade. AS3 <c>Bullet.as:232-238</c>; the gate lives in
+        /// <see cref="ProjectilePhysicsMath.BeamMuzzleShift"/> so it can be asserted offline.
+        ///
+        /// <para><b>Known, accepted: the muzzle read is one rendered frame old.</b> The presenter
+        /// publishes it from <c>LateUpdate</c> (it must run after the vis transform is written) and
+        /// this runs from <c>Update</c>, so the slide uses the barrel position as of the previous
+        /// frame. At 60 Hz that is ~3 px of player travel — 13 % of the error the slide removes, on a
+        /// 4-frame fade. Closing it entirely would need a script-execution order between two unrelated
+        /// components, which is a worse trade than 3 px on a beam that is already fading out.</para>
+        /// </summary>
+        private Vector2 BeamMuzzleShiftNow()
+        {
+            if (_beamFadeFramesLeft <= 0 || _muzzleSource == null) return Vector2.zero;
+
+            Vector2? muzzle = _muzzleSource();
+            return ProjectilePhysicsMath.BeamMuzzleShift(
+                beamFadeFramesLeft: _beamFadeFramesLeft,
+                hasMuzzleSource:    muzzle.HasValue,
+                currentMuzzle:      muzzle.GetValueOrDefault(),
+                spawnPosition:      _spawnPosition);
         }
 
         /// <summary>
@@ -1314,26 +1423,6 @@ namespace PFE.Entities.Weapons
                 if (_beamTransform != null) return _beamTransform;
                 return _springMode >= 2 ? _visualTransform : null;
             }
-        }
-
-        /// <summary>
-        /// Moves the beam's centre back by half its scaled length so its far end lands on the round
-        /// and its near end on the muzzle — the anchor AS3's art carries in its registration point and
-        /// this project's centre-pivoted export does not. See
-        /// <see cref="ProjectilePhysicsMath.BeamAnchorOffsetX"/>.
-        /// </summary>
-        private void AnchorBeamToMuzzle(Transform targetTransform, float scaleX)
-        {
-            Sprite sprite = _visualRenderer != null ? _visualRenderer.sprite : null;
-            float lengthUnits = sprite != null && sprite.pixelsPerUnit > 0f
-                ? sprite.rect.width / sprite.pixelsPerUnit
-                : ProjectilePhysicsMath.ViewStretchReferencePx / TileQueryConstants.UnitToPixel;
-
-            float authoredX = _currentVisual != null ? _currentVisual.localOffset.x : 0f;
-
-            Vector3 local = targetTransform.localPosition;
-            local.x = authoredX + ProjectilePhysicsMath.BeamAnchorOffsetX(lengthUnits, scaleX);
-            targetTransform.localPosition = local;
         }
 
         /// <summary>
@@ -1522,6 +1611,20 @@ namespace PFE.Entities.Weapons
         /// </returns>
         private bool HandleImpact(Collider2D other, Vector3 impactPos)
         {
+            // AS3 `phis == 2` — a closed grate — is not a hit at all. `weapon/Bullet.as:476` tests
+            // `phis == 1` (its `phis == 2` clause only fires for the cell the round spawned in, which
+            // only the club's shock round sets, `WClub.as:627-628`), so a round fired at a grate flies
+            // through it, deals it no damage and plays no impact. The tile half of that rule is
+            // ProjectileOcclusionRule; this is the collider half, because a door's cells are air in the
+            // shipped room maps and the surface a round actually meets is the door's own solid
+            // collider — see IProjectilePassThrough.
+            //
+            // Before every effect on purpose: returning here means no faction gate, no damage roll, no
+            // impact sound, no decal, no explosion. A grate that "hit with zero damage" would still
+            // stop the round.
+            var passThrough = other.GetComponent<IProjectilePassThrough>();
+            if (passThrough != null && passThrough.PassesProjectiles) return false;
+
             // Faction gate, before any effect at all. AS3's bullet test (weapon/Bullet.as:515) simply
             // fails for a same-faction unit, so the bullet does not "hit with zero damage" — it does
             // not hit, plays no sound, triggers no explosion, and carries on through. Returning here
@@ -1622,9 +1725,13 @@ namespace PFE.Entities.Weapons
             }
 
             // ── 2. IDestructibleTile ─────────────────────────────────────────
+            // Called even when `_destroyTiles` is 0, because the oracle does: `Bullet.as:489` hands
+            // `this.destroy` to `hitTile` unconditionally, and a weapon that cannot breach a wall still
+            // leaves a hole in it. The old `_destroyTiles > 0` guard here is why pistols used to leave
+            // concrete spotless — it turned "no breaking power" into "no mark either".
             var tile = other.GetComponent<IDestructibleTile>();
-            if (tile != null && _destroyTiles > 0f)
-                tile.ApplyDestruction(impactPos, _destroyTiles, _damageType);
+            if (tile != null)
+                tile.ApplyDestruction(impactPos, _destroyTiles, _damageType, _decalType);
 
             // ── 3. AoE explosion ─────────────────────────────────────────────
             if (_explRadius > 0f && !_hasDetonated)
@@ -1861,6 +1968,12 @@ namespace PFE.Entities.Weapons
         {
             _hasDetonated = true;
 
+            // AS3 `explRun` opens with `if(this.destroy > 0) this.explDestroy()` (`Bullet.as:707-710`),
+            // i.e. the tiles are swept *before* the bodies. It is the same call a thrown explosive and a
+            // mine make, so all three blasts finally agree — see ExplosionTileDamage for why that had to
+            // become one method.
+            ExplosionTileDamage.Apply(centre, _explRadius, _destroyTiles, _damageType, _decalType);
+
             Collider2D[] hits = Physics2D.OverlapCircleAll(centre, _explRadius);
             foreach (var hit in hits)
             {
@@ -1902,10 +2015,6 @@ namespace PFE.Entities.Weapons
                                           _explDamage * ExplosionMultiplierFor(hit));
                     }
                 }
-
-                var tile = hit.GetComponent<IDestructibleTile>();
-                if (tile != null)
-                    tile.ApplyDestructionRadius(centre, _explRadius, _destroyTiles, _damageType);
             }
         }
 
@@ -2074,6 +2183,12 @@ namespace PFE.Entities.Weapons
             _beamFadeFramesLeft = 0;
             _beamFadeTimer      = 0f;
 
+            // Same reason: the muzzle source belongs to the gun that fired the last shot. A pooled
+            // round that kept it would slide its beam toward whatever weapon happened to be equipped
+            // when it is reused, and a test that spawns through the low-level factory overload would
+            // silently inherit a live one. The spawner re-sets it on every shot.
+            _muzzleSource       = null;
+
             // Stage C: a pooled instance must not stay registered after release. SimLoop.Register
             // de-duplicates, so leaving it registered would not double-register — it would keep the
             // released instance ticked, which is worse: a parked projectile at the pool position
@@ -2097,6 +2212,9 @@ namespace PFE.Entities.Weapons
             _ddy      = 0f;
             _navod    = 0f;
             _damageType    = DamageType.PhysicalBullet;
+            // Same reasoning as `_visExpl` below: a recycled bullet must not inherit the previous
+            // shot's decal, or a plasma round would make the next pistol leave plasma burns.
+            _decalType     = DecalType.None;
             // A recycled bullet must not inherit the previous shot's weapon override, or a sparkle
             // rocket would make the next plain grenade emit sparkle visuals.
             _visExpl       = null;

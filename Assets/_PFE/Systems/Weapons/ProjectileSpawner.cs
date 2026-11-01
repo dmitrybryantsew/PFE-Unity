@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VContainer;
@@ -74,6 +75,21 @@ namespace PFE.Systems.Weapons
 
         /// <summary>Cache for <see cref="ResolveOwnerUnit"/>, invalidated when <see cref="Owner"/> changes.</summary>
         private UnitController _ownerUnit;
+
+        /// <summary>
+        /// Live world-space muzzle of the weapon this spawner fires, or null when there is none (a
+        /// test rig, a mount whose presenter has not drawn yet).
+        ///
+        /// <para><b>Why the spawner carries it at all.</b> The shot's own spawn point is a value — it
+        /// is correct for the instant the round was created and wrong one frame later, which is fine
+        /// for a bullet and not for a beam: a laser's view is stretched from that point for as long as
+        /// it is drawn. AS3 hands the <c>Bullet</c> a reference to the <c>Weapon</c> (<c>this.weap</c>,
+        /// <c>Bullet.as:233-237</c>) and re-reads the muzzle during the fade; the port's equivalent of
+        /// "the weapon" is the presenter that draws it, and this is the delegate that reaches it. Same
+        /// publisher as <c>RangedWeaponController.MuzzleWorldPoint</c>, so the spawn point and the
+        /// re-anchor cannot disagree about where the barrel is.</para>
+        /// </summary>
+        private Func<Vector2?> _muzzleSource;
 
         // ── Scene-wide throwable defaults ─────────────────────────────────────
         //
@@ -157,6 +173,18 @@ namespace PFE.Systems.Weapons
             if (_debugSettings?.LogProjectileSpawning == true && def != null)
                 Debug.Log($"[ProjectileSpawner] SetWeapon('{def.weaponId}') archetype={def.projectileArchetype} visual='{def.projectileVisual?.name ?? "null"}'.");
         }
+
+        /// <summary>
+        /// Publish the live muzzle reader — the port's <c>this.weap</c> for a beam's post-impact fade
+        /// (<see cref="PFE.Entities.Weapons.Projectile.SetMuzzleSource"/>). Set once by the owner of
+        /// this spawner (the player's loadout, or an enemy mount) from the presenter that draws the
+        /// gun, and handed to every round it spawns.
+        ///
+        /// <para>Optional: leaving it unset is the AS3 state of a bullet with no weapon behind it, and
+        /// a beam then keeps the tail it was fired with instead of following a gun that is not there.
+        /// </para>
+        /// </summary>
+        public void SetMuzzleSource(Func<Vector2?> source) => _muzzleSource = source;
 
         /// <summary>
         /// Spawn objects for all plans. Called from PlayerWeaponLoadout.FixedUpdate.
@@ -389,6 +417,11 @@ namespace PFE.Systems.Weapons
             // reason the rest of the shot is (see ShotPlan's "Where projectile physics went"): the
             // spawner owns the definition, and a per-shot copy would be a second place to get it wrong.
             proj.SetSpringMode(_currentDef.springMode);
+
+            // …and the way back to the gun, for the beam's post-impact re-anchor (`Bullet.as:233-237`).
+            // Handed over on every shot rather than at construction, because the presenter it reads is
+            // the one the weapon is currently drawn by and a pooled round must not keep an old one.
+            proj.SetMuzzleSource(_muzzleSource);
         }
 
         private void SpawnThrownObject(ShotPlan plan)
@@ -441,7 +474,13 @@ namespace PFE.Systems.Weapons
                 // blast a single pulse of the default shape, which is the owner-reported "no damage
                 // area".
                 explTip:         _currentDef.explTip,
-                explKol:         _currentDef.explKol);
+                explKol:         _currentDef.explKol,
+                // The blast's tile half. `setBullet` copies `destroy` and `tipDecal` onto the bullet for
+                // every weapon kind (`Weapon.as:1676`), so a thrown grenade carries them exactly as a
+                // fired round does — without them it detonated for unit damage only and left the wall
+                // untouched, which is the whole visible half of the blast.
+                destroyTiles:    _currentDef.destroyTiles,
+                decalType:       _currentDef.decalType);
 
             obj.SetDamageContext(plan.Damage);
 
@@ -491,7 +530,11 @@ namespace PFE.Systems.Weapons
                 visExpl:      _currentDef.visExpl,
                 // AS3 `Mine.as:118 this.sndSens = node.snd.@sens` — the arming beep, played every
                 // 5 ticks while counting down (`:340-343`). Only the eight mine rows carry it.
-                soundSens:    _currentDef.soundSens);
+                soundSens:    _currentDef.soundSens,
+                // The blast's tile half — `destroy`/`tipdec` of the placing weapon, the same pair the
+                // throwable carries. A mine detonates through a throwaway Bullet, so it sweeps tiles too.
+                destroyTiles: _currentDef.destroyTiles,
+                decalType:    _currentDef.decalType);
 
             mine.SetDamageContext(plan.Damage);
 

@@ -323,6 +323,15 @@ namespace PFE.Entities.Weapons
         /// <summary>Selects the fallback arm of the explosion table when <see cref="_visExpl"/> is empty.</summary>
         private DamageType _damageType;
 
+        /// <summary>
+        /// The blast's tile half, from the placing weapon. A mine detonates through
+        /// <c>Unit.explosion()</c> → a throwaway <c>Bullet</c> → <c>explRun()</c>, whose first statement
+        /// is <c>if(this.destroy &gt; 0) this.explDestroy()</c> — so a mine destroys and scars tiles
+        /// exactly as the grenade that shares its class does. The port had no tile sweep here at all.
+        /// </summary>
+        private float     _destroyTiles;
+        private DecalType _decalType;
+
         /// <summary>Scratch list for the planned emits — reused so a burst allocates nothing.</summary>
         private readonly List<PFE.Systems.Particles.ParticleEmit> _explosionEmits =
             new List<PFE.Systems.Particles.ParticleEmit>();
@@ -414,13 +423,18 @@ namespace PFE.Entities.Weapons
             DamageType damageType = DamageType.PhysicalBullet,
             string visExpl   = null,
             // The placing weapon's `<snd sens>` — the arming beep. Optional like the two above.
-            string soundSens = null)
+            string soundSens = null,
+            // The blast's tile half — `destroy` / `tipdec` of the placing weapon. Optional like the rest.
+            float destroyTiles = 0f,
+            DecalType decalType = DecalType.None)
         {
             _weaponId   = weaponId;
             _explRadius = explRadius;
             _damageType = damageType;
             _visExpl    = visExpl;
             _soundSens  = soundSens;
+            _destroyTiles = destroyTiles;
+            _decalType    = decalType;
 
             int fuse = fuseFrames > 0 ? fuseFrames : DefaultFuseFrames;
             _explTimer = fuse * FuseScale / SimClock.FramesPerSecond;
@@ -954,6 +968,9 @@ namespace PFE.Entities.Weapons
 
             if (_explRadius > 0f)
             {
+                // AS3 `explRun()`'s first statement (`Bullet.as:707-710`) — tiles before bodies.
+                ExplosionTileDamage.Apply(centre, _explRadius, _destroyTiles, _damageType, _decalType);
+
                 Collider2D[] hits = Physics2D.OverlapCircleAll(centre, _explRadius);
                 foreach (var hit in hits)
                 {

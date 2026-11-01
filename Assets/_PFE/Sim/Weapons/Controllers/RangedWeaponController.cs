@@ -82,6 +82,63 @@ namespace PFE.Systems.Weapons.Controllers
         /// </summary>
         public float OwnerFacingSign { get; set; } = 1f;
 
+        /// <summary>
+        /// AS3 <c>Weapon.drot</c> — the per-frame barrel rotation step, in <b>radians</b>
+        /// (<c>Weapon.as:1087-1145</c>).
+        ///
+        /// <para><b><c>0</c> means "snap", and that is the default.</b> The oracle's
+        /// <c>if(rdrot == 0) { rot = rot2; ready = true; }</c> is a real branch, not an optimisation, so
+        /// a caller that never sets this gets the instantaneous aim the port has always had — the player,
+        /// every raider and every robot are unchanged. Only a unit whose owner writes
+        /// <c>currentWeapon.drot</c> eases: the turret family, which sets it per <c>aiState</c> in
+        /// <c>UnitTurret.control()</c> (<c>:661</c> hidden 0.5, <c>:673</c> watching
+        /// <c>watchDrot</c>, <c>:702</c> committed <c>actDrot</c>).</para>
+        ///
+        /// <para><b>Why it lives on the controller and not on the definition.</b> <c>drot</c> is not a
+        /// <c>&lt;phis&gt;</c> attribute for these weapons — it is written by the <i>owner's AI</i> every
+        /// perception tick, so it changes during the unit's life and differs between two mounts holding
+        /// the same <c>turret3</c> row. Putting it on the shared <c>ScriptableObject</c> would let one
+        /// turret's state leak into every other turret's barrel.</para>
+        /// </summary>
+        public float Drot { get; set; }
+
+        /// <summary>
+        /// AS3 <c>Weapon.drotMult</c> — a multiplier on <see cref="Drot"/> (<c>Weapon.as:1094-1145</c>
+        /// multiplies every step by it). Defaults to <b>1</b>, the value <c>Weapon.as</c> declares, so a
+        /// caller that never sets it gets the oracle's own step size.
+        /// </summary>
+        public float DrotMultiplier { get; set; } = 1f;
+
+        /// <summary>
+        /// AS3 <c>Weapon.fixRot</c> — the mechanical elevation limit (<c>Weapon.as:1146-1178</c>),
+        /// applied to <c>rot</c> after the easing. <c>0</c> is no limit.
+        ///
+        /// <para><b>The turret mounts are the only author.</b> <c>UnitTurret.putLoc</c> sets 1 for the
+        /// floor and combat mounts (<c>:188</c>, <c>:193</c>) and 2/3 for the arm mount depending on its
+        /// facing (<c>:237</c>, <c>:241</c>). Without it a floor turret can elevate to vertical, which is
+        /// the one direction its barrel physically cannot go. See
+        /// <see cref="TurretSweepMath.FixRot"/>/<see cref="TurretSweepMath.ClampRot"/>.</para>
+        /// </summary>
+        public int FixRot { get; set; }
+
+        /// <summary>
+        /// AS3 <c>Weapon.forceRot</c> combined with <c>Weapon.findCel</c> — when this is non-null the
+        /// weapon is <b>not</b> aiming at a target and takes this angle instead.
+        ///
+        /// <para><b>Oracle</b> — <c>Weapon.actions()</c> (<c>Weapon.as:1087-1092</c>):</para>
+        /// <code>
+        /// if(this.findCel) { ... rot2 = atan2(celY - Y, |celX - X| * owner.storona); }
+        /// else             { X = owner.weaponX; Y = owner.weaponY; rot2 = this.forceRot; }
+        /// </code>
+        ///
+        /// <para>The turret family is the reason this exists. In <c>aiState 1</c> it clears
+        /// <c>findCel</c> and feeds <c>forceRot = aRot[nRot]</c> (<c>UnitTurret.as:671-675</c>), so the
+        /// barrel walks the mount's watch table; in <c>aiState 3</c> it sets <c>findCel = true</c> and the
+        /// same barrel turns onto the player. <b>Null means "aim at the target"</b>, which is every other
+        /// unit in the game and therefore the safe default.</para>
+        /// </summary>
+        public float? ForceRot { get; set; }
+
         // Ammo source (player inventory). Null = training/infinite mode.
         private readonly IAmmoSource _ammoSource;
 
@@ -265,7 +322,20 @@ namespace PFE.Systems.Weapons.Controllers
             // arm aims along the body's facing (`|dx| * owner.storona`) and lets only the elevation
             // follow the cursor; the lerp arm aims at the cursor outright.
             float rot2;
-            if (SnapToHoldPoint)
+            if (ForceRot.HasValue)
+            {
+                // ── AS3's `!findCel` arm (Weapon.as:1087-1092) ─────────────────────────────────────
+                //
+                // The weapon still snaps to the hold point — the oracle assigns `X = owner.weaponX`
+                // unconditionally in this branch, for every `krep` — and then takes `rot2 = forceRot`
+                // instead of aiming. This is the turret's watch sweep: the brain publishes the next
+                // table entry as the force angle and the easing in AdvanceRotation turns the drift
+                // between them into motion.
+                State.X = holdPoint.x;
+                State.Y = holdPoint.y;
+                rot2 = ForceRot.Value;
+            }
+            else if (SnapToHoldPoint)
             {
                 State.X = holdPoint.x;
                 State.Y = holdPoint.y;
@@ -732,11 +802,26 @@ namespace PFE.Systems.Weapons.Controllers
 
         private void AdvanceRotation(float rot2)
         {
-            float drot = _def.bulletGravity > 0 ? 0f : 0f; // placeholder — drot is not a WeaponDefinition field yet
-            // TODO: add drot field to WeaponDefinition (phis.@drot in AS3).
-            // For now snap immediately (drot==0 path in AS3 → ready = true).
-            State.Rot   = rot2;
-            State.Ready = true;
+            // AS3 Weapon.actions()'s drot block (Weapon.as:1087-1145) plus the fixRot clamp
+            // (:1146-1178). Both live in WeaponRotationMath so the three tricky branches — the
+            // |Δ| > π wrap, the nearly-a-full-turn snap, and the post-ease clamp — are a pure
+            // function that can be exercised offline.
+            //
+            // `Drot == 0` snaps, and that is the default: the player, every raider and every robot
+            // keep the instantaneous aim the port has always had. Only a turret's owner writes drot
+            // (UnitTurret.control(), :661/:673/:702).
+            WeaponRotationMath.Advance(State.Rot, rot2, Drot, DrotMultiplier,
+                                       out float rot, out bool ready);
+
+            // AS3 applies fixRot AFTER the easing and outside it, so the clamp still holds when the
+            // eased value was already in range.
+            if (FixRot != 0)
+            {
+                rot = WeaponRotationMath.ClampFixRot(rot, FixRot);
+            }
+
+            State.Rot   = rot;
+            State.Ready = ready;
         }
 
         /// <summary>

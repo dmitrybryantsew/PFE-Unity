@@ -261,8 +261,76 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(2f + 0.35f, WeaponHoldPointMath.ResolveMagicFallback(0f, 2f, BodyH, isSitting: true,  blocked: true).y, Tolerance);
         }
 
-        // ── The base rule, for every unit that is not the player ──────────────
+        /// <summary>
+        /// <b>The point magic actually fires from.</b> AS3 takes the head's <c>konec</c> bone through
+        /// <c>localToGlobal</c> (<c>UnitPlayer.as:3563</c>) and only falls back to the body when that
+        /// lookup throws. The port used the fallback as if it were the answer, which put every spell at
+        /// a fixed chest height in front of the player instead of on the horn.
+        ///
+        /// <para>Pinned as three separate facts, because each one is a different way to get it wrong:
+        /// the bone passes through unchanged when the tile is clear; a blocked bone drops to the
+        /// oracle's absolute pixel heights; and with no tile predicate at all (the loadout's current
+        /// state) the guard cannot fire, so the bone is returned rather than a fallback.</para>
+        /// </summary>
+        [Test]
+        public void MagicHorn_IsTheBoneWhenTheBoneIsInTheOpen()
+        {
+            // A horn tip well above the body's centre — deliberately NOT the fallback, so a regression
+            // that quietly returns ResolveMagicFallback fails on the value rather than on a flag.
+            Vector2 bone = new Vector2(1.9f, 2f + BodyH * 1.1f);
 
+            Vector2 magic = WeaponHoldPointMath.ResolveMagicHorn(
+                bone, ownerX: 1.5f, ownerFeetY: 2f, bodyHeight: BodyH,
+                isSitting: false, isSolidAt: _ => false);
+
+            Assert.AreEqual(bone.x, magic.x, Tolerance, "the horn's own column, not the owner's");
+            Assert.AreEqual(bone.y, magic.y, Tolerance, "the horn's own height, not a body fraction");
+
+            // …and it must differ from the fallback, or this test would pass on the bug.
+            Vector2 fallback = WeaponHoldPointMath.ResolveMagicFallback(1.5f, 2f, BodyH);
+            Assert.Greater(Mathf.Abs(fallback.y - magic.y), 1e-3f,
+                "the bone is not the catch branch — a regression that returns the fallback must fail here");
+        }
+
+        [Test]
+        public void MagicHorn_DropsToTheOraclePixelHeightsWhenTheBoneIsInAWall()
+        {
+            // A horn inside a wall is a normal standing position (ceiling, corner), and a round
+            // spawned inside a solid tile detonates on the spot. AS3 guards with
+            // `if(loc.getAbsTile(magicX,magicY).phis == 1)` and drops to `Y - 35`/`Y - 75`.
+            Vector2 bone = new Vector2(1.9f, 2f + BodyH * 1.1f);
+
+            Vector2 standing = WeaponHoldPointMath.ResolveMagicHorn(
+                bone, ownerX: 1.5f, ownerFeetY: 2f, bodyHeight: BodyH,
+                isSitting: false, isSolidAt: p => p == bone);
+
+            Assert.AreEqual(1.5f, standing.x, Tolerance, "the guarded point returns to the owner's column");
+            Assert.AreEqual(2f + 0.75f, standing.y, Tolerance, "Y - 75 px standing");
+
+            Vector2 seated = WeaponHoldPointMath.ResolveMagicHorn(
+                bone, ownerX: 1.5f, ownerFeetY: 2f, bodyHeight: BodyH,
+                isSitting: true, isSolidAt: p => p == bone);
+
+            Assert.AreEqual(2f + 0.35f, seated.y, Tolerance, "Y - 35 px seated");
+        }
+
+        [Test]
+        public void MagicHorn_KeepsTheBoneWhenThereIsNoTilePredicate()
+        {
+            // The loadout has no room reference today, exactly as Resolve documents for its own two
+            // clamps. A null predicate must mean "the guard never fires" — NOT "fall back to the body",
+            // which is the bug this whole method exists to remove.
+            Vector2 bone = new Vector2(1.9f, 2f + BodyH * 1.1f);
+
+            Vector2 magic = WeaponHoldPointMath.ResolveMagicHorn(
+                bone, ownerX: 1.5f, ownerFeetY: 2f, bodyHeight: BodyH,
+                isSitting: false, isSolidAt: null);
+
+            Assert.AreEqual(bone.x, magic.x, Tolerance);
+            Assert.AreEqual(bone.y, magic.y, Tolerance);
+        }
+
+        // ── The base rule, for every unit that is not the player ──────────────
         [Test]
         public void BaseHold_IsTheOracleBaseSetWeaponPos()
         {

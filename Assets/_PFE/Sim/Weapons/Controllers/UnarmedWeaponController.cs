@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PFE.Core;
@@ -7,52 +8,53 @@ using PFE.Systems.Combat;
 namespace PFE.Systems.Weapons.Controllers
 {
     /// <summary>
-    /// Full AS3-parity implementation of WPunch.as for unarmed/punch weapons (tip==Internal).
+    /// The player's bare-hoof strikes — AS3 <c>WKick</c> (<c>weapon/WKick.as</c>), the weapon
+    /// <c>UnitPlayer</c> builds directly as <c>new WKick(this,"punch")</c> (<c>:431</c>) and keeps
+    /// alongside whatever is in hand.
     ///
-    /// Key behaviors from AS3:
+    /// <para><b>Two strikes, one flag.</b> <c>kick = ctr.keyRun</c> (<c>UnitPlayer.as:2379</c>) picks
+    /// between the front hoof strike and the back kick. Everything that differs between them —
+    /// reach (60 vs 70 px), height lines (five vs two), damage (×1 vs ×2), knock (×1 vs ×1.5), the
+    /// tile budget (the weapon's 4 vs <c>Pers.kickDestroy</c> 30) and the sound — is in
+    /// <see cref="HoofStrikeRules"/>, which is Unity-free and fixture-pinned. This class is wiring:
+    /// when to fire, where the body is, and what to do with the answer.</para>
     ///
-    /// No held sprite:
-    ///   animate() is empty in WPunch.as — WeaponPresenter disables the renderer.
+    /// <para><b>What this class used to be, and why that was wrong twice.</b> It modelled
+    /// <c>WPunch</c> — the <i>scorpion</i> punch — instead: it aimed the strike at the cursor, fired
+    /// at <c>rapid-5</c>, and detected the "back hit" from the aim being opposite the facing. Three
+    /// separate divergences, and the third is the interesting one: <c>WPunch</c>'s back-hit branch is
+    /// gated on <c>WPunch.zadok</c>, a field that is <b>declared and read but never assigned anywhere
+    /// in the oracle</b>, so it is dead code. The live rule is <c>WKick</c>'s run key. The port had
+    /// therefore implemented the branch that never runs and omitted the one that does — and because
+    /// the two look alike from the outside ("a stronger strike when you are facing away"), a
+    /// structural review could not tell them apart.</para>
     ///
-    /// attack() (lines 67-74 WPunch.as):
-    ///   Sets t_attack = rapid unconditionally. No ammo, no prep, no magazine.
+    /// <para><b>The strike is a fixed horizontal sweep, not an aimed segment.</b> <c>WKick</c> never
+    /// reads <c>celX</c>/<c>celY</c>: it binds <c>bindMove</c> lines at fixed heights in front of (or
+    /// behind) the body, and the bullet walks them. The cursor only decides which way the body faces,
+    /// via <c>storona</c>. Aiming the hit volume at the cursor — what this class did — made a
+    /// down-right cursor punch the floor.</para>
     ///
-    /// shoot() timing (lines 28-64 WPunch.as):
-    ///   Fires at t_attack == rapid - 5 (5 frames before attack end).
-    ///   Calculates aim angle from owner toward celX/celY, clamps vertical to
-    ///   horizontal magnitude so you can't punch straight up/down.
-    ///   Emits ShotPlan { Kind = MeleeSweep } with a 5-frame lifespan.
+    /// <para><b>Delivery.</b> One <see cref="ShotKind.MeleeSweep"/> plan per strike carries the damage
+    /// context to <see cref="IMeleeHitVolume"/> (the same seam <c>MeleeWeaponController</c> uses), and
+    /// the controller then walks the segment list through <c>BindMove</c>, one segment per flash frame,
+    /// exactly as the oracle's bullet walks its waypoints. Nothing here becomes a projectile:
+    /// <c>ProjectileSpawner</c> ignores <c>MeleeSweep</c>.</para>
     ///
-    /// zadok back-kick (line 47):
-    ///   If aim direction is opposite to owner's facing (storona), apply:
-    ///   damage ×2, knockback ×1.5.
-    ///   Detection: angle vs facing: punch left while facing right (or vice versa).
-    ///
-    /// WKick variant:
-    ///   Same controller, fires at t_attack == rapid - 8 instead of rapid - 5.
-    ///   isKick flag set from WeaponDefinition (no separate class needed).
-    ///
-    /// Owner multipliers (WKick.as:47-69):
-    ///   WIRED     punchDamMult → b.damage and b.otbros, both scaled by PunchDamMult.
-    ///   BLOCKED   punchDamMult → the stun proc (dopCh = punchDamMult - 1, dopDamage = 30/60).
-    ///             DamageContext.DopChance / DopDamage have no reader anywhere in the port, so
-    ///             writing them here would change nothing observable.
-    ///   WIRED     kickDestroy → b.destroy, on the back-hit (zadok) branch only — WPunch.as:54.
-    ///             Its consumer is MeleeHitVolume's tile sweep; see Shoot().
-    ///   The remaining one is exposed on IWeaponStatSource so the fix is a one-liner once its
-    ///   consumer lands, but it must not be counted as a closed divergence. See TOPIC_weapons_dispatch.
+    /// <para><b>Owner multipliers (WKick.as:47-54, :69).</b> WIRED: <c>punchDamMult</c> scales both
+    /// <c>b.damage</c> and <c>b.otbros</c>; <c>kickDestroy</c> replaces the weapon's <c>destroy</c> on
+    /// the kick. NOT WIRED, deliberately: the stun proc (<c>dopCh = punchDamMult - 1</c>,
+    /// <c>dopDamage = 30/60</c>) — <c>DopChance</c>/<c>DopDamage</c> have no reader anywhere in the
+    /// port, so writing them would change nothing observable. The constants are recorded in
+    /// <see cref="HoofStrikeRules.KickStunDamage"/> for whoever lands the consumer.</para>
     /// </summary>
     public sealed class UnarmedWeaponController : IWeaponController
     {
         // ── Constants ─────────────────────────────────────────────────────────
 
+        /// <summary>100 px = 1 unit, the project's own scale (see <c>TileQueryConstants</c>). Kept
+        /// local because this assembly must not reach into the map's query layer for one constant.</summary>
         private const float PpuScale = 100f;
-
-        // Punch hit range in Unity units (short range — fist reach).
-        private const float PunchRange   = 0.6f;
-        // Kick fires 8 frames before end; punch fires 5.
-        private const int   PunchFireOffset = 5;
-        private const int   KickFireOffset  = 8;
 
         // ── State ─────────────────────────────────────────────────────────────
 
@@ -65,10 +67,73 @@ namespace PFE.Systems.Weapons.Controllers
         private Vector2 _lastAimTarget;
         private Vector2 _lastHoldPoint;
 
-        // Facing: +1 right, -1 left — derived from aim vs hold point.
+        /// <summary>
+        /// <c>owner.storona</c> — +1 right, −1 left. Taken from <see cref="Owner"/> when the caller
+        /// supplies a body (production always does); the aim-based fallback is the port's old
+        /// approximation and only exists so a test with no unit still works.
+        /// </summary>
         private float _storona = 1f;
 
         private readonly List<ShotPlan> _plans = new();
+
+        // ── The strike in flight ──────────────────────────────────────────────
+
+        /// <summary><c>WKick.kick</c>, latched at attack start — AS3 assigns it immediately before
+        /// <c>attack()</c> (<c>UnitPlayer.as:2379-2380</c>), so a mid-swing key change cannot move the
+        /// hit volume out from under the animation.</summary>
+        private bool _kick;
+
+        /// <summary>The path this strike is walking, in feet-relative AS3 px. Null outside a strike.</summary>
+        private HoofSegment[] _segments;
+
+        /// <summary>Index of the next segment to bind. AS3's bullet advances its waypoint list.</summary>
+        private int _nextSegment;
+
+        /// <summary>The AS3 sound id of the strike that just fired, or null. Read once by the caller.</summary>
+        private string _pendingSound;
+
+        // ── Owner inputs ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>WKick.kick</c> — the run key, set by the caller immediately before
+        /// <see cref="BeginAttack"/>. Shift in AS3 (<c>inter/Ctr.as:23</c>).
+        ///
+        /// <para><b>This is the whole difference between the two attacks.</b> It is not the cursor, and
+        /// it is not "am I facing away": holding run while striking throws the back hooves.</para>
+        /// </summary>
+        public bool Kick { get; set; }
+
+        /// <summary>
+        /// The body the strike is thrown from: <c>owner.X</c>, <c>owner.Y</c> (feet) and
+        /// <c>owner.storona</c>. Set per tick by the caller, like <c>MeleeWeaponController.Owner</c>.
+        ///
+        /// <para>Null falls back to the hold point and the aim, which is what this controller did
+        /// before the seam existed — and it is wrong by a body height, because the hold point sits at
+        /// chest level while every line is measured from the feet.</para>
+        /// </summary>
+        public HoofOwnerFrame? Owner { get; set; }
+
+        /// <summary>
+        /// The sweep surface. <c>MeleeHitVolume</c> in production; a recording stub in tests.
+        ///
+        /// <para>Optional: with no volume the strike still consumes its cooldown, still plays its
+        /// sound and still emits its plan — it simply cannot hit anything. That is the state the whole
+        /// unarmed path was in before this seam: the plan was emitted and nothing read it, so a punch
+        /// had never dealt damage or broken a tile.</para>
+        /// </summary>
+        public IMeleeHitVolume HitVolume { get; set; }
+
+        /// <summary>
+        /// The oracle's tile query, for the "is there a low obstacle in front of me?" probe
+        /// (<c>WKick.as:60-65</c>). Takes a <b>world</b> point; returns whether a tile is there and its
+        /// <c>thre</c>.
+        ///
+        /// <para>Null means "no tiles in this world" — the probe then reports false, which is the
+        /// oracle's own answer when <c>getAbsTile</c> returns null. It is <i>not</i> the same as
+        /// "no obstacle": a wall the strike should have cleared over would be missed, so production
+        /// must supply this.</para>
+        /// </summary>
+        public Func<Vector2, HoofTileProbe> ProbeTile { get; set; }
 
         // ── Owner stats ───────────────────────────────────────────────────────
 
@@ -86,13 +151,11 @@ namespace PFE.Systems.Weapons.Controllers
         private float PunchDamMult => _statSource != null ? _statSource.PunchDamMult : 1f;
 
         /// <summary>
-        /// <c>Pers.kickDestroy</c> (<c>WPunch.as:54</c>, <c>WKick.as:69</c>) — the tile damage a
-        /// <b>back-hit</b> carries, in place of the weapon's own <c>destroy</c>. Only read when there
-        /// is an owner with a <c>Pers</c>, which is AS3's own gate (<c>if(owner.player)</c>).
-        ///
-        /// <para>Wired once <c>MeleeHitVolume</c> learned to resolve tiles. Before that its only
-        /// possible consumer was <c>DamageContext.DestroyTiles</c>, which nothing on a
-        /// <c>MeleeSweep</c> plan read — so writing it here would have been inert.</para>
+        /// <c>Pers.kickDestroy</c> (<c>WKick.as:69</c>) — the tile damage a <b>kick</b> carries, in
+        /// place of the weapon's own <c>destroy</c>. Only read on the kick branch, which is the whole
+        /// reason a bare kick can break a wall the punch only dents: the punch uses the row's
+        /// <c>destroy='4'</c> (<c>AllData.as:26</c>), the kick uses <c>Pers</c>' 30
+        /// (<c>Pers.as:335</c>) — and a perk can raise it to 80 (<c>powerkick</c>, <c>AllData.as:5785</c>).
         /// </summary>
         private float KickDestroy => _statSource != null ? _statSource.KickDestroy : 0f;
 
@@ -139,13 +202,33 @@ namespace PFE.Systems.Weapons.Controllers
 
         public void Dispose() => State.Dispose();
 
+        /// <summary>
+        /// The AS3 sound id of the strike that fired this tick — <c>m_big</c> for the kick,
+        /// <c>m_med</c> for the punch (<c>WKick.as:81</c>, <c>:105</c>) — or null. Cleared on read so a
+        /// caller that ticks twice in one frame cannot play it twice.
+        ///
+        /// <para>Played here rather than through <c>ShotCues</c> because the cue carries a bool and the
+        /// id comes from the weapon's row: <c>punch</c> authors no <c>&lt;snd shoot&gt;</c>, and the
+        /// oracle's two strike sounds are hard-coded at the call site, not data.</para>
+        /// </summary>
+        public string ConsumeStrikeSound()
+        {
+            string s = _pendingSound;
+            _pendingSound = null;
+            return s;
+        }
+
         // ── Per-flash-frame ────────────────────────────────────────────────────
 
         private void TickOneFlashFrame(Vector2 holdPoint, Vector2 aimTarget)
         {
             _lastAimTarget = aimTarget;
             _lastHoldPoint = holdPoint;
-            _storona       = aimTarget.x >= holdPoint.x ? 1f : -1f;
+
+            // AS3 `WKick.actions():30-32` — X/Y/storona are refreshed from the owner every frame.
+            _storona = Owner.HasValue
+                ? Owner.Value.Storona
+                : (aimTarget.x >= holdPoint.x ? 1f : -1f);
 
             // Unarmed: no world position tracking — position follows owner.
             State.X = holdPoint.x;
@@ -168,7 +251,7 @@ namespace PFE.Systems.Weapons.Controllers
         // ── attack() ─────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Mirrors WPunch.attack(): sets t_attack = rapid unconditionally.
+        /// <c>WKick.attack()</c> (<c>:110-117</c>): sets <c>t_attack = rapid</c> unconditionally.
         /// </summary>
         private void RunAttack()
         {
@@ -181,6 +264,10 @@ namespace PFE.Systems.Weapons.Controllers
                 return;
             }
 
+            // AS3 `UnitPlayer.as:2379` assigns `kick` immediately before `attack()`, so the mode is
+            // fixed for the whole swing even if the run key is released mid-animation.
+            _kick = Kick;
+
             State.TAttack  = Mathf.RoundToInt(_def.rapid);
             State.IsAttack = true;
             State.KolShoot++;
@@ -191,17 +278,23 @@ namespace PFE.Systems.Weapons.Controllers
 
         private void RunActions()
         {
-            // ── Shoot trigger ─────────────────────────────────────────────────
-            // AS3: fires at t_attack == rapid - 5 (or rapid - 8 for kick).
-            int fireOffset = PunchFireOffset;  // WKick would use KickFireOffset
-            if (State.TAttack == Mathf.RoundToInt(_def.rapid) - fireOffset)
+            // AS3 `WKick.actions():33-37` decrements FIRST and then tests the decremented value
+            // (`if(t_attack > 0) --t_attack;` … `if(t_attack == rapid - 8)`). The port tested before
+            // decrementing, which fired one frame late — the same off-by-one MeleeWeaponController
+            // had (WClub.as:495 is the last statement of its block).
+            if (State.TAttack > 0) State.TAttack--;
+
+            if (State.TAttack == Mathf.RoundToInt(_def.rapid) - HoofStrikeRules.FireFrameOffset)
                 Shoot();
 
-            if (State.TAttack > 0) State.TAttack--;
-            if (State.TRet    > 0) State.TRet--;
-            if (State.TShoot  > 0) State.TShoot--;
-            if (State.TAuto   > 0) State.TAuto--;
-            else                    State.Pow = 0;
+            // The bullet walks its waypoint list one segment per frame (`Bullet.bindMove` →
+            // `run()`), so the volume visits each line in the oracle's order.
+            StepSegments();
+
+            if (State.TRet   > 0) State.TRet--;
+            if (State.TShoot > 0) State.TShoot--;
+            if (State.TAuto  > 0) State.TAuto--;
+            else                  State.Pow = 0;
 
             State.RotUp = 0f;  // No recoil lift on unarmed.
         }
@@ -209,106 +302,145 @@ namespace PFE.Systems.Weapons.Controllers
         // ── shoot() ──────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Mirrors WPunch.shoot().
-        /// Calculates punch angle (vertical clamped to horizontal magnitude),
-        /// checks zadok back-kick, emits MeleeSweep ShotPlan.
+        /// <c>WKick.actions()</c>'s fire block (<c>:37-107</c>): probe for a low obstacle, pick the
+        /// branch, arm the volume and publish the damage.
         /// </summary>
         private void Shoot()
         {
-            Vector2 holdPos = _lastHoldPoint;
-            Vector2 aim     = _lastAimTarget;
+            float bodyX  = Owner.HasValue ? Owner.Value.X          : _lastHoldPoint.x;
+            float feetY  = Owner.HasValue ? Owner.Value.FeetWorldY : _lastHoldPoint.y;
 
-            // ── Aim angle calculation (AS3 lines 37-44) ───────────────────────
-            float dX = aim.x - holdPos.x;
-            float dY = aim.y - holdPos.y;
+            // The side the strike lands on: the kick is mirrored (`WKick.as:59`).
+            float strikeSign = _kick ? -_storona : _storona;
 
-            // Clamp vertical to horizontal magnitude (can't punch straight up/down).
-            float dYclamped = Mathf.Abs(dY) > Mathf.Abs(dX)
-                ? Mathf.Abs(dX) * Mathf.Sign(dY)
-                : dY;
+            // ── The probe (WKick.as:60-65 for the kick, :85-90 for the punch) ────────────────
+            // Both branches probe at 60 px even though the kick sweeps to 70 — `:60-61` is inside the
+            // kick branch and still says 60.
+            bool overLowTile = false;
+            if (ProbeTile != null)
+            {
+                float probeX = bodyX + strikeSign * HoofStrikeRules.PunchReachPx / PpuScale;
 
-            float punchAngle = Mathf.Atan2(dYclamped, dX);
+                HoofTileProbe lower = ProbeTile(new Vector2(
+                    probeX, feetY + HoofStrikeRules.LowLinePx / PpuScale));
+                HoofTileProbe upper = ProbeTile(new Vector2(
+                    probeX, feetY + HoofStrikeRules.HighLinePx / PpuScale));
 
-            // ── Zadok back-kick detection (AS3 lines 47-55) ───────────────────
-            // Back-kick: punch direction is opposite to facing direction.
-            // Facing right (_storona > 0): punch angle > PI/2 or < -PI/2 → back kick.
-            // Facing left  (_storona < 0): punch angle in (-PI/2, PI/2)   → back kick.
-            bool zadok = false;
-            if (_storona > 0 && (punchAngle > Mathf.PI / 2f || punchAngle < -Mathf.PI / 2f))
-                zadok = true;
-            else if (_storona < 0 && punchAngle > -Mathf.PI / 2f && punchAngle < Mathf.PI / 2f)
-                zadok = true;
+                overLowTile = HoofStrikeRules.OverLowTile(
+                    lower.Exists, upper.Exists, lower.Threshold, upper.Threshold);
+            }
 
-            // ── Build damage context ──────────────────────────────────────────
-            // AS3 stamps the two hit procs on the bullet at fire time; WKick/WPunch go through
-            // Weapon.shoot like any other weapon, so an unarmed strike carries the owner's
-            // critInvis/desintegr exactly as a rifle does (Weapon.as:1697/:1525-1527).
+            // ── The path ────────────────────────────────────────────────────────────────────
+            // Handed a zero origin: the rules return feet-relative pixels, and BindSegment adds the
+            // body back. Same arithmetic the oracle does with absolute X/Y, one conversion less.
+            _segments    = HoofStrikeRules.Segments(_kick, overLowTile, x: 0f, feetY: 0f, storona: _storona);
+            _nextSegment = 0;
+
+            // ── Damage (WKick.as:47-49, :66-70) ─────────────────────────────────────────────
+            // AS3 stamps the two hit procs on the bullet at fire time, like any weapon.
             DamageContext baseDmg = DamageContext.FromWeapon(
                 _def, null, State.OwnerFaction,
                 critInvisChance: _statSource != null ? _statSource.CritInvis : 0f,
                 desintegrChance: _statSource != null ? _statSource.Desintegr : 0f);
 
-            // AS3 WKick.as:47-48 — punchDamMult scales BOTH the damage and the knockback:
-            //   b.damage = damage * punchDamMult;  b.otbros = otbros * punchDamMult;
-            // (Unlike melee, where the knock has no stat term at all — WClub.as:594.)
-            //
-            // AS3 also raises the stun proc when punchDamMult > 1 (WKick.as:52-54:
-            // dopCh = punchDamMult - 1, dopDamage = 30). That is NOT wired: DopChance and DopDamage
-            // have no consumer anywhere in the port, so writing them would be an inert fix. Recorded
-            // in the class remark; do not add it here until a stun resolver reads them.
+            // `punchDamMult` scales BOTH damage and knockback (unlike melee, where the knock has no
+            // stat term at all — WClub.as:594).
             float punchMult = PunchDamMult;
 
-            // AS3: b.damage = damage*2; b.otbros *= 1.5 on a back-hit (zadok).
-            float damageScale    = (zadok ? 2f : 1f) * punchMult;
-            float knockbackScale = (zadok ? 1.5f : 1f) * punchMult;
+            float damageScale    = (_kick ? HoofStrikeRules.KickDamageScale      : 1f) * punchMult;
+            float knockbackScale = (_kick ? HoofStrikeRules.KickKnockbackScale   : 1f) * punchMult;
 
-            // Scaled through one method rather than a positional re-construction: the 16-argument
-            // copy this replaced silently dropped ownerFaction, and would drop every field added to
-            // DamageContext afterwards — including the hit-avoidance terms.
-            DamageContext dmgCtx = baseDmg.WithScaledDamage(
-                damageScale,
-                knockbackScale,
-                new Vector2(Mathf.Cos(punchAngle), Mathf.Sin(punchAngle)));
+            // `b.knockx = storona; b.knocky = -0.1` (:43, :66) — almost flat, and in AS3's Y-down
+            // space −0.1 is UP, hence the negation for Unity.
+            Vector2 knockDir = new Vector2(strikeSign, -HoofStrikeRules.KnockY);
 
-            // AS3 WPunch.as:54 — a BACK-HIT is the "kick", and it takes the owner's
-            // `Pers.kickDestroy` in place of the weapon's own `destroy` (which `setBullet` had copied
-            // on at Weapon.as:1674). Gated on `owner.player` in the oracle, which is "there is a
-            // Pers" here — an enemy's punch keeps the weapon's value.
-            //
-            // This is what makes a bare kick smash tiles: the three `punch` weapons author no
-            // `<char destroy>` at all, so without it a back-hit would break a tile with the class
-            // default 10 where AS3 uses kickDestroy (30, Pers.as:335).
-            if (zadok && _statSource != null)
+            DamageContext dmgCtx = baseDmg.WithScaledDamage(damageScale, knockbackScale, knockDir);
+
+            // `b.destroy = World.w.pers.kickDestroy` on the kick only (:69), gated on `owner.player` in
+            // the oracle — which is "there is a Pers" here. The punch keeps the row's own destroy (4).
+            if (_kick && _statSource != null)
                 dmgCtx = dmgCtx.WithDestroyTiles(KickDestroy);
 
-            // ── Emit ShotPlan ─────────────────────────────────────────────────
-            // MeleeSweep — MeleeHitVolume handles the actual hit detection.
-            // WorldPosition is the punch impact point (arm reach from body).
-            Vector2 impactPos = holdPos + new Vector2(
-                Mathf.Cos(punchAngle), Mathf.Sin(punchAngle)) * PunchRange;
+            // ── Arm the volume ──────────────────────────────────────────────────────────────
+            // AS3 sets `b.tilehit = false` and `b.off = false` here; the port's equivalent latch is
+            // cleared by SetActive(true) (see MeleeHitVolume).
+            HitVolume?.SetActive(true);
 
-            ShotCues cues = new ShotCues(
-                playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),
-                spawnShellCasing: false,
-                spawnMuzzleFlash: false,
-                makeNoise:        _def.noiseRadius > 0f,
-                noiseRadius:      _def.noiseRadius / PpuScale,
-                shineRadius:      0);
+            // ── Publish ─────────────────────────────────────────────────────────────────────
+            // The plan carries the damage context to the volume through PlayerWeaponLoadout, the same
+            // way a club's does. WorldPosition is the far end of the first line — where the hooves are
+            // at the moment of impact, used by impact effects and the debug overlay.
+            HoofSegment first = _segments[0];
+            Vector2 impactPos = new Vector2(
+                bodyX + first.FromX / PpuScale,
+                feetY - first.FromY / PpuScale);
 
             _plans.Add(new ShotPlan(
                 origin:        ShotOrigin.HoldPoint,
                 worldPosition: impactPos,
-                angleRad:      punchAngle,
+                angleRad:      strikeSign >= 0f ? 0f : Mathf.PI,
                 kind:          ShotKind.MeleeSweep,
                 damage:        dmgCtx,
                 pelletIndex:   0,
                 totalPellets:  1,
-                cues:          cues,
-                meleePrevTip:  holdPos,
-                meleeCurrTip:  impactPos
-            ));
+                cues:          new ShotCues(
+                                   playShootSound:   false,   // the oracle's cue is hard-coded, see ConsumeStrikeSound
+                                   spawnShellCasing: false,
+                                   spawnMuzzleFlash: false,
+                                   makeNoise:        _def.noiseRadius > 0f,
+                                   noiseRadius:      _def.noiseRadius / PpuScale,
+                                   shineRadius:      0),
+                meleePrevTip:  impactPos,
+                meleeCurrTip:  impactPos));
 
+            _pendingSound = _kick ? HoofStrikeRules.KickSound : HoofStrikeRules.PunchSound;
             State.IsShoot = true;
+        }
+
+        // ── The sweep ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Bind the next line of the strike, or close the volume when the list is spent.
+        ///
+        /// <para><b>One segment per flash frame, not all at once.</b> A <c>BindMove</c> repositions one
+        /// capsule; issuing five in a single frame would leave only the last one standing when physics
+        /// ran, so four of the five lines could never hit a unit. Spreading them is also what the
+        /// oracle does — the bullet walks its waypoints at <c>speed</c> px/frame.</para>
+        /// </summary>
+        private void StepSegments()
+        {
+            if (_segments == null) return;
+
+            if (_nextSegment >= _segments.Length)
+            {
+                EndStrike();
+                return;
+            }
+
+            BindSegment(_segments[_nextSegment++]);
+        }
+
+        private void BindSegment(in HoofSegment seg)
+        {
+            if (HitVolume == null) return;
+
+            float ox = Owner.HasValue ? Owner.Value.X          : _lastHoldPoint.x;
+            float oy = Owner.HasValue ? Owner.Value.FeetWorldY : _lastHoldPoint.y;
+
+            // Feet-relative px → world units. `FromY` is `-height` (AS3 writes `Y - h` with Y down),
+            // so subtracting it moves the line UP in Unity.
+            Vector2 from = new Vector2(ox + seg.FromX / PpuScale, oy - seg.FromY / PpuScale);
+            Vector2 to   = new Vector2(ox + seg.ToX   / PpuScale, oy - seg.ToY   / PpuScale);
+
+            HitVolume.BindMove(from, to);
+        }
+
+        /// <summary>Close the sweep. AS3's bullet simply expires (<c>liv</c>) once its moves are spent.</summary>
+        private void EndStrike()
+        {
+            _segments    = null;
+            _nextSegment = 0;
+            HitVolume?.SetActive(false);
         }
     }
 }

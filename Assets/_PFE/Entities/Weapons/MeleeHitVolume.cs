@@ -213,7 +213,15 @@ namespace PFE.Entities.Weapons
             // return false; hp -= param1`. It already owns the `phis >= 1` gate and the destroy
             // sequence, so routing through it keeps melee and projectiles on ONE destruction path
             // rather than two that can drift.
-            destructible.ApplyDestruction(hitWorld, _damageContext.DestroyTiles, _damageContext.DamageType);
+            //
+            // The decal is the WEAPON's, not the damage type's: `setBullet` copies `Weapon.tipDecal`
+            // onto the bullet (`Weapon.as:1669-1670`) and a swing *is* a bullet, so a blade carries the
+            // blade decal and not whatever its damage type would suggest.
+            DecalType decal = _hasDamageContext && _damageContext.Weapon != null
+                ? _damageContext.Weapon.decalType
+                : DecalType.None;
+
+            destructible.ApplyDestruction(hitWorld, _damageContext.DestroyTiles, _damageContext.DamageType, decal);
         }
 
         /// <summary>

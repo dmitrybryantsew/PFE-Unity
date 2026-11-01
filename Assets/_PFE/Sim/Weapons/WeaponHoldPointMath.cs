@@ -80,7 +80,24 @@ namespace PFE.Systems.Weapons
         /// <c>zombie8</c> <c>zombipink</c>) — the plain ghouls never carry one, which is why this rule
         /// had never been needed before.</para>
         /// </summary>
-        Zombie = 8
+        Zombie = 8,
+
+        /// <summary>
+        /// <c>UnitBossUltra.setWeaponPos</c> (<c>UnitBossUltra.as:240-244</c>) — <b>the largest lift of
+        /// any override</b>:
+        /// <code>
+        /// weaponX = vis.x;
+        /// weaponY = vis.y - 110;
+        /// </code>
+        ///
+        /// <para><b>110 px, not a fraction of the body.</b> The Ultra Sentinel is a floating chassis
+        /// roughly 200 px tall whose gatling sits at shoulder height, well above the
+        /// <c>scY * 0.5</c> the base rule would give it (100 px) and above the <c>UnitSentinel</c>
+        /// 90 px it resembles. Reading <c>vis</c> rather than <c>X</c>/<c>Y</c> changes nothing in the
+        /// port — the visual child is parented at the body origin — so this resolves to
+        /// <c>feetY + 1.1</c> units and the body's X.</para>
+        /// </summary>
+        BossUltra = 9
     }
 
     /// <summary>
@@ -229,6 +246,12 @@ namespace PFE.Systems.Weapons
         public const float DronHeavyExtraLiftPixels = 40f;
 
         /// <summary>
+        /// AS3 <c>UnitBossUltra</c>: <c>weaponY = vis.y - 110</c>, in Flash pixels
+        /// (<c>UnitBossUltra.as:243</c>). The tallest hold point in the roster.
+        /// </summary>
+        public const float BossUltraHoldLiftPixels = 110f;
+
+        /// <summary>
         /// AS3 base <c>Unit.setWeaponPos</c> (<c>Unit.as:3288-3294</c>) — the hold point for a unit that
         /// overrides nothing.
         ///
@@ -327,6 +350,11 @@ namespace PFE.Systems.Weapons
                     // override is symmetric, so an X offset had nowhere to be expressed.
                     liftPixels = bodyHeight * ZombieHoldHeightFraction * FlashPixelsPerUnit;
                     aheadPixels = (facingSign >= 0f ? 1f : -1f) * ZombieHoldAheadPixels;
+                    break;
+
+                case WeaponHoldRule.BossUltra:
+                    // `weaponX = vis.x; weaponY = vis.y - 110;` (UnitBossUltra.as:242-243).
+                    liftPixels = BossUltraHoldLiftPixels;
                     break;
 
                 case WeaponHoldRule.Base:
@@ -433,10 +461,12 @@ namespace PFE.Systems.Weapons
         /// <c>localToGlobal</c> and falls back to the body when that point is inside a wall
         /// (<c>UnitPlayer.as:3561-3584</c>).
         ///
-        /// <para>The bone path needs the rig, so this port covers only the two fallbacks — which is
-        /// what the oracle itself uses whenever the bone lookup throws. It is deliberately separate
-        /// from <see cref="Resolve"/>: the two are independent assignments in AS3, and the magic
-        /// fallback is <c>Y - 35</c>/<c>Y - 75</c> px rather than any fraction of the body.</para>
+        /// <para><b>The <c>catch</c> branch, not the whole rule.</b> It answers "what if there is no
+        /// bone" — which is the oracle's own answer whenever the lookup throws. The <c>try</c> branch,
+        /// which is what actually fires in play, is <see cref="ResolveMagicHorn"/>; this method is its
+        /// wall-guard target and its no-rig fallback. It is deliberately separate from
+        /// <see cref="Resolve"/>: the two are independent assignments in AS3, and the magic fallback is
+        /// <c>Y - 35</c>/<c>Y - 75</c> px rather than any fraction of the body.</para>
         /// </summary>
         /// <param name="ownerX">Owner's world X.</param>
         /// <param name="ownerFeetY">Owner's world Y at the feet.</param>
@@ -455,6 +485,51 @@ namespace PFE.Systems.Weapons
             // AS3: `magicY = Y - 35` seated, `Y - 75` standing (Flash y, so both are lifts).
             float dropPx = isSitting ? 35f : 75f;
             return new Vector2(ownerX, ownerFeetY + dropPx / FlashPixelsPerUnit);
+        }
+
+        /// <summary>
+        /// The owner's magic / horn point, given the rig's <c>konec</c> bone — the <b><c>try</c>
+        /// branch</b> of <c>UnitPlayer.as:3561-3584</c>, which <see cref="ResolveMagicFallback"/>
+        /// alone never reached:
+        ///
+        /// <code>
+        /// p = new Point(vis.osn.body.head.morda.konec.x, vis.osn.body.head.morda.konec.y);
+        /// p = vis.osn.body.head.morda.localToGlobal(p);
+        /// p = vis.parent.globalToLocal(p);
+        /// magicX = p.x;  magicY = p.y;
+        /// if(loc.getAbsTile(magicX,magicY).phis == 1) { magicY = isSit ? Y - 35 : Y - 75; }
+        /// </code>
+        ///
+        /// <para><b>This is the point magic fires from.</b> <c>Weapon.actions()</c> snaps a
+        /// <c>tip==5</c> weapon to <c>owner.magicX/magicY</c> (<c>Weapon.as:1070-1074</c>) and
+        /// <c>getBulXY()</c> then finds no <c>emit</c> child on a magic symbol, so the round leaves
+        /// from <i>this</i> point — the horn tip, not the body. Using the fallback as if it were the
+        /// answer put every spell at chest height in front of the player.</para>
+        ///
+        /// <para><b>Why the wall guard is not cosmetic.</b> A horn poking into a ceiling or a corner
+        /// is a normal standing position, and a round spawned inside a solid tile detonates on the
+        /// spot. AS3 drops the point to <c>Y - 35</c>/<c>Y - 75</c> px above the feet — the same two
+        /// numbers <see cref="ResolveMagicFallback"/> uses — and that is the only difference between
+        /// the two branches.</para>
+        /// </summary>
+        /// <param name="bonePoint">The <c>konec</c> bone in world space, from the rig.</param>
+        /// <param name="ownerX">Owner's world X — the guarded point's column.</param>
+        /// <param name="ownerFeetY">Owner's world Y at the feet.</param>
+        /// <param name="bodyHeight">AS3 <c>scY</c>; unused on this path, kept for signature symmetry.</param>
+        /// <param name="isSitting">AS3 <c>isSit</c> — seated owners use the shorter 35 px drop.</param>
+        /// <param name="isSolidAt">
+        /// Tile predicate, or <c>null</c> for "no room reference" — the state the loadout is in today,
+        /// exactly as <see cref="Resolve"/> documents for its own two clamps. A null predicate means
+        /// the guard never fires, which is the open-ground behaviour.
+        /// </param>
+        public static Vector2 ResolveMagicHorn(Vector2 bonePoint, float ownerX, float ownerFeetY,
+                                               float bodyHeight, bool isSitting = false,
+                                               System.Func<Vector2, bool> isSolidAt = null)
+        {
+            if (isSolidAt == null || !isSolidAt(bonePoint))
+                return bonePoint;
+
+            return ResolveMagicFallback(ownerX, ownerFeetY, bodyHeight, isSitting, blocked: true);
         }
     }
 }

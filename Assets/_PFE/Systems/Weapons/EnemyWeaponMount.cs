@@ -5,6 +5,7 @@ using PFE.Entities.Units;
 using PFE.Entities.Weapons;
 using PFE.Systems.Audio;
 using PFE.Systems.Combat;
+using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Weapons.Controllers;
 using UnityEngine;
 using VContainer;
@@ -115,6 +116,19 @@ namespace PFE.Systems.Weapons
         /// and not a guess at a constant.</para>
         /// </summary>
         public WeaponHoldRule HoldRule { get; set; } = WeaponHoldRule.Base;
+
+        /// <summary>
+        /// A hold point in <b>room pixels from the owner's feet</b>, for the one <c>setWeaponPos</c>
+        /// override the rule table cannot express: <c>UnitTurret</c>'s per-mount constants
+        /// (<c>UnitTurret.as:422-441</c> — <c>Y-12</c> floor/combat, <c>Y-60</c> land, <c>Y-20</c>
+        /// wall/ceiling, <c>Y-55</c> arm).
+        ///
+        /// <para><b>Null means "use <see cref="HoldRule"/>".</b> Set by <c>TrapController</c> from
+        /// <c>TurretParts.Placements</c>, which is the same table the gun sprite is drawn from — so the
+        /// drawn trunnion and the weapon origin cannot drift apart. Y is positive upwards (room space),
+        /// the opposite sign from the oracle's Flash pixels.</para>
+        /// </summary>
+        public Vector2? HoldOffsetPixels { get; set; }
 
         private Vector2 _aimTarget;
         private bool    _hasAimTarget;
@@ -291,6 +305,12 @@ namespace PFE.Systems.Weapons
             // bolt is silent to every other AI. The owner is the unit, not this child object.
             _spawner.Owner = _owner != null ? _owner.transform : transform;
 
+            // The gun, for a beam's post-impact re-anchor (`Bullet.as:233-237`) — the same presenter
+            // whose `MuzzleWorldPosition` this mount already pushes into the controller each tick.
+            // A mount with no presenter leaves it null and a beam keeps the tail it was fired with.
+            _spawner.SetMuzzleSource(
+                () => _presenter != null ? _presenter.MuzzleWorldPosition : null);
+
             // The melee half. Built here rather than in the archetype for the same reason the ranged
             // half is: one consumer, shared by every armed archetype, and the controller's own
             // `HitVolume` contract is what the player path already satisfies.
@@ -428,15 +448,23 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
-        /// Mark this weapon's trigger as having no click edge — AS3's <c>attack(true)</c>.
+        /// Mark this weapon's trigger as having no click edge — AS3's <c>attack(true)</c>, and the
+        /// port's stand-in for the oracle's per-instance <c>weapon.auto = true</c>.
         /// </summary>
         /// <remarks>
-        /// <para><b>Called by <c>UnitNPCController</c> and by nothing else.</b> An NPC's trigger is
-        /// pushed on every frame (`UnitNPC.as:570-577`), and a semi-auto weapon's <c>t_auto</c>
-        /// debounce is refreshed by every push — so without this the NPC fires once per engagement and
-        /// then holds a trigger that can never re-arm. See
-        /// <see cref="WeaponRuntimeState.AutomaticTrigger"/> for the frame-by-frame trace.</para>
-        ///
+        /// <para><b>Two callers, for two different oracle reasons.</b></para>
+        /// <list type="bullet">
+        /// <item><description><c>UnitNPCController</c> — an NPC's trigger is pushed on every frame
+        /// (<c>UnitNPC.as:570-577</c>), and a semi-auto weapon's <c>t_auto</c> debounce is refreshed
+        /// by every push, so without this the NPC fires once per engagement and then holds a trigger
+        /// that can never re-arm. See <see cref="WeaponRuntimeState.AutomaticTrigger"/> for the
+        /// frame-by-frame trace.</description></item>
+        /// <item><description><c>TrapController.BindTurretParts</c> — <c>UnitTurret</c>'s constructor
+        /// sets <c>currentWeapon.auto = true</c> outright (<c>UnitTurret.as:130</c>), overriding the
+        /// row default of <c>rapid &lt;= 6</c>. Four of the eight turret rows are slower than that,
+        /// and a semi-automatic mount under a held trigger fires <b>exactly once</b> and then stares —
+        /// the reported turret stall.</description></item>
+        /// </list>
         /// <para><b>Not set for raiders, deliberately.</b> Their <c>attack()</c> call is gated on
         /// <c>isrnd(0.1)</c> (<c>UnitRaider.as:1521</c>), which leaves <c>t_auto</c> the gap it needs to
         /// expire; giving them automatic fire would replace an authored cadence with the weapon's.</para>
@@ -472,11 +500,19 @@ namespace PFE.Systems.Weapons
             if (_owner == null) _owner = GetComponentInParent<UnitController>();
             if (_owner == null) return (Vector2)transform.position + Vector2.right;
 
-            // Facing only — the horizontal sign is what the presenter and the controller both read, and
-            // anchoring on the feet keeps this independent of the weapon's own state before it has ever
-            // been stepped.
-            return new Vector2(_owner.transform.position.x, _owner.FeetWorldY)
-                 + new Vector2(_owner.FacingDirection, 0f);
+            // The oracle's own no-target `cel` — `celY = Y - scY; celX = X + scX * storona * 2;`
+            // (`UnitRaider.as:682-683`, `UnitAlicorn.as:724-725`, `UnitZombie.as:570-571`,
+            // `UnitAIRobot.as:175-176`, every `UnitBoss*`) — i.e. two body widths forward at the TOP of
+            // the body. `EnemyAimMath.AheadCel` owns that pair.
+            //
+            // This used to aim along the facing from the FEET, which tilted every idle gun at the floor;
+            // it is a last resort (every armed brain publishes a per-tick point), but a wrong last
+            // resort is still wrong. The one archetype whose own ahead-point differs is the NPC
+            // (`UnitNPC.as:530-531`, ten pixels above the feet) and it never reaches here, because
+            // `UnitNPCController.TickCel` publishes every tick.
+            Vector2 feetPx = (Vector2)_owner.transform.position * 100f;
+            return EnemyAimMath.AheadCel(feetPx, _owner.SpriteSizePixels, _owner.FacingDirection)
+                 * TileQueryConstants.PixelToUnit;
         }
 
         /// <summary>
@@ -608,6 +644,25 @@ namespace PFE.Systems.Weapons
             UnitDefinition stats = _owner.Stats;
             float height = stats != null && stats.Height > 0f ? stats.Height : 0.7f;
 
+            // ── An owner-supplied hold point, in room pixels from the feet ──────────────────────────
+            //
+            // `UnitTurret.setWeaponPos` (UnitTurret.as:422-441) is the one `setWeaponPos` override the
+            // rule table cannot express: it does not read the body at all, it picks a per-mount constant
+            // — `Y - 12` for the floor and combat mounts, `Y - 60` land, `Y - 20` wall and ceiling,
+            // `Y - 55` arm. The generic `Base` rule answers `Y - scY/2`, so a land turret's weapon sat
+            // 30 px below its own trunnion and an arm turret's 20 px below, which is a barrel drawn in
+            // one place and a round leaving from another.
+            //
+            // Resolved from the owner's live position each tick rather than baked at equip time: the
+            // land and arm mounts author `<move knocked>`/`damwall`, so they can be shoved off their
+            // anchor, and a world-space snapshot would leave the barrel behind.
+            if (HoldOffsetPixels.HasValue)
+            {
+                Vector2 offset = HoldOffsetPixels.Value * TileQueryConstants.PixelToUnit;
+                return new Vector2(_owner.transform.position.x + offset.x,
+                                   _owner.FeetWorldY + offset.y);
+            }
+
             return WeaponHoldPointMath.ResolveHold(
                 HoldRule,
                 _owner.transform.position.x,
@@ -661,6 +716,26 @@ namespace PFE.Systems.Weapons
         public void Tick(float dt)
         {
             if (!_initialised || _controller == null) return;
+
+            // ── Whose round is it, this tick ────────────────────────────────────────────────────────
+            //
+            // AS3 stamps the bullet from `this.owner.fraction` at FIRE time (`Weapon.as:1525`), and the
+            // owner's faction is not fixed for life: a turret's `<obj fraction="100">` placement
+            // overrides the row's Robot(4), and `UnitTurret.hack()` rewrites it again at runtime
+            // (`:401`, `:410`).
+            //
+            // The port captured it once, in `Initialize` — which `RoomUnitSpawner` calls BEFORE
+            // `ApplyPlacement`, so a camp turret's weapon was stamped Robot while the turret itself
+            // was Player. The visible consequence: the camp turret never shot the player (its brain
+            // read the live faction) but its rounds could still damage the player and the camp's own
+            // rangers (the shot read the stale one), and a hacked turret kept firing robot-faction
+            // bullets at the player it had just been reprogrammed to defend.
+            //
+            // Re-read per tick rather than pushed from the two writers: there are already three of
+            // them (placement, hack, and any future script action), and a fourth would be the one that
+            // forgets.
+            if (_owner == null) _owner = GetComponentInParent<UnitController>();
+            if (_owner != null) _controller.State.OwnerFaction = _owner.Faction;
 
             // ── The aim point, before the hold point ─────────────────────────────────────────────
             //
