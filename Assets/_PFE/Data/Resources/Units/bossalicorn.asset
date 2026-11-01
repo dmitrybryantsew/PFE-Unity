@@ -34,13 +34,13 @@ MonoBehaviour:
   braking: 0.4
   jumpForce: 15
   knocked: 1
-  levitationMaxHeight: 60
-  levitationAcceleration: 1.6
+  levitationMaxHeight: 90
+  levitationAcceleration: 1.2
   canSwim: 1
   canLevitate: 0
   canBeKnockedDown: 1
   isFixed: 0
-  wallDamage: 0
+  wallDamage: 25
   stepThreshold: 0
   health: 4500
   armor: 0
@@ -165,6 +165,7 @@ MonoBehaviour:
   registrationPoint: {x: 105, y: 150}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: boss_2
   deathSoundId: 

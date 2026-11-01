@@ -106,6 +106,34 @@ MonoBehaviour:
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites:
+  - {fileID: 21300000, guid: 73ff4ebf86131db46a517db21b312feb, type: 3}
+  - {fileID: 21300000, guid: d016b1825029b1d4a8d3e1019d6c6a05, type: 3}
+  - {fileID: 21300000, guid: 2f62ec8ac3805b54cbc1baeae65bb051, type: 3}
+  - {fileID: 21300000, guid: 19625632526979642891011fcba911a8, type: 3}
+  - {fileID: 21300000, guid: 4e806ab9a8783ad46b9fcaacd8fa1966, type: 3}
+  - {fileID: 21300000, guid: bf0b9dad4589b3941a71d7f4f9338337, type: 3}
+  - {fileID: 21300000, guid: 92a3fd57826169a4ab7835bde07e2895, type: 3}
+  - {fileID: 21300000, guid: 638cbe264540ead4f95d5bf948a19dd1, type: 3}
+  - {fileID: 21300000, guid: 69ecf064086ea6a4f82ed4ab8514ca52, type: 3}
+  - {fileID: 21300000, guid: b58895271764c27438fbb5bb513d57b4, type: 3}
+  - {fileID: 21300000, guid: e7eb38fbaa7a652439426928fbd6bb42, type: 3}
+  - {fileID: 21300000, guid: 01ccb1fd4d4bc6c45aa7b67fe21b72aa, type: 3}
+  - {fileID: 21300000, guid: 082ceff492f1cb744b806a1caac8c4fd, type: 3}
+  - {fileID: 21300000, guid: f166b8688e3ca89478c0f88096697d65, type: 3}
+  - {fileID: 21300000, guid: 3cd6c81cb28b62e4b96a017b094c52da, type: 3}
+  - {fileID: 21300000, guid: 237c231c6f576e84ab3365470d8ac781, type: 3}
+  - {fileID: 21300000, guid: 208951feba130e44fbafc550802d8b7c, type: 3}
+  - {fileID: 21300000, guid: c52efc971cccadb4ea37505c7f6feb8f, type: 3}
+  - {fileID: 21300000, guid: 07d6e4b572355924fb03a4d4d18a6a03, type: 3}
+  - {fileID: 21300000, guid: e242769e6c87a0e44b71af9bc56f51b6, type: 3}
+  - {fileID: 21300000, guid: 23f3f0da1faf7104c828a263041fa918, type: 3}
+  - {fileID: 21300000, guid: 84297b4f8929e3b41b6a29c74435f41b, type: 3}
+  - {fileID: 21300000, guid: feb6881c77ee3d74ba2d9c5fddd3997a, type: 3}
+  - {fileID: 21300000, guid: 10678d904431a464aa947ec885ec3ca2, type: 3}
+  - {fileID: 21300000, guid: fba8b9bbd4c94744e8411bc76a248b17, type: 3}
+  - {fileID: 21300000, guid: 6eb790acd77f15d45918e374cde22245, type: 3}
+  - {fileID: 21300000, guid: 1f2d0adfc9795274cadc89f3289e0ab6, type: 3}
   gender: 2
   musicTrack: 
   deathSoundId: 

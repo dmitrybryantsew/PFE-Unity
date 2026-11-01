@@ -100,12 +100,14 @@ MonoBehaviour:
   visualClassName: 
   spriteSheet:
   - {fileID: 21300000, guid: a72734e250c382b4689237017058d397, type: 3}
+  - {fileID: 21300000, guid: 817efac902d580b4a95546f792857779, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 1
+  spriteSheetColumns: 2
   spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: expl3
@@ -135,11 +137,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 0
+      length: 2
       firstFrame: 0
       returnFrame: 0
-      frameStep: 0
-      replay: 0
+      frameStep: 1
+      replay: 1
       isStatic: 0
     walk:
       row: 0

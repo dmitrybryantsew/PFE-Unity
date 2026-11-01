@@ -116,6 +116,7 @@ MonoBehaviour:
   registrationPoint: {x: 43, y: 27}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: rat

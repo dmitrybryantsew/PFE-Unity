@@ -113,6 +113,7 @@ MonoBehaviour:
   registrationPoint: {x: 27, y: 27}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: bloat

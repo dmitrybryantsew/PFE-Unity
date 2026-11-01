@@ -100,12 +100,43 @@ MonoBehaviour:
   visualClassName: visualRobobrain
   spriteSheet:
   - {fileID: 21300000, guid: 25b8ff86e336b234a97f5a7160b86029, type: 3}
+  - {fileID: 21300000, guid: 66b73f9ba533feb41bafe53c53da2fa1, type: 3}
+  - {fileID: 21300000, guid: 8c015aafd7eb45946baf1f6b1a3ad8db, type: 3}
+  - {fileID: 21300000, guid: 7b15acd35cef61048aa4cb26996c9bee, type: 3}
+  - {fileID: 21300000, guid: 401d9cd8bf4d623489fddc3cdf3f8dce, type: 3}
+  - {fileID: 21300000, guid: 834c8ab96dbaeea4c878f3b22df1cf11, type: 3}
+  - {fileID: 21300000, guid: 0a97e3b9753269c4fb51b815ca0691d8, type: 3}
+  - {fileID: 21300000, guid: f22d1c9c8e644814c8051b56bd9db431, type: 3}
+  - {fileID: 21300000, guid: 9c71d7573a0fd804c83abc809eb63cd9, type: 3}
+  - {fileID: 21300000, guid: 4e3f8813077a437438bf0449a594667f, type: 3}
+  - {fileID: 21300000, guid: 27db81c7c8253984484b937f653842f7, type: 3}
+  - {fileID: 21300000, guid: eba83cd02e9ca0545aeacf006c0c3f1b, type: 3}
+  - {fileID: 21300000, guid: 826c0c4ed13d01e40b40b4cb947146ac, type: 3}
+  - {fileID: 21300000, guid: 7b907ca2282cb7242ab47c23da789119, type: 3}
+  - {fileID: 21300000, guid: ddaa2c65e283db3469fad7dfda2685c6, type: 3}
+  - {fileID: 21300000, guid: ca6ebc4ecc1990e48a3fa85d0fb807f9, type: 3}
+  - {fileID: 21300000, guid: 04d9356de7ea56e45b7f657ab573c356, type: 3}
+  - {fileID: 21300000, guid: e80cf70761a0e7e44b45769f841763bb, type: 3}
+  - {fileID: 21300000, guid: 6089b215566bc2e4196de8725c3e4074, type: 3}
+  - {fileID: 21300000, guid: 204cd2c9a3e48be4aa75d245db980093, type: 3}
+  - {fileID: 21300000, guid: e98f85a8b601b7049b1c3957c8ba7ddf, type: 3}
+  - {fileID: 21300000, guid: 353483bf918a9c644bbaeca87b108f96, type: 3}
+  - {fileID: 21300000, guid: 5fb9a6269c9a7624d95e3e0f1ae967e0, type: 3}
+  - {fileID: 21300000, guid: f1b00d9a5c5b6104395668745706c76f, type: 3}
+  - {fileID: 21300000, guid: 2d2febe3df14a5f48ab608f55baccecd, type: 3}
+  - {fileID: 21300000, guid: fd64e08445bbbd2409900004b17f3bac, type: 3}
+  - {fileID: 21300000, guid: 57e5c62e7ba54184eafb174a98adcce1, type: 3}
+  - {fileID: 21300000, guid: c04b5f357ff450f4ca93275c0df53548, type: 3}
+  - {fileID: 21300000, guid: 86aa403b80c37164eaf58d41c7192a1f, type: 3}
+  - {fileID: 21300000, guid: 8537f75c02c30ba4885521720a39577b, type: 3}
+  - {fileID: 21300000, guid: c7f7730448455de4297d190602ad0ed1, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 1
+  spriteSheetColumns: 31
   spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: combat_1
   deathSoundId: expl2
@@ -143,19 +174,19 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 0
+      length: 1
       firstFrame: 0
       returnFrame: 0
-      frameStep: 0
-      replay: 0
+      frameStep: 1
+      replay: 1
       isStatic: 0
     walk:
       row: 0
-      length: 0
-      firstFrame: 0
-      returnFrame: 0
-      frameStep: 0
-      replay: 0
+      length: 20
+      firstFrame: 1
+      returnFrame: 1
+      frameStep: 1
+      replay: 1
       isStatic: 0
     trot:
       row: 0
@@ -183,11 +214,11 @@ MonoBehaviour:
       isStatic: 0
     die:
       row: 0
-      length: 0
-      firstFrame: 0
-      returnFrame: 0
-      frameStep: 0
-      replay: 0
+      length: 10
+      firstFrame: 21
+      returnFrame: 21
+      frameStep: 1
+      replay: 1
       isStatic: 0
     death:
       row: 0

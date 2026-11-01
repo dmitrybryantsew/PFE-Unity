@@ -100,12 +100,40 @@ MonoBehaviour:
   visualClassName: visualBloodwing
   spriteSheet:
   - {fileID: 21300000, guid: b304f5521cd10c141a7c74296fcf7dd3, type: 3}
+  - {fileID: 21300000, guid: 20037a6038668cf4b84e585a055b8117, type: 3}
+  - {fileID: 21300000, guid: 02b21505a87e3e8499a66ee689bde4c4, type: 3}
+  - {fileID: 21300000, guid: 9a0276a3053d9c745a3e304dfa4218f3, type: 3}
+  - {fileID: 21300000, guid: abd1c4f513f22454686822b281199b52, type: 3}
+  - {fileID: 21300000, guid: 8cb51b5bb32bb8c488ec7d856aad6750, type: 3}
+  - {fileID: 21300000, guid: ed066ea76e27b8947a730e32ea4a74be, type: 3}
+  - {fileID: 21300000, guid: 1861838baa661e4468652dbcb31eb13b, type: 3}
+  - {fileID: 21300000, guid: 4eb353f15f75999429175dbf9ab6c1de, type: 3}
+  - {fileID: 21300000, guid: f3cc2a5a773e9de4198567940ed98054, type: 3}
+  - {fileID: 21300000, guid: 792aa61afaed76f4e8c686aad501e592, type: 3}
+  - {fileID: 21300000, guid: 07ef07f762c42ae4d9a7678f0a3f697c, type: 3}
+  - {fileID: 21300000, guid: ca4acfd01527c524788ab4e394472c37, type: 3}
+  - {fileID: 21300000, guid: b08e21adfbbc1cf4cbd4cabe1ccb13c2, type: 3}
+  - {fileID: 21300000, guid: c0543ef1a4ce2d14fac062c8e9653e5a, type: 3}
+  - {fileID: 21300000, guid: f83ae220ee6b9ec49a516bc617c9e144, type: 3}
+  - {fileID: 21300000, guid: acc0944c8e8ff1347aa061a3193cdd2d, type: 3}
+  - {fileID: 21300000, guid: 230c3b9fcfa123a47a685de50f91e0a7, type: 3}
+  - {fileID: 21300000, guid: 6efe4769bfcb66345abdcc50b64060f3, type: 3}
+  - {fileID: 21300000, guid: 90b1c15df42fec54686f0dd71f455779, type: 3}
+  - {fileID: 21300000, guid: 64dfed294138e5c4aa83c9172aed68f4, type: 3}
+  - {fileID: 21300000, guid: edd80c5b44e23ec4483f03929bd7236e, type: 3}
+  - {fileID: 21300000, guid: 042aca351a95e324594e35566930bbee, type: 3}
+  - {fileID: 21300000, guid: e7dcc5bbab17e174bb15fa7d869615ab, type: 3}
+  - {fileID: 21300000, guid: 5bf790ff529c5e649bfc17040dfd6efd, type: 3}
+  - {fileID: 21300000, guid: d2237dc63f6cec14d90c8fc053a19388, type: 3}
+  - {fileID: 21300000, guid: 6a9aa5f27bdc37a43a8df5d38f11b9e6, type: 3}
+  - {fileID: 21300000, guid: 6a2e0c72b8b5c694f98385482ab334f3, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 1
+  spriteSheetColumns: 28
   spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: bat
@@ -135,11 +163,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 0
+      length: 1
       firstFrame: 0
       returnFrame: 0
-      frameStep: 0
-      replay: 0
+      frameStep: 1
+      replay: 1
       isStatic: 0
     walk:
       row: 0
@@ -175,11 +203,11 @@ MonoBehaviour:
       isStatic: 0
     die:
       row: 0
-      length: 0
-      firstFrame: 0
-      returnFrame: 0
-      frameStep: 0
-      replay: 0
+      length: 20
+      firstFrame: 8
+      returnFrame: 8
+      frameStep: 1
+      replay: 1
       isStatic: 0
     death:
       row: 0
@@ -207,11 +235,11 @@ MonoBehaviour:
       isStatic: 0
     fly:
       row: 0
-      length: 0
-      firstFrame: 0
-      returnFrame: 0
-      frameStep: 0
-      replay: 0
+      length: 6
+      firstFrame: 1
+      returnFrame: 1
+      frameStep: 1
+      replay: 1
       isStatic: 0
     dig:
       row: 0
@@ -255,11 +283,11 @@ MonoBehaviour:
       isStatic: 0
     attack:
       row: 0
-      length: 0
-      firstFrame: 0
-      returnFrame: 0
-      frameStep: 0
-      replay: 0
+      length: 1
+      firstFrame: 7
+      returnFrame: 7
+      frameStep: 1
+      replay: 1
       isStatic: 0
     derg:
       row: 0

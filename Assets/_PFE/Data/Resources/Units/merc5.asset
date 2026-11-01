@@ -205,6 +205,7 @@ MonoBehaviour:
   registrationPoint: {x: 96, y: 132}
   iconCell: {x: -1, y: 2}
   armSprite: {fileID: 21300000, guid: 745cb5cf3b8044849becc5550a5c1558, type: 3}
+  variantSprites: []
   gender: 2
   musicTrack: combat_1
   deathSoundId: rm

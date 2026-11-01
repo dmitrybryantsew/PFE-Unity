@@ -100,12 +100,15 @@ MonoBehaviour:
   visualClassName: visualBloat3
   spriteSheet:
   - {fileID: 21300000, guid: 1fb2f5338937fcf4a84dbe4e6edf49ee, type: 3}
+  - {fileID: 21300000, guid: d9e6a58f54f6da94aad10f8765941f1b, type: 3}
+  - {fileID: 21300000, guid: 74765f304cd79264d9624b3eb94df87d, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 1
+  spriteSheetColumns: 3
   spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: bloat
@@ -135,11 +138,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 0
+      length: 3
       firstFrame: 0
       returnFrame: 0
-      frameStep: 0
-      replay: 0
+      frameStep: 1
+      replay: 1
       isStatic: 0
     walk:
       row: 0

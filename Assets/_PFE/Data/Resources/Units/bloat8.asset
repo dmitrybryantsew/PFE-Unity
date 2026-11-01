@@ -100,12 +100,15 @@ MonoBehaviour:
   visualClassName: 
   spriteSheet:
   - {fileID: 21300000, guid: 8ad771efbb993e0479a51e89d62a6909, type: 3}
+  - {fileID: 21300000, guid: 296dfb9809f1c384489f0b571b088dea, type: 3}
+  - {fileID: 21300000, guid: 0d95669b9d014b34782fa29ef245baf9, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 1
+  spriteSheetColumns: 3
   spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: boss_2
   deathSoundId: 
@@ -139,11 +142,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 0
+      length: 3
       firstFrame: 0
       returnFrame: 0
-      frameStep: 0
-      replay: 0
+      frameStep: 1
+      replay: 1
       isStatic: 0
     walk:
       row: 0

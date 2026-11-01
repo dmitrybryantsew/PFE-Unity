@@ -100,12 +100,15 @@ MonoBehaviour:
   visualClassName: visualVortex
   spriteSheet:
   - {fileID: 21300000, guid: 6e643ca3eb25df84392273f2e12430d8, type: 3}
+  - {fileID: 21300000, guid: 2b090930e10bd3745bb3346f79c3a35b, type: 3}
+  - {fileID: 21300000, guid: bfe8161bf5a9efb4d951d37d3707ff66, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 1
+  spriteSheetColumns: 3
   spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: expl2
@@ -135,11 +138,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 0
+      length: 3
       firstFrame: 0
       returnFrame: 0
-      frameStep: 0
-      replay: 0
+      frameStep: 1
+      replay: 1
       isStatic: 0
     walk:
       row: 0

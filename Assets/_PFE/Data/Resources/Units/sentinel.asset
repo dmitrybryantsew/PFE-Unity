@@ -100,12 +100,56 @@ MonoBehaviour:
   visualClassName: visualSentinel2
   spriteSheet:
   - {fileID: 21300000, guid: 6502bae00bfe5544d9cc092eb97bca34, type: 3}
+  - {fileID: 21300000, guid: 2af8d19379615624f8724059ba0ea8c4, type: 3}
+  - {fileID: 21300000, guid: 5225971a37ca15449be72a45d4bbf81a, type: 3}
+  - {fileID: 21300000, guid: 728a258372e2ef3438e94f7725dd7491, type: 3}
+  - {fileID: 21300000, guid: 78146596afd911f4fa182a275ff7628d, type: 3}
+  - {fileID: 21300000, guid: 4e7a5bcdf0504fd469514049808b6fed, type: 3}
+  - {fileID: 21300000, guid: 1339ec3322b448046b6d127de6ff7d02, type: 3}
+  - {fileID: 21300000, guid: adbc9b3259791d543918f057dea9193c, type: 3}
+  - {fileID: 21300000, guid: a850d504b5aa4604d8ee2ec4460f6b94, type: 3}
+  - {fileID: 21300000, guid: d9c6e5d2646212347b43cac920ca70b6, type: 3}
+  - {fileID: 21300000, guid: cebef16e967742245b0fd316c3158cc7, type: 3}
+  - {fileID: 21300000, guid: 389676b835e7f1a4a9063c7612daa8c5, type: 3}
+  - {fileID: 21300000, guid: d472d0d13866648499fa3b031ae17f34, type: 3}
+  - {fileID: 21300000, guid: bd75066b0c23cc54392d3a5c2cd0c7b0, type: 3}
+  - {fileID: 21300000, guid: fe78f064d4febb946bf0e09fe9b911e1, type: 3}
+  - {fileID: 21300000, guid: aa9941b5c3c959944b4797b4f20c16bc, type: 3}
+  - {fileID: 21300000, guid: 3bb84a803fee1fd469e4491f3e78b84d, type: 3}
+  - {fileID: 21300000, guid: 4f32f15e1a960664bb82c83a2d6d4f18, type: 3}
+  - {fileID: 21300000, guid: 11093db56ac76d44b874d2d06b851a60, type: 3}
+  - {fileID: 21300000, guid: 63fe4ace8bf376d448e0458f76644ef6, type: 3}
+  - {fileID: 21300000, guid: aef80cc629bf30845835f34ec998a925, type: 3}
+  - {fileID: 21300000, guid: 2c158054c468fca458d7b8681135c7f8, type: 3}
+  - {fileID: 21300000, guid: 889ef4a69fdfd754786ed9beec4aafc0, type: 3}
+  - {fileID: 21300000, guid: 3677d6c25f25a3345a678e1148f5275b, type: 3}
+  - {fileID: 21300000, guid: 374db8b4b813b7a44b519715a22c4664, type: 3}
+  - {fileID: 21300000, guid: e6b4b8c986c69ae4a9dc115342912fea, type: 3}
+  - {fileID: 21300000, guid: 0a0a715cc473cae48aa035ae8402abf4, type: 3}
+  - {fileID: 21300000, guid: 37a46ff27b9738a4c85ca29d122e8a3c, type: 3}
+  - {fileID: 21300000, guid: ef28bebf987bce64da598b33400c5a8d, type: 3}
+  - {fileID: 21300000, guid: a96826de314ec264a859a13d792323cd, type: 3}
+  - {fileID: 21300000, guid: 39b5f9f3ea1115c498bcf0facf874956, type: 3}
+  - {fileID: 21300000, guid: c66fd86974646e9469977aaebf92325a, type: 3}
+  - {fileID: 21300000, guid: fb6621b67fc9b7045b0eba438fac59f8, type: 3}
+  - {fileID: 21300000, guid: ff9ff1210fd62e6418a42d4e486dae48, type: 3}
+  - {fileID: 21300000, guid: 871ce362d4cecc6429d43abba5a81ea6, type: 3}
+  - {fileID: 21300000, guid: be16bca27ab551749b1346c6f1c7fffc, type: 3}
+  - {fileID: 21300000, guid: 2086379951befce498dbc718a3ed3bab, type: 3}
+  - {fileID: 21300000, guid: 446c249a5b0aa5c4893dd1eab6ef2621, type: 3}
+  - {fileID: 21300000, guid: be39f3fd31df98148b0170c189f87b55, type: 3}
+  - {fileID: 21300000, guid: cbb9eea607ba19b4b9ddc0c55181b18a, type: 3}
+  - {fileID: 21300000, guid: edc145f90b7ed864eb70172d57c24e55, type: 3}
+  - {fileID: 21300000, guid: 3c902fb51fa4bb2438752a8ea56e51d7, type: 3}
+  - {fileID: 21300000, guid: 91932dfcdd3d0514f9326eca0168b490, type: 3}
+  - {fileID: 21300000, guid: 864b496f2b67c224aad53d5480f54f09, type: 3}
   spriteDimensions: {x: 130, y: 130}
-  spriteSheetColumns: 1
+  spriteSheetColumns: 44
   spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: combat_1
   deathSoundId: expl1
@@ -147,11 +191,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 0
+      length: 1
       firstFrame: 0
       returnFrame: 0
-      frameStep: 0
-      replay: 0
+      frameStep: 1
+      replay: 1
       isStatic: 0
     walk:
       row: 0
@@ -179,19 +223,19 @@ MonoBehaviour:
       isStatic: 0
     jump:
       row: 0
-      length: 0
-      firstFrame: 0
-      returnFrame: 0
-      frameStep: 0
-      replay: 0
+      length: 25
+      firstFrame: 1
+      returnFrame: 1
+      frameStep: 1
+      replay: 1
       isStatic: 0
     die:
       row: 0
-      length: 0
-      firstFrame: 0
-      returnFrame: 0
-      frameStep: 0
-      replay: 0
+      length: 18
+      firstFrame: 26
+      returnFrame: 26
+      frameStep: 1
+      replay: 1
       isStatic: 0
     death:
       row: 0
