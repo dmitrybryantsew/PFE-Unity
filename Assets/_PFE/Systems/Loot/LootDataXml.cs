@@ -143,12 +143,15 @@ namespace PFE.Systems.Loot
 
                 if (!weapons.ContainsKey(id))
                 {
+                    // Loot.as:120 reads the weapon's fall sound off the <snd> CHILD node, not the row.
                     weapons[id] = new LootItemRow(
                         id, LootTips.Weapon,
                         kol: Int(w, "kol"),
                         limitKey: Str(w, "limit"),
                         limitMultiplier: Float(w, "mlim"),
-                        limitAbsolute: Int(w, "maxlim"));
+                        limitAbsolute: Int(w, "maxlim"),
+                        fallSound: Str(w, "fall"),
+                        sndFallSound: Str(w.Element("snd"), "fall"));
                 }
             }
 
@@ -214,6 +217,10 @@ namespace PFE.Systems.Loot
 
         private static string Str(XElement e, string name)
         {
+            // `e` is null for an absent child element — `Str(w.Element("snd"), "fall")` is the first
+            // caller that can legitimately pass one, since most weapon rows have a <snd> but not all.
+            if (e == null) return null;
+
             XAttribute a = e.Attribute(name);
             return a != null ? a.Value : null;
         }

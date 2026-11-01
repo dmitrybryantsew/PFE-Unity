@@ -43,8 +43,31 @@ namespace PFE.Systems.Loot
         /// </summary>
         public readonly string ArmorTip;
 
+        /// <summary>
+        /// AS3 the row's own <c>@fall</c> — the sound a dropped <b>item</b> makes when it lands
+        /// (<c>Loot.as:134</c>, <c>:158</c>, <c>:216</c>). Empty when absent.
+        ///
+        /// <para><b>Why it is read here and not off <c>ItemDefinition</c>.</b> No importer writes a fall
+        /// sound onto an item asset, so a field there would ship empty on all 500 rows and the drop would
+        /// always fall back to the generic <c>fall_item</c>. This reader already parses the oracle's own
+        /// <c>&lt;item&gt;</c> rows at runtime for exactly this class of fact (see
+        /// <c>LootDataXml</c>'s remarks on <c>@chance</c>/<c>@stage</c>), so the attribute costs one
+        /// lookup and needs no owner-only import run. 127 rows carry <c>@fall</c> or <c>snd/@fall</c> in
+        /// the shipped <c>AllData.as</c>.</para>
+        /// </summary>
+        public readonly string FallSound;
+
+        /// <summary>
+        /// AS3 <c>&lt;snd fall="…"&gt;</c> — the <b>child</b> node's fall sound. Only the weapon branch
+        /// of <c>Loot</c>'s ladder reads this one (<c>Loot.as:120</c>); the other three read
+        /// <see cref="FallSound"/>. Two fields because they are two different attributes, and a weapon
+        /// that carried only the root one must still fall as <c>fall_item</c>.
+        /// </summary>
+        public readonly string SndFallSound;
+
         public LootItemRow(string id, string tip, int? kol = null, string limitKey = null,
-                           float? limitMultiplier = null, int? limitAbsolute = null, string armorTip = null)
+                           float? limitMultiplier = null, int? limitAbsolute = null, string armorTip = null,
+                           string fallSound = null, string sndFallSound = null)
         {
             Id = id;
             Tip = tip;
@@ -53,6 +76,8 @@ namespace PFE.Systems.Loot
             LimitMultiplier = limitMultiplier;
             LimitAbsolute = limitAbsolute;
             ArmorTip = armorTip;
+            FallSound = fallSound;
+            SndFallSound = sndFallSound;
         }
     }
 
