@@ -90,13 +90,14 @@ namespace PFE.Data.Definitions
         /// <c>visShit3</c>.
         /// </param>
         /// <remarks>
-        /// <b>The <c>boss</c> arm is currently unclaimed.</b> No controller returns
-        /// <c>UsesBossShieldOverlay == true</c>: the boss alicorn's dome is a one-shot
-        /// (<c>UnitBossAlicorn.die():709-712</c> <c>gotoAndPlay(2)</c> on its first lethal hit), not a
-        /// pool, so the pool-driven <c>UnitShieldOverlay</c> cannot draw it and
-        /// <c>BossAlicornController</c> returns false. The mapping and the <c>boss</c> clip slot are kept
-        /// because the art association is real and the one-shot driver is a known, small follow-up — see
-        /// <c>TOPIC_open_work.md</c>.
+        /// <b>The <c>boss</c> arm is claimed by <c>BossAlicornController</c>.</b> Its dome is a one-shot
+        /// (<c>UnitBossAlicorn.die():709-712</c> — <c>gotoAndPlay(2)</c> on the first lethal hit), not a
+        /// pool, so the pool-driven timeline in <c>UnitShieldOverlay</c> would hide it on the first
+        /// frame: the oracle declares <c>shithp</c> and never assigns it. The driver therefore switches
+        /// on the kind — <c>ShieldDomeOneShotRules.IsOneShot</c> — and the two live in different
+        /// assemblies on purpose: this class is in <c>PFE.Data</c>, which cannot see
+        /// <c>PFE.Character.Animation.OverlayClip</c>, so the <i>selection</i> is here and the
+        /// <i>playhead</i> is next to its consumer in <c>PFE.View</c>.
         /// </remarks>
         public static UnitShieldOverlayKind KindFor(int tier, bool boss)
         {

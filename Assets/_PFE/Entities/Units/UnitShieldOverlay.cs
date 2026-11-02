@@ -73,6 +73,31 @@ namespace PFE.Entities.Units
         float _timer;
 
         /// <summary>
+        /// Which driver runs this dome: the shield pool (<c>shithp</c>) or the boss's one-shot break.
+        /// </summary>
+        /// <remarks>
+        /// Taken from <see cref="UnitShieldOverlayKind"/> at <see cref="Initialize"/> — see
+        /// <see cref="ShieldDomeOneShotRules.IsOneShot"/> for why the boss's <c>visShit3</c> cannot use
+        /// the pool poll (the oracle never assigns <c>shithp</c> for that class, so the poll would leave
+        /// her bare for the whole fight).
+        /// </remarks>
+        bool _oneShot;
+
+        /// <summary>Whether the one-shot break is playing. Always false for a pool dome.</summary>
+        bool _breaking;
+
+        /// <summary>One-shot only: the dome is up and has not broken yet.</summary>
+        public bool IsIntact => _oneShot && _visible && !_breaking;
+
+        /// <summary>One-shot only: the break is playing.</summary>
+        public bool IsBreaking => _breaking;
+
+        /// <summary>
+        /// Whether this dome is driven by the one-shot break rather than by a shield pool.
+        /// </summary>
+        public bool IsOneShotDome => _oneShot;
+
+        /// <summary>
         /// The dome asset, loaded once from <c>Resources</c>.
         ///
         /// <para>Null is a legal answer and means "the import has not been run", which is reported once
@@ -193,7 +218,49 @@ namespace PFE.Entities.Units
             _timer = 0f;
             _frame = OverlayClip.RestartFrame(_clip.frames.Length);
 
+            // The boss's dome is up from spawn — `this.visshit = new visShit3(); …
+            // this.visshit.gotoAndStop(1)` (UnitBossAlicorn.as:123-127). It is the ONE place the port
+            // must not copy the pool driver's "hidden until the pool fills" behaviour, because that
+            // class never fills a pool: `shithp` is declared and never assigned, so a pooled dome here
+            // would be invisible for the entire fight and the break would have nothing to break.
+            _oneShot = ShieldDomeOneShotRules.IsOneShot(UnitShieldOverlayRules.KindFor(tier, boss));
+
+            if (_oneShot)
+            {
+                _breaking = false;
+                _frame = ShieldDomeOneShotRules.IntactFrame(_clip.frames.Length);
+                _visible = true;
+                Draw();
+            }
+
             return true;
+        }
+
+        /// <summary>
+        /// Play the one-shot break — AS3 <c>visshit.gotoAndPlay(2)</c> (<c>UnitBossAlicorn.die():712</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Idempotent, and it must be.</b> The break is raised from the brain's revive path,
+        /// which the damage pipeline can reach twice in one tick (two sources landing on the same
+        /// frame). Restarting a running break would replay the shatter, so a second call while
+        /// <see cref="_breaking"/> is ignored.</para>
+        ///
+        /// <para><b>A no-op for a pool dome.</b> The family alicorn's dome is driven by <c>shithp</c>
+        /// and has no break animation of its own; calling this on one does nothing rather than
+        /// pretending.</para>
+        /// </remarks>
+        public void BreakOnce()
+        {
+            if (!_oneShot || _clip == null || _breaking)
+            {
+                return;
+            }
+
+            _breaking = true;
+            _visible = true;
+            _timer = 0f;
+            _frame = ShieldDomeOneShotRules.BreakStartFrame(_clip.frames.Length);
+            Draw();
         }
 
         /// <summary>
@@ -204,10 +271,24 @@ namespace PFE.Entities.Units
         /// <i>and</i> <c>shithp &lt;= 0</c>". Both are edge-triggered, which is what makes the rise
         /// restart the clip rather than resume it, and what stops the dome's loop being rewound 60 times
         /// a second.</para>
+        ///
+        /// <para><b>A one-shot dome takes neither branch.</b> It has no pool to poll, and its two
+        /// transitions are the constructor's <c>gotoAndStop(1)</c> (done in <see cref="Initialize"/>)
+        /// and <see cref="BreakOnce"/>. Running the poll on it would read a <c>ShitHp</c> of 0 and
+        /// <i>hide</i> the dome on the first frame — the boss would lose her dome before the fight
+        /// started.</para>
         /// </summary>
         void Update()
         {
-            if (_stats == null || _clip == null) return;
+            if (_clip == null) return;
+
+            if (_oneShot)
+            {
+                TickOneShot();
+                return;
+            }
+
+            if (_stats == null) return;
 
             float shitHp = _stats.ShitHp;
 
@@ -230,6 +311,50 @@ namespace PFE.Entities.Units
                 _frame = OverlayClip.NextFrame(_frame, _clip.frames.Length, _clip.loopMode);
                 Draw();
             }
+        }
+
+        /// <summary>
+        /// The one-shot timeline: nothing while intact, then the break's frames once each, then gone.
+        /// </summary>
+        /// <remarks>
+        /// The same fixed-step advance as the pool clip (<see cref="FrameRate"/>, not
+        /// <c>Time.deltaTime</c> per frame), because the oracle's clip runs on the SWF's own 30 Hz
+        /// timeline regardless of the renderer's frame rate. A variable step would make a 12-frame
+        /// shatter take longer on a slower machine — visible, and wrong.
+        /// </remarks>
+        void TickOneShot()
+        {
+            if (!_breaking || !_visible) return;
+
+            _timer += Time.deltaTime;
+            float frameDuration = 1f / FrameRate;
+
+            while (_timer >= frameDuration)
+            {
+                _timer -= frameDuration;
+
+                int next = ShieldDomeOneShotRules.NextBreakFrame(_frame, _clip.frames.Length);
+                if (next == OverlayClip.NoFrame)
+                {
+                    // The break has played out. The oracle leaves the clip on its final (fully faded)
+                    // frame and never hides it; hiding is the same picture and one draw cheaper.
+                    HideAfterBreak();
+                    return;
+                }
+
+                _frame = next;
+                Draw();
+            }
+        }
+
+        void HideAfterBreak()
+        {
+            _breaking = false;
+            _visible = false;
+            _timer = 0f;
+            _frame = ShieldDomeOneShotRules.IntactFrame(_clip.frames.Length);
+
+            if (_renderer != null) _renderer.enabled = false;
         }
 
         /// <summary>
