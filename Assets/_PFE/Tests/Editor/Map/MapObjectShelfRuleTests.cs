@@ -113,13 +113,17 @@ namespace PFE.Tests.Editor.Map
         public void WidthResolution_PrefersTheAuthoredSpriteWidth()
         {
             // Box.as:158 `scX = vis.width`, overridden by :162 `scX = node.@scx`.
-            Assert.AreEqual(55f, MapObjectShelfRule.ResolveWidthPixels("55", 2), 1e-3f,
+            Assert.AreEqual(55f, MapObjectShelfRule.ResolveWidthPixels("55", 0f, 2), 1e-3f,
                 "An authored scx is the sprite width and wins.");
 
-            Assert.AreEqual(80f, MapObjectShelfRule.ResolveWidthPixels(null, 2), 1e-3f,
-                "Without one, the footprint in tiles is the stand-in.");
+            Assert.AreEqual(60f, MapObjectShelfRule.ResolveWidthPixels(null, 60f, 2), 1e-3f,
+                "Without one, the SPRITE's width is next — a 2-tile crate is 80 px of footprint " +
+                "and 60 px of art, and the art is what AS3 measures.");
 
-            Assert.AreEqual(80f, MapObjectShelfRule.ResolveWidthPixels("not-a-number", 2), 1e-3f,
+            Assert.AreEqual(80f, MapObjectShelfRule.ResolveWidthPixels(null, 0f, 2), 1e-3f,
+                "Only with no art at all does the footprint in tiles stand in.");
+
+            Assert.AreEqual(80f, MapObjectShelfRule.ResolveWidthPixels("not-a-number", 0f, 2), 1e-3f,
                 "Unparseable is treated as absent, not as zero.");
         }
 
@@ -828,6 +832,129 @@ namespace PFE.Tests.Editor.Map
             Assert.IsFalse(
                 layer.TryFindImpactingPropFor(new Rect(180f, 100f, 40f, 60f), out _, out _),
                 "An inactive prop is likewise not a threat.");
+        }
+
+        // ── The faction gate: Box.as:924's `fracLevit` ────────────────────────────────────────
+
+        /// <summary>
+        /// A prop still carrying the thrower's faction is harmless to that faction and to nobody
+        /// else — <c>Box.as:924</c>: <c>fracLevit &gt; 0 &amp;&amp; _loc1_.fraction == fracLevit</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this exists.</b> "I watched a telekinetic crate damage the alicorn instead of
+        /// the player" is exactly this gate missing. <c>fracLevit</c> had no port at all, so the
+        /// boss's own telekinesis was the single most reliable way to hurt the boss: she lifts a
+        /// crate, throws it at you, and it wounds her on the way out.</para>
+        ///
+        /// <para><b>All three assertions use the same crate</b>, the same velocity and the same
+        /// bounds. Only the asking faction differs, so nothing but the gate can explain the
+        /// difference between them.</para>
+        ///
+        /// <para><b>The port asks the question backwards.</b> AS3 walks <i>units</i> inside one prop
+        /// (<c>:922-939</c>) and skips any unit of the holding faction; the port walks <i>props</i>
+        /// inside one unit, so the faction becomes the <i>caller's</i> argument. Passing <c>0</c>
+        /// disables the gate entirely — the neutral test below is why that is faithful rather than a
+        /// hole.</para>
+        /// </remarks>
+        [Test]
+        public void ImpactQuery_PropCarryingTheThrowersFaction_SparesThatFactionAndNobodyElse()
+        {
+            RoomObjectPhysicsLayer layer = new RoomObjectPhysicsLayer();
+            ObjectInstance crate = MakeProp("crate", 2, 2);
+            crate.position = new Vector2(200f, 100f);
+            layer.Register(crate);
+            crate.runtimeState.dynamicState.velocity = new Vector2(0f, 600f);   // 20 px/frame
+
+            // F_MONSTER (Unit.as:80) — the alicorn's faction.
+            crate.runtimeState.dynamicState.fracLevit = (int)FactionType.Monster;
+
+            var unitBounds = new Rect(180f, 100f, 40f, 60f);
+
+            Assert.IsFalse(
+                layer.TryFindImpactingPropFor(unitBounds, (int)FactionType.Monster, out _, out _),
+                "A crate the alicorn threw must not hurt the alicorn. Before the port of fracLevit " +
+                "this returned true, and it is the whole reported bug.");
+
+            Assert.IsTrue(
+                layer.TryFindImpactingPropFor(unitBounds, (int)FactionType.Player,
+                    out ObjectInstance found, out float vel2),
+                "The same crate must still hurt the player — the gate spares a side, it does not make " +
+                "the prop harmless. Without this half, deleting the prop from the candidate list " +
+                "entirely would pass the assertion above.");
+            Assert.AreSame(crate, found);
+            Assert.That(vel2, Is.EqualTo(400f).Within(1e-3f),
+                "The spared-side test must not change what the other side is told it was hit by.");
+
+            Assert.IsTrue(
+                layer.TryFindImpactingPropFor(unitBounds, 0, out _, out _),
+                "Fraction 0 is the gate switched off — the overload every other fixture in this " +
+                "section uses. If this ever goes false, those older tests stop meaning what they say.");
+        }
+
+        /// <summary>
+        /// A <b>neutral</b> thrower gets no immunity at all, because <c>0</c> is both AS3's "nobody
+        /// lifted this" sentinel and <c>FactionType.Neutral</c>.
+        /// </summary>
+        /// <remarks>
+        /// The <c>fracLevit &gt; 0</c> half of <c>Box.as:924</c> is what makes that collision of
+        /// meanings harmless in the oracle. The port spells it <c>unitFraction != 0</c>, and this is
+        /// the fixture that catches that term being dropped: without it, a neutral unit querying with
+        /// fraction 0 matches a prop stamped 0 and becomes immune to every prop in the room that
+        /// nobody is holding.
+        /// </remarks>
+        [Test]
+        public void ImpactQuery_NeutralThrowerGetsNoImmunity_EvenThoughTheSentinelMatches()
+        {
+            RoomObjectPhysicsLayer layer = new RoomObjectPhysicsLayer();
+            ObjectInstance crate = MakeProp("crate", 2, 2);
+            crate.position = new Vector2(200f, 100f);
+            layer.Register(crate);
+            crate.runtimeState.dynamicState.velocity = new Vector2(0f, 600f);
+            crate.runtimeState.dynamicState.fracLevit = (int)FactionType.Neutral;   // never lifted
+
+            Assert.IsTrue(
+                layer.TryFindImpactingPropFor(new Rect(180f, 100f, 40f, 60f),
+                    (int)FactionType.Neutral, out _, out _),
+                "fracLevit 0 means nobody lifted it, so there is no side to spare — including the " +
+                "neutral side. AS3's `fracLevit > 0` term is the only reason this is not a bug.");
+        }
+
+        /// <summary>
+        /// The gate is a <c>continue</c>, not a refusal: a spared prop must not hide a second,
+        /// unstamped one behind it.
+        /// </summary>
+        /// <remarks>
+        /// The spared crate here is the <i>harder</i> of the two, so an early <c>return false</c> on
+        /// the first spared candidate would report "nothing hit you" and silently swallow the stray
+        /// crate as well — a plausible-looking refactor with a two-line diff. Ignoring the gate
+        /// entirely fails the <c>AreSame</c> instead, so this one fixture separates all three
+        /// behaviours.
+        /// </remarks>
+        [Test]
+        public void ImpactQuery_SparedPropDoesNotHideAnUnstampedOne()
+        {
+            RoomObjectPhysicsLayer layer = new RoomObjectPhysicsLayer();
+
+            ObjectInstance own = MakeProp("own", 2, 2);
+            own.position = new Vector2(200f, 100f);
+            layer.Register(own);
+            own.runtimeState.dynamicState.velocity = new Vector2(0f, 900f);      // vel2 900, harder
+            own.runtimeState.dynamicState.fracLevit = (int)FactionType.Monster;
+
+            ObjectInstance stray = MakeProp("stray", 2, 2);
+            stray.position = new Vector2(200f, 100f);
+            layer.Register(stray);
+            stray.runtimeState.dynamicState.velocity = new Vector2(0f, 600f);    // vel2 400
+            stray.runtimeState.dynamicState.fracLevit = 0;
+
+            Assert.IsTrue(
+                layer.TryFindImpactingPropFor(new Rect(180f, 100f, 40f, 60f),
+                    (int)FactionType.Monster, out ObjectInstance found, out float vel2),
+                "Skipping the boss's own crate must not end the search — the stray crate is still " +
+                "the boss's problem.");
+
+            Assert.AreSame(stray, found);
+            Assert.That(vel2, Is.EqualTo(400f).Within(1e-3f));
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────────────────────

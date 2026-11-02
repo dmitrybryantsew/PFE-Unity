@@ -80,13 +80,19 @@ namespace PFE.Data.Definitions
         }
 
         /// <summary>
-        /// The prop's width in pixels for the rule above: the authored <c>scx</c> when there is one,
-        /// else the footprint in tiles. <c>Box.as:158</c> takes the visual's width and <c>:162</c>
-        /// overrides it from <c>node.@scx</c>; the port has no sprite width on the definition, so the
-        /// tile footprint is the stand-in and the authored attribute is honoured when present — the
-        /// same two-step fallback <c>ObjectInstance.GetApproximatePixelSize</c> already uses.
+        /// The prop's width in pixels for the rule above — <c>scX</c>, in the oracle's own precedence:
+        /// the authored <c>scx</c> when there is one (<c>Box.as:162</c>), else <b>the sprite's
+        /// width</b> (<c>:158</c> <c>scX = vis.width</c>), and only then the footprint in tiles.
+        ///
+        /// <para><b>The sprite term is not optional.</b> It used to be missing here — the port had no
+        /// sprite width on the definition when this was written — so the tile footprint stood in for
+        /// it. That is a different number for 105 of the 139 shipped definitions (a 2-tile crate is
+        /// 80 px of footprint and 60 px of art), and this rule compares the result against
+        /// <see cref="MinimumShelfWidthPixels"/>, so the stand-in could decide whether a prop is
+        /// standable at all. <see cref="PFE.Systems.Physics.PropFootprintMath"/> owns the same
+        /// precedence for the physical box; the two must not drift apart.</para>
         /// </summary>
-        public static float ResolveWidthPixels(string authoredScx, int footprintTiles)
+        public static float ResolveWidthPixels(string authoredScx, float artWidthPixels, int footprintTiles)
         {
             if (!string.IsNullOrWhiteSpace(authoredScx) &&
                 float.TryParse(authoredScx, System.Globalization.NumberStyles.Float,
@@ -94,6 +100,11 @@ namespace PFE.Data.Definitions
                 parsed > 0f)
             {
                 return parsed;
+            }
+
+            if (artWidthPixels > 0f)
+            {
+                return artWidthPixels;
             }
 
             return Mathf.Max(1, footprintTiles) * WorldConstants.TILE_SIZE;

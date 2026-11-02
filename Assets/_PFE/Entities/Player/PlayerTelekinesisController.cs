@@ -565,7 +565,11 @@ namespace PFE.Entities.Player
             // system. Either this reports SUCCEEDED with isHeldByTelekinesis verified true, or it names
             // the term that refused.
             _heldObject = candidate;
-            bool holdAccepted = room.ObjectPhysicsLayer.TrySetTelekineticHold(_heldObject, cursorPx);
+            // `this.teleObj.fracLevit = fraction;` (UnitPlayer.as:1830) — the player's own faction
+            // rides on the prop, so Box.attDrop (:924) refuses to damage the player with the crate
+            // they just threw. The faction is F_PLAYER (100), never 0, so the immunity is real.
+            bool holdAccepted = room.ObjectPhysicsLayer.TrySetTelekineticHold(
+                _heldObject, cursorPx, 0f, 0f, (int)PFE.Data.Definitions.FactionType.Player);
             if (!holdAccepted || !candidate.IsHeldByTelekinesis())
             {
                 TelekinesisTrace.Log(

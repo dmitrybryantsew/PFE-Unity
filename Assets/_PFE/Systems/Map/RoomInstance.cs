@@ -355,10 +355,18 @@ namespace PFE.Systems.Map
             return ObjectPhysicsLayer.TryFindNearestTelekineticObject(origin, maxDistancePixels, out obj);
         }
 
-        public bool TryHoldObject(ObjectInstance obj, Vector2 targetPosition)
+        /// <param name="holderFraction">
+        /// AS3 <c>fracLevit = fraction</c> — see <c>RoomObjectPhysicsLayer.TrySetTelekineticHold</c>.
+        /// The three live grab sites (<c>PlayerTelekinesisController</c>,
+        /// <c>AlicornTelekinesis</c>, <c>BossAlicornTelekinesis</c>) call the layer directly because
+        /// they need the holder's <c>teleSpeed</c>/<c>teleAccel</c> too, so this wrapper is for a
+        /// caller that has nothing but a faction — and it must pass it, or the prop it hands over
+        /// will happily damage its own thrower (<c>Box.as:924</c>).
+        /// </param>
+        public bool TryHoldObject(ObjectInstance obj, Vector2 targetPosition, int holderFraction = 0)
         {
             ObjectPhysicsLayer.EnsureSynchronized(objects);
-            return ObjectPhysicsLayer.TrySetTelekineticHold(obj, targetPosition);
+            return ObjectPhysicsLayer.TrySetTelekineticHold(obj, targetPosition, 0f, 0f, holderFraction);
         }
 
         public bool TryReleaseHeldObject(ObjectInstance obj, Vector2 releaseVelocity, bool treatAsThrow = true,
@@ -1497,6 +1505,8 @@ namespace PFE.Systems.Map
                 wall > 0,
                 MapObjectShelfRule.ResolveWidthPixels(
                     GetAttribute("scx", string.Empty),
+                    // No definition here, so no sprite to measure — the footprint is all this path has.
+                    0f,
                     TryParseIntAttribute("size", 1)));
         }
 
@@ -1610,6 +1620,34 @@ namespace PFE.Systems.Map
             return TryParseFloatAttribute("plav", 0f);
         }
 
+        /// <summary>
+        /// The prop's physical size in pixels — AS3 <c>Box.scX</c>/<c>scY</c>
+        /// (<c>fe/loc/Box.as:158-167</c>). <see cref="PropFootprintMath"/> owns the precedence.
+        ///
+        /// <para><b>This used to skip the sprite entirely.</b> The old body read the placement's
+        /// <c>scx</c>/<c>scy</c> and then fell back to <c>size * TILE_SIZE</c> — a whole number of
+        /// tiles — which is not what the oracle does. <c>Box.as:158</c> is <c>scX = vis.width</c>: the
+        /// <b>sprite's</b> width, overridden only by an authored <c>node.@scx</c>. Every prop without
+        /// that attribute therefore had a box that disagreed with its own art, anchored to the same
+        /// point — which is exactly what "the crate has a gap between its sprite and its physical
+        /// object" looks like from the inside. Measured on the shipped catalog: 105 of 139 definitions
+        /// with an imported visual disagree with their tile footprint; <c>mcrate1</c> is 60x60 of art
+        /// inside an 80x80 box.</para>
+        ///
+        /// <para><b>Two things the old body also missed.</b> The authored <c>scx</c>/<c>scy</c> live on
+        /// the <i>definition</i> row in AS3 (<c>node = AllData.d.obj.(@id == id)[0]</c>, read at
+        /// <c>:160-167</c>), and five shipped definitions author one (<c>reactor</c> <c>scy=220</c>,
+        /// <c>himlab</c> <c>scy=33</c>, <c>smotr</c> <c>scy=40</c>, <c>couch</c> <c>scy=20</c>,
+        /// <c>door2a</c> <c>scx=40</c>); the port only ever looked at the placement, so all five were
+        /// ignored here. The placement is still checked <i>first</i> — no shipped room authors one, but
+        /// it is the port's per-instance escape hatch and the platform fixtures drive it — then the
+        /// definition, then the art.</para>
+        ///
+        /// <para><b>Area triggers keep their footprint.</b> AS3's <c>area</c> is not a <c>Box</c>; it is
+        /// an <c>Area</c> scaled by its authored <c>w</c>/<c>h</c> (<c>visArea</c> is a plain marker
+        /// rectangle), so its art size carries no physical meaning. Passing <c>zero</c> here is what
+        /// keeps <c>visArea</c>'s 100x100 frame from becoming a 100x100 collider.</para>
+        /// </summary>
         public Vector2 GetApproximatePixelSize()
         {
             EnsureStructuredData();
@@ -1617,21 +1655,64 @@ namespace PFE.Systems.Map
             float widthPixels = TryParseFloatAttribute("scx", 0f);
             float heightPixels = TryParseFloatAttribute("scy", 0f);
 
-            if (widthPixels <= 0f)
+            if (widthPixels <= 0f) widthPixels = ParseDefinitionFloat("scx");
+            if (heightPixels <= 0f) heightPixels = ParseDefinitionFloat("scy");
+
+            Vector2 artPixels = IsAreaTrigger() ? Vector2.zero : ResolveArtPixelSize();
+
+            int widthTiles = definition != null ? Mathf.Max(1, definition.size) : TryParseIntAttribute("size", 1);
+            int heightTiles = definition != null ? Mathf.Max(1, definition.width) : TryParseIntAttribute("wid", 1);
+
+            return PropFootprintMath.ResolvePixelSize(
+                widthPixels, heightPixels, artPixels, widthTiles, heightTiles);
+        }
+
+        /// <summary>
+        /// AS3 <c>vis.width</c>/<c>vis.height</c> — the sprite's <b>drawn</b> size, or
+        /// <c>Vector2.zero</c> when this object has no imported art.
+        ///
+        /// <para><b>Drawn, not framed.</b> <see cref="MapObjectVisualDefinition.ArtBoundsPixels"/> is
+        /// the tight mesh's extent; <c>pixelSize</c> is the export canvas, which is larger for every
+        /// symbol with empty margins (<c>vishgrate</c>: 120x120 of canvas around 120x40 of art). AS3
+        /// reads the drawn bounds, so this does too.</para>
+        /// </summary>
+        Vector2 ResolveArtPixelSize()
+        {
+            MapObjectVisualDefinition visual = definition != null ? definition.visual : null;
+            if (visual == null) return Vector2.zero;
+
+            Vector2Int art = visual.ArtBoundsPixels;
+            if (art.x <= 0 || art.y <= 0) return Vector2.zero;
+
+            return new Vector2(art.x, art.y);
+        }
+
+        /// <summary>
+        /// A numeric attribute from the <i>definition</i> row, or <c>0</c> when absent or unparseable.
+        /// The instance-side <see cref="TryParseFloatAttribute"/> only sees placement attributes.
+        /// </summary>
+        float ParseDefinitionFloat(string key)
+        {
+            if (definition == null) return 0f;
+
+            string raw = definition.GetAttribute(key, string.Empty);
+            return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed)
+                ? parsed
+                : 0f;
+        }
+
+        /// <summary>
+        /// Is this the AS3 <c>Area</c> pseudo-object (a scaled marker rectangle) rather than a prop?
+        /// Same discriminator the importer and the capability classifier use.
+        /// </summary>
+        bool IsAreaTrigger()
+        {
+            if (definition != null && definition.family == MapObjectFamily.AreaTrigger)
             {
-                int widthTiles = definition != null ? Mathf.Max(1, definition.size) : TryParseIntAttribute("size", 1);
-                widthPixels = widthTiles * WorldConstants.TILE_SIZE;
+                return true;
             }
 
-            if (heightPixels <= 0f)
-            {
-                int heightTiles = definition != null ? Mathf.Max(1, definition.width) : TryParseIntAttribute("wid", 1);
-                heightPixels = heightTiles * WorldConstants.TILE_SIZE;
-            }
-
-            return new Vector2(
-                Mathf.Max(8f, widthPixels),
-                Mathf.Max(8f, heightPixels));
+            return string.Equals(objectType, "area", StringComparison.OrdinalIgnoreCase);
         }
 
         public Rect GetApproximateBounds()

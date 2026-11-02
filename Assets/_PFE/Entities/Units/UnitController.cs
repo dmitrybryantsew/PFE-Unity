@@ -4707,6 +4707,7 @@ namespace PFE.Entities.Units
 
             if (!_objectPhysicsLayer.TryFindImpactingPropFor(
                     RoomLocalFeetBoundsPixels(),
+                    (int)Faction,
                     out ObjectInstance prop,
                     out float velocitySquaredPixelsPerFrame))
             {

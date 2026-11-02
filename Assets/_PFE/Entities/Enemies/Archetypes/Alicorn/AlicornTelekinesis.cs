@@ -319,7 +319,10 @@ namespace PFE.Entities.Enemies.Archetypes
             AlicornTuning tuning = AlicornVariantRules.For(Tier);
             Vector2 target = HoldTargetFor(self, prop);
 
-            if (!layer.TrySetTelekineticHold(prop, target, tuning.TeleSpeed, tuning.TeleAccel))
+            // `this.teleObj.fracLevit = fraction;` (UnitAlicorn.as:1181) — the holder's faction rides
+            // on the prop, so Box.attDrop (:924) will not let it hurt this alicorn's own side.
+            if (!layer.TrySetTelekineticHold(prop, target, tuning.TeleSpeed, tuning.TeleAccel,
+                    (int)self.Faction))
             {
                 return;
             }

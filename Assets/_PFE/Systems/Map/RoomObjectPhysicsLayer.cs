@@ -834,8 +834,15 @@ namespace PFE.Systems.Map
         /// <c>MapObjectDynamicStateData.telekineticHoldSpeedPerFrame</c> for why zero is the sentinel
         /// rather than a literal.
         /// </param>
+        /// <param name="holderFraction">
+        /// AS3 <c>fracLevit = fraction</c> — the <b>holder's</b> faction, stamped on the prop so
+        /// <c>Box.attDrop</c> can refuse to damage its own side (<c>Box.as:924</c>). <c>0</c> is
+        /// "nobody" and is also AS3's default faction, so a neutral holder gets no immunity — see
+        /// <c>MapObjectDynamicStateData.fracLevit</c>.
+        /// </param>
         public bool TrySetTelekineticHold(ObjectInstance obj, Vector2 targetPosition,
-                                          float speedPerFrame, float accelPerFrame)
+                                          float speedPerFrame, float accelPerFrame,
+                                          int holderFraction = 0)
         {
             if (obj == null || !obj.SupportsTelekinesis())
             {
@@ -858,6 +865,12 @@ namespace PFE.Systems.Map
             state.isGrounded = false;
             state.telekineticHoldSpeedPerFrame = speedPerFrame > 0f ? speedPerFrame : 0f;
             state.telekineticHoldAccelPerFrame = accelPerFrame > 0f ? accelPerFrame : 0f;
+
+            // `this.teleObj.fracLevit = fraction;` — the grab sites stamp the holder's own faction
+            // (UnitBossAlicorn.as:632, UnitAlicorn.as:1181, UnitPlayer.as:1830), and Box.attDrop then
+            // skips every unit of that faction (:924). This is why a crate the boss throws at you
+            // cannot knock her own health down on the way out.
+            state.fracLevit = holderFraction;
 
             // AS3 clears `stay` at the end of actTele (UnitPlayer.as:1831) -- it is a CONSEQUENCE of
             // being picked up, not a precondition for it. Kept because it is real oracle state (a
@@ -1169,6 +1182,19 @@ namespace PFE.Systems.Map
             // Box.checkShelf requires a support to be `stay` (Box.as:1198).
             state.stay = state.isGrounded &&
                          state.velocity.sqrMagnitude <= GroundStopPixelsPerSecond * GroundStopPixelsPerSecond;
+
+            // `if(!levit && (!this.isPlav || this.ddyPlav > 0)) { stay = true; isThrow = false;
+            // fracLevit = 0; }` (Box.as:1104) — the thrower's immunity ends the moment the prop
+            // comes to rest, and that is the ONLY clear site in the oracle. Gated on `stay` rather
+            // than on the landing transition because `stay` is this port's spelling of exactly that
+            // branch's condition, and because a resting prop is re-evaluated every tick anyway.
+            //
+            // This line is only reached for a FREE prop: a held one returned above to
+            // StepHeldObject, which is what keeps `fracLevit` alive for the whole carry.
+            if (state.stay)
+            {
+                state.fracLevit = 0;
+            }
         }
 
         void StepHeldObject(RoomInstance room, ObjectInstance obj, MapObjectDynamicStateData state, float deltaTime)
@@ -1814,21 +1840,50 @@ namespace PFE.Systems.Map
         /// that skips it cannot get a different answer. Then <c>:918</c>'s <c>vel2 &lt; 50</c>, then
         /// <c>:926</c>'s overlap test.</para>
         ///
-        /// <para><b>What is deliberately not modelled.</b> AS3's <c>:924</c> also skips a unit whose
-        /// faction is the one currently levitating the prop (<c>fracLevit</c>), so a crate lifted by
-        /// your own side cannot hurt you. <c>fracLevit</c> is not ported (0 hits) and a unit standing
-        /// under a crate its own side is holding up is a narrow case; recorded rather than
-        /// approximated. <c>:926</c>'s <c>sost == 4</c> (dead) and <c>loc != loc</c> (other room) are
+        /// <para><b>The faction gate (<c>fracLevit</c>) is the caller's number.</b> AS3 walks
+        /// <i>units</i> inside one prop (<c>Box.as:922-939</c>) and skips any unit of the faction
+        /// holding the prop (<c>:924</c>). The port walks <i>props</i> inside one unit, so the same
+        /// test becomes "skip a candidate whose <c>fracLevit</c> is this unit's faction" — see
+        /// <paramref name="unitFraction"/>. Without it a crate the boss threw damages the boss on the
+        /// way out, which is exactly what a player sees when the Super Alicorn hurts herself with her
+        /// own telekinesis.</para>
+        ///
+        /// <para><c>:926</c>'s <c>sost == 4</c> (dead) and <c>loc != loc</c> (other room) are still
         /// the caller's, since it knows which unit it is asking about.</para>
         /// </summary>
         /// <param name="boundsRoomLocalPixels">The unit's collider AABB in <b>room-local</b> pixels —
         /// the same space as <see cref="ObjectInstance.GetApproximateBounds"/>, so no conversion.</param>
+        /// <param name="unitFraction">
+        /// The asking unit's <c>fraction</c>, as AS3's integer. <c>0</c> is "no faction" and matches
+        /// AS3's own hole: a neutral unit gets no immunity because the sentinel and the faction are
+        /// the same number. Pass <c>0</c> to disable the gate.
+        /// </param>
         /// <param name="prop">The hardest qualifying prop, or null.</param>
         /// <param name="velocitySquaredPixelsPerFrame">That prop's AS3 <c>vel2</c>, in px per frame
         /// squared. Returned rather than recomputed by the caller so the value the gate accepted is
         /// the value the damage formula uses.</param>
+        /// <summary>
+        /// The same query with the faction gate <b>off</b> — AS3's <c>fracLevit == 0</c> case, i.e. a
+        /// prop nobody has lifted.
+        /// </summary>
+        /// <remarks>
+        /// Kept as a real overload rather than an optional parameter so that "no faction" is an
+        /// explicit, readable choice at a call site instead of a default that silently turns a gate
+        /// off. The live caller is <c>UnitController.SweepPropImpacts</c>, which always passes its own
+        /// faction; this form exists for the fixtures, which have no unit.
+        /// </remarks>
         public bool TryFindImpactingPropFor(
             Rect boundsRoomLocalPixels,
+            out ObjectInstance prop,
+            out float velocitySquaredPixelsPerFrame)
+        {
+            return TryFindImpactingPropFor(
+                boundsRoomLocalPixels, 0, out prop, out velocitySquaredPixelsPerFrame);
+        }
+
+        public bool TryFindImpactingPropFor(
+            Rect boundsRoomLocalPixels,
+            int unitFraction,
             out ObjectInstance prop,
             out float velocitySquaredPixelsPerFrame)
         {
@@ -1869,6 +1924,15 @@ namespace PFE.Systems.Map
                 if (candidate == null || candidateState == null ||
                     !candidate.isActive || candidate.IsDestroyed() ||
                     candidateState.isHeldByTelekinesis)
+                {
+                    continue;
+                }
+
+                // `Box.as:924` — `fracLevit > 0 && _loc1_.fraction == fracLevit`. A prop still in the
+                // air from this side's own throw is harmless to this side. The `> 0` half is AS3's,
+                // and it is what makes a neutral thrower get no immunity: 0 is both the sentinel and
+                // FactionType.Neutral.
+                if (unitFraction != 0 && candidateState.fracLevit == unitFraction)
                 {
                     continue;
                 }

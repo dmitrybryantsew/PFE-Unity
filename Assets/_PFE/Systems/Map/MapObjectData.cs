@@ -80,6 +80,30 @@ namespace PFE.Systems.Map
         public bool levitPoss = true;
 
         /// <summary>
+        /// AS3 <c>Obj.fracLevit</c> (<c>Obj.as:34</c>, <c>int = 0</c>) — <b>the faction that last picked
+        /// this prop up</b>, and the reason a crate thrown by the boss does not hurt the boss.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>What reads it.</b> <c>Box.attDrop</c> skips any unit of the lifting faction
+        /// outright — <c>if(!(_loc1_ == null || fracLevit &gt; 0 &amp;&amp; _loc1_.fraction ==
+        /// fracLevit))</c> (<c>Box.as:924</c>) — so a prop is harmless to the side that threw it for
+        /// as long as it is in the air, and becomes dangerous to everyone the moment it lands.</para>
+        ///
+        /// <para><b>Who writes it.</b> The three telekinetic grab sites, all with the <i>holder's</i>
+        /// own faction: <c>UnitBossAlicorn.upTeleObj</c> (<c>:632</c>),
+        /// <c>UnitAlicorn.upTeleObj</c> (<c>:1181</c>) and <c>UnitPlayer.actTele</c>
+        /// (<c>UnitPlayer.as:1830</c>). It is cleared on landing — <c>Box.as:1104</c>, inside the same
+        /// branch that sets <c>stay = true</c> — and that is the only clear site.</para>
+        ///
+        /// <para><b>Zero is "nobody", and it collides with <c>FactionType.Neutral</c> — faithfully.</b>
+        /// AS3's default <c>fraction</c> is also <c>0</c> (<c>Unit.as:454</c>), so a neutral unit that
+        /// lifts a crate sets <c>fracLevit = 0</c> and the crate can still hurt it. That is the
+        /// oracle's own hole and is reproduced rather than repaired, because repairing it would need a
+        /// sentinel AS3 does not have and would change behaviour for every neutral prop.</para>
+        /// </remarks>
+        public int fracLevit;
+
+        /// <summary>
         /// AS3 <c>Obj.stay</c> — <b>at rest</b>, not "authored as fixed".
         ///
         /// <para><c>Box.as:572</c> inits it false, <c>:393</c> forces it true for <c>wall &gt; 0</c>,

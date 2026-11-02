@@ -308,6 +308,7 @@ namespace PFE.Data.Definitions
 
             float widthPixels = MapObjectShelfRule.ResolveWidthPixels(
                 GetAttribute("scx", string.Empty),
+                visual != null ? visual.ArtBoundsPixels.x : 0f,
                 size);
 
             return MapObjectShelfRule.IsShelf(

@@ -203,6 +203,17 @@ namespace PFE.Tests.Editor.Map
         /// A room with one dynamic prop in mid-air. Mirrors the setup in <c>RoomInstanceTests</c>; kept
         /// local so this fixture reads on its own.
         /// </summary>
+        /// <remarks>
+        /// <b>The prop carries attributes, not a <see cref="MapObjectDefinition"/>.</b> It used to be
+        /// built with <c>ScriptableObject.CreateInstance</c>, and that single call made every fixture
+        /// in this class <i>unrunnable outside the editor</i>: creating a ScriptableObject is an ECall
+        /// into the engine, so the offline runner died with
+        /// <c>SecurityException: ECall methods must be packaged into a system module</c> before any
+        /// assertion ran. The instance-side resolver reads the same authored data either way
+        /// (<c>RoomInstance.GetResolvedPhysicalCapability</c>), and <c>tip=box</c> with a 1×1
+        /// footprint resolves to <c>DynamicTelekinetic</c> — asserted below so a classifier change
+        /// cannot quietly turn these props into something the layer refuses to step.
+        /// </remarks>
         private static RoomInstance CreateRoomWithProp(out ObjectInstance prop, Vector2 position)
         {
             RoomInstance room = new RoomInstance
@@ -214,22 +225,28 @@ namespace PFE.Tests.Editor.Map
             };
             room.InitializeTiles();
 
-            MapObjectDefinition definition = ScriptableObject.CreateInstance<MapObjectDefinition>();
-            definition.objectId = "woodbox";
-            definition.size = 1;
-            definition.width = 1;
-            definition.physicalCapability = MapObjectPhysicalCapability.DynamicTelekinetic;
-
             prop = new ObjectInstance
             {
                 objectId = "woodbox",
                 objectType = "box",
-                definition = definition,
                 definitionId = "woodbox",
                 position = position,
+                attributes = new System.Collections.Generic.List<MapObjectAttributeData>
+                {
+                    new MapObjectAttributeData { key = "size", value = "1" },
+                    new MapObjectAttributeData { key = "wid", value = "1" },
+                    new MapObjectAttributeData { key = "tip", value = "box" }
+                },
                 runtimeState = new MapObjectRuntimeStateData()
             };
             prop.runtimeState.dynamicState.velocity = Vector2.zero;
+
+            Assert.AreEqual(MapObjectPhysicalCapability.DynamicTelekinetic,
+                prop.GetResolvedPhysicalCapability(),
+                "Precondition: the prop must resolve to the capability every test in this class " +
+                "assumes. Without a definition the classifier decides, and 'tip=box' + a 1x1 " +
+                "footprint is the DynamicTelekinetic case.");
+
             room.objects.Add(prop);
             room.Activate();
             return room;
@@ -289,6 +306,87 @@ namespace PFE.Tests.Editor.Map
 
             Assert.AreEqual(184f, prop.runtimeState.dynamicState.velocity.x, Tolerance,
                 "200 px/s × 0.92 = 184 px/s after one AS3 frame in contact.");
+        }
+
+        // ── fracLevit: the thrower's immunity, and where it ends ─────────────────────────────
+        //
+        // AS3 `Obj.fracLevit` (Obj.as:34) is stamped by the three grab sites
+        // (UnitBossAlicorn.as:632, UnitAlicorn.as:1181, UnitPlayer.as:1830), read by `Box.attDrop`
+        // (Box.as:924) to spare the throwing side, and cleared in exactly one place — the
+        // `stay = true` branch of the free-prop landing (Box.as:1104). The three fixtures below pin
+        // the stamp, the clear, and the fact that the clear is gated on `stay` rather than on "not
+        // held". The query-side half of the gate is in MapObjectShelfRuleTests.
+
+        [Test]
+        public void TrySetTelekineticHold_StampsTheHoldersFactionOnTheProp()
+        {
+            RoomInstance room = CreateRoomWithProp(out ObjectInstance prop, new Vector2(120f, 120f));
+
+            // 16 / 4 px per frame is UnitAlicorn.as:65-67's teleSpeed / teleAccel.
+            Assert.IsTrue(room.ObjectPhysicsLayer.TrySetTelekineticHold(
+                prop, new Vector2(120f, 200f), 16f, 4f, (int)FactionType.Monster));
+
+            Assert.AreEqual((int)FactionType.Monster, prop.runtimeState.dynamicState.fracLevit,
+                "`this.teleObj.fracLevit = fraction;` — the holder's own faction rides on the prop, " +
+                "which is what lets Box.as:924 spare her. Without this line the boss's throw hits " +
+                "the boss.");
+
+            // The room-level wrapper forwards it too. It has no live caller today, and that is
+            // precisely why it would be easy to leave dropping the argument.
+            RoomInstance other = CreateRoomWithProp(out ObjectInstance prop2, new Vector2(120f, 120f));
+            Assert.IsTrue(other.TryHoldObject(prop2, new Vector2(120f, 200f), (int)FactionType.Player));
+            Assert.AreEqual((int)FactionType.Player, prop2.runtimeState.dynamicState.fracLevit);
+        }
+
+        [Test]
+        public void StepHeldProp_KeepsTheFactionStampForTheWholeCarry()
+        {
+            RoomInstance room = CreateRoomWithProp(out ObjectInstance prop, new Vector2(120f, 300f));
+
+            Assert.IsTrue(room.ObjectPhysicsLayer.TrySetTelekineticHold(
+                prop, new Vector2(120f, 300f), 16f, 4f, (int)FactionType.Monster));
+
+            for (int i = 0; i < 10; i++)
+            {
+                room.Update(As3Frame);
+            }
+
+            Assert.AreEqual((int)FactionType.Monster, prop.runtimeState.dynamicState.fracLevit,
+                "Box.as:1104's clear lives in the free-prop branch, and StepHeldObject returns " +
+                "before it — so a carried prop stays immune for as long as it is carried, which is " +
+                "the entire window in which the boss waves a crate at the player.");
+        }
+
+        [Test]
+        public void StepFreeProp_ClearsTheFactionStampOnlyWhenItComesToRest()
+        {
+            // Bottom edge half a pixel above the room floor: one AS3 frame of gravity moves it 1 px
+            // down, the room bound refuses that, and the prop is grounded and at rest on the very
+            // first step.
+            RoomInstance room = CreateRoomWithProp(out ObjectInstance landed, new Vector2(120f, 0.5f));
+            landed.runtimeState.dynamicState.fracLevit = (int)FactionType.Monster;
+
+            room.Update(As3Frame);
+
+            Assert.IsTrue(landed.runtimeState.dynamicState.isGrounded, "precondition: it landed.");
+            Assert.IsTrue(landed.runtimeState.dynamicState.stay, "precondition: it is at rest.");
+            Assert.AreEqual(0, landed.runtimeState.dynamicState.fracLevit,
+                "`if(!levit && (!isPlav || ddyPlav > 0)) { stay = true; isThrow = false; " +
+                "fracLevit = 0; }` (Box.as:1104) — the immunity ends the moment the prop stops.");
+
+            // The absent control: same prop, same stamp, still in the air. If the clear were written
+            // as "clear whenever the prop is free" instead of "clear when it is at rest", the two
+            // fixtures would be indistinguishable and a thrown crate would be harmless to everyone
+            // from the instant it left her grip — which is the opposite failure to the one being
+            // fixed, and equally invisible from outside.
+            RoomInstance air = CreateRoomWithProp(out ObjectInstance falling, new Vector2(120f, 300f));
+            falling.runtimeState.dynamicState.fracLevit = (int)FactionType.Monster;
+
+            air.Update(As3Frame);
+
+            Assert.IsFalse(falling.runtimeState.dynamicState.isGrounded, "precondition: still falling.");
+            Assert.AreEqual((int)FactionType.Monster, falling.runtimeState.dynamicState.fracLevit,
+                "A prop still in the air from her own throw must stay immune to her all the way down.");
         }
     }
 

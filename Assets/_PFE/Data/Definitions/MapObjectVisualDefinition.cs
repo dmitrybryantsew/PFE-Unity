@@ -44,6 +44,79 @@ namespace PFE.Data.Definitions
         public bool HasAnimation => frames != null && frames.Length > 1;
         public Sprite FirstFrame => HasFrames ? frames[0] : null;
 
+        // ── The drawn bounds, which is NOT the frame size ────────────────────
+        //
+        // AS3 measures a box's physical footprint with `scX = vis.width; scY = vis.height`
+        // (fe/loc/Box.as:158-159). A Flash MovieClip's `width`/`height` are the bounding box of the
+        // DRAWN CONTENT, not of its registration frame — so a 120x120 symbol whose grate hangs in the
+        // bottom 40 px reports height 40.
+        //
+        // The imported PNGs are exported at the symbol's frame, so `pixelSize` above is the FRAME and
+        // can be much larger than the art: `vishgrate` is 120x120 of canvas holding 120x40 of art, and
+        // `vischeckpoint` is 130x229 holding 80x120. Using `pixelSize` as the physical box would give
+        // the checkpoint a 229 px tall collider where the oracle has 120.
+        //
+        // The trimmed number is recoverable at runtime because every imported sheet uses Unity's
+        // TIGHT sprite mesh (`spriteMeshType: 1` in each .meta), whose vertices hug the opaque pixels.
+        // Their min/max is the same quantity Flash calls the drawn bounds — to within the 1 px
+        // `spriteExtrude` outset, which is rounded away.
+        [System.NonSerialized] Vector2Int _artBoundsPixels;
+        [System.NonSerialized] bool _artBoundsResolved;
+
+        /// <summary>
+        /// AS3 <c>vis.width</c>/<c>vis.height</c> — the <b>drawn</b> size of the first frame in pixels,
+        /// or <see cref="pixelSize"/> (the frame) when the mesh cannot be measured.
+        ///
+        /// <para><b>Measured from the sprite's tight mesh, cached.</b> <c>Sprite.vertices</c> allocates,
+        /// and this is read once per prop per query, so the result is memoised per visual asset — the
+        /// value cannot change while the asset is loaded.</para>
+        /// </summary>
+        public Vector2Int ArtBoundsPixels
+        {
+            get
+            {
+                if (_artBoundsResolved) return _artBoundsPixels;
+
+                _artBoundsResolved = true;
+                _artBoundsPixels = MeasureArtBounds(FirstFrame);
+
+                // A FullRect mesh (or no sprite at all) leaves nothing to measure. The frame is then
+                // the closest number available, and it is what this property returned before the
+                // trimmed measurement existed — so the fallback is never worse than the old value.
+                if (_artBoundsPixels.x <= 0 || _artBoundsPixels.y <= 0)
+                {
+                    _artBoundsPixels = pixelSize;
+                }
+
+                return _artBoundsPixels;
+            }
+        }
+
+        static Vector2Int MeasureArtBounds(Sprite sprite)
+        {
+            if (sprite == null) return Vector2Int.zero;
+
+            Vector2[] vertices = sprite.vertices;
+            if (vertices == null || vertices.Length == 0) return Vector2Int.zero;
+
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector2 vertex = vertices[i];
+                if (vertex.x < minX) minX = vertex.x;
+                if (vertex.x > maxX) maxX = vertex.x;
+                if (vertex.y < minY) minY = vertex.y;
+                if (vertex.y > maxY) maxY = vertex.y;
+            }
+
+            float pixelsPerUnit = sprite.pixelsPerUnit;
+            return new Vector2Int(
+                Mathf.RoundToInt((maxX - minX) * pixelsPerUnit),
+                Mathf.RoundToInt((maxY - minY) * pixelsPerUnit));
+        }
+
         // ── Flash frame labels ───────────────────────────────────────────────
         //
         // AS3 addresses a box's visual state by LABEL, not by index:

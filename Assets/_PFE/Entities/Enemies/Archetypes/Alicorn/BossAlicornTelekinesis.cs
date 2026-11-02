@@ -45,6 +45,9 @@ namespace PFE.Entities.Enemies.Archetypes
         UnitController _heldUnit;
         ObjectInstance _heldProp;
 
+        /// <summary>One warning per boss, not one per failed grab attempt.</summary>
+        bool _grabRefusalReported;
+
         public BossAlicornTelekinesis(BossAlicornBrain brain)
         {
             _brain = brain;
@@ -87,8 +90,12 @@ namespace PFE.Entities.Enemies.Archetypes
                 return false;
             }
 
-            GrabProp(self, prop);
-            return true;
+            // **The hold's answer is the grab's answer.** AS3's `findBox()` returns the object it
+            // grabbed (`return this.teleObj;`, :602 / :613) and the caller's `aiTCh = 45 vs 15`
+            // branch reads that return. This used to discard it and report success anyway, so a
+            // refused hold gave the boss a 45-tick idle with nothing in her grip — which reads from
+            // the outside as "she never uses telekinesis on objects".
+            return GrabProp(self, prop);
         }
 
         /// <summary>
@@ -192,22 +199,63 @@ namespace PFE.Entities.Enemies.Archetypes
             return true;
         }
 
-        void GrabProp(UnitController self, ObjectInstance prop)
+        /// <summary>
+        /// <c>upTeleObj</c> for a prop, plus the hold's success — which is <c>findBox()</c>'s return
+        /// value.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> only when the prop layer accepted the hold. A <c>false</c> here leaves
+        /// <see cref="_heldProp"/> null and lets the caller take the 15-tick retry.
+        /// </returns>
+        bool GrabProp(UnitController self, ObjectInstance prop)
         {
             RoomInstance room = _brain.Room;
             RoomObjectPhysicsLayer layer = room != null ? room.ExistingObjectPhysicsLayer : null;
             if (layer == null)
             {
-                return;
+                return false;
             }
 
             Vector2 target = HoldTargetFor(self, prop);
-            if (!layer.TrySetTelekineticHold(prop, target, BossAlicornRules.TeleSpeed, BossAlicornRules.TeleAccel))
+
+            // `this.teleObj.fracLevit = fraction;` (UnitBossAlicorn.as:632) — the boss's own faction
+            // goes onto the prop, so Box.attDrop (:924) refuses to damage her with her own throw. This
+            // is the fix for "a telekinetic crate hurt the alicorn instead of the player".
+            if (!layer.TrySetTelekineticHold(prop, target, BossAlicornRules.TeleSpeed,
+                    BossAlicornRules.TeleAccel, (int)self.Faction))
+            {
+                ReportGrabRefusedOnce(prop, self);
+                return false;
+            }
+
+            _heldProp = prop;
+            return true;
+        }
+
+        /// <summary>
+        /// One line the first time the prop layer refuses a hold, naming the term that refused.
+        /// </summary>
+        /// <remarks>
+        /// <c>TrySetTelekineticHold</c> refuses for exactly two reasons — the prop does not support
+        /// telekinesis, or the layer does not track it — and neither leaves any trace otherwise. The
+        /// gate above it (<c>IsLiftable</c>) already implies the first, so a refusal here means the
+        /// layer lost the prop between the candidate scan and the hold, which is a real bug worth
+        /// seeing once rather than a condition to retry quietly.
+        /// </remarks>
+        void ReportGrabRefusedOnce(ObjectInstance prop, UnitController self)
+        {
+            if (_grabRefusalReported)
             {
                 return;
             }
 
-            _heldProp = prop;
+            _grabRefusalReported = true;
+            Debug.LogWarning(
+                $"[BossAlicorn] findBox() selected '{prop?.objectId}' but the prop layer refused the " +
+                $"hold (supportsTelekinesis={prop?.SupportsTelekinesis()}, " +
+                $"capability={prop?.GetResolvedPhysicalCapability()}, " +
+                $"bossFaction={(int)(self?.Faction ?? PFE.Data.Definitions.FactionType.Neutral)}). " +
+                "The boss will retry in 15 ticks.");
         }
 
         // ── the hold (control():533-565) ─────────────────────────────────────────────────────────
