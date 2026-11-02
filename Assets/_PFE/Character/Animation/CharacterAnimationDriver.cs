@@ -200,6 +200,7 @@ namespace PFE.Character.Animation
             var run        = new RunAnimState();
             var jump       = new JumpAnimState(_jumpMaxRiseSpeed, _jumpMaxFallSpeed);
             var crouchIdle = new CrouchIdleAnimState();
+            var roll       = new RollAnimState();
             var polz       = new PolzAnimState();
             var swim       = new SwimAnimState();
             var levitate   = new LevitateAnimState();
@@ -228,6 +229,7 @@ namespace PFE.Character.Animation
                 ladder,      // 100
                 levitate,    //  90
                 swim,        //  80
+                roll,        //  75
                 polz,        //  70
                 crouchIdle,  //  60
                 jump,        //  50

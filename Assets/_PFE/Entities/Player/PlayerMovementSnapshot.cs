@@ -27,6 +27,14 @@ namespace PFE.Entities.Player
         public readonly bool IsLevitating;
         public readonly bool JustTeleported;
 
+        /// <summary>
+        /// This crouch began <b>out of a sprint</b>, so its first 15 animation frames are the
+        /// <c>roll</c> clip rather than the crawl (AS3 <c>UnitPlayer.as:4424</c>, handover at
+        /// <c>:4417</c>). It stays true for the whole crouch — the roll is a transition, and the
+        /// animation state's own frame count is what ends it, exactly as in the oracle.
+        /// </summary>
+        public readonly bool IsCrouchRoll;
+
         public PlayerMovementSnapshot(
             PlayerLocomotionState locomotionState,
             Vector2 velocity,
@@ -44,7 +52,8 @@ namespace PFE.Entities.Player
             bool justLanded,
             float normalizedMoveSpeed,
             bool isLevitating,
-            bool justTeleported)
+            bool justTeleported,
+            bool isCrouchRoll = false)
         {
             LocomotionState = locomotionState;
             Velocity = velocity;
@@ -63,6 +72,7 @@ namespace PFE.Entities.Player
             NormalizedMoveSpeed = normalizedMoveSpeed;
             IsLevitating = isLevitating;
             JustTeleported = justTeleported;
+            IsCrouchRoll = isCrouchRoll;
         }
     }
 }

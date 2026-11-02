@@ -378,6 +378,13 @@ namespace PFE.Systems.Physics
         private float gravityScale = 1f;
         private bool wantsToCrouch;
         private bool wantsToUseLadder;
+
+        /// <summary>
+        /// AS3 <c>ctr.keyBeUp</c>, published by the player brain. Read only by the mantle
+        /// (<c>TrySqueezeUp</c>); it is a level and not an edge, because the oracle's
+        /// <c>isUp</c> is re-assigned every frame (<c>UnitPlayer.as:2944</c>).
+        /// </summary>
+        private bool upHeld;
         private int activeLadderDirection;
         private float activeLadderSnapX;
         private float dashTimer;
@@ -535,7 +542,8 @@ namespace PFE.Systems.Physics
             wallRight,
             new Vector2(dx, dy),
             new Vector2(posX, posY),
-            facingDirection);
+            facingDirection,
+            isOnPlatform);
 
         /// <summary>
         /// Set the current room for tile collision queries.
@@ -713,6 +721,16 @@ namespace PFE.Systems.Physics
         public void SetCrouching(bool isCrouchingRequested)
         {
             wantsToCrouch = isCrouchingRequested;
+        }
+
+        /// <summary>
+        /// AS3 <c>ctr.keyBeUp</c> as a level, for the mantle at <c>Unit.as:2108-2118</c> /
+        /// <c>:2185-2195</c>. See <see cref="IMovementMotor.SetUpHeld"/> for why this is not the
+        /// ladder axis.
+        /// </summary>
+        public void SetUpHeld(bool upHeldRequested)
+        {
+            upHeld = upHeldRequested;
         }
 
         public void Jump(float force)
@@ -1530,7 +1548,13 @@ namespace PFE.Systems.Physics
             float newX = posX + moveX;
             if (CheckTileCollisionAt(newX, posY, hw, hhHorizontalCheck))
             {
-                if (!TryStepUp(newX, hw, hhHorizontalCheck))
+                // Two ways up, in the oracle's own order of cost. `porog` is the cheap one — at most
+                // half a tile (20 px, UnitPlayer.as:2550) and only when the obstacle's top is inside
+                // that allowance. The Up mantle (Unit.as:2108) is the full-tile one and needs the key.
+                // AS3 runs the mantle BEFORE the wall loop and before the porog step-up; the order is
+                // unobservable here because the two cannot both match the same geometry — a step
+                // inside `porog` puts its top in the feet cell, not in the torso cell the mantle reads.
+                if (!TryStepUp(newX, hw, hhHorizontalCheck) && !TrySqueezeUp(newX, hw))
                 {
                     if (moveX < 0f)
                     {
@@ -1837,6 +1861,104 @@ namespace PFE.Systems.Physics
 
             posX = attemptedX;
             posY = steppedFeetY;
+            isGrounded = true;
+            return true;
+        }
+
+        /// <summary>
+        /// AS3's <b>Up mantle</b> — <c>Unit.as:2108-2118</c> (leftward) / <c>:2185-2195</c>
+        /// (rightward). Holding Up while walking into a one-tile-high ledge lifts the unit onto it;
+        /// the crouch that follows is <see cref="UpdateColliderProfile"/>'s decision, not this
+        /// method's.
+        ///
+        /// <para><b>What was missing.</b> Everything except the lift. The port could already shrink
+        /// the box on demand, already kept it shrunk under a low ceiling (<c>HasSolidOverlapAt</c> at
+        /// standing height is exactly the oracle's <c>unsit()</c> → <c>collisionAll()</c> →
+        /// <c>sit(true)</c> round-trip, <c>Unit.as:2532-2538</c>), and already had the 30 px
+        /// <c>sitHeight</c> that fits a 40 px cell. What it did not have was the one-tile climb:
+        /// <c>porog</c> is 20 px while walking, so a full-tile ledge simply stopped the player, and
+        /// there was no path in the motor that read the Up key at all.</para>
+        ///
+        /// <para><b>Where it deliberately differs from the oracle.</b> AS3 probes the column at the
+        /// body's <i>current</i> edge (<c>X1</c>/<c>X2</c>), which only lands in the ledge's cell when
+        /// the body is overlapping it by a fraction of a pixel. The port probes the column at the
+        /// <i>attempted</i> edge — the cell being walked into. That is the same cell when the unit is
+        /// flush against the ledge and the only cell that can hold it when the sub-step overshoots,
+        /// so the mechanic fires where the oracle's does and does not depend on float rounding. The
+        /// cost is that the box is no longer guaranteed clear where the oracle's was, which is why
+        /// <see cref="CheckTileCollisionAt"/> is run at the destination: a refusal here means "no
+        /// mantle", never "teleported into a wall".</para>
+        /// </summary>
+        /// <param name="attemptedX">Where the horizontal sub-step wanted to put the unit.</param>
+        /// <param name="hw">Half-width, for the destination-box check.</param>
+        private bool TrySqueezeUp(float attemptedX, float hw)
+        {
+            if (currentRoom == null)
+            {
+                return false;
+            }
+
+            float moveX = attemptedX - posX;
+            if (Mathf.Abs(moveX) < 0.001f)
+            {
+                return false;
+            }
+
+            // AS3 `floor(Y1 / tileY)` with Y1 = Y - scY. The STANDING height, never the current one:
+            // the oracle's `scY` is `stayY` here because `!isSit` is one of the arm's gates.
+            float standingHeight = standingCollisionHeight > 0f ? standingCollisionHeight : collisionHeight;
+            if (standingHeight <= 0f)
+            {
+                return false;
+            }
+
+            float tileSize = WorldConstants.TILE_SIZE;
+            int column = Mathf.FloorToInt(
+                (attemptedX + Mathf.Sign(moveX) * hw - roomWorldPixelX) / tileSize);
+            int headRow = CrouchSqueezeUpMath.HeadRow(posY, standingHeight, roomWorldPixelY, tileSize);
+            int torsoRow = CrouchSqueezeUpMath.TorsoRow(headRow);
+
+            TileData headTile = currentRoom.GetTileAtCoord(new Vector2Int(column, headRow));
+            TileData torsoTile = currentRoom.GetTileAtCoord(new Vector2Int(column, torsoRow));
+
+            // AS3 `phis == 0 || phis == 3`. The decoder collapses 1, 2 and 3 into Wall, and a phis 3
+            // ghost wall is never created at runtime (RoomCollisionTileGrid passes `ghostWall: false`),
+            // so `!= Wall` is the port's `phis == 0` — the conservative direction: a phis 3 cell that
+            // the oracle reads as open reads as closed here, and the mantle declines instead of
+            // firing somewhere it should not.
+            bool headRowOpen = headTile == null || headTile.physicsType != TilePhysicsType.Wall;
+
+            // AS3 `phis != 0 && phis != 3` — the torso cell must be a real wall, and `zForm == 0`
+            // (the port's `heightLevel`) so that its `phY1` is the top of the cell and not a
+            // quarter-step down inside it.
+            bool torsoRowSolid = torsoTile != null && torsoTile.physicsType == TilePhysicsType.Wall;
+            bool torsoRowUnraised = torsoTile != null && torsoTile.heightLevel == 0;
+
+            if (!CrouchSqueezeUpMath.ShouldSqueezeUp(
+                    upHeld, isCrouching, isGrounded, headRowOpen, torsoRowSolid, torsoRowUnraised))
+            {
+                return false;
+            }
+
+            // AS3 `Y = Y2 = _loc3_.phY1` — the torso cell's top surface. `SolidTopY` is room-local
+            // (GetBounds() is, and HasSolidOverlapAt adds the origin the same way).
+            float targetFeetY = torsoTile.SolidTopY + roomWorldPixelY;
+            if (!CrouchSqueezeUpMath.LiftsUpward(posY, targetFeetY))
+            {
+                return false;
+            }
+
+            float crouchedHeight = resolvedCrouchedCollisionHeight > 0f
+                ? resolvedCrouchedCollisionHeight
+                : ResolveCrouchedCollisionHeight();
+
+            if (CheckTileCollisionAt(attemptedX, targetFeetY, hw, crouchedHeight))
+            {
+                return false;
+            }
+
+            posX = attemptedX;
+            posY = targetFeetY;
             isGrounded = true;
             return true;
         }

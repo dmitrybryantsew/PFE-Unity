@@ -259,23 +259,111 @@ namespace PFE.Character.Animation
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Crouch Idle   Priority 60
-    //  Uses state name "down". Falls back to "stay" if that clip isn't imported yet.
+    //
+    //  The clip is "stay", NOT "down". There is no `down` clip in the imported definition — `down` is a
+    //  FRAME LABEL inside the oracle's 76-frame body pose bank (`getStayFrame()`, UnitPlayer.as:4722),
+    //  and the bank is what this project imports as the `stay` clip (frameCount 76, loopMode Manual).
+    //  AS3 indexes it 1-based and returns 2 for a crouched, non-leaning player, so the port's 0-based
+    //  index is 1 — index 0 is the standing pose, which is what this state used to fall back to, and
+    //  that is why crouching rendered the standing sprite.
+    //
+    //  Held, not played: the oracle's steady crouch is `body.gotoAndStop(2)`. The `gotoAndPlay("down")`
+    //  just before it is the 1→2 transition, which the port does not have a clip for (audit row 4).
     // ─────────────────────────────────────────────────────────────────────────
 
     public sealed class CrouchIdleAnimState : IAnimationState
     {
+        /// <summary>
+        /// AS3 <c>getStayFrame()</c> → 2 for <c>isSit</c> with no wall lean (<c>UnitPlayer.as:4726</c>),
+        /// as a 0-based index into the port's <c>stay</c> clip.
+        /// </summary>
+        public const int CrouchPoseFrame = 1;
+
         public int  Priority  => 60;
         public bool IsLocked  => false;
 
         public bool CanEnter(in PlayerMovementSnapshot s)
             => s.IsCrouching && s.NormalizedMoveSpeed < 0.01f;
 
-        public string GetStateName(in PlayerMovementSnapshot s) => "down";
-        // Hold frame 0 — "down" is a static crouched pose.
-        public int    OverrideFrame(in PlayerMovementSnapshot s, int cf, int fc) => 0;
+        public string GetStateName(in PlayerMovementSnapshot s) => "stay";
+        // Hold the crouched pose — `stay` is a Manual pose bank, so nothing advances on its own.
+        public int    OverrideFrame(in PlayerMovementSnapshot s, int cf, int fc) => CrouchPoseFrame;
         public void   OnEnter(string prev, IAnimationEventSink e)                { }
         public void   OnExit(string next,  IAnimationEventSink e)                { }
         public void   OnFrameChanged(int frame, in PlayerMovementSnapshot s, IAnimationEventSink e) { }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Roll   Priority 75 — above Polz (70), because it is the same crouch and only the first frames
+    //  of it differ.
+    //
+    //  AS3 (UnitPlayer.as:4417-4435): while sitting and moving, `roll` is selected when
+    //  `maxSpeed > walkSpeed * 1.6 && dx*storona > 0 && (runForever || keyRun && (left||right))`.
+    //  `maxSpeed` is `sitSpeed` on every frame a unit is already sitting, so that test can only pass on
+    //  the frame the crouch BEGINS — which is why the movement layer decides it once, at the latch
+    //  (CrouchStateMath.ShouldRoll), and the snapshot carries the answer.
+    //
+    //  The clip plays to frame 15 and then hands over to `polz`, frame-for-frame as the oracle does.
+    //  This state therefore owns the ONLY end condition: `AdvanceFrame` must not be overridden here.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public sealed class RollAnimState : IAnimationState
+    {
+        int  _frame;
+        bool _interrupted;
+
+        public int  Priority  => 75;
+        public bool IsLocked  => false;
+
+        public bool CanEnter(in PlayerMovementSnapshot s)
+        {
+            if (!s.IsCrouchRoll)
+            {
+                // No roll for this crouch — either it never was one, or the previous crouch ended and
+                // the movement layer cleared the flag. Both mean the next crouch starts at frame 0.
+                _frame = 0;
+                _interrupted = false;
+                return false;
+            }
+
+            if (!s.IsCrouching || _interrupted)
+            {
+                return false;
+            }
+
+            // The roll lives inside AS3's "sitting AND moving" branch (`:4415`); the idle branch above
+            // it takes over the moment the player stops, and the roll is abandoned rather than resumed.
+            // Without this term a player who crouches out of a sprint and stops dead would keep
+            // spinning on the spot for fifteen frames.
+            if (s.NormalizedMoveSpeed < 0.01f)
+            {
+                return false;
+            }
+
+            // Past the handover the crawl owns the body (AS3 `:4417`); this also stops the roll from
+            // re-starting on every later evaluation of the same crouch.
+            return _frame < CrouchStateMath.RollHandoffFrame;
+        }
+
+        public string GetStateName(in PlayerMovementSnapshot s)                          => "roll";
+        public int    OverrideFrame(in PlayerMovementSnapshot s, int cf, int fc)         => -1;
+        public void   OnEnter(string prev, IAnimationEventSink e)                        => _frame = 0;
+
+        // Leaving for anything but `polz` means the roll was cut short (the player stopped, or a
+        // higher-priority state took over). AS3 sets `animState` away from "roll" in that case, and
+        // the branch that re-enters it can never fire again for the same crouch — so neither can this.
+        public void   OnExit(string next, IAnimationEventSink e)
+        {
+            if (next != "polz")
+            {
+                _interrupted = true;
+            }
+        }
+
+        public void OnFrameChanged(int frame, in PlayerMovementSnapshot s, IAnimationEventSink e)
+        {
+            _frame = frame;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

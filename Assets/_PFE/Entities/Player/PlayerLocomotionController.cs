@@ -87,6 +87,19 @@ namespace PFE.Entities.Player
         private float _dashTimer;
 
         private bool _isCrouching;
+
+        // AS3 `downp` (`UnitPlayer.as:2878-2881`) in seconds: how long Down has been held without a
+        // gap. A hold DEBOUNCE — the crouch latches only after it passes
+        // `CrouchStateMath.RequiredHoldSeconds`, which is 2 frames on solid ground and 6 on a one-way
+        // shelf. That window is what lets a double-tap of Down mean "drop through" without also
+        // crouching on the way down.
+        private float _sitHeldSeconds;
+
+        // One crouch, one chance to roll. AS3 gates the roll on `maxSpeed > walkSpeed * 1.6`, and
+        // `maxSpeed` is only that large on the frame the crouch BEGINS (see CrouchStateMath), so this
+        // is decided once, at the latch, and then carried by the snapshot until the crouch ends.
+        private bool _crouchRoll;
+
         private int _airJumpCount;
         private bool _justDoubleJumped;
         private bool _wasGroundedLastFrame;
@@ -279,11 +292,13 @@ namespace PFE.Entities.Player
             bool wantsToUseLadder = !state.IsInWater && !_isLevitating && Mathf.Abs(_moveInput.y) > 0.5f;
             _motor.SetLadderInput(_moveInput.y, wantsToUseLadder);
 
-            _isCrouching = canCrouch &&
-                state.IsGrounded &&
-                !state.IsInWater &&
-                !state.IsOnLadder &&
-                _moveInput.y < -0.5f;
+            // AS3 `isUp = this.ctr.keyBeUp` (`UnitPlayer.as:2944`). The same axis the ladder call above
+            // receives, published separately because the oracle keeps them apart: Up is the ladder's
+            // climb key AND the crouch's release key AND the mantle's key (`Unit.as:2108`), and which
+            // of the three acts is decided by the geometry, not by the input.
+            _motor.SetUpHeld(CrouchStateMath.UpHeld(_moveInput.y));
+
+            UpdateCrouch(state, dt);
 
             // Levitation update (before gravity/speed resolve so state is current)
             UpdateLevitation(state, dt);
@@ -342,7 +357,7 @@ namespace PFE.Entities.Player
                 latestState.IsFullySubmerged,
                 latestState.IsOnLadder,
                 IsDashing,
-                latestState.IsCrouching,
+                Crouching(latestState),
                 ResolveRunningState(latestState),
                 latestState.FacingDirection,
                 _aimAngle,
@@ -350,7 +365,8 @@ namespace PFE.Entities.Player
                 _justLanded,
                 normalizedMoveSpeed,
                 _isLevitating,
-                _justTeleported);
+                _justTeleported,
+                _crouchRoll);
 
             _wasGroundedLastFrame = latestState.IsGrounded;
             _dashPressedBuffered = false;
@@ -360,6 +376,112 @@ namespace PFE.Entities.Player
             // precision block runs at the end of control() after movement has resolved.
             PublishPrecisionState(latestState);
         }
+
+        // ──────────────────────────────────────
+        //  Crouch (AS3 `isSit`)
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// AS3's <c>isSit</c> latch, once per fixed step.
+        ///
+        /// <para><b>Three separate things live in the oracle's one flag and this method keeps them
+        /// separate.</b> (1) The <i>hold debounce</i> — <c>downp</c> — which decides when a held Down
+        /// key becomes a crouch. (2) The <i>latch</i>, cleared only by Up or by leaving the ground.
+        /// (3) The <i>entry speed</i>, which decides whether that crouch is a roll. Folding (1) or (3)
+        /// back into the latch is what produced the shipped behaviour, where crouch was simply
+        /// <c>move.y &lt; -0.5</c> and neither the crawl nor the roll was reachable.</para>
+        ///
+        /// <para><b>What this method does not own: the collision box.</b> <c>SetCrouching</c> asks; the
+        /// motor decides, because a player under a low ceiling must stay low even after the latch
+        /// clears (AS3's <c>unsit()</c> re-sits on <c>collisionAll()</c>,
+        /// <c>Unit.as:2532-2538</c>). <see cref="Crouching"/> therefore ORs the two, and everything
+        /// downstream — speed, locomotion state, animation — reads that instead of the latch.</para>
+        /// </summary>
+        private void UpdateCrouch(MovementMotorState state, float dt)
+        {
+            bool sitHeld = CrouchStateMath.SitHeld(_moveInput.y);
+            bool upHeld = CrouchStateMath.UpHeld(_moveInput.y);
+
+            _sitHeldSeconds = sitHeld ? _sitHeldSeconds + dt : 0f;
+
+            if (!canCrouch)
+            {
+                ClearCrouch();
+                return;
+            }
+
+            if (_isCrouching)
+            {
+                // `stay` for the release test is grounded-and-not-on-a-ladder: a ladder's Down
+                // descends (AS3 `isLaz` arm), it does not crouch, so the two states are exclusive.
+                if (CrouchStateMath.ShouldEndCrouch(upHeld, sitHeld, state.IsGrounded && !state.IsOnLadder))
+                {
+                    ClearCrouch();
+                }
+
+                return;
+            }
+
+            if (!CrouchStateMath.MayBeginCrouch(state.IsGrounded, state.IsInWater, state.IsOnLadder, RunForced))
+            {
+                return;
+            }
+
+            if (_sitHeldSeconds < CrouchStateMath.RequiredHoldSeconds(state.IsOnPlatform, PFE.Core.SimClock.FramesPerSecond))
+            {
+                return;
+            }
+
+            _isCrouching = true;
+            _crouchRoll = CrouchStateMath.ShouldRoll(
+                speedBeforeCrouch: ResolveSpeedIgnoringCrouch(state),
+                walkSpeed: WalkSpeed,
+                horizontalVelocity: state.Velocity.x,
+                facingDirection: state.FacingDirection,
+                horizontalInput: _moveInput.x,
+                runHeld: _runHeld,
+                runForced: RunForced);
+        }
+
+        private void ClearCrouch()
+        {
+            _isCrouching = false;
+            _crouchRoll = false;
+        }
+
+        /// <summary>
+        /// The crouch the <i>world</i> sees: the latch, or a collision box the motor is still holding
+        /// low because standing up is blocked. See <see cref="UpdateCrouch"/>.
+        /// </summary>
+        private bool Crouching(MovementMotorState state)
+        {
+            return _isCrouching || state.IsCrouching;
+        }
+
+        /// <summary>
+        /// AS3's <c>maxSpeed</c> on the frame a crouch begins — computed <i>before</i> <c>sit(true)</c>
+        /// ran (<c>UnitPlayer.as:2457-2490</c> vs <c>:2859</c>), so with the crouch term absent. Only
+        /// the run/walk distinction matters: the crouch already requires <c>stay</c>, no water, no
+        /// ladder and no diagonal, which are the oracle's other overrides.
+        /// </summary>
+        private float ResolveSpeedIgnoringCrouch(MovementMotorState state)
+        {
+            float walkSpeed = WalkSpeed;
+
+            if (state.IsOnLadder || state.IsInWater || _isLevitating)
+            {
+                return walkSpeed;
+            }
+
+            if (_runHeld || RunForced)
+            {
+                return _definition != null ? _definition.RunSpeed : walkSpeed * DefaultRunMultiplier;
+            }
+
+            return walkSpeed;
+        }
+
+        private float WalkSpeed => _definition != null ? _definition.WalkSpeed : 4f;
 
         private void UpdateTimers(MovementMotorState state, float dt)
         {
@@ -596,13 +718,13 @@ namespace PFE.Entities.Player
         {
             float walkSpeed = _definition != null ? _definition.WalkSpeed : 4f;
 
-            if (_moveInput.y > 0.5f || _jumpHeld)
+            if (CrouchStateMath.UpHeld(_moveInput.y) || _jumpHeld)
             {
                 _motor.AddVerticalImpulse(SwimMath.UpImpulsePixelsPerFrame(walkSpeed));
                 return;
             }
 
-            if (_moveInput.y < -0.5f)
+            if (CrouchStateMath.SitHeld(_moveInput.y))
             {
                 _motor.AddVerticalImpulse(-SwimMath.DownImpulsePixelsPerFrame(walkSpeed));
             }
@@ -631,7 +753,7 @@ namespace PFE.Entities.Player
             {
                 speed *= DefaultLevitationHorizontalSpeedMultiplier;
             }
-            else if (_isCrouching)
+            else if (Crouching(state))
             {
                 speed *= Mathf.Clamp(crouchSpeedMultiplier, 0.1f, 1f);
             }
@@ -790,6 +912,14 @@ namespace PFE.Entities.Player
             }
 
             if (!state.IsGrounded || state.IsOnLadder)
+            {
+                return;
+            }
+
+            // AS3 `UnitPlayer.as:2592`/`:2615` — the dash condition carries `!isSit`. It was
+            // unreachable while the crouch was a key level (you could not be crouched and double-tap a
+            // direction at the same time); with the latch it is a real input, so the gate has to exist.
+            if (Crouching(state))
             {
                 return;
             }
@@ -1125,7 +1255,7 @@ namespace PFE.Entities.Player
                 return PlayerLocomotionState.Levitate;
             }
 
-            if (state.IsCrouching)
+            if (Crouching(state))
             {
                 return PlayerLocomotionState.Crouched;
             }
@@ -1148,7 +1278,7 @@ namespace PFE.Entities.Player
                 return false;
             }
 
-            if (state.IsCrouching || !state.IsGrounded || state.IsOnLadder || state.IsInWater)
+            if (Crouching(state) || !state.IsGrounded || state.IsOnLadder || state.IsInWater)
             {
                 return false;
             }

@@ -13,6 +13,23 @@ namespace PFE.Systems.Physics
         void SetLadderInput(float verticalInput, bool wantsToClimb);
         void SetDropThroughPlatforms(bool shouldDrop);
         void SetCrouching(bool isCrouching);
+
+        /// <summary>
+        /// Publish AS3 <c>ctr.keyBeUp</c> — the <b>Up</b> key — as a level, so the motor can run the
+        /// oracle's mantle (<c>Unit.as:2108-2118</c> / <c>:2185-2195</c>): hold Up while walking into a
+        /// one-tile-high ledge and the unit is lifted onto it and left crouched by the headroom.
+        ///
+        /// <para><b>Why this is not <see cref="SetLadderInput"/>.</b> That call already carries the
+        /// vertical axis, and reusing it would work today — but it would tie two unrelated mechanics to
+        /// one argument, so a change to how ladders consume the axis would silently retune the mantle
+        /// (and vice versa). The oracle keeps them apart too: <c>keyBeUp</c> feeds
+        /// <c>checkStairs()</c> <i>and</i> <c>isUp</c> (<c>UnitPlayer.as:2933</c>, <c>:2944</c>), which
+        /// is why a unit can hold Up and neither climb nor mantle when the geometry says no.</para>
+        ///
+        /// <para>Only the player publishes it. An NPC never calls this, so its value stays
+        /// <c>false</c> — which is AS3's own gate (<c>this.player &amp;&amp;</c>).</para>
+        /// </summary>
+        void SetUpHeld(bool upHeld);
         void Jump(float force);
         void Dash(Vector2 direction, float speed, float duration);
         void SetGravityScale(float scale);

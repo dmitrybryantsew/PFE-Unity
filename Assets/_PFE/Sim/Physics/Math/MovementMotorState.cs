@@ -21,6 +21,22 @@ namespace PFE.Systems.Physics
         public readonly Vector2 Position;
         public readonly int FacingDirection;
 
+        /// <summary>
+        /// AS3 <c>stayPhis == 2</c> — standing on a <b>one-way</b> surface (the oracle's
+        /// <c>shelf</c>), as opposed to solid ground (<c>stayPhis == 1</c>).
+        ///
+        /// <para><b>Why the locomotion brain needs it.</b> The player's Down key has two meanings
+        /// depending on what is underfoot: over solid ground it crouches on the second held frame, over
+        /// a shelf only on the sixth (<c>UnitPlayer.as:2859</c>). That window is what lets a double-tap
+        /// of Down mean "drop through" without also crouching on the way down, so the distinction is
+        /// part of the mechanic and not an implementation detail of the motor's ground query.</para>
+        ///
+        /// <para>Trailing and defaulted rather than inserted in the middle: this struct is constructed
+        /// in exactly one place (<c>TilePhysicsController.State</c>), but a positional field order that
+        /// silently re-binds is a far worse failure than an optional parameter at the end.</para>
+        /// </summary>
+        public readonly bool IsOnPlatform;
+
         public MovementMotorState(
             bool isGrounded,
             bool isInWater,
@@ -32,7 +48,8 @@ namespace PFE.Systems.Physics
             bool wallRight,
             Vector2 velocity,
             Vector2 position,
-            int facingDirection)
+            int facingDirection,
+            bool isOnPlatform = false)
         {
             IsGrounded = isGrounded;
             IsInWater = isInWater;
@@ -45,6 +62,7 @@ namespace PFE.Systems.Physics
             Velocity = velocity;
             Position = position;
             FacingDirection = facingDirection;
+            IsOnPlatform = isOnPlatform;
         }
     }
 }
