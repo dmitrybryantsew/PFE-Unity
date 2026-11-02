@@ -104,6 +104,77 @@ namespace PFE.Systems.Combat
         /// appear when the dome shatters.</summary>
         public const int ScythesOnShieldBreak = 6;
 
+        /// <summary>
+        /// <c>loc.createUnit("scythe", Math.random() * 1600 + 160, Math.random() * 500 + 100, true)</c>
+        /// (<c>:296</c>) — the spawn box, in <b>AS3 room-local pixels</b> (x from the left, y from the
+        /// ceiling).
+        /// </summary>
+        /// <remarks>
+        /// The box is <b>not</b> the arena: x 160..1760 spans most of a 1920-px-wide room and y
+        /// 100..600 is the top third of a 1000-px-tall one, i.e. the blades materialise around and above
+        /// the boss's own seven points. <see cref="ScytheSpawnPixels"/> mirrors the Y; a port that used
+        /// the literal would drop all six into the floor.
+        /// </remarks>
+        public const float ScytheSpawnMinXPixels = 160f;
+
+        /// <summary>See <see cref="ScytheSpawnMinXPixels"/> — <c>1600 + 160</c>.</summary>
+        public const float ScytheSpawnMaxXPixels = 1760f;
+
+        /// <summary>See <see cref="ScytheSpawnMinXPixels"/> — <c>100</c> from the ceiling.</summary>
+        public const float ScytheSpawnMinYAs3Pixels = 100f;
+
+        /// <summary>See <see cref="ScytheSpawnMinXPixels"/> — <c>500 + 100</c> from the ceiling.</summary>
+        public const float ScytheSpawnMaxYAs3Pixels = 600f;
+
+        /// <summary>
+        /// One <c>emit()</c> spawn point in <b>room-local, y-up</b> pixels.
+        /// </summary>
+        /// <param name="rollX">Uniform draw for x; the caller's <c>Math.random()</c>.</param>
+        /// <param name="rollY">Uniform draw for y.</param>
+        /// <param name="roomHeightTiles">The live room's height, for the Y mirror.</param>
+        public static Vector2Pixels ScytheSpawnPixels(float rollX, float rollY, int roomHeightTiles = CanonicalRoomHeightTiles)
+        {
+            if (roomHeightTiles <= 0)
+            {
+                roomHeightTiles = CanonicalRoomHeightTiles;
+            }
+
+            float x = ScytheSpawnMinXPixels + Clamp01(rollX) * (ScytheSpawnMaxXPixels - ScytheSpawnMinXPixels);
+            float as3Y = ScytheSpawnMinYAs3Pixels
+                         + Clamp01(rollY) * (ScytheSpawnMaxYAs3Pixels - ScytheSpawnMinYAs3Pixels);
+
+            // AS3 y-down → port y-up, the same mirror the move points take.
+            return new Vector2Pixels(x, roomHeightTiles * MovePointTileSize - as3Y);
+        }
+
+        /// <summary>
+        /// A pair of room-local pixel coordinates. A tiny struct rather than <c>Vector2</c> so this
+        /// class keeps compiling in the offline harness, which links the rules and no Unity types.
+        /// </summary>
+        public readonly struct Vector2Pixels
+        {
+            public readonly float X;
+            public readonly float Y;
+
+            public Vector2Pixels(float x, float y)
+            {
+                X = x;
+                Y = y;
+            }
+        }
+
+        static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
+
+        /// <summary>
+        /// <c>if(param1 &gt;= 0) { _loc2_.bind = this; _loc2_.maxhp *= 8; _loc2_.hp = maxhp;
+        /// (_loc2_ as UnitScythe).bindN = param1; }</c> (<c>:300-306</c>) — a bound blade is eight times
+        /// as tough as a free one.
+        /// </summary>
+        public const float BoundScytheHealthMultiplier = 8f;
+
+        /// <summary><c>_loc2_.dam *= 1 + level * 0.1</c> (<c>:298</c>) — the emit's own damage scale.</summary>
+        public static float ScytheDamageScale(float level) => 1f + level * 0.1f;
+
         /// <summary><c>if(attState == 4 &amp;&amp; aiTCh % 30 == 1) emit()</c> (<c>:580</c>) — a seventh
         /// scythe, unbound, every thirty ticks of the invisibility step.</summary>
         public const int ScytheEmitInterval = 30;
@@ -191,6 +262,18 @@ namespace PFE.Systems.Combat
         public const float MovePointTileSize = 40f;
 
         /// <summary>
+        /// <c>World.cellsY = 25</c> (<c>World.as:39</c>) — the room height the seven points are
+        /// authored against, and the fallback when a caller has no live room.
+        ///
+        /// <para>A local literal rather than a reference to <c>TileQueryConstants.RoomCellsY</c>, for
+        /// the same reason <see cref="MovePointTileSize"/> is one: this class has to compile in the
+        /// offline harness, which links the rules and nothing else, and <c>TileQueryConstants</c>
+        /// drags in <c>PFE.Core.SimClock</c>. The value is asserted equal to the physics constant by
+        /// the harness, so the duplication cannot drift silently.</para>
+        /// </summary>
+        public const int CanonicalRoomHeightTiles = 25;
+
+        /// <summary>
         /// <c>movePoints[mp].x * 40 + 20</c> (<c>:415</c>) — the teleport target's room-local X in
         /// pixels. The <c>+20</c> is the half-tile that centres the body on the tile.
         /// </summary>
@@ -205,23 +288,45 @@ namespace PFE.Systems.Combat
         }
 
         /// <summary>
-        /// <c>movePoints[mp].y * 40 + 40</c> (<c>:415</c>) — the room-local Y in pixels.
+        /// <c>movePoints[mp].y * 40 + 40</c> (<c>:415</c>) — the room-local Y in pixels, <b>mirrored</b>
+        /// into the port's y-up space.
         ///
-        /// <para><b>The <c>+40</c> is a full tile, and it is not a mirror artefact.</b> AS3's
-        /// <c>setPos(x, y)</c> takes the body's <b>bottom</b> (<c>Y</c>), so <c>tileY * 40 + 40</c> is
-        /// the <i>bottom edge</i> of row <c>tileY</c> in a y-down space — i.e. one row further down than
-        /// the tile's own origin. The port's Y is also the bottom and is y-up, so the same expression is
-        /// the bottom of the row measured from the room's bottom-left. Nothing flips here; the two
-        /// conventions agree because both store the bottom.</para>
+        /// <para><b>This is the bug that made the boss teleport into the floor.</b> AS3's Y grows
+        /// <i>down</i>, so <c>tileY * 40 + 40</c> measures from the room's <b>ceiling</b>. The port's
+        /// room-local Y grows <i>up</i> from the floor, so the same number is the vertical <b>mirror</b>
+        /// of the authored point — the seven points land in the lower half of the arena instead of the
+        /// upper half. An earlier revision argued the opposite ("<c>setPos</c> takes the bottom in both
+        /// engines, so nothing flips"), which is true of the <i>anchor</i> and false of the <i>axis</i>:
+        /// both engines store the bottom, but one measures it from the ceiling and the other from the
+        /// floor. The symptom is exactly what a player reports — the boss reappears at the wrong height,
+        /// sometimes inside the dais, with no room to circle.</para>
+        ///
+        /// <para>The conversion is <see cref="WorldCoordinates.As3YToUnityLocalY"/>'s rule,
+        /// <c>H*40 - y</c>, applied here rather than at the call site so the arithmetic stays in the
+        /// Unity-free layer and the fixture can pin the literals. <c>+40</c> is kept: it is the bottom
+        /// edge of the row in AS3 space (one row further down than the tile's origin), and the mirror
+        /// carries it.</para>
         /// </summary>
-        public static float MovePointPixelY(int index)
+        /// <param name="index">Index into the seven authored points.</param>
+        /// <param name="roomHeightTiles">
+        /// The live room's height in tiles — <c>RoomInstance.height</c>. Defaults to the port's
+        /// canonical 25-row room, which is what the fixtures pin.
+        /// </param>
+        public static float MovePointPixelY(int index, int roomHeightTiles = CanonicalRoomHeightTiles)
         {
             if (index < 0 || index >= MovePointCount)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
 
-            return MovePointTileY[index] * MovePointTileSize + 40f;
+            if (roomHeightTiles <= 0)
+            {
+                roomHeightTiles = CanonicalRoomHeightTiles;
+            }
+
+            // AS3 room-local Y (down, 0 = ceiling) → port room-local Y (up, 0 = floor).
+            float as3Y = MovePointTileY[index] * MovePointTileSize + 40f;
+            return roomHeightTiles * MovePointTileSize - as3Y;
         }
 
         // ── the rotation ladder (UnitBossAlicorn.as:391-477) ──────────────────────────────────────

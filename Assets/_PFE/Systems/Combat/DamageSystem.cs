@@ -430,6 +430,33 @@ namespace PFE.Systems.Combat
                 incoming *= DamageVariance.Roll(rng, _debugSettings != null && _debugSettings.TestDamage);
             }
 
+            // ── The target's last look at the SHOT ───────────────────────────────────────────────
+            // AS3 `UnitAlicorn.damage():415-429` and `UnitPlayer.damage():3253-3268` are overrides that
+            // run at the TOP of `damage()` — after `udarBullet` has spread the hit, before the base
+            // body's vulnerability, armour and crit — and they can `return 0`, which refuses the hit
+            // outright. Two of their behaviours are gated on facts that exist only on the shot (the
+            // weapon's tip, the owner being the player, the weapon's `dopEffect`), so they cannot be
+            // expressed through `DamageOutcome`. This is the seam: an optional interface, asked only
+            // when the target implements it.
+            //
+            // **It must be asked BEFORE the vulnerability multiply, and that is not a stylistic
+            // ordering.** `super.damage()` applies `param1 *= vulner[param2]` and then returns 0 at
+            // `:3563` when the result is zero — but the override has already run by then. The case
+            // this decides is the alicorn's psy bolt: `alipsy2` carries `tipdam='8'` (`D_EMP`) and the
+            // player's table is AS3's baseline, which is 0 for EMP, so the hit is nullified and its
+            // status effect is the *only* thing it was ever going to deliver. Asked after the
+            // multiply, the red circles are completely inert: no damage (correct) and no
+            // horror/vote/disorient (wrong).
+            //
+            // `Refused` is deliberately not `Landed`: nothing is subtracted, worn, critted or thrown.
+            // The round still stops, which is the one thing it shares with a landed hit — AS3's `return
+            // 0` is `>= 0` to `udarBullet`'s caller.
+            if (target is IDamageContextSink contextSink && contextSink.OnDamageContext(in ctx))
+            {
+                RefusedCount++;
+                return DamageVerdict.Refused;
+            }
+
             // ── Vulnerability ───────────────────────────────────────────────────────────────────
             // AS3 `Unit.damage():3527-3530` — `if(param2 < kolVulners) param1 *= this.vulner[param2]`.
             // It is the FIRST term applied, and that ordering is load-bearing: the armour pool block
@@ -452,23 +479,6 @@ namespace PFE.Systems.Combat
                 // so the knockback draw is the next one either way.
                 ApplyKnockback(hit, target, ctx, rng);
                 return DamageVerdict.Landed;
-            }
-
-            // ── The target's last look at the SHOT ───────────────────────────────────────────────
-            // AS3 `UnitAlicorn.damage():415-429` is an override that runs at the TOP of `damage()` —
-            // after `udarBullet` has spread the hit, before vulnerability, armour and crit — and it can
-            // `return 0`, which refuses the hit outright. Two of its three behaviours are gated on facts
-            // that exist only on the shot (the weapon's tip, the owner being the player), so they cannot
-            // be expressed through `DamageOutcome`. This is the seam: an optional interface, asked only
-            // when the target implements it.
-            //
-            // `Refused` is deliberately not `Landed`: nothing is subtracted, worn, critted or thrown.
-            // The round still stops, which is the one thing it shares with a landed hit — AS3's `return
-            // 0` is `>= 0` to `udarBullet`'s caller.
-            if (target is IDamageContextSink contextSink && contextSink.OnDamageContext(in ctx))
-            {
-                RefusedCount++;
-                return DamageVerdict.Refused;
             }
 
             ArmourState armour = target.Armour;

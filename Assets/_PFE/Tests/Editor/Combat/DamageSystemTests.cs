@@ -63,7 +63,7 @@ namespace PFE.Tests.Editor.Combat
             public void Publish(DamageDealtMessage message) => Messages.Add(message);
         }
 
-        private sealed class FakeTarget : IDamageable
+        private class FakeTarget : IDamageable
         {
             public float Health = 100f;
 
@@ -171,6 +171,36 @@ namespace PFE.Tests.Editor.Combat
             public bool CanBeHit => IsAlive;
         }
 
+        /// <summary>
+        /// A target that also answers <see cref="IDamageContextSink"/> — the seam AS3's
+        /// <c>UnitPlayer.damage()</c> and <c>UnitAlicorn.damage()</c> overrides occupy.
+        /// </summary>
+        /// <remarks>
+        /// <b>Not sealed, and that is the whole reason it is a subclass.</b> The resolver needs one
+        /// object to be both the <see cref="IDamageable"/> and the sink, so a wrapper would have to
+        /// forward every member; deriving keeps <see cref="FakeTarget"/>'s defaults (armour, evasion,
+        /// neutral vulnerability table) and adds the one method under test.
+        /// </remarks>
+        private sealed class SinkTarget : FakeTarget, IDamageContextSink
+        {
+            /// <summary>How many times the resolver asked. The question, not just the answer.</summary>
+            public int AskedCount;
+
+            /// <summary>Whether the override refuses the hit — AS3's <c>return 0</c> arm.</summary>
+            public bool Refuse;
+
+            /// <summary>The <c>dopEffect</c> the resolver handed over, for the psy-shaped fixtures.</summary>
+            public string LastDopEffect;
+
+            public bool OnDamageContext(in DamageContext context)
+            {
+                AskedCount++;
+                LastDopEffect = context.DopEffect;
+                return Refuse;
+            }
+        }
+
+
         private static DamageContext Context(
             float baseDamage = 10f,
             float explosionDamage = 0f,
@@ -183,7 +213,8 @@ namespace PFE.Tests.Editor.Combat
             float precision = 0f,
             bool isMelee = false,
             float knockback = 0f,
-            Vector2 knockbackDir = default)
+            Vector2 knockbackDir = default,
+            string dopEffect = null)
             => new DamageContext(
                 owner: null,
                 weapon: null,
@@ -198,7 +229,7 @@ namespace PFE.Tests.Editor.Combat
                 damageType: damageType,
                 destroyTiles: 0f,
                 penetrationChance: 0f,
-                dopEffect: null,
+                dopEffect: dopEffect,
                 dopDamage: 0f,
                 dopChance: 1f,
                 missChance: missChance,
@@ -884,6 +915,84 @@ namespace PFE.Tests.Editor.Combat
             Assert.AreEqual(0, system.ResolvedCount, "A nullified hit is not a resolved hit.");
             Assert.AreEqual(0, publisher.Messages.Count,
                 "And no floating number — AS3 returns before one is emitted.");
+        }
+
+        [Test]
+        public void ZeroedHit_StillAsksTheTargetsDamageOverride_ThatIsWherePsyLives()
+        {
+            // The alicorn's psy bolt is the case that makes this load-bearing, and it is the one the
+            // red circles were failing: `alipsy2` carries `tipdam='8'` (D_EMP), AS3's baseline table is
+            // emp = 0, so the HP damage is nullified — and the horror/vote/disorient roll is the ONLY
+            // thing that bolt was ever going to deliver. AS3 runs `UnitPlayer.damage():3253-3268`
+            // before `super.damage()` applies the vulnerability table, so the effect lands on a hit
+            // that does no damage. Asking the override after the multiply makes the whole attack inert.
+            var system = MakeTickAligned(applyVulnerabilities: true);
+            var target = new SinkTarget
+            {
+                Health = 100f,
+                Vulnerabilities = VulnerabilityData.Neutral,   // emp = 0
+            };
+
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 15f, damageType: DamageType.EMP, dopEffect: "psy"),
+                target, Vector3.zero));
+            system.SimTick(1);
+
+            Assert.AreEqual(1, target.AskedCount,
+                "the override runs before the table is applied, so a nullified hit still reaches it");
+            Assert.AreEqual("psy", target.LastDopEffect,
+                "and it is handed the shot's dopEffect, which is the whole gate AS3 tests");
+            Assert.AreEqual(100f, target.Health, 1e-4f,
+                "control: the HP damage is still nullified — this is not a licence to deal EMP damage");
+        }
+
+        [Test]
+        public void ZeroedHit_TheOverrideCanStillRefuseIt_NotJustObserveIt()
+        {
+            // The other half of the same seam: `UnitAlicorn.damage()`'s tr2 arm really does `return 0`.
+            // A resolver that asked the sink but reported `Landed` anyway would satisfy a
+            // "was it asked?" assertion and still be wrong, because the caller acts on the verdict —
+            // `Landed` runs the knockback and lets the round stop as a hit. So this one is driven in
+            // IMMEDIATE mode, where `Report` hands the verdict back synchronously; in tick mode the
+            // answer is `Queued` and the verdict is unobservable from here.
+            var system = MakeImmediate(applyVulnerabilities: true);
+            var target = new SinkTarget
+            {
+                Health = 100f,
+                Vulnerabilities = VulnerabilityData.Neutral,
+                Refuse = true,
+            };
+
+            DamageVerdict verdict = system.Report(PendingDamage.Direct(
+                Context(baseDamage: 15f, damageType: DamageType.EMP, dopEffect: "psy"),
+                target, Vector3.zero));
+
+            Assert.AreEqual(1, target.AskedCount);
+            Assert.AreEqual(DamageVerdict.Refused, verdict,
+                "a refusal is a refusal even on a hit the vulnerability table had already nullified — " +
+                "and the VERDICT is what detects it: the counter below is incremented on both paths, " +
+                "so a mutant that returns Landed leaves it at 1 and passes a counter-only assertion");
+            Assert.AreEqual(1, system.RefusedCount);
+        }
+
+        [Test]
+        public void ZeroDamageBullet_NeverAsksTheOverride_ThatGateIsEarlier()
+        {
+            // AS3's `if(param1.damage > 0)` wraps the whole hit block in `udarBullet`, so `damage()`
+            // — and therefore the override — is never entered for a round that carries no damage.
+            // This is the boundary the fixture above must not be allowed to swallow: "always ask the
+            // sink" would satisfy that test and be wrong here.
+            var system = MakeTickAligned(applyVulnerabilities: true);
+            var target = new SinkTarget { Health = 100f };
+
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 0f, damageType: DamageType.EMP, dopEffect: "psy"),
+                target, Vector3.zero));
+            system.SimTick(1);
+
+            Assert.AreEqual(0, target.AskedCount,
+                "a bullet with no damage does not enter damage() at all");
+            Assert.AreEqual(100f, target.Health, 1e-4f);
         }
 
         [Test]

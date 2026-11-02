@@ -435,7 +435,7 @@ namespace PFE.Entities.Enemies.Bosses
         public new const string ControllerAlias = "bossalicorn";
 
         /// <summary>
-        /// <b>Deliberately NOT a spell-shield dome.</b> <c>UnitBossAlicorn</c> looks like the other
+        /// <b>A one-shot dome, not a shield pool.</b> <c>UnitBossAlicorn</c> looks like the other
         /// shield bosses — it declares <c>shitMaxHp = 400</c> (<c>:32</c>), <c>t_shit = 300</c>
         /// (<c>:105</c>), <c>shitArmor = 15</c> (<c>:119</c>) and creates the <c>visShit3</c> dome
         /// (<c>:123-127</c>) — but <b>nothing in that class ever assigns <c>shithp</c></b>, and
@@ -443,15 +443,21 @@ namespace PFE.Entities.Enemies.Bosses
         /// fields is vestigial: <c>Unit.damage()</c> reaches <c>shitArmor</c> only inside
         /// <c>if(shithp &gt; 0)</c>, which never holds, so the boss absorbs nothing.
         ///
-        /// <para><b>Its dome is a one-shot, not a pool.</b> <c>die():709-712</c> is the only place the
-        /// clip is touched after construction: <c>if(isShit) { isShit = false;
-        /// visshit.gotoAndPlay(2); hp = maxhp - 0.1; ... }</c> — the first lethal hit shatters the dome
-        /// and revives the boss. <c>setNull():203-207</c> restores <c>isShit = true</c> on a respawn.
-        /// That state is already modelled (<see cref="BossAlicornBrain.IsShit"/>); the <i>visual</i> is
-        /// not, and it needs a play-once path, not the pool poll <c>UnitShieldOverlay</c> implements.
-        /// Returning <c>true</c> here would attach a dome that can never draw.</para>
+        /// <para><b>Its dome is a one-shot, not a pool.</b> The clip is parked on frame 1 in the
+        /// constructor (<c>gotoAndStop(1)</c>, <c>:126</c>) — so she arrives <i>with</i> the dome, not
+        /// waiting for a pool to fill — and <c>die():709-712</c> is the only other place it is touched:
+        /// <c>if(isShit) { isShit = false; visshit.gotoAndPlay(2); hp = maxhp - 0.1; ... }</c>. The
+        /// first lethal hit shatters the dome and revives the boss.</para>
+        ///
+        /// <para><b>So this is <c>true</c>, and <c>HasSpellShieldOverlay</c> stays <c>false</c>.</b>
+        /// The two flags answer different questions: "does this unit have a shield pool" (no — nothing
+        /// to spend) and "does it draw a dome" (yes — the one-shot). Returning <c>true</c> here attaches
+        /// <see cref="PFE.Entities.Units.UnitShieldOverlay"/>, whose driver
+        /// <see cref="PFE.Entities.Units.ShieldDomeOneShotRules.IsOneShot"/> switches to the break
+        /// timeline for exactly this kind, so the pool poll that would have hidden her dome on frame 1
+        /// never runs.</para>
         /// </summary>
-        public override bool UsesBossShieldOverlay => false;
+        public override bool UsesBossShieldOverlay => true;
 
         /// <summary>See <see cref="UsesBossShieldOverlay"/> — the boss alicorn has no shield pool.</summary>
         public override bool HasSpellShieldOverlay => false;
@@ -494,6 +500,24 @@ namespace PFE.Entities.Enemies.Bosses
         /// (<c>currentWeapon</c>) and the brain calls <c>FireOnce</c> on that mount only; the other
         /// three still step, because AS3's <c>childObjs</c> are all live and a weapon that is merely
         /// not selected has no reason to freeze.</para>
+        ///
+        /// <para><b>Every one of the four is an AUTOMATIC weapon, and that is the difference between a
+        /// fight and a single shot.</b> <c>Weapon</c>'s constructor ends with
+        /// <c>if(!param1.player) { this.auto = true; }</c> (<c>Weapon.as:337-340</c>) — an NPC's weapon
+        /// never takes the semi-auto debounce at all. The port models that as
+        /// <c>WeaponRuntimeState.AutomaticTrigger</c>, and without it
+        /// <c>RangedWeaponController.RunAttack</c> takes the debounce branch on <b>every</b> tick after
+        /// the first shot (the boss calls <c>attack()</c> every frame of its step-3 beat), so
+        /// <c>t_auto</c> is refreshed to 3 and decayed to 2 forever and the weapon fires
+        /// <b>exactly once for the whole fight</b>.</para>
+        ///
+        /// <para>That is the reported "she attacks too rarely — one bullet, one lightning". It hit
+        /// <c>alilight2</c> (rapid 20), <c>aliblade</c> (10) and <c>alipsy2</c> (30); <c>alimray</c>
+        /// (rapid 1) was already <c>auto</c> by the <c>rapid &lt;= 6</c> rule and so was the only one of
+        /// the four that kept firing. The call is per-mount and idempotent, and it is here rather than
+        /// in <see cref="EnemyWeaponMount.Initialize"/> because the raider family deliberately keeps
+        /// the debounce (its <c>attack()</c> is <c>isrnd(0.1)</c>-gated, which is the gap the debounce
+        /// needs) — see <see cref="EnemyWeaponMount.MarkAutomaticTrigger"/>.</para>
         /// </remarks>
         void EquipBossWeapons()
         {
@@ -501,16 +525,141 @@ namespace PFE.Entities.Enemies.Bosses
 
             for (int i = 0; i < BossAlicornBrain.WeaponIds.Length; i++)
             {
-                EquipWeapon(BossAlicornBrain.WeaponIds[i]);
+                EnemyWeaponMount mount = EquipWeapon(BossAlicornBrain.WeaponIds[i]);
+                if (mount == null) continue;
+
+                mount.MarkAutomaticTrigger();
+
+                // `setLevel`'s weapon half. Multiplied, and marked per index, because this method runs
+                // from both `Initialize` and `OnWeaponServicesReady` — a mount that arrives on the
+                // second call still has to be scaled, and one that was already there must not be
+                // scaled twice. See WeaponDamageScale for which two of the four are touched.
+                if (mount.Controller != null && !_weaponScaled[i])
+                {
+                    _weaponScaled[i] = true;
+                    mount.Controller.State.DamageScale *= WeaponDamageScale(i);
+                }
             }
+        }
+
+        /// <summary>
+        /// One flag per slot of <see cref="BossAlicornBrain.WeaponIds"/> — "this mount has already taken
+        /// its <c>setLevel</c> factor". See <see cref="EquipBossWeapons"/>.
+        /// </summary>
+        readonly bool[] _weaponScaled = new bool[BossAlicornBrain.WeaponIds.Length];
+
+        /// <summary>
+        /// <c>setLevel()</c>'s per-weapon damage factor (<c>UnitBossAlicorn.as:141-164</c>), for the
+        /// weapon in <paramref name="weaponIndex"/>'s slot of <see cref="BossAlicornBrain.WeaponIds"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Two of the four weapons scale, and the asymmetry is the oracle's.</b> The method
+        /// reads:</para>
+        /// <code>
+        /// _loc2_ = 1 + level * 0.07;
+        /// _loc3_ = 1; if(dif == 3) 1.2; if(dif == 4) 1.5;
+        /// hp = maxhp = hp * _loc3_;
+        /// dam *= _loc3_;
+        /// if(weaps[1])         weaps[1].damage       *= _loc2_ * _loc3_;
+        /// if(currentWeapon)    currentWeapon.damage  *= _loc3_;
+        /// </code>
+        /// <para><c>currentWeapon</c> is <c>weaps[0]</c> at construction (<c>:129</c>), so exactly
+        /// <b>alilight2</b> (index 0) and <b>aliblade</b> (index 1) are scaled. <c>alipsy2</c> and
+        /// <c>alimray</c> are not, and a port that scaled all four uniformly would be silently harder
+        /// than the oracle on hard. <c>_loc2_</c> multiplies the blade only — and it is <c>1</c> here
+        /// because the port has no NPC level (<c>BossAlicornRules.BladeLevelScale</c>'s remarks), so it
+        /// is applied rather than dropped: the day a level lands, the blade is the one that follows it.
+        /// </para>
+        /// </remarks>
+        float WeaponDamageScale(int weaponIndex)
+        {
+            float difficulty = BossAlicornRules.DifficultyScale(GlobalDifficulty.Value);
+
+            switch (weaponIndex)
+            {
+                case 0: // alilight2 — `currentWeapon` at construction
+                    return difficulty;
+                case 1: // aliblade — `weaps[1]`
+                    return BossAlicornRules.BladeLevelScale(NpcLevel) * difficulty;
+                default: // alipsy2, alimray — untouched by `setLevel`
+                    return 1f;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>setLevel(param1)</c>'s level argument. The port has no NPC level system, so this is
+        /// <c>0</c> — the value that makes <see cref="BossAlicornRules.BladeLevelScale"/> the identity,
+        /// exactly as <c>BossAlicornRules.BladeLevelScale</c>'s own remarks predict.
+        /// </summary>
+        const int NpcLevel = 0;
+
+        /// <summary>
+        /// <c>setLevel()</c>'s body half — <c>hp = maxhp = hp * _loc3_; dam *= _loc3_;</c>
+        /// (<c>:154-155</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this is not free.</b> <c>RoomUnitSpawner</c> has already applied AS3's
+        /// <i>base</i> <c>Unit.setLevel</c> HP rule — but that rule is
+        /// <c>DifficultyRules.EnemyHpMultiplier</c>, which is <c>1</c> at every difficulty above 1 and
+        /// only shrinks a unit on easy. So the boss's <i>own</i> 1.2 / 1.5 was the only scaling it had,
+        /// and it was never applied: on Hard and Very Hard the boss spawned on the same 4500 HP and the
+        /// same 35 contact damage as on Normal. That is the "she seems weaker than intended" report, and
+        /// it is a straight missing statement rather than a tuning question.</para>
+        ///
+        /// <para><c>BossUltraController.Initialize</c> composes the same two multipliers for the
+        /// sentinel and is the precedent; the difference is that this one also scales the <i>body</i>
+        /// damage, because <c>UnitBossAlicorn</c> does.</para>
+        /// </remarks>
+        void ApplyDifficultyScaling()
+        {
+            float difficulty = BossAlicornRules.DifficultyScale(GlobalDifficulty.Value);
+            if (Mathf.Approximately(difficulty, 1f)) return;
+
+            if (_unitStats != null)
+            {
+                _unitStats.MaxHp.Value *= difficulty;
+                _unitStats.CurrentHp.Value = _unitStats.MaxHp.Value;
+            }
+
+            // `dam *= _loc3_` — the INSTANCE damage, not the definition's. `MeleeDamage` is
+            // `Definition.damage * _eliteDamageMultiplier`, and `Definition` is a shared asset: writing
+            // it would buff every alicorn boss in every room, for the rest of the session.
+            ScaleMeleeDamage(difficulty);
         }
 
         protected override void OnWeaponServicesReady() => EquipBossWeapons();
 
+        /// <summary>
+        /// <c>UnitBossAlicorn.setWeaponPos</c> — the per-animation-frame bone table
+        /// (<c>BlitAnim.wPosAlicornBoss</c>), which <see cref="AlicornBossHoldPoint"/> now answers.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This is a label, not the mechanism.</b> <c>EnemyWeaponMount.ResolveHoldPoint</c>
+        /// prefers an <see cref="PFE.Systems.Weapons.IWeaponHoldPointSource"/> and only falls through to
+        /// <see cref="WeaponHoldRule"/> when there is none — and <c>ResolveHold</c> maps
+        /// <c>WPosTable</c> to the base hold, because a rule that sees only the body cannot express a
+        /// per-frame table. Naming the rule here is what keeps the <i>fallback</i> honest (it is the
+        /// inherited <c>Unit.setWeaponPos</c>, the same answer the oracle's <c>catch</c> gives) and
+        /// keeps the call site from claiming <c>Base</c>, which would read as "this class overrides
+        /// nothing".</para>
+        /// </remarks>
+        protected override WeaponHoldRule ResolveHoldRule() => WeaponHoldRule.WPosTable;
+
         public override void Initialize(UnitDefinition definition, UnitStats stats)
         {
             base.Initialize(definition, stats);
+
+            // `setLevel` runs at spawn, before the first `control()` — so the HP and the body damage
+            // are scaled before anything can read them, and the weapons get theirs as each mount is
+            // built (a mount that arrives later still lands on the right number).
+            ApplyDifficultyScaling();
             EquipBossWeapons();
+
+            // The animated anchor, from the constructor's `this.wPos = BlitAnim.wPosAlicornBoss`
+            // (`UnitBossAlicorn.as:122`). Attached AFTER the weapons so the first mount's lazy
+            // `ResolveHoldSource` finds it on its very first tick rather than falling back for a frame;
+            // and idempotent, because a placed unit has `Initialize` called twice.
+            AlicornBossHoldPoint.Attach(this);
         }
 
         /// <summary>

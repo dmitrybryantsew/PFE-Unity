@@ -39,14 +39,44 @@ namespace PFE.Tests.Editor.Combat
             Assert.AreEqual(460f, BossAlicornRules.MovePointPixelX(5));
             Assert.AreEqual(1540f, BossAlicornRules.MovePointPixelX(6));
 
-            // y: 5, 7, 7, 11, 11, 15, 15  →  240, 320, 320, 480, 480, 640, 640
-            Assert.AreEqual(240f, BossAlicornRules.MovePointPixelY(0));
-            Assert.AreEqual(320f, BossAlicornRules.MovePointPixelY(1));
-            Assert.AreEqual(320f, BossAlicornRules.MovePointPixelY(2));
-            Assert.AreEqual(480f, BossAlicornRules.MovePointPixelY(3));
-            Assert.AreEqual(480f, BossAlicornRules.MovePointPixelY(4));
-            Assert.AreEqual(640f, BossAlicornRules.MovePointPixelY(5));
-            Assert.AreEqual(640f, BossAlicornRules.MovePointPixelY(6));
+            // y: 5, 7, 7, 11, 11, 15, 15  →  AS3 240, 320, 320, 480, 480, 640, 640 measured from the
+            // CEILING. The port's room-local Y is y-up, so the same points are 1000 − y: 760, 680, 680,
+            // 520, 520, 360, 360. See MovePointPixelY's remarks — the unmirrored values are what put the
+            // boss into the dais.
+            Assert.AreEqual(760f, BossAlicornRules.MovePointPixelY(0));
+            Assert.AreEqual(680f, BossAlicornRules.MovePointPixelY(1));
+            Assert.AreEqual(680f, BossAlicornRules.MovePointPixelY(2));
+            Assert.AreEqual(520f, BossAlicornRules.MovePointPixelY(3));
+            Assert.AreEqual(520f, BossAlicornRules.MovePointPixelY(4));
+            Assert.AreEqual(360f, BossAlicornRules.MovePointPixelY(5));
+            Assert.AreEqual(360f, BossAlicornRules.MovePointPixelY(6));
+        }
+
+        /// <summary>
+        /// The Y mirror is <c>H*40 − (tileY*40 + 40)</c>, and it is the <b>height of the live room</b>
+        /// that supplies <c>H</c> — not a constant.
+        ///
+        /// <para><b>This is the discriminating companion to the fixture above.</b> The values there are
+        /// pinned for the port's canonical 25-row room; this one moves the height and asserts the point
+        /// moves with it, so an implementation that hard-codes the 25-row answer (or drops the mirror
+        /// and returns the AS3 literal) fails here even if it passes there.</para>
+        /// </summary>
+        [Test]
+        public void MovePointPixelY_IsMirroredThroughTheRoomHeight()
+        {
+            // Row 5 → AS3 5*40+40 = 240 from the ceiling. In a 20-row room that is 800 − 240 = 560.
+            Assert.AreEqual(560f, BossAlicornRules.MovePointPixelY(0, roomHeightTiles: 20));
+
+            // In a 25-row room, 1000 − 240 = 760 — the same point, one arena taller.
+            Assert.AreEqual(760f, BossAlicornRules.MovePointPixelY(0, roomHeightTiles: 25));
+
+            // The mirror is monotone the other way round: the LAST authored row (y = 15) is the
+            // LOWEST point in the port, and the first (y = 5) is the highest.
+            Assert.Less(BossAlicornRules.MovePointPixelY(5, 25), BossAlicornRules.MovePointPixelY(0, 25));
+
+            // A room that reports no height falls back to the canonical 25 rather than throwing or
+            // returning a negative Y (which would put the boss below the floor).
+            Assert.AreEqual(760f, BossAlicornRules.MovePointPixelY(0, roomHeightTiles: 0));
         }
 
         /// <summary>

@@ -103,6 +103,15 @@ namespace PFE.Systems.Map.Rendering
                 [AlicornController.ControllerId] = typeof(AlicornController),
                 [AlicornController.ControllerAlias] = typeof(AlicornController),
 
+                // The boss alicorn's blades — AS3 `UnitScythe`. Registered on the UNIT id, not on a
+                // `cl=` row, because that is how the oracle resolves it: `Unit.as:694` special-cases
+                // `id == "scythe"` ahead of the XML lookup, so no `<obj cl='UnitScythe'/>` row exists
+                // and `scythe.asset` carries an empty `controllerId`. Without this entry the spawner's
+                // fallback chain lands on `unitId` "scythe", misses, and builds a brain-less, art-less
+                // base `UnitController` — the "plausible object that does nothing" this project keeps
+                // finding, and the reason `emit()` was left counting instead of spawning.
+                [ScytheController.ControllerId] = typeof(ScytheController),
+
                 // Family 13 — Robot
                 [RobobrainController.ControllerId] = typeof(RobobrainController),
                 [RobobrainController.ControllerAlias] = typeof(RobobrainController),
@@ -1308,7 +1317,13 @@ namespace PFE.Systems.Map.Rendering
             //
             // Gated on HasSpellShieldOverlay so an ordinary NPC — whose pool is 0 for its whole life —
             // does not get a component and a per-frame poll that can never draw anything.
-            if (controller.HasSpellShieldOverlay)
+            //
+            // `UsesBossShieldOverlay` is the second reason to build one, and it is NOT the same
+            // question: the boss alicorn has no pool at all (`shithp` is declared and never assigned,
+            // so HasSpellShieldOverlay is false for her) yet does draw a dome — `visShit3`, parked on
+            // frame 1 in her constructor and shattered by `die()`. Gating on the pool alone is exactly
+            // why the Super Alicorn has had no dome since the boss was ported.
+            if (controller.HasSpellShieldOverlay || controller.UsesBossShieldOverlay)
             {
                 var shieldOverlay = visualObject.AddComponent<UnitShieldOverlay>();
                 shieldOverlay.Initialize(

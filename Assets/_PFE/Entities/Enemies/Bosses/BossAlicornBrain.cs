@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Enemies.Archetypes;
@@ -7,6 +8,7 @@ using PFE.Entities.Units;
 using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Weapons;
 using UnityEngine;
@@ -69,6 +71,12 @@ namespace PFE.Entities.Enemies.Bosses
         [SerializeField] bool _isShit = BossAlicornRules.ShieldOnRespawn;
 
         /// <summary>
+        /// The dome this boss draws, resolved on first use — see <see cref="BreakDome"/> for why it
+        /// cannot be cached at construction.
+        /// </summary>
+        UnitShieldOverlay _dome;
+
+        /// <summary>
         /// AS3 <c>attState</c> (<c>:101</c>) — the attack-pattern selector for the current beat. Public
         /// so the debug overlay and the fixtures can read it; the oracle has no writer outside
         /// <c>control()</c>.
@@ -111,13 +119,34 @@ namespace PFE.Entities.Enemies.Bosses
         BossAlicornTelekinesis _telekinesis;
 
         /// <summary>
-        /// How many scythes the boss has <i>asked</i> for. Exposed because the blades themselves cannot
-        /// be spawned: the port has no <c>UnitScythe</c>, no <c>scythe</c> controller and no
-        /// <c>scythe</c> sheet. See <see cref="EmitScythe"/>.
+        /// How many scythes <see cref="EmitScythe"/> has actually put into the room. Exposed so the
+        /// debug overlay and the fixtures can see that <c>emit()</c> fired — the count is a
+        /// <i>result</i> now, not a substitute for one.
         /// </summary>
         int _scythesEmitted;
 
-        static bool _scytheGapReported;
+        /// <summary>
+        /// AS3 has no NPC level in this port (see <see cref="BossAlicornRules.BladeLevelScale"/>), so
+        /// <c>emit()</c>'s <c>1 + level * 0.1</c> is the identity. Named rather than inlined so the
+        /// call site reads as the oracle's expression.
+        /// </summary>
+        const int NpcLevel = 0;
+
+        /// <summary>Distinct per blade, so six spawned in one tick cannot share an entity id.</summary>
+        static int _scytheSerial;
+
+        /// <summary>
+        /// The live visual controller for <see cref="Room"/>, cached for the shield break's six
+        /// back-to-back spawns. <c>RoomVisualController.FindForRoom</c> does a scene scan.
+        /// </summary>
+        RoomVisualController _scytheRoom;
+
+        // One warning per failure cause, not one per blade: the invisibility step emits every thirty
+        // ticks, so a missing definition would otherwise print four lines a beat for the whole fight.
+        static bool _scytheRoomReported;
+        static bool _scytheDefinitionReported;
+        static bool _scytheControllerReported;
+        static bool _scytheSpawnReported;
 
         public bool IsShit => _isShit;
         public int AttState => _attState;
@@ -564,9 +593,15 @@ namespace PFE.Entities.Enemies.Bosses
             // departure is emitted at the OLD position, before the move.
             _controller.EmitParticle("telered", selfWorld + new Vector2(0f, height * 0.5f));
 
+            // `teleport(movePoints[mp].x*40+20, movePoints[mp].y*40+40, …)` (:415). The Y is MIRRORED:
+            // AS3's room-local Y grows down from the ceiling, the port's grows up from the floor, so
+            // the authored row has to be measured from the other end. The room height is the live
+            // value, not a constant, because `movePoints` is expressed relative to whatever arena the
+            // boss was placed in. See BossAlicornRules.MovePointPixelY.
+            int roomHeightTiles = Room != null ? Room.height : 0;
             Vector2 targetLocal = new Vector2(
                 BossAlicornRules.MovePointPixelX(movePoint),
-                BossAlicornRules.MovePointPixelY(movePoint));
+                BossAlicornRules.MovePointPixelY(movePoint, roomHeightTiles));
             Vector2 targetWorld = targetLocal + origin;
 
             if (_motor != null)
@@ -581,12 +616,28 @@ namespace PFE.Entities.Enemies.Bosses
                 transform.position = targetWorld * TileQueryConstants.PixelToUnit;
             }
 
+            // **Deviation, recorded: `currentWeapon.setNull()` (:318-322) is not ported, and it has no
+            // observable effect in this port's structure.**
+            //
+            // `Weapon.setNull()` (`Weapon.as:952-961`) does two things: `t_attack = t_reload = 0`, and
+            // `X = owner.weaponX; Y = owner.weaponY; animate()`. The second is already covered — the
+            // port poses every mount from its owner on every tick (`EnemyWeaponMount.Tick` →
+            // `ResolveHoldPoint`), so a teleport moves the weapon with her whether or not this line
+            // runs. The first is a cooldown reset on the weapon she is about to switch AWAY from: the
+            // port gives each weapon id its own mount (`BossController.EquipBossWeapons`), so the
+            // clock that is cleared belongs to a mount that will not be fired again until the
+            // rotation comes back round to it — at least `AiTChAfterTeleport` (45) ticks later, and
+            // no `rapid` in the boss's loadout is that long. A reset that cannot change a shot is
+            // still a reset; it is recorded here rather than added because there is no state in which
+            // it could be observed, and this project's rule is that an unobservable change is a
+            // hypothesis, not a fix. If a future weapon gets `rapid >= 45`, or the mounts are shared,
+            // this becomes real and must be ported.
+
             // `var _loc4_:Tile = loc.getAbsTile(X, Y + 10);` (:323). AS3's Y grows down, so `Y + 10`
             // is ten pixels BELOW the feet; in the port's y-up space that is `y - 10`. Sampling `+10`
             // instead would ask about the air above the head and put the boss in the air on every
             // point.
-            bool solidOrShelfBelow = false;
-            RoomInstance room = Room;
+            bool solidOrShelfBelow = false;            RoomInstance room = Room;
             if (room != null)
             {
                 TileData below = room.GetTileAt(new Vector2(targetLocal.x, targetLocal.y - 10f));
@@ -666,31 +717,192 @@ namespace PFE.Entities.Enemies.Bosses
         // ── scythes (:294-307, :727-732) ─────────────────────────────────────────────────────────
 
         /// <summary>
-        /// <c>emit()</c> — one <c>scythe</c> at a random point, bound to the boss when an index is
-        /// given.
+        /// <c>emit(param1 = -1)</c> (<c>:294-307</c>) — one <c>scythe</c> at a random point, bound to
+        /// the boss when an index is given.
+        /// </summary>
+        /// <param name="bindIndex">
+        /// AS3 <c>param1</c>. <c>-1</c> (the default) is a <b>free</b> blade — it flies at the player
+        /// and is gone. <c>0..5</c> is a <b>bound</b> one: it orbits the boss at 200 px, is eight times
+        /// as tough, and dies when she does.
+        /// </param>
+        /// <remarks>
+        /// <para><b>The whole of the oracle's body, in its own order.</b> <c>createUnit("scythe", rand,
+        /// rand, true)</c>; then <c>fraction = fraction</c>; then <c>dam *= 1 + level * 0.1</c>; then
+        /// <c>oduplenie = 0</c>; then, only for a bound blade, <c>bind = this; maxhp *= 8; hp = maxhp;
+        /// bindN = param1</c>.</para>
+        ///
+        /// <para><b>The spawn point is mirrored, and that is not cosmetic.</b> AS3's box is y 100..600
+        /// <i>from the ceiling</i>; taking the literal into a y-up room drops every blade into the
+        /// floor, where it dies on its first <c>run()</c>. <see cref="BossAlicornRules.ScytheSpawnPixels"/>
+        /// does the mirror against the live room height.</para>
+        ///
+        /// <para><b>Position is a pixel, not a marker.</b> Unlike a necromancer summon there is no
+        /// <c>enspawn</c> row to land on — the oracle picks a random point inside a fixed rectangle —
+        /// so this goes through <c>RoomVisualController.RoomPixelToWorld</c> rather than
+        /// <c>SpawnPoint.GetEnemyUnityPosition</c>.</para>
+        ///
+        /// <para><b><c>oduplenie = 0</c> is not ported</b> and needs no substitute: it is AS3's
+        /// "this unit is a duplicate, so do not copy it again" guard, read only by the clone path the
+        /// port does not have.</para>
+        /// </remarks>
+        void EmitScythe(int bindIndex = -1)
+        {
+            RoomInstance room = Room;
+            if (room == null)
+            {
+                ReportScytheGapOnce(ref _scytheRoomReported,
+                    "[BossAlicorn] emit() could not place a scythe: the brain has no room (the tile " +
+                    "query has not been handed over). AS3 cannot reach this state — `loc` is the " +
+                    "location.");
+                return;
+            }
+
+            if (!ResourcesUnitDefinitionProvider.Shared.TryGetUnit(ScytheController.ControllerId, out UnitDefinition definition)
+                || definition == null)
+            {
+                ReportScytheGapOnce(ref _scytheDefinitionReported,
+                    $"[BossAlicorn] '{ScytheController.ControllerId}' has no UnitDefinition, so emit() " +
+                    "dropped the blade. AS3's createUnit always has one — the id comes from AllData.");
+                return;
+            }
+
+            // Cached per brain: FindForRoom does a scene scan, and the shield break spawns six in one
+            // tick. The room cannot change under a live boss, so one resolution is enough.
+            if (_scytheRoom == null || _scytheRoom.RoomInstance != room)
+            {
+                _scytheRoom = RoomVisualController.FindForRoom(room);
+            }
+
+            if (_scytheRoom == null)
+            {
+                ReportScytheGapOnce(ref _scytheControllerReported,
+                    $"[BossAlicorn] No live RoomVisualController owns room '{room.id}', so emit() " +
+                    "could not build a scythe. AS3 cannot reach this state — `loc` is the location.");
+                return;
+            }
+
+            // `createUnit("scythe", Math.random() * 1600 + 160, Math.random() * 500 + 100, true)`.
+            // Two draws, x then y, in that order — the oracle's argument order, so a seeded run
+            // consumes the stream identically.
+            float rollX = UnityEngine.Random.value;
+            float rollY = UnityEngine.Random.value;
+            BossAlicornRules.Vector2Pixels spawn = BossAlicornRules.ScytheSpawnPixels(
+                rollX, rollY, room.height);
+
+            float health = definition.health;
+            var instance = new UnitInstance
+            {
+                entityId = PFE.Core.Ids.EntityId
+                    .CreateForRoomSpawn(room.id, "scythe", _scytheSerial++)
+                    .ToString(),
+                unitId = ScytheController.ControllerId,
+                unitType = ScytheController.ControllerId,
+                isDead = false,
+                maxHealth = health,
+                currentHealth = health,
+                // Named explicitly rather than left empty: `scythe.asset` authors no controllerId, so
+                // the spawner would otherwise have to reach the same answer through its unitId
+                // fallback. Naming it makes the intent readable at the call site.
+                controllerId = ScytheController.ControllerId,
+                attributes = new List<MapObjectAttributeData>(),
+                // `_loc2_.fraction = fraction` (:297) — the blades fight for the boss, and the
+                // definition's own `fraction: 2` (Raider) must not survive.
+                fraction = _controller.Faction,
+                // `createUnit`'s fourth argument is `true`, i.e. "place immediately". No `turn` is
+                // authored, so the facing is the spawner's default.
+                facingDirection = 1,
+                digger = 0,
+            };
+
+            Vector3 worldPosition = _scytheRoom.RoomPixelToWorld(
+                new Vector2(spawn.X, spawn.Y));
+
+            if (!_scytheRoom.SpawnUnitNow(instance, worldPosition) ||
+                !_scytheRoom.TryGetSpawnedUnit(instance, out GameObject spawned) || spawned == null)
+            {
+                ReportScytheGapOnce(ref _scytheSpawnReported,
+                    $"[BossAlicorn] emit() built a 'scythe' record but the room refused to spawn it " +
+                    $"(no spawner or no physical parent in '{room.id}').");
+                return;
+            }
+
+            var scythe = spawned.GetComponent<ScytheController>();
+            if (scythe == null)
+            {
+                ReportScytheGapOnce(ref _scytheControllerReported,
+                    "[BossAlicorn] emit() spawned a 'scythe' but it has no ScytheController — " +
+                    "RoomUnitSpawner's controller table is missing the entry, so the blade would be " +
+                    "an inert collider.");
+                return;
+            }
+
+            // `_loc2_.dam *= 1 + level * 0.1` (:298).
+            scythe.ApplyEmitDamageScale(BossAlicornRules.ScytheDamageScale(NpcLevel));
+
+            if (bindIndex >= 0)
+            {
+                // `_loc2_.bind = this; _loc2_.maxhp *= 8; _loc2_.hp = _loc2_.maxhp; bindN = param1;`
+                scythe.BindTo(_controller, bindIndex);
+            }
+            else
+            {
+                // `cel = World.w.gg` (:60) — a free blade latches its angle at the player.
+                scythe.SetTarget(_blackboard.TargetUnit ?? FindPlayerUnit());
+            }
+
+            _scythesEmitted++;
+        }
+
+        /// <summary>
+        /// The player, for a blade that has to latch an angle — <c>World.w.gg</c>.
         /// </summary>
         /// <remarks>
-        /// <para><b>Blocked, and honestly so.</b> The port has no <c>UnitScythe</c>, no
-        /// <c>scythe</c> controller and no <c>scythe</c> sprite sheet (<c>scythe.asset</c> has an empty
-        /// <c>spriteSheetId</c>), so a spawn here would produce an invisible, brainless GameObject —
-        /// the "plausible object that does nothing" this project keeps finding. The count is recorded
-        /// instead, so the fight's shape is observable in the overlay and the gap is one line in the
-        /// boss doc rather than a silent absence.</para>
+        /// The blackboard's target is preferred (it is the oracle's own <c>celUnit</c> and is already
+        /// resolved), but it is <c>null</c> whenever the boss has lost sight, and a blade with no
+        /// target would hover at its spawn point for its whole life. AS3 has no such state, so this
+        /// falls back to the same scene lookup <see cref="ScytheController"/> makes.
         /// </remarks>
-        void EmitScythe()
+        static UnitController FindPlayerUnit()
         {
-            _scythesEmitted++;
+            return UnityEngine.Object.FindFirstObjectByType<PlayerController>();
+        }
 
-            if (_scytheGapReported)
+        static void ReportScytheGapOnce(ref bool flag, string message)
+        {
+            if (flag)
             {
                 return;
             }
 
-            _scytheGapReported = true;
-            Debug.LogWarning(
-                "[BossAlicorn] emit() has no port: UnitScythe, its controller and its sheet are all " +
-                "missing, so no blade was spawned. The count is tracked on ScythesEmitted. " +
-                "See docs/EnemyImplementationGuides/bosses/93_BossAlicorn.md.");
+            flag = true;
+            Debug.LogWarning(message);
+        }
+
+        /// <summary>
+        /// Play the dome's one-shot break — the visual half of <c>this.visshit.gotoAndPlay(2)</c>
+        /// (<c>:712</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Resolved lazily and from the CHILDREN.</b> The overlay is added by
+        /// <c>RoomUnitSpawner</c> to the unit's <c>Visual</c> child, and only after
+        /// <c>controller.Initialize</c> — so a cache taken in <c>Awake</c> would be permanently null,
+        /// and <c>GetComponent</c> on this object would never find it at all. Both mistakes produce the
+        /// same silence: the dome stays up through the phase transition with no warning anywhere.</para>
+        ///
+        /// <para><b>Nothing here is required for the fight to work.</b> <c>_isShit</c> is already
+        /// cleared by the caller, so the revive, the six blades and the phase change all happen whether
+        /// or not a dome exists — the clip is the only thing that needs the component. That is why this
+        /// is a null-conditional call and not an error path: an un-imported overlay must not stop the
+        /// boss from breaking.</para>
+        /// </remarks>
+        void BreakDome()
+        {
+            if (_dome == null)
+            {
+                _dome = GetComponentInChildren<UnitShieldOverlay>(true);
+            }
+
+            _dome?.BreakOnce();
         }
 
         // ── death (:703-738) ─────────────────────────────────────────────────────────────────────
@@ -708,6 +920,7 @@ namespace PFE.Entities.Enemies.Bosses
 
             // `this.isShit = false; this.visshit.gotoAndPlay(2);` (:711-712).
             _isShit = false;
+            BreakDome();
 
             // `hp = maxhp - 0.1;` (:713) — written by the controller, which owns the HP, through
             // BossController.HpAfterRevive. Doing it here as well would be two writers.
@@ -731,10 +944,11 @@ namespace PFE.Entities.Enemies.Bosses
             // spell-immune. `mat = 0` is the "can now be damaged by magic" flag; the port's armour
             // model has no equivalent, recorded in the boss doc.
 
-            // `while(_loc2_ < 6) emit(_loc2_++)` (:727-732) — six BOUND scythes.
+            // `while(_loc2_ < 6) emit(_loc2_++)` (:727-732) — six BOUND scythes, one per ring slot.
+            // The index is the ring phase: `bindN` spaces them 60° apart around her.
             for (int i = 0; i < BossAlicornRules.ScythesOnShieldBreak; i++)
             {
-                EmitScythe();
+                EmitScythe(i);
             }
 
             SetPhase(2);
