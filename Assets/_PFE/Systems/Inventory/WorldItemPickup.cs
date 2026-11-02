@@ -201,12 +201,34 @@ namespace PFE.Systems.Inventory
         /// </summary>
         private bool _magnetized;
 
-        /// <summary>Half the loot's height in <b>px</b> — AS3 <c>scY / 2</c>, measured off the drawn
-        /// sprite so the bottom edge is what rests on the floor rather than an invented box.</summary>
-        private float _halfHeightPx = LootFallRules.DefaultHeightPx * 0.5f;
+        /// <summary>
+        /// The loot's drawn height in <b>px</b> — AS3 <c>scY</c>, measured off the sprite so the bottom
+        /// edge is what rests on the floor rather than an invented box.
+        /// </summary>
+        private float _heightPx = LootFallRules.DefaultHeightPx;
+
+        /// <summary>
+        /// Distance in <b>px</b> from this transform to the sprite's <b>bottom edge</b>.
+        ///
+        /// <para><b>Not <c>height / 2</c>, because a pivot is not always centred.</b> The box the oracle
+        /// calls <c>Y</c> is the loot's bottom, and a <c>SpriteRenderer</c> places its transform at the
+        /// sprite's <i>pivot</i>. For a centred pivot the two differ by half the height; for a bottom
+        /// pivot the transform already <i>is</i> the bottom and the loot would sink half its height into
+        /// the floor. Measured from <c>renderer.bounds.min.y</c> once, at spawn, so neither case has to be
+        /// guessed at.</para>
+        /// </summary>
+        private float _bottomOffsetPx = LootFallRules.DefaultHeightPx * 0.5f;
 
         /// <summary>Half the loot's width in <b>px</b> — AS3 <c>scX / 2</c>.</summary>
         private float _halfWidthPx = LootFallRules.DefaultWidthPx * 0.5f;
+
+        /// <summary>
+        /// The two probes handed to <see cref="LootFallStepRules.Step"/> — cached, because a method group
+        /// converted at the call site allocates a delegate per sub-step and this runs per loot per frame.
+        /// </summary>
+        private LootTileProbe _tileProbe;
+
+        private LootShelfProbe _shelfProbe;
 
         /// <summary>
         /// The <c>sndFall</c> this pickup plays when it lands — <c>Loot.sndFall</c>
@@ -651,7 +673,9 @@ namespace PFE.Systems.Inventory
         /// <para><b>Why the box is measured off the renderer.</b> AS3 assigns <c>scX = vis.width</c>,
         /// <c>scY = vis.height</c> (<c>:226-227</c>) — the loot's collision box <i>is</i> its artwork, so
         /// its bottom edge is what rests on the floor. A fixed 30×20 box would sink a tall sprite 8 px
-        /// into the tile it lands on, and a short one would hover.</para>
+        /// into the tile it lands on, and a short one would hover. The renderer's <b>world bounds</b> are
+        /// read rather than the sprite's size, so a sprite whose pivot is not centred still lands on its
+        /// drawn bottom edge.</para>
         /// </summary>
         private void BeginFall(bool jump, RoomInstance room, string fallSoundId)
         {
@@ -661,14 +685,18 @@ namespace PFE.Systems.Inventory
             var renderer = GetComponent<SpriteRenderer>();
             if (renderer != null && renderer.sprite != null)
             {
-                Vector3 extents = renderer.bounds.extents;
-                _halfWidthPx = Mathf.Max(1f, extents.x / PixelsToUnits);
-                _halfHeightPx = Mathf.Max(1f, extents.y / PixelsToUnits);
+                Bounds bounds = renderer.bounds;
+                _heightPx = Mathf.Max(1f, bounds.size.y / PixelsToUnits);
+                _halfWidthPx = Mathf.Max(0.5f, bounds.size.x * 0.5f / PixelsToUnits);
+                _bottomOffsetPx = (transform.position.y - bounds.min.y) / PixelsToUnits;
             }
 
             // No room means no grid to land on: leave the pickup exactly where it was asked to be, which
             // is the behaviour every caller had before this existed.
             if (_room == null) return;
+
+            _tileProbe = ProbeTile;
+            _shelfProbe = ProbeShelf;
 
             if (jump)
             {
@@ -736,168 +764,112 @@ namespace PFE.Systems.Inventory
                 StepOnce(steps);
             }
 
-            if (_falling) CheckWater();
+            // `checkWater()` runs after the run loop whether or not this tick landed the loot
+            // (`Loot.as:380`, inside `if(!stay)`). It cannot splash on a landing tick — `run()` has
+            // already zeroed `dy`, and the gate is `dy > 5` — but it does keep `isPlav` truthful, and
+            // skipping it left the flag stale on the one tick the loot stopped.
+            CheckWater();
         }
 
         /// <summary>
-        /// One collision sub-step — the port of <c>Loot.run</c> (<c>Loot.as:402-494</c>), in room-local
-        /// pixels because that is the space the tile grid and the prop layer speak.
+        /// One collision sub-step — the port of <c>Loot.run</c> (<c>Loot.as:402-494</c>).
         ///
-        /// <para><b>The oracle's box.</b> <c>X</c> is the loot's centre and <c>Y</c> its <i>bottom</i>
-        /// (<c>Y1 = Y - scY</c>, <c>Y2 = Y</c>), while this component's transform is the sprite's centre.
-        /// So <c>Y</c> here is <c>centre + halfHeight</c>, and every comparison below is against that.</para>
+        /// <para><b>All of the arithmetic is in <see cref="LootFallStepRules.Step"/>; this method is the
+        /// conversion and the side effects.</b> That split is not tidiness. The previous version kept the
+        /// decision inline and shipped with the landing test's comparisons <i>un-mirrored</i> — an
+        /// unsatisfiable predicate that made loot fall through every floor in the game — because no test
+        /// can run a <c>MonoBehaviour</c> to notice. See that type's remarks for both defects.</para>
+        ///
+        /// <para><b>One conversion, room-local.</b> The tile grid, <c>TileData.GetBounds()</c> and the
+        /// prop layer all speak room-local pixels; this component's transform speaks world units. The
+        /// room origin is subtracted exactly once, here, and added back exactly once, below. Mixing the
+        /// two spaces was the second half of that bug, and it is invisible in a room at land (0,0)
+        /// because the origin there is zero.</para>
         /// </summary>
         private void StepOnce(int divisor)
         {
             Vector2 origin = WorldCoordinates.RoomOriginPixel(_room);
-            float centreX = transform.position.x / PixelsToUnits;
-            float centreY = transform.position.y / PixelsToUnits;
-            float bottom = centreY - _halfHeightPx;
 
-            // ── Horizontal: `X += dx / param1`, then the two walls and the two tile pushes ──────────
-            float stepX = _vx / divisor;
-            float x = centreX + stepX;
+            float localX = transform.position.x / PixelsToUnits - origin.x;
+            float localBottom = transform.position.y / PixelsToUnits - origin.y - _bottomOffsetPx;
 
-            float roomLeft = origin.x;
-            float roomRight = origin.x + _room.width * WorldConstants.TILE_SIZE;
+            LootFallState state = LootFallStepRules.Step(
+                localX, localBottom, _halfWidthPx, _heightPx, _vx, _vy, divisor,
+                _room.width * WorldConstants.TILE_SIZE,
+                _room.height * WorldConstants.TILE_SIZE,
+                _tileProbe, _shelfProbe);
 
-            if (x - _halfWidthPx < roomLeft)
+            _vx = state.Vx;
+            _vy = state.Vy;
+
+            transform.position = new Vector3(
+                (state.CentreX + origin.x) * PixelsToUnits,
+                (state.Bottom + _bottomOffsetPx + origin.y) * PixelsToUnits,
+                transform.position.z);
+
+            switch (state.Contact)
             {
-                x = roomLeft + _halfWidthPx;
-                _vx = Mathf.Abs(_vx);
+                case LootContact.Floor:
+                    _falling = false;
+                    // The sound is emitted at the <b>landed</b> position, which is already written above:
+                    // the oracle moves `Y` and only then calls `Snd.ps(…, X, Y, …)` (`Loot.as:478-483`).
+                    // Playing it before the move put every thud up to one sub-step above the floor it
+                    // came from.
+                    if (LootFallRules.ShouldPlayLandingSound(state.ImpactSpeed))
+                    {
+                        PlayFallSound(LootFallRules.LandingVolume(state.ImpactSpeed));
+                    }
+                    break;
+
+                case LootContact.FellOutOfRoom:
+                    // AS3 `if(Y + dy/param1 >= loc.spaceY * tileY) { if(auto2) take(true); dx = 0;
+                    // return; }` — it takes an auto-collectible item and otherwise leaves the rest where
+                    // they are. A pickup that vanished would lose the player's loot, so this stops it at
+                    // the room's bottom edge instead and says so once.
+                    _falling = false;
+                    Debug.LogWarning($"[WorldItemPickup] '{ItemId}' fell out of the room at " +
+                                     $"{localX:0},{localBottom:0} (AS3 would stop it there too, " +
+                                     "Loot.as:454-462).");
+                    break;
             }
-            if (x + _halfWidthPx >= roomRight)
-            {
-                x = roomRight - 1f - _halfWidthPx;
-                _vx = -Mathf.Abs(_vx);
-            }
-
-            if (_vx < 0f)
-            {
-                TileData tile = TileAt(x, bottom, origin);
-                if (IsSolid(tile) && x <= TileRight(tile) && x >= TileLeft(tile) &&
-                    bottom >= TileTop(tile) && bottom <= TileBottom(tile))
-                {
-                    x = TileRight(tile) + 1f;
-                    _vx = Mathf.Abs(_vx);
-                }
-            }
-            else if (_vx > 0f)
-            {
-                TileData tile = TileAt(x, bottom, origin);
-                if (IsSolid(tile) && x >= TileLeft(tile) && x <= TileRight(tile) &&
-                    bottom >= TileTop(tile) && bottom <= TileBottom(tile))
-                {
-                    x = TileLeft(tile) - 1f;
-                    _vx = -Mathf.Abs(_vx);
-                }
-            }
-
-            // ── Vertical. Up first: the oracle's `dy < 0` branch is a ceiling snap
-            // (`Y = _loc2_.phY2 + 1`, `Loot.as:435-449`), which a lobbed pickup does reach when it is
-            // thrown from a crate tucked under a low ceiling.
-            if (_vy > 0f)
-            {
-                float stepUp = _vy / divisor;
-                float top = bottom + _halfHeightPx * 2f + stepUp;
-
-                TileData above = TileAt(x, top, origin);
-                if (IsSolid(above) && top >= TileBottom(above) && top <= TileTop(above) &&
-                    x >= TileLeft(above) && x <= TileRight(above))
-                {
-                    // `Y = _loc2_.phY2 + 1` — the loot's <b>bottom</b> ends up one pixel below the
-                    // tile's underside, i.e. just under it. phY2 is the underside in AS3's y-down space
-                    // and `TileBottom` is the same edge in the port's y-up one.
-                    _vy = 0f;
-                    transform.position = ToWorld(x, TileBottom(above) - 1f + _halfHeightPx, origin);
-                    return;
-                }
-
-                transform.position = ToWorld(x, bottom + stepUp + _halfHeightPx, origin);
-                return;
-            }
-
-            float stepY = _vy / divisor;
-            float bottomAfter = bottom + stepY;
-
-            float roomBottom = origin.y;
-            if (bottomAfter >= roomBottom + _room.height * WorldConstants.TILE_SIZE)
-            {
-                // AS3: `if(Y + dy/param1 >= loc.spaceY * tileY) { if(auto2) take(true); dx = 0; return; }`
-                // — falling out of the room's floor. The oracle takes an auto-collectible item here and
-                // otherwise simply stops it. A pickup that vanished would lose the player's loot, so this
-                // stops it at the room's bottom edge instead and says so once.
-                _vx = 0f;
-                _vy = 0f;
-                _falling = false;
-                Debug.LogWarning($"[WorldItemPickup] '{ItemId}' fell out of the room at " +
-                                 $"{x:0},{bottom:0} (AS3 would stop it here too, Loot.as:454-462).");
-                return;
-            }
-
-            float surface = FindLandingSurface(x, bottom, bottomAfter, origin);
-            if (!float.IsNaN(surface))
-            {
-                // AS3 `Y = _loc4_ - 1` — the loot rests one pixel clear of the surface.
-                float landedBottom = surface - 1f;
-
-                float downwardSpeed = -_vy;
-                _vx = 0f;
-                _vy = 0f;
-                _falling = false;
-                transform.position = ToWorld(x, landedBottom + _halfHeightPx, origin);
-
-                // The sound is emitted at the <b>landed</b> position: the oracle moves `Y` and only then
-                // calls `Snd.ps(this.sndFall, X, Y, …)` (`Loot.as:479-483`). Playing it before the move
-                // put every thud up to one substep (20 px) above the floor it came from.
-                if (LootFallRules.ShouldPlayLandingSound(downwardSpeed))
-                {
-                    PlayFallSound(LootFallRules.LandingVolume(downwardSpeed));
-                }
-
-                return;
-            }
-
-            transform.position = ToWorld(x, bottomAfter + _halfHeightPx, origin);
         }
 
         /// <summary>
-        /// The surface this step lands on, or <see cref="float.NaN"/> — the port of the <c>dy &gt; 0</c>
-        /// branch of <c>Loot.run</c> (<c>Loot.as:463-492</c>), which asks three questions in order: the
-        /// destination tile's top, then a <b>shelf</b> tile's top, then a shelf <b>prop</b>.
-        ///
-        /// <para><b>Why the shelf cases exist separately.</b> A one-way catwalk (<c>phis == 0</c> +
-        /// <c>shelf</c>) only catches a loot crossing its top edge from above — the same reason a unit can
-        /// jump up through one. Testing it with the solid rule would make loot land on the underside of
-        /// every catwalk in the level.</para>
+        /// The tile at a <b>room-local pixel</b> point — the probe <see cref="LootFallStepRules.Step"/>
+        /// asks. Returns false outside the room, which is the same answer as "no tile here".
         /// </summary>
-        private float FindLandingSurface(float x, float bottom, float bottomAfter, Vector2 origin)
+        private bool ProbeTile(float roomLocalX, float roomLocalY, out LootTileBox box,
+                               out bool solid, out bool shelf)
         {
-            TileData tile = TileAt(x, bottomAfter, origin);
+            box = default;
+            solid = false;
+            shelf = false;
 
-            if (IsSolid(tile) && bottomAfter >= TileTop(tile) && bottom <= TileBottom(tile) &&
-                x >= TileLeft(tile) && x <= TileRight(tile))
-            {
-                return TileTop(tile);
-            }
+            TileData tile = TileAtLocal(roomLocalX, roomLocalY);
+            if (tile == null) return false;
 
-            if (tile != null && tile.physicsType == TilePhysicsType.Platform &&
-                bottomAfter >= TileTop(tile) && bottom <= TileTop(tile) &&
-                x >= TileLeft(tile) && x <= TileRight(tile))
-            {
-                return TileTop(tile);
-            }
+            // `GetBounds()` is already the raised-tile box (`zForm` shortens the top, it does not lift
+            // the cell), so `yMax` is `phY1` and `yMin` is `phY2` with no further arithmetic.
+            Rect bounds = tile.GetBounds();
+            box = new LootTileBox(bounds.xMin, bounds.xMax, bounds.yMax, bounds.yMin);
 
-            // `this.checkShelf(dy / param1)` — a prop's top edge (Loot.as:511-525). Room-local pixels,
-            // because that is what the prop layer speaks, and `deltaY` is this substep's motion so the
-            // support has to be one this step actually reaches.
-            RoomObjectPhysicsLayer layer = _room.ExistingObjectPhysicsLayer;
-            if (layer != null && layer.TryFindLootSupport(x, bottom, bottomAfter - bottom, out float propTop))
-            {
-                return propTop;
-            }
+            // `phis == 1` — the one tile kind a loot collides with. `Platform` is the decoder's encoding
+            // of AS3 `shelf`, i.e. the one-way catwalk.
+            solid = tile.physicsType == TilePhysicsType.Wall;
+            shelf = tile.physicsType == TilePhysicsType.Platform;
+            return true;
+        }
 
-            return float.NaN;
+        /// <summary>
+        /// AS3 <c>Loot.checkShelf</c> (<c>Loot.as:511-525</c>) — a crate or shelf prop under the loot.
+        /// Its parameters are <b>room-local pixels</b> and its <c>deltaY</c> is negative downward, which
+        /// is what <see cref="LootFallStepRules.Step"/> hands it.
+        /// </summary>
+        private bool ProbeShelf(float centreX, float bottom, float deltaY, out float surfaceTop)
+        {
+            surfaceTop = 0f;
+            RoomObjectPhysicsLayer layer = _room != null ? _room.ExistingObjectPhysicsLayer : null;
+            return layer != null && layer.TryFindLootSupport(centreX, bottom, deltaY, out surfaceTop);
         }
 
         /// <summary>
@@ -909,10 +881,10 @@ namespace PFE.Systems.Inventory
         private void CheckWater()
         {
             Vector2 origin = WorldCoordinates.RoomOriginPixel(_room);
-            float x = transform.position.x / PixelsToUnits;
-            float bottom = transform.position.y / PixelsToUnits - _halfHeightPx;
+            float x = transform.position.x / PixelsToUnits - origin.x;
+            float bottom = transform.position.y / PixelsToUnits - origin.y - _bottomOffsetPx;
 
-            TileData tile = TileAt(x, bottom, origin);
+            TileData tile = TileAtLocal(x, bottom);
             bool inWater = tile != null && tile.hasWater;
 
             if (inWater != _inWater)
@@ -951,32 +923,18 @@ namespace PFE.Systems.Inventory
             SoundBus.Current?.Play(_fallSoundId, (Vector2)transform.position, volumeScale);
         }
 
-        private TileData TileAt(float x, float bottom, Vector2 origin)
-        {
-            int tileX = Mathf.FloorToInt((x - origin.x) / WorldConstants.TILE_SIZE);
-            int tileY = Mathf.FloorToInt((bottom - origin.y) / WorldConstants.TILE_SIZE);
-            return _room.GetTileAtCoord(new Vector2Int(tileX, tileY));
-        }
-
-        /// <summary>AS3 <c>phis == 1</c> — the one tile kind a loot collides with.</summary>
-        private static bool IsSolid(TileData tile) => tile != null && tile.physicsType == TilePhysicsType.Wall;
-
-        private static float TileLeft(TileData tile) => tile.GetBounds().xMin;
-        private static float TileRight(TileData tile) => tile.GetBounds().xMax;
-        private static float TileTop(TileData tile) => tile.SolidTopY;
-        private static float TileBottom(TileData tile) => tile.SolidBottomY;
-
         /// <summary>
-        /// Room-local px → a world-unit transform position, keeping the pickup's own z. The z is
-        /// preserved rather than zeroed because the caller works in 2D and a fresh 0 would silently move
-        /// the pickup off whatever plane it was spawned on — the same reason <see cref="MagnetToward"/>
-        /// preserves it.
+        /// Room-local pixel point → its tile. <b>Room-local</b>, not world: <c>GetTileAtCoord</c> indexes
+        /// the grid, whose cell (0,0) is the room's floor-left corner, and <c>TileData.GetBounds()</c>
+        /// reports that same space. Handing this a world pixel is the bug that made loot land on the
+        /// right floor in the first room and on nothing anywhere else.
         /// </summary>
-        private Vector3 ToWorld(float x, float centreY, Vector2 origin)
+        private TileData TileAtLocal(float roomLocalX, float roomLocalY)
         {
-            return new Vector3((x - origin.x) * PixelsToUnits,
-                               (centreY - origin.y) * PixelsToUnits,
-                               transform.position.z);
+            if (_room == null) return null;
+            return _room.GetTileAtCoord(new Vector2Int(
+                Mathf.FloorToInt(roomLocalX / WorldConstants.TILE_SIZE),
+                Mathf.FloorToInt(roomLocalY / WorldConstants.TILE_SIZE)));
         }
 
         /// <summary>
