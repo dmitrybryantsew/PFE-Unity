@@ -364,6 +364,18 @@ namespace PFE.Systems.Weapons.Controllers
             // ── Arm the volume ──────────────────────────────────────────────────────────────
             // AS3 sets `b.tilehit = false` and `b.off = false` here; the port's equivalent latch is
             // cleared by SetActive(true) (see MeleeHitVolume).
+            //
+            // The PAYLOAD goes on before the window opens, and that order is the fix for "the kick
+            // cannot break anything". This controller binds its first line in the same tick it
+            // publishes its plan (StepSegments below), while PlayerWeaponLoadout only forwards a
+            // plan's damage to the volume at the END of that tick — so before this line existed the
+            // first line of every strike swept with the *previous* strike's payload, and the first
+            // strike of a run swept with none at all (SweepTilesForImpact returns early on
+            // `!_hasDamageContext`). For the back kick that first line is the low one, the only line
+            // that can reach a wall, so a kick after a punch spent its one tile hit on the punch's
+            // destroy=4 instead of Pers.kickDestroy=30, and the opening kick of a run did nothing at
+            // all. The loadout's forward is now a second, identical write.
+            HitVolume?.SetDamageContext(dmgCtx);
             HitVolume?.SetActive(true);
 
             // ── Publish ─────────────────────────────────────────────────────────────────────

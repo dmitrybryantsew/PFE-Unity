@@ -140,6 +140,24 @@ namespace PFE.Systems.Map
         public bool stay;
 
         /// <summary>
+        /// AS3 <c>Box.sndOn</c> (<c>fe/loc/Box.as:100</c>) — <b>this prop has landed at least once</b>, so
+        /// its landing sample is armed.
+        ///
+        /// <para><b>Why the flag exists at all.</b> <c>Box.as:1074</c> is
+        /// <c>if(dy &gt; 5 &amp;&amp; this.sndFall &amp;&amp; this.sndOn)</c>, and <c>sndOn</c> is set to
+        /// <c>true</c> at the bottom of the very same landing branch (<c>:1108</c>). So the <i>first</i>
+        /// contact a prop ever makes is silent, and every one after it is audible. That is what keeps a
+        /// room full of crates from thudding in unison the moment it is built: they are placed resting on
+        /// the floor, resolve their first (silent) contact during the first tick, and arm from there.</para>
+        ///
+        /// <para><b>Runtime-only, and defaulting to <c>false</c> is load-bearing.</b> It is not authored,
+        /// not saved, and a deserialised prop starts silent — which is the same state a freshly built
+        /// prop is in, so a load is indistinguishable from a room build. Defaulting it to <c>true</c>
+        /// would make every loaded crate sound on its first settling tick.</para>
+        /// </summary>
+        public bool soundOn;
+
+        /// <summary>
         /// AS3 <c>Box.osnova</c> (<c>Box.as:20</c>) — <b>the prop this one is resting on</b>, if it is
         /// resting on another prop rather than on a tile. <c>Box.checkShelf</c> assigns it
         /// (<c>Box.as:1200</c>) and the follow block reads it (<c>Box.as:573-595</c>).

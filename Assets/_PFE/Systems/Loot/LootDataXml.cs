@@ -180,12 +180,25 @@ namespace PFE.Systems.Loot
 
                 if (!items.ContainsKey(id))
                 {
+                    // `fall` — the landing sample. `Loot`'s three non-weapon branches read the row's OWN
+                    // attribute (`Loot.as:134`, `:158`, `:216`), so `<item id='col1' tip='spec'
+                    // fall='fall_gem'/>` must resolve to `fall_gem` and `<item id='money' … fall=
+                    // 'fall_caps'/>` to `fall_caps`.
+                    //
+                    // This argument used to be MISSING, and the symptom was audible: only the weapon
+                    // branch above populated a fall sound (it is the one that reads the `snd` child
+                    // node), so every dropped item fell back to `LootFallRules.DefaultFallSound` — the
+                    // Cogwheel and the bag of caps thudded like generic loot while the oracle played
+                    // their own samples. Nothing failed, because "the default is a real answer" is true
+                    // for the 466 of 500 `<item>` rows that author no `@fall` -- and false for the 34
+                    // that do (measured on the shipped AllData copy).
                     items[id] = new LootItemRow(
                         id, tip,
                         kol: Int(it, "kol"),
                         limitKey: Str(it, "limit"),
                         limitMultiplier: Float(it, "mlim"),
-                        limitAbsolute: Int(it, "maxlim"));
+                        limitAbsolute: Int(it, "maxlim"),
+                        fallSound: Str(it, "fall"));
                 }
             }
 
@@ -202,7 +215,11 @@ namespace PFE.Systems.Loot
                     limitKey: Str(a, "limit"),
                     limitMultiplier: Float(a, "mlim"),
                     limitAbsolute: Int(a, "maxlim"),
-                    armorTip: Str(a, "tip"));
+                    armorTip: Str(a, "tip"),
+                    // An armour drop takes `Loot`'s else branch, which reads `xml.@fall` off the
+                    // `<armor>` row (`Loot.as:216`) — the same attribute as an item, not the weapon's
+                    // `<snd fall>`. Carried for the same reason as the item rows above.
+                    fallSound: Str(a, "fall"));
             }
 
             return new LootData(rows, items, weapons, armors);

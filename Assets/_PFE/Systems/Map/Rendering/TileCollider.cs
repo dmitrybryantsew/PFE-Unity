@@ -149,8 +149,13 @@ namespace PFE.Systems.Map.Rendering
 
             // Stamp surface material for impact sound resolution.
             // Air tiles have no collider so the component is harmless but present.
+            //
+            // The argument is the RAW AS3 `mat` index, not a MaterialType: TileDecoder writes AS3's
+            // `mat` into TileData.material with a straight cast, and the two numberings disagree from 2
+            // upward. Reading it as a MaterialType is what made a concrete wall clang like timber —
+            // see TileMaterialRules.
             var tileSurface = GetComponent<TileSurface>() ?? gameObject.AddComponent<TileSurface>();
-            tileSurface.Set(TileSurface.FromMaterialType(tileData.material));
+            tileSurface.Set(TileSurface.FromAs3Material((int)tileData.material));
         }
 
         /// <summary>

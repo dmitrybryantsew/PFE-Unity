@@ -22,17 +22,16 @@ namespace PFE.Systems.Map
 
         // ── Mapping ───────────────────────────────────────────────────────────
 
-        /// <summary>Convert the tile system's MaterialType to a SurfaceMaterial.</summary>
-        public static SurfaceMaterial FromMaterialType(MaterialType mat)
-        {
-            switch (mat)
-            {
-                case MaterialType.Metal:  return SurfaceMaterial.Metal;
-                case MaterialType.Wood:   return SurfaceMaterial.Wood;
-                case MaterialType.Glass:  return SurfaceMaterial.Glass;
-                case MaterialType.Stone:  return SurfaceMaterial.Concrete;
-                default:                  return SurfaceMaterial.Concrete; // most walls are concrete
-            }
-        }
+        /// <summary>
+        /// The surface a tile sounds as, from the tile's <b>raw AS3 <c>mat</c> index</b>.
+        ///
+        /// <para><b>The argument is <c>(int)TileData.material</c>, not a <see cref="MaterialType"/>.</b>
+        /// <c>TileDecoder</c> writes AS3's <c>mat</c> into that field with a straight cast, and the two
+        /// numberings disagree from 2 upward — see <see cref="TileMaterialRules"/> for the full table
+        /// and for what the old conversion cost. The rule itself lives there so a fixture can run it;
+        /// this is the component-side wrapper.</para>
+        /// </summary>
+        public static SurfaceMaterial FromAs3Material(int as3Mat)
+            => TileMaterialRules.SurfaceForAs3Material(as3Mat);
     }
 }

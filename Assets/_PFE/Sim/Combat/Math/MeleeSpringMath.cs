@@ -188,6 +188,47 @@ namespace PFE.Systems.Weapons
         /// </summary>
         public static float AimFacing(float celX, float bodyX) => celX > bodyX ? 1f : -1f;
 
+        // ── Rotation ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>WClub.as:377</c> — the blade angle of a <b>horizontal swing</b> (<c>mtip 0</c>):
+        /// <c>rot = -PI/2 + (-PI/6 + anim*PI) * storona</c>.
+        ///
+        /// <para><b>The result is in the port's frame, which means the oracle's angle is negated
+        /// here.</b> AS3's <c>rot</c> is Flash's: Y runs <i>down</i> and a positive rotation turns
+        /// clockwise on screen. The port draws and sweeps in a Y-up frame where a positive rotation
+        /// turns counter-clockwise, so the same pose is <c>-rot</c> — the rule the class note states
+        /// and the one <see cref="SpringResult.BlumRDeg"/> already applies.</para>
+        ///
+        /// <para><b>What the missing negation looked like.</b> At rest (<c>anim 0</c>) facing right the
+        /// oracle's crowbar points <b>up-left</b> at <c>-120°</c>; read as a Unity angle that is
+        /// <c>120°</c> clockwise, so the blade pointed <b>down-left</b> — a vertical mirror of the
+        /// original. The sprite and the swept tip shared the number, so the damage followed the
+        /// sprite and the two never disagreed; only the picture did. Reported as "melee weapon
+        /// orientation might be incorrect", and confirmed by measuring the two screenshots: the
+        /// shaft's principal axis is <c>+57°</c> below horizontal in the oracle and <c>-60°</c> in
+        /// the port, the same magnitude with the sign of Y flipped.</para>
+        ///
+        /// <para><b>Why only this sub-type needed it.</b> A thrust and an overhead take their angle
+        /// from <c>atan2(celY - bodyCentreY, celX - bodyX)</c>, and the port evaluates that on
+        /// <i>already-mirrored</i> coordinates, so the subtraction of Y does the negation for free.
+        /// The swing's angle is a closed-form expression with no coordinate difference in it, which is
+        /// exactly why the mirror has to be written out.</para>
+        /// </summary>
+        /// <param name="anim">AS3 <c>anim</c> — the three-phase swing value, <c>-0.25</c> at the 5/6
+        /// seam, <c>1.0</c> mid-swing, <c>0</c> at rest.</param>
+        /// <param name="storona">AS3 <c>storona</c> — the weapon's facing, <c>+1</c> right /
+        /// <c>-1</c> left. It <i>mirrors</i> the arc, so it must not be confused with a sign flip on
+        /// the result.</param>
+        public static float HorizontalSwingRotRadians(float anim, float storona)
+        {
+            const float Pi     = (float)System.Math.PI;
+            const float HalfPi = Pi * 0.5f;
+            const float Sixth  = Pi / 6f;
+
+            return -(-HalfPi + (-Sixth + anim * Pi) * storona);
+        }
+
         // ── The spring itself ─────────────────────────────────────────────────
 
         /// <summary>One frame of the spring: the new position, the step it took, and the visual tilt.</summary>

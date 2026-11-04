@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using PFE.Data.Definitions;
@@ -57,6 +57,16 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public readonly List<bool> Toggles = new List<bool>();
             public readonly List<Vector2> Prev = new List<Vector2>();
             public readonly List<Vector2> Curr = new List<Vector2>();
+
+            /// <summary>The payload the controller last stamped — see <see cref="IMeleeHitVolume.SetDamageContext"/>.</summary>
+            public DamageContext LastContext;
+            public int ContextWrites;
+
+            public void SetDamageContext(DamageContext ctx)
+            {
+                LastContext = ctx;
+                ContextWrites++;
+            }
 
             public void SetActive(bool active) => Toggles.Add(active);
 

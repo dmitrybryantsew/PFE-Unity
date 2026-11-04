@@ -111,7 +111,10 @@ namespace PFE.Systems.Weapons.Controllers
     ///   See IsCharging / UpdateHitWindow / RunActions.
     ///
     /// Animation:
-    ///   anim drives rot via: rot = -PI/2 + (-PI/6 + anim*PI) * storona
+    ///   anim drives rot via: rot = -PI/2 + (-PI/6 + anim*PI) * storona   (WClub.as:377)
+    ///   — a FLASH angle, so the port negates it once; see
+    ///   <see cref="MeleeSpringMath.HorizontalSwingRotRadians"/>. A thrust and an overhead take their
+    ///   angle from atan2 on already-mirrored coordinates and need no negation.
     ///   anim is a three-phase value over the attack (-0.25 at the 5/6 seam → 1.0 at mid-swing →
     ///   0 at the end), continuous at both seams — see UpdateAnim.
     ///
@@ -131,6 +134,14 @@ namespace PFE.Systems.Weapons.Controllers
         // AS3 WClub.atDlina (WClub.as:59) — the lunge distance the thrust tip travels along the
         // aim axis, in AS3 pixels. Only mtip==1 uses it (WClub.as:433-434).
         private const float AtDlinaPx = 100f;
+
+        /// <summary>
+        /// AS3 <c>b.knocky = -0.2</c> (<c>WClub.as:153</c>) <b>in the port's Y-up frame</b>, i.e. the
+        /// literal negated once: the oracle's negative Y is upward, and
+        /// <c>DamageContext.KnockbackDir</c> is Unity space. See the stamp site in
+        /// <see cref="EmitMeleePlan"/> for why this is a conversion and not a tuning value.
+        /// </summary>
+        private const float MeleeKnockY = 0.2f;
 
         // ── State ─────────────────────────────────────────────────────────────
 
@@ -829,8 +840,14 @@ namespace PFE.Systems.Weapons.Controllers
             // The knock direction is stamped here because this is the only place that knows it, and
             // FromWeapon cannot: AS3's melee knock is the ATTACKER'S FACING with a small upward tilt,
             // not the swing angle — `WClub.as:152-153` sets `b.knockx = storona; b.knocky = -0.2`.
-            // `storona` is already maintained here for the animation, and the `-0.2` is the oracle's
-            // literal, which is why a clubbed enemy hops rather than sliding flat.
+            // `storona` is already maintained here for the animation.
+            //
+            // **The Y is negated on the way in, and that is not a tuning choice.** AS3's `-0.2` is in a
+            // Y-DOWN frame, so it means "up"; `DamageContext.KnockbackDir` is Unity space (Y up) —
+            // `DamageSystem` multiplies it straight onto `ApplyKnockback`, and `BloodSprayRules` mirrors
+            // it back for the oracle. Written as the oracle's literal it knocked a clubbed enemy
+            // *downward*, into the floor. `UnarmedWeaponController` already negates its own
+            // `HoofStrikeRules.KnockY` for the same reason; this is that rule, not a new one.
             //
             // Only damage scales with meleeDamMult and the wear penalty — AS3 leaves the knockback at
             // otbros*otbrosMult (WClub.as:594), with no melee or breaking term on it. The power/combo
@@ -838,7 +855,7 @@ namespace PFE.Systems.Weapons.Controllers
             float wearMult = WeaponWearMath.MeleeDamageMultiplier(State.Breaking());
 
             DamageContext finalDmg = baseDmg.WithScaledDamage(
-                _powerMult * MeleeDamMult * wearMult, _powerMult, new Vector2(_storona, -0.2f));
+                _powerMult * MeleeDamMult * wearMult, _powerMult, new Vector2(_storona, MeleeKnockY));
 
             ShotCues cues = new ShotCues(
                 playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),
@@ -1129,9 +1146,15 @@ namespace PFE.Systems.Weapons.Controllers
         /// the position phase, before the hit-window phase that decides to charge, so without this the
         /// charge would display one frame late. Two copies of the formula would let the charge and the
         /// normal path drift apart.</para>
+        ///
+        /// <para><b>The swing's angle is the one that needs the Y mirror written out.</b> It comes from
+        /// <see cref="MeleeSpringMath.HorizontalSwingRotRadians"/>, which negates the oracle's Flash
+        /// angle once — see there for the reported symptom. A thrust and an overhead do not: their
+        /// <c>atan2</c> runs on already-mirrored coordinates, so the Y subtraction negates for free,
+        /// and negating the result here as well would put <i>them</i> upside down.</para>
         /// </summary>
         private float ComputeRot(float bodyX, float bodyCentreY) => _def.meleeType == MeleeType.Horizontal
-            ? -Mathf.PI / 2f + (-Mathf.PI / 6f + _anim * Mathf.PI) * _storona
+            ? MeleeSpringMath.HorizontalSwingRotRadians(_anim, _storona)
             : Mathf.Atan2(_celY - bodyCentreY, _celX - bodyX);
 
         // ── Helpers ───────────────────────────────────────────────────────────

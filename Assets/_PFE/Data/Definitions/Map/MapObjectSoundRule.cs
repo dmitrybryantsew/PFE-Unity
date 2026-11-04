@@ -81,6 +81,89 @@ namespace PFE.Systems.Map
             => !string.IsNullOrEmpty(soundId);
 
         /// <summary>
+        /// Whether a <b>destruction</b> should be audible — <c>if(param1 &gt;= 0 &amp;&amp; param1 &lt; 10)</c>
+        /// (<c>Box.as:822</c>) wrapping the <c>Snd.ps(this.sndDie, X, Y)</c> in <c>Box.die()</c>
+        /// (<c>Box.as:850-853</c>). This predicate is the <i>conjunction</i> of the two: the band and
+        /// the <c>sndDie != ""</c> check that sits inside it.
+        ///
+        /// <para><b>What <c>param1</c> is.</b> <c>Box.die(param1 = 0)</c> takes the <i>damage type</i> of
+        /// the hit that killed it, and the whole debris + sound block sits inside that test — so a prop
+        /// destroyed by an exotic damage type (plasma, fire, EMP: indices 10 and up) breaks in
+        /// <b>silence</b> and throws no shards. The bound is the same <c>10</c> that
+        /// <c>Unit.D_*</c> uses for the first non-physical type.</para>
+        ///
+        /// <para><b>Note what is <i>not</i> in the band.</b> The <c>noiseDie</c> shout is emitted
+        /// <i>after</i> the block closes (<c>Box.as:855-858</c>), so a broken prop still alerts at
+        /// 800 px whatever killed it. See <c>SecurityRuntime.NotifyBoxDestroyed</c>.</para>
+        ///
+        /// <para><b>Why this is a rule and not two lines inside the presenter.</b> The presenter is a
+        /// <c>MonoBehaviour</c> with a room, a collider and a renderer; a gate written there cannot be
+        /// exercised offline. Every other box-sound gate in this class already lives here for that
+        /// reason.</para>
+        /// </summary>
+        /// <param name="soundId">The resolved <c>@die</c> id, or null/empty when the prop has none.</param>
+        /// <param name="damageType">The killing hit's damage-type index — AS3's <c>param1</c>.</param>
+        public static bool PlaysOnDie(string soundId, int damageType)
+            => !string.IsNullOrEmpty(soundId) && damageType >= 0 && damageType < DieSoundMaxDamageType;
+
+        /// <summary>
+        /// The exclusive upper bound on the damage type that still makes a die sound — the literal
+        /// <c>10</c> in <c>if(param1 &gt;= 0 &amp;&amp; param1 &lt; 10)</c> (<c>Box.as:822</c>).
+        /// </summary>
+        public const int DieSoundMaxDamageType = 10;
+
+        // ── The landing sample (`Box.as:1074-1108`) ────────────────────────────────────────────────
+        //
+        // These three live here, next to the attribute reader, rather than inside
+        // `RoomObjectPhysicsLayer` where the sound is actually played. The reason is the one this
+        // project keeps paying for: the layer cannot be run offline, so arithmetic written in it is
+        // arithmetic no fixture can pin — and the unit conversion below is exactly the kind of
+        // one-character slip that survives a review (px/second vs px/frame is a factor of 30, and the
+        // sign flip is a factor of −1).
+
+        /// <summary>
+        /// The landing gate's speed threshold — <c>if(dy &gt; 5 …)</c> (<c>Box.as:1074</c>), in AS3's
+        /// px per 30 Hz frame, positive downward. A slow settle is silent.
+        /// </summary>
+        public const float LandingSoundMinDy = 5f;
+
+        /// <summary>The landing volume divisor — <c>Snd.ps(…, 0, dy / 15)</c> (<c>Box.as:1076</c>).</summary>
+        public const float LandingVolumeDivisor = 15f;
+
+        /// <summary>AS3's frame rate, for the px/second → px/frame conversion in the two rules below.</summary>
+        public const float As3FramesPerSecond = 30f;
+
+        /// <summary>
+        /// <c>if(dy &gt; 5 &amp;&amp; this.sndFall &amp;&amp; this.sndOn)</c> (<c>Box.as:1074</c>).
+        /// </summary>
+        /// <param name="velocityYPerSecond">
+        /// The prop's vertical velocity in the port's units — <b>px per second, positive up</b>. The
+        /// conversion to AS3's px-per-frame-positive-down <c>dy</c> happens here and nowhere else.
+        /// </param>
+        /// <param name="soundId">The resolved <c>@fall</c> id, or null/empty when the prop has none.</param>
+        /// <param name="soundOn">
+        /// AS3 <c>Box.sndOn</c> — has this prop already landed once. False silences the first contact,
+        /// which is what keeps a freshly built room from thudding in unison.
+        /// </param>
+        public static bool PlaysOnLanding(float velocityYPerSecond, string soundId, bool soundOn)
+            => soundOn && !string.IsNullOrEmpty(soundId) && DownwardSpeedPerFrame(velocityYPerSecond) > LandingSoundMinDy;
+
+        /// <summary>
+        /// The landing sample's volume scale — <c>dy / 15</c> (<c>Box.as:1076</c>), with <c>dy</c> derived
+        /// the same way <see cref="PlaysOnLanding"/> derives it.
+        /// </summary>
+        public static float LandingVolume(float velocityYPerSecond)
+            => DownwardSpeedPerFrame(velocityYPerSecond) / LandingVolumeDivisor;
+
+        /// <summary>
+        /// The port's velocity (px/second, y-up) as AS3's <c>dy</c> (px/frame, positive <b>down</b>).
+        /// Two conversions, both load-bearing: the frame rate and the sign.
+        /// </summary>
+        private static float DownwardSpeedPerFrame(float velocityYPerSecond)
+            => -velocityYPerSecond / As3FramesPerSecond;
+
+
+        /// <summary>
         /// Read one attribute through <see cref="MapObjectDataUtility.GetAttribute"/> rather than a
         /// second loop, so the case-insensitive first-wins rule here cannot drift from the rule every
         /// other map-object attribute reader uses.

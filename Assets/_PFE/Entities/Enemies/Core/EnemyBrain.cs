@@ -306,6 +306,58 @@ namespace PFE.Entities.Enemies
             // hook runs — is the cone's first real direction. See SyncFacingFromController for why the
             // seed in Initialize could not have seen it.
             SyncFacingFromController();
+
+            // AS3 `Unit.as:1566-1586` — `scrAlarm` is built here, from `mapxml.@alarm` and from the
+            // unit's `<scr eve="alarm">` child, and it is the *only* thing that lets a sighting call for
+            // help. See the gate in UpdateSenses.
+            _hasAuthoredAlarmScript = PlacementAuthorsAlarmScript(placement);
+        }
+
+        /// <summary>
+        /// Whether this unit may raise a room alarm when it sights the player — AS3's
+        /// <c>scrAlarm != null</c>, resolved from the placement at spawn.
+        ///
+        /// <para><b>Why this is a field and not a live lookup.</b> The placement arrives once
+        /// (<see cref="OnPlacementApplied"/>) and is not reachable from the brain afterwards — the same
+        /// reason <c>_digger</c> is cached. One bool, written once, read every perception tick.</para>
+        /// </summary>
+        private bool _hasAuthoredAlarmScript;
+
+        /// <summary>
+        /// Read AS3's two sources of <c>scrAlarm</c> off a placement: the <c>alarm="…"</c> attribute
+        /// (<c>Unit.as:1586</c>, <c>this.scrAlarm = World.w.game.getScript(this.mapxml.@alarm, this)</c>)
+        /// and a <c>&lt;scr eve="alarm"&gt;</c> child (<c>:1566-1575</c>).
+        ///
+        /// <para><b>This gate is what "a large-radius alert when a barricade breaks" turned out to
+        /// be.</b> The port raised a room alarm on the <i>first sighting by any hostile in a room with
+        /// an armed panel</i>, and a room alarm pulses <c>loc.budilo(x, y, 1500)</c> every 30 ticks for
+        /// 240 ticks — so one guard seeing you through a hole you had just kicked in a barricade woke
+        /// everything within 15 units. The oracle never behaves that way: <c>scrAlarm</c> is null for
+        /// every unit whose placement does not author one, and only <b>three</b> of the shipped
+        /// placements do — <c>&lt;obj id="ranger" alarm="rangerStory3" …&gt;</c> in <c>RoomsMbase</c>,
+        /// and a <c>&lt;scr eve="alarm"&gt;</c> child on the raider in <c>Rooms</c>' <c>room_3_1</c>
+        /// and on the slaver in <c>RoomsSerial</c>' <c>room_6_0</c>. Everything else's
+        /// <c>alarma()</c> is a local state change, which the port already models separately
+        /// (<see cref="Alarma"/>).</para>
+        /// </summary>
+        private static bool PlacementAuthorsAlarmScript(UnitInstance placement)
+        {
+            if (placement == null) return false;
+
+            if (!string.IsNullOrEmpty(placement.GetAttribute("alarm"))) return true;
+
+            List<MapObjectScriptData> scripts = placement.scripts;
+            if (scripts == null) return false;
+
+            for (int i = 0; i < scripts.Count; i++)
+            {
+                MapObjectScriptData script = scripts[i];
+                if (script == null) continue;
+                if (string.Equals(script.eventName, "alarm", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -832,15 +884,28 @@ namespace PFE.Entities.Enemies
             Vector2 eyePosPx = GetEyePositionPixels();
             _sensors.Evaluate(_blackboard, eyePosPx, _blackboard.FacingDirection, _tileQuery, _targetCandidates, tickIndex, rayOriginPx);
 
-            // ── A sighting is what calls for help ─────────────────────────────────────────────────
+            // ── A sighting is what calls for help — but only if this unit has a way to call ────────
             //
             // AS3 starts the unit's authored `alarm="…"` script the first time `findCel()` commits a
-            // target (UnitRaider.as:800-806), and those scripts are `<s act="alarm"/>` →
-            // `World.w.loc.signal()` (Script.as:480-483). The port does not bind per-unit alarm
-            // scripts, so the room alarm is raised from the same moment, through the one gate that
-            // makes it a design decision rather than a tax: the room must still have an armed alarm
-            // panel. See SecurityRuntime.NotifySighting.
-            if (_blackboard.TargetUnit != null)
+            // target (`UnitRaider.as:800-806`: `if(this.scrAlarmOn && Boolean(scrAlarm)) scrAlarm.start()`),
+            // and those scripts are `<s act="alarm"/>` → `World.w.loc.signal()` (`Script.as:480-483`).
+            //
+            // The port does not run unit alarm scripts yet, and it used to substitute "any first
+            // sighting in a room with an armed panel" for that condition — which is not a substitution,
+            // it is a different game: `scrAlarm` is null unless the placement authors one, and only
+            // THREE shipped placements do (`<obj id="ranger" alarm="rangerStory3">` in `RoomsMbase`;
+            // `<scr eve="alarm">` on the raider in `Rooms`' room_3_1 and the slaver in `RoomsSerial`'
+            // room_6_0). A room alarm is not a quiet state either — it pulses `budilo(…, 1500)`
+            // every 30 ticks for 240 ticks (`Interact.as:638-647`), waking everything within 15 units.
+            // That is the "breaking a barricade alerted enemies in a large radius" report: the hole let
+            // one guard see the player, and one sighting woke the room. See
+            // `PlacementAuthorsAlarmScript` for the oracle's own condition.
+            //
+            // So the gate is the oracle's, and the script half stays an open item: until unit `<scr>`
+            // alarm scripts run, this is reachable only for a unit that authors one — which, for now,
+            // means the room alarm is raised by an alarm panel or a script command, exactly as the
+            // oracle's other two callers do.
+            if (_hasAuthoredAlarmScript && _blackboard.TargetUnit != null)
             {
                 PFE.Systems.Security.SecurityRuntime.NotifySighting(_controller, _blackboard.TargetUnit);
             }

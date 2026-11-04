@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Systems.Audio;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Telekinesis;
@@ -1328,6 +1329,11 @@ namespace PFE.Systems.Map
                     if (delta.y < 0f)
                     {
                         state.isGrounded = true;
+
+                        // AS3 `Box.as:1074-1077` — the landing sample. Played HERE, before the velocity
+                        // is zeroed below, because the gate and the volume are both read off `dy` and
+                        // `dy` is gone by the next statement. See PlayLandingSound.
+                        PlayLandingSound(room, obj, state);
                     }
 
                     state.velocity = new Vector2(state.velocity.x, 0f);
@@ -1357,6 +1363,12 @@ namespace PFE.Systems.Map
                 state.osnova = support;
                 state.isGrounded = true;
                 state.isThrown = false;
+
+                // The oracle's shelf branch falls through into the SAME `if(_loc4_)` block that plays the
+                // landing sample (`Box.as:1069-1077`), so a crate landing on another crate thuds exactly
+                // like one landing on a tile. Omitting it here would make the top of a stack silent.
+                PlayLandingSound(room, obj, state);
+
                 state.velocity = new Vector2(state.velocity.x, 0f);
 
                 // AS3 `Box.as:1069-1071`: `Y = _loc4_; Y1 = Y - scY; Y2 = Y;` — the prop's BOTTOM is
@@ -1368,6 +1380,52 @@ namespace PFE.Systems.Map
             }
 
             obj.position = ClampToRoomBounds(room, obj, candidatePosition);
+        }
+
+        /// <summary>
+        /// AS3 <c>Box.as:1074-1077</c> — a prop's landing sample, played when it reaches a surface:
+        /// <code>
+        /// if(dy &gt; 5 &amp;&amp; this.sndFall &amp;&amp; this.sndOn)
+        ///    Snd.ps(this.sndFall, X, Y, 0, dy / 15);
+        /// ...
+        /// this.sndOn = true;
+        /// </code>
+        ///
+        /// <para><b>Three gates, and each one is a different question.</b> <c>dy &gt; 5</c> is the speed
+        /// gate that keeps a one-pixel settle silent; <c>sndFall</c> is whether this prop has a sample at
+        /// all (authored as the row's <c>@fall</c>, read through
+        /// <see cref="MapObjectSoundRule.FallSound"/>); and <c>sndOn</c> is "this prop has already landed
+        /// once", which is what keeps a freshly built room from thudding in unison. <c>sndOn</c> is armed
+        /// at the END, on every landing including a silent one — that is the oracle's order and it is what
+        /// makes the <i>first</i> contact of a prop's life the only silent one.</para>
+        ///
+        /// <para><b>Units.</b> <c>dy</c> is px per 30 Hz frame, positive downward; this layer's velocity
+        /// is px per <i>second</i>, positive <b>up</b>. Both conversions happen here:
+        /// <c>dy = -velocity.y / 30</c>. Reading <c>velocity.y</c> directly would compare 150 against 5
+        /// and fire on every resting tick; forgetting the sign would fire on take-off.</para>
+        ///
+        /// <para><b>The volume is not clamped.</b> <c>dy / 15</c> is 1.0 at terminal speed (20 px/frame)
+        /// and can exceed it for a thrown prop, which is the oracle's behaviour — the sound service
+        /// already treats <c>volumeScale</c> as a scale, not a 0..1 clamp.</para>
+        /// </summary>
+        void PlayLandingSound(RoomInstance room, ObjectInstance obj, MapObjectDynamicStateData state)
+        {
+            // The gate, the conversion and the volume all live in MapObjectSoundRule so an offline
+            // fixture can pin them; this method only supplies the velocity, the row and the position.
+            string soundId = MapObjectSoundRule.FallSound(obj?.definition?.legacyAttributes);
+
+            if (MapObjectSoundRule.PlaysOnLanding(state.velocity.y, soundId, state.soundOn))
+            {
+                Vector2 origin = WorldCoordinates.RoomOriginPixel(room);
+                SoundBus.Current?.Play(
+                    soundId,
+                    WorldCoordinates.PixelToUnity(obj.position + origin),
+                    MapObjectSoundRule.LandingVolume(state.velocity.y));
+            }
+
+            // `this.sndOn = true;` (`Box.as:1108`) — the last statement of the landing branch, and it runs
+            // even when the sound above was gated off.
+            state.soundOn = true;
         }
 
         bool HasCollision(RoomInstance room, ObjectInstance obj, Vector2 candidatePosition,

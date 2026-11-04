@@ -202,6 +202,30 @@ namespace PFE.Systems.Weapons
             return true;
         }
 
+        /// <summary>
+        /// Find the swing's sweep surface — the <see cref="MeleeHitVolume"/> child of the weapon object.
+        ///
+        /// <para><b><c>includeInactive: true</c> is load-bearing, and its absence was a coin flip.</b>
+        /// <c>MeleeHitVolume.Awake</c> disables its own GameObject (that is how the volume is off
+        /// between swings), and <c>GetComponentInChildren&lt;T&gt;()</c> <b>skips inactive
+        /// GameObjects</b>. Unity runs <c>Awake</c> in an unspecified order across GameObjects, so
+        /// whether this component's own <c>Awake</c> found the volume depended on whether the child's
+        /// <c>Awake</c> had already run. Losing that race left <c>_meleeHitVolume</c> null for the
+        /// whole run, and a null volume is not "no sound": <c>HitVolume</c> on both controllers is
+        /// null too, so the club and the hooves would deal <b>no unit damage and break no tiles</b>,
+        /// with the shot's own sample still playing — a silent, total failure of melee.
+        /// </para>
+        ///
+        /// <para>The volume is also the object <see cref="Construct"/> injects at <c>Start</c>, so a
+        /// null here would additionally leave it without a <c>DamageSystem</c>, a sound service or an
+        /// impact table.</para>
+        /// </summary>
+        private MeleeHitVolume ResolveMeleeHitVolume()
+        {
+            // Also covers this object itself, which is where an editor-authored rig sometimes puts it.
+            return GetComponentInChildren<MeleeHitVolume>(includeInactive: true);
+        }
+
         [Inject]
         public void Construct(IProjectileFactory projectileFactory, IObjectResolver resolver,
                               PfeDebugSettings debugSettings, ISoundService soundService,
@@ -806,7 +830,7 @@ namespace PFE.Systems.Weapons
                 _projectileSpawner = GetComponentInChildren<ProjectileSpawner>();
 
             if (_meleeHitVolume == null)
-                _meleeHitVolume = GetComponentInChildren<MeleeHitVolume>();
+                _meleeHitVolume = ResolveMeleeHitVolume();
 
             // The character rig, for the magic horn point. Optional: an enemy rig or a bare test
             // object has none, and then ResolveHornPoint takes AS3's `catch` branch.
@@ -1326,7 +1350,7 @@ namespace PFE.Systems.Weapons
             if (_projectileSpawner == null)
                 _projectileSpawner = GetComponentInChildren<ProjectileSpawner>();
             if (_meleeHitVolume == null)
-                _meleeHitVolume = GetComponentInChildren<MeleeHitVolume>();
+                _meleeHitVolume = ResolveMeleeHitVolume();
         }
 #endif
     }

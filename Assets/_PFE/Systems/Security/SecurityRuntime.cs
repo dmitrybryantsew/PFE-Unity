@@ -737,13 +737,20 @@ namespace PFE.Systems.Security
         /// script, which <c>UnitRaider.as:800-806</c> starts the <i>first time</i> <c>findCel()</c>
         /// commits a target (<c>scrAlarmOn</c> latches it false). Those scripts contain
         /// <c>&lt;s act="alarm"/&gt;</c>, which is <c>World.w.loc.signal()</c>
-        /// (<c>Script.as:480-483</c>). The port does not bind per-unit <c>alarm=</c> scripts, so the
-        /// same moment is wired here instead: the first sighting by a hostile in a room whose alarm
-        /// panel is still armed raises the room alarm.</para>
+        /// (<c>Script.as:480-483</c>).</para>
         ///
-        /// <para><b>It is gated on an armed panel, and that gate is the design.</b> A room with no alarm
-        /// panel cannot be alarmed by being seen — otherwise every corridor would punish the player for
-        /// the one thing stealth cannot always avoid. The panel is the room's permission to call for
+        /// <para><b>The caller owns the "may this unit call for help" test, and it is not this
+        /// method's.</b> <c>EnemyBrain</c> raises this only for a unit whose placement authors an
+        /// <c>alarm=</c> attribute or a <c>&lt;scr eve="alarm"&gt;</c> child — AS3's
+        /// <c>scrAlarm != null</c> (<c>Unit.as:1566-1586</c>), which in the shipped game is true for
+        /// exactly <b>one</b> placement (<c>&lt;obj id="ranger" alarm="rangerStory3">` in
+        /// <c>RoomsMbase</c>). That gate used to live here as "any first sighting in a room with an
+        /// armed panel", and it is the reason a hole kicked in a barricade appeared to alert the whole
+        /// level: one guard saw the player through it, and one sighting pulses
+        /// <c>budilo(…, 1500)</c> every 30 ticks for 240 ticks (<c>Interact.as:638-647</c>).</para>
+        ///
+        /// <para><b>It is also gated on an armed panel, and that gate is the design.</b> A room with no
+        /// alarm panel cannot be alarmed by being seen. The panel is the room's permission to call for
         /// help, and disabling it (defusing its signal mine) is a real stealth objective.</para>
         ///
         /// <para><b>Once per alarm, not once per sighting.</b> <c>Signal</c> re-rolls the first
@@ -1068,6 +1075,37 @@ namespace PFE.Systems.Security
             if (_instance == null || room == null || radius <= 0f) return 0;
             return _instance.AlertUnitsInRoom(room, originPixels, radius);
         }
+
+        /// <summary>
+        /// AS3 <c>Box.noiseDie</c> — <b>800</b> px (<c>Box.as:96</c>), the radius a destroyed prop
+        /// alerts at. A constant, not an attribute: the field is assigned nowhere in the oracle, so
+        /// every box in the game uses the declaration's value.
+        /// </summary>
+        public const float BoxDeathNoiseRadius = 800f;
+
+        /// <summary>
+        /// A <b>box died</b> — AS3 <c>Box.die()</c>'s
+        /// <c>if(this.noiseDie) { loc.budilo(X, Y - scY / 2, this.noiseDie); }</c>
+        /// (<c>Box.as:855-858</c>).
+        ///
+        /// <para><b>This is the only alert a broken door or barricade is supposed to make, and the port
+        /// had neither this nor anything like it.</b> A door's death emits debris, plays
+        /// <c>sndDie</c> and shouts once at 800 px — nothing else. There is no <c>makeNoise</c> on a
+        /// tile or a box anywhere in the oracle, and no per-tile alarm.</para>
+        ///
+        /// <para><b>Why 800 and not 1500.</b> The two numbers are easy to confuse because both are
+        /// "somewhat large". 1500 belongs to the <b>alarm panel</b> and it is a <i>pulse</i> — every 30
+        /// ticks for 240 ticks (<c>Interact.as:638-647</c>) — so it re-wakes the room eight times. A
+        /// box death is a single one-shot shout at 800 px, i.e. roughly one room, once.</para>
+        ///
+        /// <para><b>Room-bounded, as in the oracle.</b> <c>Location.budilo</c> walks <c>loc.units</c>,
+        /// so it cannot reach another room even when the radius would. The port's
+        /// <c>AlertUnitsInRoom</c> keeps the same filter.</para>
+        /// </summary>
+        /// <param name="originPixels">AS3's <c>X, Y - scY / 2</c> — the prop's <b>centre</b>, not its feet.</param>
+        /// <returns>The number of units woken.</returns>
+        public static int NotifyBoxDestroyed(RoomInstance room, Vector2 originPixels)
+            => AlertRoom(room, originPixels, BoxDeathNoiseRadius);
 
         /// <summary>
         /// AS3 <c>Location.enemySpawn</c> (<c>Location.as:2977-2998</c>) — one reinforcement at a

@@ -17,6 +17,25 @@ namespace PFE.Systems.Weapons
     /// </summary>
     public interface IMeleeHitVolume
     {
+        /// <summary>
+        /// Arm the volume with the swing's damage payload — the context the sweep reads for
+        /// <c>DestroyTiles</c>, <c>DamageType</c> and the weapon's decal.
+        ///
+        /// <para><b>Why this is on the interface and not just on the component.</b> A controller that
+        /// sweeps in the <i>same tick</i> it publishes its plan — which the unarmed path does, because
+        /// <c>WClub</c>/<c>WKick</c> bind their first line on the fire frame — was binding that first
+        /// line before the loadout had forwarded the plan, so the first line of every strike carried
+        /// the <b>previous</b> strike's tile damage (and the very first strike of a run carried none at
+        /// all). For the back kick that line is the only one low enough to meet a wall, which is why it
+        /// read as "the kick cannot break anything". The controller now stamps its own payload before
+        /// it opens the window; the loadout's forward is a second, identical write.
+        /// </para>
+        ///
+        /// <para>It is a payload write, not a swing boundary — call it as often as the plan changes
+        /// inside one swing. <see cref="SetActive"/> is the only thing that resets per-swing state.</para>
+        /// </summary>
+        void SetDamageContext(DamageContext ctx);
+
         /// <summary>Enable or disable the hit volume.</summary>
         void SetActive(bool active);
 

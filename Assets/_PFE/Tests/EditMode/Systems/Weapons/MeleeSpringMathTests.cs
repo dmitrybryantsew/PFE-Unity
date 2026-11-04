@@ -32,6 +32,13 @@ namespace PFE.Tests.EditMode.Systems.Weapons
     {
         private const float Tol = 1e-4f;
 
+        /// <summary>
+        /// π, spelled out rather than read from <c>Mathf</c>. This fixture has no
+        /// <c>using UnityEngine</c> on purpose — it runs in the offline wall, where touching an engine
+        /// type is an <c>ECall</c> failure rather than a compile error.
+        /// </summary>
+        private const float Pi = (float)System.Math.PI;
+
         // ── norma (Obj.as:248-257) ────────────────────────────────────────────
 
         [Test]
@@ -250,6 +257,71 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.That(tier0, Is.EqualTo(1.8f).Within(Tol), "100 px radius + 80 px blade");
             Assert.That(tier5, Is.EqualTo(3.3f).Within(Tol),
                 "250 px radius + 80 px blade — the melee skill nearly doubles the weapon's reach");
+        }
+
+        // ── The swing angle ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>WClub.as:377</c>'s arc, in the port's frame.
+        ///
+        /// <para><b>A magnitude check would pass on the un-negated formula</b>, so the right-facing
+        /// case asserts the sign <i>and</i> the direction the sprite is actually drawn in. That is the
+        /// case the screenshots show: <c>anim 0</c>, facing right, where the oracle's crowbar points
+        /// up-left and the port used to draw it down-left.</para>
+        ///
+        /// <para><b>The left-facing angle is not the negation of the right-facing one.</b> AS3 mirrors
+        /// the arc through the <c>storona</c> term (<c>-PI/2 + (-PI/6)*storona</c>), so the two rest
+        /// poses are <c>-120°</c> and <c>-60°</c> in Flash, not <c>±120°</c>. A fix that negated the
+        /// whole expression's <c>storona</c> instead of the angle would pass the first assertion below
+        /// and fail this one.</para>
+        /// </summary>
+        [Test]
+        [Description("Rest pose: up-left facing right; and the storona term mirrors the arc rather than flipping its sign")]
+        public void HorizontalSwingRot_IsMirroredIntoThePortFrame()
+        {
+            // AS3: -PI/2 + (-PI/6 + 0) * +1 = -2PI/3 = -120° (Flash, y down) = up-left on screen.
+            float right = MeleeSpringMath.HorizontalSwingRotRadians(0f, 1f);
+            Assert.That(right, Is.EqualTo(2f * Pi / 3f).Within(Tol),
+                "+120° in a Y-up frame is the oracle's -120° — a positive angle is the whole point");
+            Assert.That(right, Is.GreaterThan(0f),
+                "read as a Unity angle the oracle's -120° is down-left, which is the reported mirror");
+
+            // The drawn direction of the sprite's +X: facing right the vis is unflipped, so the angle
+            // is the direction. cos < 0 and sin > 0 is the oracle's up-left crowbar.
+            Assert.That((float)System.Math.Cos(right), Is.LessThan(0f), "blade points left");
+            Assert.That((float)System.Math.Sin(right), Is.GreaterThan(0f), "and up — the oracle's pose");
+
+            // Facing left the storona term mirrors the arc: AS3 -PI/2 + (+PI/6) = -PI/3 = -60°.
+            float left = MeleeSpringMath.HorizontalSwingRotRadians(0f, -1f);
+            Assert.That(left, Is.EqualTo(Pi / 3f).Within(Tol),
+                "+60° — the negated -60°; the 180° flip WeaponVisMath adds then mirrors it back");
+            Assert.That(left, Is.Not.EqualTo(right).Within(0.1f),
+                "the storona term mirrors the arc — the two facings must not share an angle");
+        }
+
+        /// <summary>
+        /// The arc sweeps across the character, so the two ends of the swing have to sit on opposite
+        /// sides of horizontal. This is what a club actually looks like in the oracle, and it is the
+        /// assertion a "just negate one term" fix would fail.
+        /// </summary>
+        [Test]
+        [Description("Mid-swing the blade is well above horizontal; at the wind-up seam it is well below")]
+        public void HorizontalSwingRot_SweepsThroughHorizontal()
+        {
+            // anim peaks at 1.0 mid-swing: AS3 -PI/2 + (-PI/6 + PI) = -PI/2 + 5PI/6 = +PI/3 = 60°.
+            float mid = MeleeSpringMath.HorizontalSwingRotRadians(1f, 1f);
+            Assert.That(mid, Is.EqualTo(-Pi / 3f).Within(Tol),
+                "-60° in the port's frame — the blade has swept below horizontal by the strike frame");
+            Assert.That(mid, Is.LessThan(0f), "mid-swing is below horizontal facing right");
+
+            // anim is -0.25 at the 5/6 seam: AS3 -PI/2 + (-PI/6 - PI/4) = -11PI/12.
+            float windUp = MeleeSpringMath.HorizontalSwingRotRadians(-0.25f, 1f);
+            Assert.That(windUp, Is.EqualTo(11f * Pi / 12f).Within(Tol),
+                "the wind-up is far above horizontal — the blade is still raised behind the swing");
+
+            // The two ends must straddle 0, or the swing never crosses the aim line.
+            Assert.That(mid * windUp, Is.LessThan(0f),
+                "the arc has to cross horizontal somewhere between the wind-up and the strike");
         }
     }
 }

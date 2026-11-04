@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using PFE.Data.Definitions;
@@ -93,6 +93,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
 
         private sealed class NullHitVolume : IMeleeHitVolume
         {
+            public void SetDamageContext(DamageContext ctx) { }
             public void SetActive(bool active) { }
             public void BindMove(Vector2 prevTip, Vector2 currTip) { }
         }
@@ -104,12 +105,33 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public int EnableCount;
             public int DisableCount;
 
+            /// <summary>
+            /// The context at the moment of each <see cref="BindMove"/>, in call order — the point of
+            /// recording it here is that "the payload arrived before the first line was bound" is a
+            /// property of the <i>call sequence</i>, not of the final field value.
+            /// </summary>
+            public readonly List<DamageContext> ContextAtBind =
+                new List<DamageContext>();
+
+            private DamageContext _ctx;
+            private bool _hasCtx;
+
+            public void SetDamageContext(DamageContext ctx)
+            {
+                _ctx = ctx;
+                _hasCtx = true;
+            }
+
             public void SetActive(bool active)
             {
                 if (active) EnableCount++; else DisableCount++;
             }
 
-            public void BindMove(Vector2 prevTip, Vector2 currTip) => Binds.Add((prevTip, currTip));
+            public void BindMove(Vector2 prevTip, Vector2 currTip)
+            {
+                Binds.Add((prevTip, currTip));
+                ContextAtBind.Add(_hasCtx ? _ctx : default);
+            }
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -525,6 +547,61 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(2, rec.Binds.Count, "the kick binds two lines (WKick.as:73-79).");
             Assert.Greater(rec.Binds[0].from.x, rec.Binds[0].to.x,
                 "facing right, the kick sweeps RIGHT-to-LEFT: it strikes behind the body.");
+        }
+
+        [Test]
+        public void Kick_StampsItsPayloadBeforeTheFirstLineIsSwept()
+        {
+            // ── The defect this closes ────────────────────────────────────────────────────────────
+            //
+            // The controller binds its first line in the same tick it publishes its plan
+            // (StepSegments runs immediately after Shoot), while PlayerWeaponLoadout only forwards a
+            // plan's damage to the volume at the END of that tick. So the first line of every strike
+            // swept with the PREVIOUS strike's payload, and the first strike of a run swept with none
+            // — MeleeHitVolume.SweepTilesForImpact returns early on `!_hasDamageContext`.
+            //
+            // For the back kick that first line is the LOW one (WKick.as:73-79, 30 px), the only line
+            // low enough to meet a wall standing on the floor; the second is at 50 px, i.e. the cell
+            // ABOVE a one-cell barricade. So the opening kick of a run hit nothing at all, and a kick
+            // thrown after a punch spent its one tile hit — the `tilehit` latch — on the punch's
+            // destroy 4 instead of Pers.kickDestroy 30. A septum is 30 hp (AllData.as:4858), which is
+            // exactly one kick's worth and eight punches' worth: it read as unbreakable by hoof.
+            //
+            // The assertion is therefore on the call SEQUENCE, not on the final field: the payload
+            // must already be in place when the first BindMove arrives.
+            var rec = new RecordingHitVolume();
+            var def = MakeUnarmed(rapid: 13f, damage: 10f, knockback: 4f);
+            def.destroyTiles = 4f;                       // the `punch` row's own destroy
+
+            RunPunch(def, new FakeStats { KickDestroy = 30f },
+                     new Vector2(5f, 0f), frames: 20, kick: true, volume: rec);
+
+            Assert.AreEqual(2, rec.ContextAtBind.Count, "the kick binds two lines.");
+            Assert.AreEqual(30f, rec.ContextAtBind[0].DestroyTiles, 0.001f,
+                "the FIRST line must already carry Pers.kickDestroy — not the previous strike's " +
+                "value and not 'no context at all'.");
+            Assert.AreEqual(30f, rec.ContextAtBind[1].DestroyTiles, 0.001f,
+                "and the second line carries the same payload.");
+        }
+
+        [Test]
+        public void Punch_StampsItsPayloadBeforeTheFirstLineIsSwept()
+        {
+            // The same rule for the front strike, stated separately because its budget is different:
+            // a punch must NOT pick up a kick's 30 from the previous swing either.
+            var rec = new RecordingHitVolume();
+            var def = MakeUnarmed(rapid: 13f, damage: 10f, knockback: 4f);
+            def.destroyTiles = 4f;
+
+            RunPunch(def, new FakeStats { KickDestroy = 30f },
+                     new Vector2(5f, 0f), frames: 20, kick: false, volume: rec);
+
+            Assert.AreEqual(5, rec.ContextAtBind.Count, "the punch binds five lines (WKick.as:91-104).");
+            for (int i = 0; i < rec.ContextAtBind.Count; i++)
+            {
+                Assert.AreEqual(4f, rec.ContextAtBind[i].DestroyTiles, 0.001f,
+                    $"line {i} must carry the weapon row's own destroy, never a stale kick's 30.");
+            }
         }
 
         // ── The seam itself ───────────────────────────────────────────────────

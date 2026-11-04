@@ -241,6 +241,26 @@ namespace PFE.Tests.Editor.Loot
         }
 
         [Test]
+        public void PlaysOnDie_IsGatedOnTheDamageTypeBand()
+        {
+            // Box.as:848 — the debris emit AND `Snd.ps(this.sndDie, X, Y)` sit inside
+            // `if(param1 >= 0 && param1 < 10)`, where param1 is the KILLING HIT's damage type. So a
+            // prop destroyed by an exotic type (plasma 10+, fire, EMP) breaks in silence.
+            Assert.IsTrue(MapObjectSoundRule.PlaysOnDie("break_wood", 0), "the default param1 = 0 plays.");
+            Assert.IsTrue(MapObjectSoundRule.PlaysOnDie("break_wood", 2), "PhysicalMelee is inside the band.");
+            Assert.IsTrue(MapObjectSoundRule.PlaysOnDie("break_wood", 9), "9 is the last index inside it.");
+
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnDie("break_wood", 10),
+                "`param1 < 10` is strict — 10 is the first silent type.");
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnDie("break_wood", -1),
+                "a negative type is silent too (`param1 >= 0`).");
+
+            // A prop with no `@die` is silent whatever hit it — the oracle's `sndDie != ""`.
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnDie(null, 0));
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnDie(string.Empty, 0));
+        }
+
+        [Test]
         public void PlaysOnOpen_IsGatedOnTestLoot_ButCloseIsNot()
         {
             // Box.as:510 — `(param1 == "open" || param1 == "comein") && sndOpen != "" && !World.w.testLoot`
@@ -257,6 +277,47 @@ namespace PFE.Tests.Editor.Loot
             // The asymmetry is the oracle's, and it is pinned by the SIGNATURES: PlaysOnClose has no
             // testLoot parameter at all, so a later "cleanup" cannot quietly make them symmetric without
             // changing a call site.
+        }
+
+        [Test]
+        public void PropLandingSample_IsGatedOnSpeedSoundAndHavingLandedOnce()
+        {
+            // Box.as:1074 — `if(dy > 5 && this.sndFall && this.sndOn)`.
+            //
+            // The velocity handed in is the port's (px/second, positive UP), so the three numbers below
+            // are the same three physical speeds in the port's units: 6 px/frame down = -180 px/s,
+            // 5 px/frame = -150, 4 px/frame = -120. The threshold is `> 5`, so 5 itself is silent.
+            Assert.IsTrue(MapObjectSoundRule.PlaysOnLanding(-180f, "fall_metal_big", soundOn: true),
+                "6 px/frame down is above the gate.");
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnLanding(-150f, "fall_metal_big", soundOn: true),
+                "`dy > 5` is strict: exactly 5 px/frame is silent.");
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnLanding(-120f, "fall_metal_big", soundOn: true),
+                "4 px/frame is a settle, not a thud.");
+
+            // `sndOn` — the first contact of a prop's life is silent.
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnLanding(-600f, "fall_metal_big", soundOn: false),
+                "a prop that has never landed is silent however fast it arrives.");
+
+            // `sndFall` — no authored @fall, no sample.
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnLanding(-600f, null, soundOn: true));
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnLanding(-600f, string.Empty, soundOn: true));
+
+            // The sign is load-bearing: a prop moving UP at 600 px/s is not landing. Without the mirror
+            // this would read 20 px/frame downward and fire on every take-off.
+            Assert.IsFalse(MapObjectSoundRule.PlaysOnLanding(600f, "fall_metal_big", soundOn: true),
+                "rising is not landing.");
+        }
+
+        [Test]
+        public void PropLandingVolume_IsDyOverFifteenInAs3sUnits()
+        {
+            // Box.as:1076 — `Snd.ps(..., 0, dy / 15)`. Terminal fall speed is World.maxdy = 20 px/frame,
+            // so the loudest a plain fall can be is 20/15 = 1.333. The value is NOT clamped to 1: the
+            // oracle passes it straight through, and the sound service treats it as a scale.
+            Assert.AreEqual(1.333f, MapObjectSoundRule.LandingVolume(-600f), 0.001f,
+                "600 px/s = 20 px/frame = AS3's terminal speed.");
+            Assert.AreEqual(0.4f, MapObjectSoundRule.LandingVolume(-180f), 0.001f,
+                "180 px/s = 6 px/frame → 6/15.");
         }
 
         [Test]
@@ -287,6 +348,41 @@ namespace PFE.Tests.Editor.Loot
             Assert.IsTrue(File.Exists(catalogPath), $"missing {catalogPath}");
             Assert.IsTrue(File.ReadAllText(catalogPath).Contains("- id: metal_open"),
                 "SoundCatalog has no clip for 'metal_open', so the open would be silent anyway");
+        }
+
+        [Test]
+        public void ShippedItemRows_CarryTheirOwnFallSound()
+        {
+            // `Loot` reads the row's OWN `@fall` on all three non-weapon branches (`Loot.as:134`,
+            // `:158`, `:216`), and `LootDataXml` populated it for weapons only — so every dropped item
+            // fell back to `fall_item`. The two ids below are the ones a play-test reported: the
+            // Cogwheel and the bag of caps.
+            //
+            // Asserted through the SHIPPED AllData copy and the real catalog, not on hand-built rows:
+            // the defect was a parser that never read the attribute, so a hand-built row would pass
+            // while every real drop stayed generic.
+            string root = FindProjectRoot();
+            Assert.IsNotNull(root, "could not locate the project root");
+
+            string path = Path.Combine(root, "Assets/_PFE/Data/Resources/Loot/AllData.txt");
+            Assert.IsTrue(File.Exists(path), $"missing {path}");
+
+            LootDataXml.Outcome outcome =
+                LootDataXml.TryParse(File.ReadAllText(path), out LootData data, out string error);
+            Assert.AreEqual(LootDataXml.Outcome.Ok, outcome, error);
+
+            var catalog = new LootItemCatalogXml(data);
+
+            Assert.AreEqual("fall_gem",
+                LootFallRules.ResolveFallSoundId(catalog, isWeapon: false, tip: "spec", itemId: "col1"),
+                "`<item id='col1' tip='spec' fall='fall_gem'/>` (AllData.as:4037) -- the Cogwheel.");
+            Assert.AreEqual("fall_caps",
+                LootFallRules.ResolveFallSoundId(catalog, isWeapon: false, tip: "money", itemId: "money"),
+                "`<item id='money' tip='money' fall='fall_caps'/>` (AllData.as:3859) -- the bag of caps.");
+            Assert.AreEqual(LootFallRules.DefaultFallSound,
+                LootFallRules.ResolveFallSoundId(catalog, isWeapon: false, tip: "item", itemId: "no-such-row"),
+                "an unknown row keeps the default: the fix must not invent a sound where the oracle " +
+                "would play `fall_item`.");
         }
 
         /// <summary>

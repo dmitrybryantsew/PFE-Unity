@@ -4,8 +4,10 @@ using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Audio;
 using PFE.Systems.Combat;
+using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
+using PFE.Systems.Particles;
 using PFE.Systems.Weapons;
 using PFE.Core.Messages;
 using MessagePipe;
@@ -63,6 +65,7 @@ namespace PFE.Entities.Weapons
         [Inject] private PFE.Systems.Combat.DamageSystem _damageSystem;
         [Inject] private ISoundService                  _soundService;
         [Inject] private ImpactSoundTable               _impactSoundTable;
+        [Inject] private PFE.Systems.Particles.Adapters.RoomParticleEmitter _particles;
 #pragma warning restore CS0649
 
         // ── Owner ─────────────────────────────────────────────────────────────
@@ -200,6 +203,11 @@ namespace PFE.Entities.Weapons
             // rings. The tile arm passes `_loc3_.mat`, i.e. the tile's own material, which is the
             // collider's `TileSurface` on the port's side.
             //
+            // The sparks come first, in the same order: `popadalo` is the burst that makes the contact
+            // visible, and the port had no equivalent at all until now — a crowbar into a wall drew a
+            // decal and a sound and nothing else. See BulletImpactRules.
+            EmitImpactSparks(destructibleCollider, hitWorld, deltaPx);
+
             // Placed after the latch and before the destructible lookup, because both of those are
             // part of "was there a tile here at all": the latch is the oracle's own
             // `if(!this.tilehit ...)`, and a collider that is not an `IDestructibleTile` is still a
@@ -428,6 +436,63 @@ namespace PFE.Entities.Weapons
                 _soundService,
                 _impactSoundTable,
                 surfaceSound && ImpactSoundResolver.PlaysMaterialSound(decal));
+        }
+
+        /// <summary>
+        /// AS3 <c>Bullet.popadalo(mat)</c>'s spark arm (<c>weapon/Bullet.as:339-365</c>) at a tile
+        /// contact — the burst of <c>iskr_bul</c> a blade throws off the surface it stops on.
+        ///
+        /// <para><b>Why the swing needs this and the decal path did not supply it.</b> A swing
+        /// <i>is</i> a bullet in the oracle (<c>WClub.as:148-156</c>), and a bullet calls
+        /// <c>popadalo(mat)</c> the moment it enters a solid tile — before the damage, and whether or
+        /// not the tile survives. The port's only contact visual was <c>Grafon.dyrka</c>'s decal, which
+        /// is a <i>different</i> function and only marks a tile that was actually struck; a wall too
+        /// tough to break, or one that is merely indestructible, produced no visual at all. Reported as
+        /// "no particle effect of hitting".</para>
+        ///
+        /// <para><b>Two inputs are read from the surface, and both have a trap.</b> The material must be
+        /// the tile's <b>raw AS3 <c>mat</c></b> — <c>TileData.material</c> holds it verbatim — because
+        /// the port's <c>SurfaceMaterial</c> collapses AS3 2/4/6 into one value and only 2 of those
+        /// three sparks. A door or barricade box has no tile behind it, so it answers 0 and stays
+        /// silent; AS3 stamped those cells with the door's own material, which the port never imported,
+        /// and inventing one here would be a guess.</para>
+        ///
+        /// <para><b>The alicorn count reduction is not wired.</b> <see cref="BulletImpactRules"/> takes
+        /// the flag, but the port has no alicorn state on the player —
+        /// <c>PlayerInventory.AlicornProvider</c> defaults to <c>false</c> and nothing sets it — so
+        /// <c>false</c> here is the current world's answer rather than a missing branch.</para>
+        /// </summary>
+        /// <param name="surface">The collider the swing stopped on, already known to be a destructible
+        /// surface.</param>
+        /// <param name="hitWorld">The contact point, in world units.</param>
+        /// <param name="deltaPx">The blade tip's travel this frame in <b>Unity</b> pixels (Y up) — the
+        /// sparks are thrown back along it, so the mirror to AS3 space happens here, once.</param>
+        private void EmitImpactSparks(Collider2D surface, Vector2 hitWorld, Vector2 deltaPx)
+        {
+            if (_particles == null || !_hasDamageContext) return;
+
+            var tile = surface != null ? surface.GetComponent<TileCollider>() : null;
+            TileData tileData = tile != null ? tile.GetTileData() : null;
+            int as3Material = tileData != null ? (int)tileData.material : 0;
+
+            int decal = _damageContext.Weapon != null ? (int)_damageContext.Weapon.decalType : 0;
+
+            ParticleEmit? plan = BulletImpactRules.PlanSparks(
+                decal,
+                as3Material,
+                _damageContext.BaseDamage,
+                UnityEngine.Random.value,
+                alicorn: false,
+                // AS3 Y runs down; the port's does not. This is the one conversion the rule cannot do,
+                // because it also serves callers that already hold an AS3-space delta.
+                as3DeltaX: deltaPx.x,
+                as3DeltaY: -deltaPx.y);
+
+            if (plan == null) return;
+
+            // Null-tolerant like the sound path: the emitter refuses (and counts the refusal) until a
+            // room pushes a tile query, and a physics callback must not throw over a missing one.
+            _particles.Emit(plan.Value.Id, new Vector3(hitWorld.x, hitWorld.y, 0f), plan.Value.Spec);
         }
 
         // ── Debug ─────────────────────────────────────────────────────────────

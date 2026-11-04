@@ -6,6 +6,7 @@ using PFE.Core;
 using PFE.Core.Messages;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map;
@@ -562,10 +563,40 @@ namespace PFE.Systems.Map.Rendering
             }
 
             RefreshSolidCollider();
+            StampSurfaceMaterial();
 
             EnsureCheckpointArea();
 
             UpdateVisualFrame();
+        }
+
+        /// <summary>
+        /// Declare what this door is <b>made of</b>, so a weapon that lands on it makes the sound the
+        /// oracle gives it.
+        ///
+        /// <para><b>The gap this closes.</b> In AS3 a door is not a separate hit target: its cells are
+        /// <c>phis == 1</c> tiles stamped by <c>Box.initDoor</c>, and a round or a blade reaches
+        /// <c>Location.hitTile</c> → <c>Bullet.sound(tile.mat)</c> — the <i>door's own</i> material
+        /// (<c>door1</c> is <c>mat='3'</c> → <c>hit_wood</c>, <c>door1b</c> is <c>mat='1'</c> →
+        /// <c>hit_metal</c>). The port has no collider on those cells, so <see cref="_solidCollider"/>
+        /// stands in for them — and a bare <c>BoxCollider2D</c> answers "no material", which
+        /// <see cref="ImpactSoundResolver"/> reads as "silent". Hitting a closed door therefore made no
+        /// sound at all while hitting the wall beside it thudded.</para>
+        ///
+        /// <para><b>The index is the raw AS3 <c>mat</c>, not a <see cref="MaterialType"/>.</b>
+        /// <c>MapObjectDefinition.materialId</c> is the <c>&lt;obj mat='…'&gt;</c> attribute untouched, and
+        /// the two numberings disagree from 2 upward — <see cref="TileMaterialRules"/> owns the table and
+        /// <see cref="TileSurface.FromAs3Material"/> is the wrapper, the same pair the tile path uses.
+        /// </para>
+        /// </summary>
+        private void StampSurfaceMaterial()
+        {
+            if (_objectInstance == null || _objectInstance.definition == null) return;
+
+            var surface = GetComponent<TileSurface>();
+            if (surface == null) surface = gameObject.AddComponent<TileSurface>();
+
+            surface.Set(TileSurface.FromAs3Material(_objectInstance.definition.materialId));
         }
 
         /// <summary>
@@ -967,8 +998,14 @@ namespace PFE.Systems.Map.Rendering
         /// <c>phis == 0</c> (<c>Box.setDoor</c>, <c>Box.as:684</c>), so an open door cannot be shot —
         /// it is scenery. The same three facts are checked here: the object is a door box, it is not
         /// open, and it is not already wrecked.</para>
+        ///
+        /// <para><b><paramref name="damageType"/> is carried only to the die sound.</b> AS3's
+        /// <c>Box.die(param1)</c> takes the killing hit's damage type and uses it for one thing: the
+        /// debris-and-sample block is wrapped in <c>if(param1 &gt;= 0 &amp;&amp; param1 &lt; 10)</c>
+        /// (<c>Box.as:848</c>). Nothing else in the destruction depends on it — <c>Tile.udar</c> has no
+        /// damage-type term at all.</para>
         /// </summary>
-        private void DamageDoor(float destroyAmount)
+        private void DamageDoor(float destroyAmount, DamageType damageType)
         {
             if (!_durabilityResolved) ResolveDurability();
             if (!IsDoorBox || IsOpen || IsDestroyed) return;
@@ -991,7 +1028,7 @@ namespace PFE.Systems.Map.Rendering
             _doorHitPoints = DoorDestructionMath.ApplyDamage(_doorHitPoints, destroyAmount);
             if (DoorDestructionMath.IsDestroyed(_doorHitPoints))
             {
-                Die();
+                Die(damageType);
             }
         }
 
@@ -1045,8 +1082,19 @@ namespace PFE.Systems.Map.Rendering
         /// from <c>RoomInstance.TilesMutated</c>. A door that dies without raising it leaves a solid
         /// chain across the doorway — the same staleness already recorded against the open/close path
         /// in <c>TOPIC_open_work.md</c>.</para>
+        ///
+        /// <para><b>The break is audible, and it was not.</b> <c>Box.die()</c> plays
+        /// <c>Snd.ps(this.sndDie, X, Y)</c> (<c>Box.as:850-853</c>) and the shipped data authors it on
+        /// every door — <c>door1</c>/<c>door1a</c>/<c>hatch1</c>/the <c>septum</c> barricade are
+        /// <c>die='break_wood'</c>, <c>door1b</c>/<c>door2</c>/<c>grate</c>/<c>encldoor</c> are
+        /// <c>die='break_metal'</c>. <see cref="MapObjectSoundRule.DieSound"/> has read that attribute
+        /// since it was written and had <b>no caller</b>, so a barricade the player spent three kicks on
+        /// vanished in silence. The oracle's own gate is
+        /// <c>if(param1 &gt;= 0 &amp;&amp; param1 &lt; 10)</c> — an exotic damage type kills without a
+        /// sound — and it lives in <see cref="MapObjectSoundRule.PlaysOnDie"/> so a fixture can pin it.
+        /// </para>
         /// </summary>
-        private void Die()
+        private void Die(DamageType damageType)
         {
             if (_objectInstance?.runtimeState == null) return;
             if (IsDestroyed) return;
@@ -1057,8 +1105,18 @@ namespace PFE.Systems.Map.Rendering
             RefreshSolidCollider();
             UpdateVisualFrame();
 
+            string dieSound = MapObjectSoundRule.DieSound(_objectInstance.definition?.legacyAttributes);
+            if (MapObjectSoundRule.PlaysOnDie(dieSound, (int)damageType))
+            {
+                SoundBus.Current?.Play(dieSound, transform.position);
+            }
+
             if (_room != null)
             {
+                // AS3 `Box.as:855-858` — the one shout a broken box makes. 800 px, once, and room
+                // bounded; see SecurityRuntime.NotifyBoxDestroyed for why this is not the alarm's 1500.
+                SecurityRuntime.NotifyBoxDestroyed(_room, (Vector2)transform.position * 100f);
+
                 _room.NotifyTilesMutated(CoveredTileRegion());
             }
         }
@@ -1074,7 +1132,7 @@ namespace PFE.Systems.Map.Rendering
         public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType,
                                      DecalType decal)
         {
-            DamageDoor(destroyAmount);
+            DamageDoor(destroyAmount, damageType);
         }
 
         /// <summary>
@@ -1086,7 +1144,7 @@ namespace PFE.Systems.Map.Rendering
         public void ApplyDestructionRadius(Vector3 worldPosition, float radius,
                                            float destroyAmount, DamageType damageType, DecalType decal)
         {
-            DamageDoor(destroyAmount);
+            DamageDoor(destroyAmount, damageType);
         }
 
         #endregion
