@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using UnityEngine;
+using PFE.Systems.Inventory;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Streaming;
 using PFE.Systems.Map.Rendering.RoomTerrain;
@@ -800,6 +801,18 @@ namespace PFE.Systems.Map.Rendering
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 
+            // ...and the floor loot, which is the one thing in this room that is NOT rebuilt from the
+            // template: props and units come back from `room.objects` / `room.units`, which survive, and
+            // loot comes back from `room.droppedItems`, which is the only place a dropped stack exists at
+            // all. See WorldItemPickup.RestoreForRoom for why an already-live view is skipped (a save
+            // applied to the room the player is standing in) and why an unresolvable id is retried
+            // rather than dropped.
+            using (Profiler.Region("room.loot.restore", "boot: floor loot rebuilt from the room's records"))
+            {
+                WorldItemPickup.RestoreForRoom(room);
+            }
+            Profiler.Mark("room.loot.restore");
+
             // ...and this is the line that makes a script's `@targ` able to name a UNIT.
             //
             // AS3 keeps ONE lookup table per land — `Script.as:218-236` resolves every `@targ` through
@@ -1314,16 +1327,19 @@ namespace PFE.Systems.Map.Rendering
             }
 
             // AS3's light is NOT at the unit's origin: `Location.lighting():3137-3140` defaults to
-            // `(gg.X + gg.storona*12, gg.Y1 + gg.stayY*0.247)`, i.e. 12 px in front of the unit and
-            // 75.3 % of the way up its sprite. See FogOcclusionMath.ResolvePlayerLightPixelOffset for
-            // why this is load-bearing rather than cosmetic — with the light on the feet the AS3
+            // `(gg.X + gg.storona*12, gg.Y1 + gg.stayY*0.247)`, i.e. 12 px in front of the unit and,
+            // standing, 75.3 % of the way up its sprite. See FogOcclusionMath.ResolvePlayerLightPixelOffset
+            // for why this is load-bearing rather than cosmetic — with the light on the feet the AS3
             // lattice ray sits exactly on a tile boundary, and the pixel↔unit round trip tips it into
-            // the tile below.
+            // the tile below. The two-height form matters while crawling: AS3's `scY` halves with the
+            // crouch (`Unit.sit():2520`), and feeding the standing height instead parks the light
+            // inside the solid tile above a one-tile passage and reveals the tiles overhead.
             Vector3? playerLightWorldPosition = null;
             if (visibilityRevealTargetPlayer != null)
             {
                 Vector2 lightOffsetPixels = FogOcclusionMath.ResolvePlayerLightPixelOffset(
                     visibilityRevealTargetPlayer.FacingDirection,
+                    visibilityRevealTargetPlayer.FogLightCurrentHeightPixels,
                     visibilityRevealTargetPlayer.SpriteSizePixels.y);
                 playerLightWorldPosition = visibilityRevealTargetPlayer.transform.position
                     + WorldCoordinates.PixelToUnity(lightOffsetPixels);
@@ -1473,6 +1489,7 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager = null;
             roomUnitSpawner?.DestroyAll();
             roomUnitSpawner = null;
+            DestroyDroppedItemViews();
             visibilityRevealTargetPlayer = null;
             ReleaseCompositor();
 
@@ -1565,6 +1582,7 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager = null;
             roomUnitSpawner?.DestroyAll();
             roomUnitSpawner = null;
+            DestroyDroppedItemViews();
             visibilityRevealTargetPlayer = null;
 
             // The shared compositor outlives every room, so this is the one place its ~1100 baked
@@ -2069,6 +2087,18 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager = null;
             roomUnitSpawner?.DestroyAll();
             roomUnitSpawner = null;
+
+            // Floor loot is part of the room view, so it goes with it — and unlike a prop or a unit it
+            // is NOT parented to anything under this transform, so destroying the parents below does not
+            // reach it. Until this call existed a drop outlived the room that owned it: it stayed as a
+            // stray GameObject at the old room's coordinates and `WorldItemPickup.Live` grew for the
+            // whole session. The records stay on the room (DestroyView, not Despawn), which is what makes
+            // Initialize able to put them back.
+            //
+            // `roomInstance` is still the OLD room here — Initialize reassigns it after this call — so
+            // this is exactly the room whose views must go.
+            DestroyDroppedItemViews();
+
             visibilityRevealTargetPlayer = null;
             isInitialized = false;
 
@@ -2098,6 +2128,29 @@ namespace PFE.Systems.Map.Rendering
 
             Transform doorParent = transform.Find("DoorTriggers");
             DestroyChildren(doorParent);
+        }
+
+        /// <summary>
+        /// Destroy every <see cref="WorldItemPickup"/> view whose record belongs to <see cref="roomInstance"/>,
+        /// keeping the records on the room.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this is a named step and not part of <see cref="DestroyChildren"/>.</b> Every other
+        /// visual this controller owns is a child of one of its parent transforms, so destroying the
+        /// parents sweeps it up. A pickup is a <i>root</i> GameObject — it is built by
+        /// <c>new GameObject</c> in <c>WorldItemPickup.SpawnCore</c> and parented to nothing, because it
+        /// moves in world space and is found by a cursor probe rather than by hierarchy. The consequence
+        /// is that the sweep does not reach it, and the only thing that ever removed one was the F2
+        /// overlay's <c>DespawnAll</c>.</para>
+        ///
+        /// <para><b>Keeping the record is the whole point.</b> <see cref="WorldItemPickup.DestroyView"/>
+        /// is the "the view is going, the fact stays" half; <see cref="WorldItemPickup.Despawn"/> is the
+        /// other one and is what taking an item calls. Swapping them here would either delete a room's
+        /// loot every time the player walked out or duplicate it on re-entry.</para>
+        /// </remarks>
+        private void DestroyDroppedItemViews()
+        {
+            WorldItemPickup.DestroyViewsForRoom(roomInstance);
         }
 
         /// <summary>

@@ -97,6 +97,34 @@ namespace PFE.Systems.Map
         [NonSerialized]
         public List<ObjectInstance> objects = new List<ObjectInstance>();
 
+        /// <summary>
+        /// Loot lying on this room's floor — the port's counterpart to the <c>Loot</c> objects AS3
+        /// registers in <c>loc.objs</c> (<c>fe/loc/Loot.as:246</c>, <c>this._loc.addObj(this)</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this list has to exist at all.</b> A dropped item used to be a bare
+        /// <c>GameObject</c> in a static list (<c>WorldItemPickup.Live</c>) with nothing on the room
+        /// pointing at it. That is not a view/record split, it is a leak: the room view is destroyed and
+        /// rebuilt on every transition (<c>RoomVisualController.ClearVisuals</c>), so a drop had no owner
+        /// to survive it, and the F2 overlay's <c>DespawnAll</c> was the only thing that ever removed one.
+        /// The three symptoms were one cause — loot missing from saves, loot from the previous land still
+        /// lying around after a land change, and a drop that only survived a room transition because the
+        /// GameObject happened to be parented to nothing.</para>
+        ///
+        /// <para><b>Position is room-local pixels</b>, the same space as
+        /// <see cref="UnitInstance.position"/> and <see cref="ObjectInstance.position"/>, so a record is
+        /// meaningful without a view and without a land coordinate. The pickup converts through
+        /// <c>WorldCoordinates.RoomOriginPixel</c> on both sides; storing world coordinates instead would
+        /// silently break in every room that is not at land (0,0).</para>
+        ///
+        /// <para><b><c>[NonSerialized]</c> for the same reason as <see cref="units"/> and
+        /// <see cref="objects"/>:</b> this is runtime state and the save file is
+        /// <c>RoomStateSnapshot</c>, which carries it as <c>droppedItems</c>. Unity's serializer would
+        /// otherwise write a second, divergent copy.</para>
+        /// </remarks>
+        [NonSerialized]
+        public List<DroppedItemInstance> droppedItems = new List<DroppedItemInstance>();
+
         public List<DoorInstance> doors = new List<DoorInstance>();
         public List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
         public List<BackgroundDecorationInstance> backgroundDecorations = new List<BackgroundDecorationInstance>();
@@ -347,6 +375,37 @@ namespace PFE.Systems.Map
         {
             objects.Clear();
             RebuildRuntimeLayers();
+        }
+
+        /// <summary>
+        /// Register a dropped item on this room's floor. See <see cref="droppedItems"/>.
+        /// </summary>
+        /// <remarks>
+        /// No <c>ObjectPhysicsLayer</c> registration and no <c>RefreshMovingPlatforms</c>: loot is not a
+        /// prop. AS3's <c>Loot</c> derives from <c>Obj</c> but never takes part in <c>Box.forces()</c> or
+        /// <c>checkShelf</c>, and the port's pickup is a trigger collider that nothing can stand on. A
+        /// record here is a <i>fact about the room</i>, not a body in it.
+        /// </remarks>
+        public void AddDroppedItem(DroppedItemInstance item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            droppedItems ??= new List<DroppedItemInstance>();
+            droppedItems.Add(item);
+        }
+
+        /// <summary>Forget a dropped item — it was taken, or its view is being torn down for good.</summary>
+        public bool RemoveDroppedItem(DroppedItemInstance item)
+        {
+            if (item == null || droppedItems == null)
+            {
+                return false;
+            }
+
+            return droppedItems.Remove(item);
         }
 
         public bool TryFindNearestTelekineticObject(Vector2 origin, float maxDistancePixels, out ObjectInstance obj)
@@ -607,6 +666,32 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// Drop every corpse from <see cref="units"/> — AS3 <c>Location.resetUnits()</c>
+        /// (<c>Location.as:2243</c>), whose body is <c>units = units.filter(u =&gt; u.sost &lt; 4)</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The oracle drops corpses on re-entry, not at death, and that timing is load-bearing.</b>
+        /// A prob room counts its waves off this list during the fight (<c>ProbRoomSession</c> reads
+        /// <c>IsStanding = !IsDead</c>), so removing a record the frame it dies would complete a wave a
+        /// beat early. Called from <c>RoomUnitSpawner.RefreshAll</c>, which is the port's reactivate
+        /// moment: <c>RoomVisualController.Initialize</c> runs it on every room build, including the one
+        /// a door transition triggers.</para>
+        ///
+        /// <para><b>Why a prune is needed at all, now that <c>isDead</c> is written at death.</b> Without
+        /// it the list grows for the whole session, and two things read it as "what is in this room": a
+        /// script's <c>@targ</c> lookup (<c>RoomUnitSpawner.UnitCommand</c>), which would still resolve a
+        /// unit the player killed three rooms ago, and the debug counters. AS3 has the same two readers
+        /// and the same prune for the same reason.</para>
+        /// </remarks>
+        /// <returns>How many records were dropped.</returns>
+        public int PruneDeadUnits()
+        {
+            // The rule is in RoomStateRules so it can be fixture-pinned offline; this method exists so a
+            // caller does not have to reach through `room.units` to ask the room to tidy itself.
+            return RoomStateRules.PruneDeadUnits(units);
+        }
+
+        /// <summary>
         /// Deactivate this room (called when player leaves).
         /// </summary>
         public void Deactivate()
@@ -672,15 +757,16 @@ namespace PFE.Systems.Map
             using (PFE.Core.Profiling.PfeProfiler.Region("room.tick.units",
                 "physics: per-frame unit loop. ObjectInstance.Update/UnitInstance.Update are empty, so this should be ~0."))
             {
-                for (int i = units.Count - 1; i >= 0; i--)
+                // No prune here. This loop used to remove dead units from `units` on the tick they died,
+                // which was both unreachable in gameplay (nothing ever set `isDead` at death — only the
+                // save loader did) and in the wrong place: AS3 drops corpses on re-entry, in
+                // `resetUnits()` (`Location.as:2243`), and a prob room counts its waves off this list
+                // during the fight. `Activate` is now the one owner of that prune.
+                for (int i = 0; i < units.Count; i++)
                 {
                     if (units[i] != null && !units[i].IsDead)
                     {
                         units[i].Update();
-                    }
-                    else if (units[i] != null && units[i].IsDead)
-                    {
-                        units.RemoveAt(i);
                     }
                 }
             }
@@ -867,6 +953,26 @@ namespace PFE.Systems.Map
         public bool IsDead => isDead;
         public float currentHealth = 100f;
         public float maxHealth = 100f;
+
+        /// <summary>
+        /// Whether <see cref="currentHealth"/> / <see cref="maxHealth"/> describe a live unit rather than
+        /// the field defaults.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>A latch, because the defaults are not a safe sentinel.</b> <c>100</c> is a plausible
+        /// health value for a real unit, so "currentHealth != 100 means it is real" both misreads a
+        /// 100-HP unit at full health and, worse, would spawn a 300-HP unit at 100 because its untouched
+        /// default looks like data. A boolean says what is meant.</para>
+        ///
+        /// <para><b>Set by every writer, and that is the contract.</b> The death path sets it
+        /// (<c>RoomUnitSpawner.OnUnitDied</c>), the view-teardown path sets it
+        /// (<c>RoomUnitSpawner</c>'s write-back before destroying a controller), and the save loader sets
+        /// it from <c>UnitStateSnapshot.hasRuntimeHealth</c>. The single reader is
+        /// <c>RoomUnitSpawner.Spawn</c>, which applies the value only when the latch is set — so a unit
+        /// that has never been hurt keeps the health its definition and difficulty give it, including the
+        /// elite multiplier applied in <c>ApplyPlacement</c>.</para>
+        /// </remarks>
+        public bool hasRuntimeHealth = false;
 
         /// <summary>
         /// The AS3 controller class name that <c>Unit.as:708</c> switches on to pick a controller class
@@ -1891,5 +1997,55 @@ namespace PFE.Systems.Map
     {
         public string decorationId;
         public Vector2Int tileCoord;
+    }
+
+    /// <summary>
+    /// One stack of loot lying on a room's floor — the record behind a <c>WorldItemPickup</c> view.
+    /// See <see cref="RoomInstance.droppedItems"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is the owner, and the pickup GameObject is the projection.</b> Every field a pickup
+    /// needs in order to be rebuilt is here, and nothing a pickup needs is anywhere else — which is the
+    /// property that makes a room survive its view being destroyed. The one thing deliberately absent is
+    /// the view itself: the record is plain data, the lookup goes the other way (a pickup knows its
+    /// record), and that keeps <c>PFE.Systems.Map</c> free of a reference into the pickup's component
+    /// graph.</para>
+    ///
+    /// <para><b>What is <i>not</i> here is as deliberate.</b> Velocity and the falling flag are view
+    /// state: a drop is only ever rebuilt at rest, because a room cannot be left mid-flight — the
+    /// transition destroys the view at a frame boundary and the player is not in the room while it
+    /// falls. Persisting a mid-air position instead would restore loot hovering over a floor it already
+    /// passed.</para>
+    /// </remarks>
+    [Serializable]
+    public class DroppedItemInstance
+    {
+        /// <summary>The item or weapon id — which table it belongs to is <see cref="isWeapon"/>.</summary>
+        public string itemId;
+
+        /// <summary>
+        /// True when <see cref="itemId"/> names a <c>WeaponDefinition</c> rather than an
+        /// <c>ItemDefinition</c>. The two are disjoint tables in the oracle too
+        /// (<c>AllData.d.weapon</c> vs <c>AllData.d.item</c>), so the id alone cannot say which.
+        /// </summary>
+        public bool isWeapon;
+
+        /// <summary>How many are in this stack.</summary>
+        public int quantity = 1;
+
+        /// <summary>AS3 <c>Item.variant</c> — the <c>^N</c> tier, <c>0</c> for a plain weapon.</summary>
+        public int variant;
+
+        /// <summary>AS3 <c>sost * multHP</c> — condition, <c>1</c> = pristine.</summary>
+        public float condition = 1f;
+
+        /// <summary>
+        /// Whether the player picks this up by walking over it. AS3 passes <c>vsos</c> at the three drop
+        /// sites; see <c>WorldItemPickup.AutoCollect</c>.
+        /// </summary>
+        public bool autoCollect;
+
+        /// <summary>Room-local pixels — see <see cref="RoomInstance.droppedItems"/>.</summary>
+        public Vector2 position;
     }
 }

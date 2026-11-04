@@ -179,6 +179,15 @@ namespace PFE.Systems.Inventory
             _itemResolver = itemResolver;
             _weaponResolver = weaponResolver;
 
+            // ...and the same two lookups, published for the one caller that has no player to ask:
+            // rebuilding a room's floor loot. `WorldItemPickup.RestoreForRoom` runs from
+            // `RoomVisualController.Initialize`, which is a room-build step and therefore has no
+            // GameObject to GetComponent an inventory off — the container presenters all have the
+            // interacting player in hand, so they never needed this. Without it a saved or re-entered
+            // room's drops would resolve no definition and stay invisible-but-recorded.
+            WorldItemPickup.ItemDefinitionResolver = itemResolver;
+            WorldItemPickup.WeaponDefinitionResolver = weaponResolver;
+
             if (_caster != null)
             {
                 _caster.SetInventory(_inventory);

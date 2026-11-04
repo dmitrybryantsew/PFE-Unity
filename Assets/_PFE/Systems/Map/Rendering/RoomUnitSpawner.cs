@@ -624,6 +624,27 @@ namespace PFE.Systems.Map.Rendering
             if (controller == null || _room == null) return;
             if (!_deathOwners.TryGetValue(controller, out UnitInstance unit)) return;
 
+            // ── The record learns the unit died ────────────────────────────────────────────────────
+            //
+            // Without these two lines a cleared room refilled itself. The record is the only thing that
+            // outlives the view (`RoomVisualController.ClearVisuals` destroys every unit GameObject and
+            // `RefreshAll` rebuilds one per record), so a record that still says "alive" is an enemy
+            // that respawns every time the player walks back in — the exact report this work started
+            // from. Nothing wrote `isDead` at death: the save loader was its only writer, and
+            // `RoomInstance.Update`'s prune read a flag that gameplay never set.
+            //
+            // The flag is written HERE rather than at the prune site because this is the synchronous
+            // half of a death (see the Died event's remarks) — the one place that sees every death the
+            // unit stays dead from. `RoomInstance.Activate` then drops the record on re-entry, which is
+            // AS3's `resetUnits()` timing.
+            //
+            // Deliberately NOT removing the record from `room.units` here: a prob room's wave counter
+            // reads that list mid-fight, and a unit that vanishes the frame it dies would complete a
+            // wave a beat early.
+            unit.isDead = true;
+            unit.currentHealth = 0f;
+            unit.hasRuntimeHealth = true;
+
             _deathScripts?.OnUnitDestroyed(_room, unit);
         }
 
@@ -821,6 +842,20 @@ namespace PFE.Systems.Map.Rendering
 
                 _reportedDeaths.Add(record);
 
+                // The same fact `OnUnitDied` writes, and the reason this scan still has to write it.
+                // `Died` is raised from `UnitController.RaiseDeath`, which is the only path a *damage*
+                // death takes — but `IsAlive` is just `CurrentHp > 0`, so anything that empties the pool
+                // without going through the damage funnel (`UnitStats` written directly, a scripted
+                // kill, a despawn-then-revive) leaves a controller that reads dead with no event behind
+                // it. That is precisely the hole this scan was written for, so it has to close the record
+                // too or a prob room's units would come back on the next entry.
+                //
+                // It is not a second authority: both writers write the same truth, and the scan runs
+                // after the event for every death the event does fire on.
+                record.isDead = true;
+                record.currentHealth = 0f;
+                record.hasRuntimeHealth = true;
+
                 // The oracle's order (Unit.as:4497-4501): scrDie fires, then the wave counter, then the
                 // check. The port has no scrDie driver, so this is the two steps that are ported.
                 sessions.CheckWave(_room, true);
@@ -973,6 +1008,16 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
+            // AS3 `Location.reactivate` ends with `resetUnits()` (`Location.as:2243`) — corpses leave the
+            // room's list when it is re-entered. `Initialize` calls this method on every room build, so
+            // this is the port's reactivate moment; see RoomInstance.PruneDeadUnits for why the timing
+            // is not "when the unit dies".
+            //
+            // It also means the loop below cannot meet a dead record, which is why it has no `IsDead`
+            // test: the prune is the single owner of that decision, and a second guard here would be a
+            // line no test could ever reach.
+            _room.PruneDeadUnits();
+
             _stale.Clear();
             foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
             {
@@ -1022,6 +1067,9 @@ namespace PFE.Systems.Map.Rendering
         {
             foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
             {
+                // Before the GameObject goes — this is the room-teardown path, so every damaged unit in
+                // the room is about to lose the only place its health exists. See WriteBackUnitState.
+                WriteBackUnitState(pair.Key, pair.Value);
                 DestroyObject(pair.Value);
             }
 
@@ -1395,6 +1443,29 @@ namespace PFE.Systems.Map.Rendering
 
             controller.ApplyPlacement(unit);
 
+            // ── The health the record carries, applied last ────────────────────────────────────────
+            //
+            // A damaged unit used to heal to full the moment the player left the room: the record kept
+            // no health, the view owned it, and the view is destroyed on every transition. This is the
+            // read half; `WriteBackUnitState` below is the write.
+            //
+            // AFTER ApplyPlacement, and that ordering is not cosmetic: ApplyPlacement is where an elite
+            // unit multiplies MaxHp (`UnitController.ApplyHeroTier`, AS3 `this.hp = this.maxhp =
+            // this.maxhp * …`), so a restore placed earlier would be re-seeded to the un-promoted
+            // ceiling and an elite boss would come back at two thirds health.
+            //
+            // MaxHp is deliberately NOT restored from the record: it is derived (definition ×
+            // difficulty × tier), so the freshly built ceiling is the correct one and the record's copy
+            // is only a note of what it used to be. CurrentHp is clamped to the ceiling actually built
+            // for the same reason. The gate and the clamp are RoomStateRules.TryResolveRestoredHealth —
+            // the "hasRuntimeHealth" half is what stops an untouched 100 being written over a 300 HP
+            // ceiling, which is the mistake that would look like nothing at all until a boss was met.
+            if (stats != null && RoomStateRules.TryResolveRestoredHealth(
+                    unit.hasRuntimeHealth, unit.currentHealth, stats.MaxHp.Value, out float restoredHp))
+            {
+                stats.CurrentHp.Value = restoredHp;
+            }
+
             // ...and the seam that runs the unit's authored DEATH script. Subscribed last, so the
             // controller is fully built by the time a death could reach it.
             SubscribeDeath(unit, controller);
@@ -1574,8 +1645,46 @@ namespace PFE.Systems.Map.Rendering
             }
 
             UnsubscribeDeath(unit);
+            WriteBackUnitState(unit, unitObject);
             _spawned.Remove(unit);
             DestroyObject(unitObject);
+        }
+
+        /// <summary>
+        /// Copy a live controller's health onto its record <b>before</b> the view is destroyed.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The write half of the pair whose read half is in <see cref="Spawn"/>.</b> The record
+        /// outlives the view, and health is the one unit fact that changes every fight and is owned
+        /// nowhere else — without this a room transition is a full heal, for the player's enemies and for
+        /// a boss the player is halfway through killing.</para>
+        ///
+        /// <para><b>Read from <c>UnitStats</c>, not from the record's previous value.</b> That object is
+        /// where AS3's <c>hp</c>/<c>maxhp</c> live in the port, and it is the only thing that knows the
+        /// elite and difficulty multipliers the spawn applied. A missing stats object (a unit with no
+        /// definition) leaves the record untouched rather than writing a made-up number.</para>
+        /// </remarks>
+        static void WriteBackUnitState(UnitInstance unit, GameObject unitObject)
+        {
+            if (unit == null || unitObject == null)
+            {
+                return;
+            }
+
+            if (!unitObject.TryGetComponent(out UnitController controller))
+            {
+                return;
+            }
+
+            UnitStats stats = controller.UnitStats;
+            if (stats == null)
+            {
+                return;
+            }
+
+            unit.currentHealth = stats.CurrentHp.Value;
+            unit.maxHealth = stats.MaxHp.Value;
+            unit.hasRuntimeHealth = true;
         }
 
         static void DestroyObject(GameObject target)

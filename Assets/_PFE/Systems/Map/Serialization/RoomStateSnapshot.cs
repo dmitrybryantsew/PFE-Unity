@@ -46,6 +46,20 @@ namespace PFE.Systems.Map.Serialization
         // Objects (items, containers, etc.)
         public ObjectStateSnapshot[] objects;
 
+        /// <summary>
+        /// Loot lying on this room's floor — <see cref="RoomInstance.droppedItems"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Without this a save silently deleted every item the player had dropped.</b> Loot was
+        /// a bare GameObject in a static list, so it was in no room and in no snapshot: leaving the land
+        /// destroyed it, and loading a save never restored it. It is now a record on the room like a prop
+        /// or a unit, and a record that is not here is a record that does not survive the file.</para>
+        ///
+        /// <para>Empty rather than null for a save written before this field existed, so
+        /// <see cref="RestoreToRoom"/> can iterate without a null test at every call site.</para>
+        /// </remarks>
+        public DroppedItemSnapshot[] droppedItems;
+
         // Destroyed tiles (for delta persistence)
         public Vector2Int[] destroyedTiles;
 
@@ -137,6 +151,26 @@ namespace PFE.Systems.Map.Serialization
             for (int i = 0; i < room.objects.Count; i++)
             {
                 snapshot.objects[i] = ObjectStateSnapshot.CreateFrom(room.objects[i]);
+            }
+
+            // Serialize floor loot. A record is the only place a dropped stack exists, so this loop is
+            // the difference between "the player's drop survives the file" and "it does not".
+            if (room.droppedItems != null && room.droppedItems.Count > 0)
+            {
+                var loot = new List<DroppedItemSnapshot>(room.droppedItems.Count);
+                for (int i = 0; i < room.droppedItems.Count; i++)
+                {
+                    DroppedItemSnapshot item = DroppedItemSnapshot.CreateFrom(room.droppedItems[i]);
+                    if (item != null)
+                    {
+                        loot.Add(item);
+                    }
+                }
+                snapshot.droppedItems = loot.ToArray();
+            }
+            else
+            {
+                snapshot.droppedItems = Array.Empty<DroppedItemSnapshot>();
             }
 
             // Collect destroyed tiles
@@ -299,8 +333,24 @@ namespace PFE.Systems.Map.Serialization
                 }
             }
 
+            // Restore floor loot. The list is rebuilt wholesale rather than merged: a room restored from
+            // a file is the authority on what is lying in it, and any live view for the old list is torn
+            // down by `RoomVisualController.ClearVisuals` before `Initialize` rebuilds from these records.
+            room.droppedItems ??= new List<DroppedItemInstance>();
+            room.droppedItems.Clear();
+            if (droppedItems != null)
+            {
+                for (int i = 0; i < droppedItems.Length; i++)
+                {
+                    DroppedItemInstance item = droppedItems[i]?.ToDroppedItemInstance();
+                    if (item != null)
+                    {
+                        room.droppedItems.Add(item);
+                    }
+                }
+            }
+
             // Re-derive every area's lift from the objects just restored.
-            //
             // `TileData.gravityMultiplier` is not part of the snapshot on purpose: it is a *derived*
             // value (area `@grav` × the area's enabled state), so persisting it would let a stale tile
             // outvote the object the player can actually see and toggle. Restoring is the moment the
@@ -352,6 +402,69 @@ namespace PFE.Systems.Map.Serialization
             }
 
             room.RebuildRuntimeLayers();
+        }
+    }
+
+    /// <summary>
+    /// Snapshot of one stack of floor loot — <see cref="DroppedItemInstance"/>.
+    /// </summary>
+    /// <remarks>
+    /// One field per record field and nothing derived, which is what makes the round-trip exact: the
+    /// position is room-local pixels (the record's own space), and <c>isWeapon</c> is what tells the
+    /// loader which table <c>itemId</c> belongs to. A loader that guessed would put a weapon id through
+    /// the item table and drop it — the bug <c>PlayerInventory.ResolveWeapon</c> documents.
+    /// </remarks>
+    [Serializable]
+    public class DroppedItemSnapshot
+    {
+        public string itemId;
+        public bool isWeapon;
+        public int quantity;
+        public int variant;
+        public float condition;
+        public bool autoCollect;
+        public float posX;
+        public float posY;
+
+        public static DroppedItemSnapshot CreateFrom(DroppedItemInstance item)
+        {
+            if (item == null || string.IsNullOrEmpty(item.itemId))
+            {
+                return null;
+            }
+
+            return new DroppedItemSnapshot
+            {
+                itemId = item.itemId,
+                isWeapon = item.isWeapon,
+                quantity = item.quantity,
+                variant = item.variant,
+                condition = item.condition,
+                autoCollect = item.autoCollect,
+                posX = item.position.x,
+                posY = item.position.y,
+            };
+        }
+
+        public DroppedItemInstance ToDroppedItemInstance()
+        {
+            if (string.IsNullOrEmpty(itemId))
+            {
+                return null;
+            }
+
+            return new DroppedItemInstance
+            {
+                itemId = itemId,
+                isWeapon = isWeapon,
+                // A save written by a bug that stored a zero count would otherwise produce a record that
+                // `RestoreForRoom` skips silently; one is what AS3's constructor defaults to.
+                quantity = quantity > 0 ? quantity : 1,
+                variant = variant,
+                condition = condition > 0f ? condition : 1f,
+                autoCollect = autoCollect,
+                position = new Vector2(posX, posY),
+            };
         }
     }
 
@@ -584,6 +697,17 @@ namespace PFE.Systems.Map.Serialization
     /// <summary>
     /// Snapshot of unit state (enemy, NPC).
     /// </summary>
+    /// <remarks>
+    /// <para><b>Why this carries the whole placement and not just the position and the health.</b> A
+    /// <see cref="UnitInstance"/> is not only "an id at a point": it is also the placement's
+    /// <c>attributes</c> (which is where <c>npc</c>, <c>turn</c>, <c>qid</c>, <c>scr</c> and every other
+    /// authored key live), its <c>&lt;item&gt;</c> children (the unit's own death drop) and its
+    /// <c>&lt;scr&gt;</c> children (its death and alarm scripts). The snapshot used to write only the
+    /// first eight fields, so a loaded save produced units that could not drop loot, could not run their
+    /// death script, and — for an NPC — had no persona at all, because the id it was rebuilt from says
+    /// <c>UnitNPC</c> and the persona is on the placement. The object half of the same file has always
+    /// carried all three; this is the unit half catching up.</para>
+    /// </remarks>
     [Serializable]
     public class UnitStateSnapshot
     {
@@ -595,6 +719,46 @@ namespace PFE.Systems.Map.Serialization
         public bool isDead;
         public float currentHealth;
         public float maxHealth;
+
+        /// <summary>See <see cref="UnitInstance.hasRuntimeHealth"/> — false means "the two above are defaults".</summary>
+        public bool hasRuntimeHealth;
+
+        public string uid;
+        public string code;
+        public string controllerId;
+
+        /// <summary>The placement's authored keys — <c>npc</c>, <c>turn</c>, <c>qid</c>, <c>scr</c>, …</summary>
+        public MapObjectAttributeData[] attributes;
+
+        /// <summary>The unit's authored death drop.</summary>
+        public MapObjectItemSnapshot[] items;
+
+        /// <summary>The unit's <c>&lt;scr&gt;</c> children — <c>eve="die"</c> and <c>eve="alarm"</c>.</summary>
+        public MapObjectScriptSnapshot[] scripts;
+
+        /// <summary>
+        /// <c>UnitInstance.facingDirection</c>, which is <c>±1</c> — a sign, not a yaw, so an <c>int</c>
+        /// is the whole value.
+        /// </summary>
+        public int facingDirection;
+
+        /// <summary>
+        /// <c>UnitInstance.digger</c> — the ambush flag AS3 reads in <c>UnitZombie.setPos</c>.
+        /// </summary>
+        public int digger;
+
+        /// <summary>
+        /// <c>UnitInstance.ambushArmed</c> — resolved once at population, and one-way in the oracle
+        /// (<c>aiState</c> never returns to <c>Buried</c>), so it must survive a save or a risen ambusher
+        /// can re-bury itself by re-evaluating the same tiles.
+        /// </summary>
+        public bool ambushArmed;
+
+        /// <summary>
+        /// <c>UnitInstance.fraction</c> — a <c>FactionType?</c>, stored as <c>-1</c> for <c>null</c>
+        /// because <c>JsonUtility</c> has no nullable-enum representation.
+        /// </summary>
+        public int fraction = -1;
 
         public static UnitStateSnapshot CreateFrom(UnitInstance unit)
         {
@@ -609,7 +773,18 @@ namespace PFE.Systems.Map.Serialization
                 posY = unit.position.y,
                 isDead = unit.IsDead,
                 currentHealth = unit.currentHealth,
-                maxHealth = unit.maxHealth
+                maxHealth = unit.maxHealth,
+                hasRuntimeHealth = unit.hasRuntimeHealth,
+                uid = unit.uid ?? "",
+                code = unit.code ?? "",
+                controllerId = unit.controllerId ?? "",
+                attributes = ObjectStateSnapshot.CreateAttributes(unit.attributes),
+                items = MapObjectItemSnapshot.CreateArray(unit.items),
+                scripts = MapObjectScriptSnapshot.CreateArray(unit.scripts),
+                facingDirection = unit.facingDirection,
+                digger = unit.digger,
+                ambushArmed = unit.ambushArmed,
+                fraction = unit.fraction.HasValue ? (int)unit.fraction.Value : -1,
             };
         }
 
@@ -623,7 +798,18 @@ namespace PFE.Systems.Map.Serialization
                 position = new Vector2(posX, posY),
                 isDead = isDead,
                 currentHealth = currentHealth,
-                maxHealth = maxHealth
+                maxHealth = maxHealth,
+                hasRuntimeHealth = hasRuntimeHealth,
+                uid = uid ?? "",
+                code = code ?? "",
+                controllerId = controllerId ?? "",
+                attributes = ObjectStateSnapshot.RestoreAttributes(attributes),
+                items = MapObjectItemSnapshot.RestoreArray(items),
+                scripts = MapObjectScriptSnapshot.RestoreArray(scripts),
+                facingDirection = facingDirection == 0 ? 1 : facingDirection,
+                digger = digger,
+                ambushArmed = ambushArmed,
+                fraction = fraction < 0 ? (PFE.Data.Definitions.FactionType?)null : (PFE.Data.Definitions.FactionType)fraction,
             };
         }
     }

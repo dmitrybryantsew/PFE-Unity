@@ -8,6 +8,7 @@ using PFE.Systems.Interaction;
 using PFE.Systems.Loot;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Telekinesis;
 using PFE.UI.Common;
 using PFE.UI.HUD;
 using PFE.UI.PipBuck;
@@ -161,6 +162,45 @@ namespace PFE.Systems.Inventory
         /// <summary>Where it landed, for the overlay's list.</summary>
         public Vector2 Position => transform.position;
 
+        /// <summary>
+        /// The room-owned record behind this view, or <c>null</c> when the pickup was spawned without a
+        /// room (the debug overlay's "drop this here", and every bare test spawn).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Ownership direction.</b> The record lives on <see cref="RoomInstance.droppedItems"/>
+        /// and knows nothing about this component; the component points at the record. That is what lets
+        /// <see cref="RoomVisualController"/> destroy every view in a room and rebuild them from data —
+        /// the same contract props and units already have, where <c>ObjectInstance</c>/<c>UnitInstance</c>
+        /// are the record and the presenter is the projection.</para>
+        ///
+        /// <para><b>A taken item removes its record; a destroyed view does not.</b> Those are the two
+        /// different meanings of "this pickup is going away", and conflating them is how loot would
+        /// either duplicate (view destroyed, record kept, rebuilt at the old spot on re-entry after the
+        /// player took it) or vanish (record dropped because the room streamed out).</para>
+        /// </remarks>
+        public DroppedItemInstance Record { get; private set; }
+
+        /// <summary>
+        /// Id → item row, published once by <c>PlayerInventory.Construct</c> — the same resolver that
+        /// component uses, exposed statically because <see cref="RestoreForRoom"/> runs at room-build
+        /// time, when there is no player GameObject to ask.
+        /// </summary>
+        /// <remarks>
+        /// <b>Null is legal and means "cannot rebuild".</b> A rig with no content registry keeps working
+        /// exactly as before: the record stays on the room and nothing is drawn for it. That is the same
+        /// conservative answer <see cref="RoomProvider"/> gives, and it is why this is a seam rather than
+        /// a lookup into a singleton — the pickup has no injection point (<c>new GameObject</c>).
+        /// </remarks>
+        public static Func<string, ItemDefinition> ItemDefinitionResolver { get; set; }
+
+        /// <inheritdoc cref="ItemDefinitionResolver"/>
+        /// <remarks>
+        /// A separate seam for the same reason the two tables are separate: <c>ContentType.Weapon</c> and
+        /// <c>ContentType.Item</c> are disjoint, so one resolver can never answer for both. See
+        /// <c>PlayerInventory.ResolveWeapon</c>.
+        /// </remarks>
+        public static Func<string, WeaponDefinition> WeaponDefinitionResolver { get; set; }
+
         // ── Falling (AS3 Loot.step / Loot.run) ───────────────────────────────
 
         /// <summary>
@@ -200,6 +240,50 @@ namespace PFE.Systems.Inventory
         /// (<c>Loot.as:352</c> tests <c>!this.vsos</c>), because the magnet owns the position instead.
         /// </summary>
         private bool _magnetized;
+
+        // ── Telekinesis (AS3 `Loot.levit`) ────────────────────────────────────────────────────────
+        //
+        // Loot is a first-class telekinesis target in the oracle and was not one in the port: AS3's
+        // `Loot extends Obj` (`Loot.as:10`), `Obj.levitPoss` defaults true (`Obj.as:32`), the `Loot`
+        // constructor sets it explicitly (`:245`), and `UnitPlayer.actTele` walks `loc.firstObj` — one
+        // list containing boxes, loot and units alike — so a cogwheel was as liftable as a crate. The
+        // port's telekinesis targets `ObjectInstance` in `RoomObjectPhysicsLayer`, and a dropped item is
+        // not one of those, which is the whole reason only crates and containers could be lifted.
+        //
+        // The two halves are the oracle's: the CASTER writes the target (and, in AS3, the object's
+        // dx/dy); the OBJECT integrates it in its own step (`Loot.step` → `run()`). Keeping that split
+        // here means a levitated pickup collides through exactly the same `LootFallStepRules` the falling
+        // one does, instead of through a second copy of the resolver.
+
+        /// <summary>
+        /// AS3 <c>Loot.massa = 0.1</c> (<c>Loot.as:81</c>) — in AS3's own scale, which is the scale
+        /// <c>maxTeleMassa</c> is expressed in. Well under the rank-0 cap of <c>0.6</c>, so every pickup
+        /// is liftable from the first rank; and at or below the rank-0 <c>telePorog</c> of <c>0.1</c>, so
+        /// holding one costs no mana (<c>UnitPlayer.as:1807-1813</c>: the drain is charged only when
+        /// <c>massa &gt; telePorog</c>).
+        /// </summary>
+        public const float As3Massa = 0.1f;
+
+        /// <summary>True while the player's telekinesis is carrying this pickup — AS3 <c>Loot.levit</c>.</summary>
+        private bool _levitating;
+
+        /// <summary>
+        /// Where the holder wants this pickup's <b>centre</b>, in <b>room-local pixels</b> — the target the
+        /// levitation step accelerates toward. AS3 compares <c>teleObj.Y - teleObj.scY / 2</c>
+        /// (<c>UnitPlayer.as:1255-1262</c>), i.e. the vertical middle, not the bottom the oracle calls
+        /// <c>Y</c>.
+        /// </summary>
+        private Vector2 _levTargetRoomLocalPixels;
+
+        /// <summary>
+        /// AS3 <c>Obj.levitPoss</c> (<c>Obj.as:32</c>) — can this pickup be lifted <b>right now</b>.
+        ///
+        /// <para>It starts true (<c>Loot.as:245</c>) and is cleared by the two paths the oracle clears it
+        /// on: the take window grabbing the item (<c>Loot.as:304</c>, <c>:316</c>) and a refused take
+        /// (<c>:299</c> restores it). The player's hold tick drops a held object the moment this turns
+        /// false (<c>UnitPlayer.as:1274</c>), which is why a magnetised pickup cannot stay in the air.</para>
+        /// </summary>
+        private bool _levitPoss = true;
 
         /// <summary>
         /// The loot's drawn height in <b>px</b> — AS3 <c>scY</c>, measured off the sprite so the bottom
@@ -476,6 +560,11 @@ namespace PFE.Systems.Inventory
 
             Debug.Log($"[WorldItemPickup] Took {Quantity} × '{ItemId}' at " +
                       $"{transform.position.x:0.##},{transform.position.y:0.##}.");
+
+            // `Loot.as:304` — `levitPoss = false; loc.remObj(this);`. The object is about to be destroyed,
+            // so this only matters for the one frame between here and the hold tick: it makes the caster
+            // release it through the ordinary `!levitPoss` drop rule instead of chasing a corpse.
+            _levitPoss = false;
             Despawn();
         }
 
@@ -594,7 +683,9 @@ namespace PFE.Systems.Inventory
                                                  ItemDefinition itemDefinition,
                                                  WeaponDefinition weaponDefinition,
                                                  int variant, float condition,
-                                                 bool jump, RoomInstance room, string fallSoundId)
+                                                 bool jump, RoomInstance room, string fallSoundId,
+                                                 DroppedItemInstance existingRecord = null,
+                                                 bool settled = false)
         {
             var go = new GameObject($"Loot_{id}_{quantity}");
             go.transform.position = position;
@@ -617,6 +708,38 @@ namespace PFE.Systems.Inventory
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = icon != null ? icon : MakeFallbackSprite();
             renderer.color = icon != null ? Color.white : fallbackColor;
+
+            // ── The unlit presenter material: without it the loot is drawn PURE BLACK ───────────────
+            //
+            // This project renders 2D through URP's Renderer2D, whose DEFAULT sprite material is
+            // `Sprite-Lit-Default`. A lit sprite's output is `texture × (sum of the Light2Ds that apply
+            // to its sorting layer)`, so on a sorting layer that no light covers it is multiplied by
+            // zero — the correct silhouette in the correct place, drawn solid black, with alpha intact.
+            // That is exactly what "collectable objects are black" looked like: the cogwheel's shape and
+            // its hole were right, the silver was gone.
+            //
+            // `BackgroundPhysicalObjects` — the layer below — is NOT in `Global Light 2D`'s
+            // `m_ApplyToSortingLayers` list (neither is `BackgroundObject`), so anything on it that keeps
+            // the lit default renders black. Every other map presenter already avoids this by asking
+            // `SpritePresenterMaterial.Get()` for the unlit shader (RoomObjectVisualManager:353,
+            // RoomUnitSpawner:1583, RoomBackdropRenderer:1378, UnitController:5600) — this component was
+            // the one that forgot, which is why loot was the only black thing on screen.
+            //
+            // Do NOT "fix" this by adding the layer to the light instead. The convention here is that
+            // map presenters are unlit, and a presenter that depends on a scene light is a presenter that
+            // goes black the day the light is retuned. Assigning the shared material also keeps loot in
+            // the same batch as the props around it.
+            Material presenterMaterial = SpritePresenterMaterial.Get();
+            if (presenterMaterial != null)
+            {
+                renderer.sharedMaterial = presenterMaterial;
+            }
+            else
+            {
+                Debug.LogWarning("[WorldItemPickup] No unlit sprite shader resolved (URP 2D sprite or " +
+                                 "Sprites/Default); the pickup will use the default material, which renders " +
+                                 "black on an unlit sorting layer.");
+            }
 
             // A sorting LAYER, not just an order — and the omission was a real, invisible-in-play bug.
             // `sortingOrder` is only compared WITHIN a sorting layer, and a sorting layer outranks the
@@ -650,17 +773,241 @@ namespace PFE.Systems.Inventory
             }
             go.transform.localScale = new Vector3(size, size, 1f);
 
-            pickup.BeginFall(jump, room ?? RoomProvider?.Invoke(), fallSoundId);
+            // ── The record, before the view starts moving ───────────────────────────────────────────
+            //
+            // AS3 registers the Loot with the location in the Loot constructor (`Loot.as:246`,
+            // `this._loc.addObj(this)`), and that registration is what makes floor loot part of the
+            // room rather than of the screen. Here it is the same idea with the ownership the other way
+            // round: the room holds the record, this component holds a reference to it.
+            //
+            // The room is resolved ONCE, here, because `BeginFall` used to do it separately and the two
+            // must agree — a record filed under one room and a fall resolved against another is a
+            // pickup that lands in the wrong grid. `room ?? RoomProvider` is the pre-existing rule, not
+            // a new one: it is what a caller that passes no room has always meant.
+            RoomInstance ownerRoom = room ?? RoomProvider?.Invoke();
+
+            DroppedItemInstance record = existingRecord;
+            if (record == null && ownerRoom != null)
+            {
+                record = new DroppedItemInstance
+                {
+                    itemId = id,
+                    isWeapon = weaponDefinition != null,
+                    quantity = quantity,
+                    variant = variant,
+                    condition = pickup.Condition,
+                    autoCollect = autoCollect,
+                    position = ToRoomLocal(ownerRoom, position),
+                };
+                ownerRoom.AddDroppedItem(record);
+            }
+
+            pickup.Record = record;
+            if (record != null)
+            {
+                // The restored position is authoritative when there is one: `position` above came from
+                // the record, but the conversion round-trip is not exactly identity for a room whose
+                // origin is not a whole pixel, and the record is the thing the save file holds.
+                if (settled) pickup.transform.position = FromRoomLocal(ownerRoom, record.position);
+            }
+
+            pickup.BeginFall(jump, ownerRoom, fallSoundId, settled);
 
             Live.Add(pickup);
             return pickup;
         }
 
-        /// <summary>Remove this pickup from the world and from the debug list.</summary>
+        /// <summary>
+        /// Take this pickup out of the world for good — it was collected, consumed, or cleared by the
+        /// debug overlay. <b>The record goes with it</b>, because the room must not rebuild it.
+        /// </summary>
+        /// <remarks>
+        /// Contrast <see cref="DestroyView"/>, which is what a room teardown calls: same destruction of
+        /// the GameObject, opposite decision about the record. Getting these two the wrong way round
+        /// produces either duplicate loot or loot that vanishes when the player walks out of the room,
+        /// and neither shows up in a log.
+        /// </remarks>
         public void Despawn()
         {
+            ForgetRecord();
             Live.Remove(this);
-            if (this != null) Destroy(gameObject);
+            DestroyGameObject();
+        }
+
+        /// <summary>
+        /// Destroy the GameObject but keep the record — the room's view is being torn down and will be
+        /// rebuilt from <see cref="RoomInstance.droppedItems"/> on re-entry.
+        /// </summary>
+        /// <remarks>
+        /// Position is copied first. A pickup can be destroyed mid-fall (a transition is one frame away
+        /// from any frame the player triggers), and the record has to hold where it actually was.
+        /// </remarks>
+        public void DestroyView()
+        {
+            SyncRecordPosition();
+            Record = null;
+            Live.Remove(this);
+            DestroyGameObject();
+        }
+
+        /// <summary>Detach this view from its record and drop the record from the room.</summary>
+        private void ForgetRecord()
+        {
+            if (Record == null)
+            {
+                return;
+            }
+
+            _room?.RemoveDroppedItem(Record);
+            Record = null;
+        }
+
+        private void DestroyGameObject()
+        {
+            if (this == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                // `Destroy` is a no-op in edit mode (it logs "Destroy may not be called from edit mode"),
+                // so an EditMode fixture that takes or tears down a pickup would leak the GameObject and
+                // its 1×1 fallback sprite for the rest of the run. Same seam, same reason, as
+                // `RoomUnitSpawner.DestroyObject` and `TileRenderer.DestroyTile`.
+                DestroyImmediate(gameObject);
+            }
+        }
+
+        // ── Rebuilding a room's loot from its records ────────────────────────
+
+        /// <summary>
+        /// Destroy every live pickup belonging to <paramref name="room"/>, keeping the records.
+        /// Called by <c>RoomVisualController.ClearVisuals</c>.
+        /// </summary>
+        /// <returns>How many views were destroyed.</returns>
+        public static int DestroyViewsForRoom(RoomInstance room)
+        {
+            if (room == null || Live.Count == 0)
+            {
+                return 0;
+            }
+
+            // Snapshot first: DestroyView mutates Live.
+            WorldItemPickup[] copy = Live.ToArray();
+            int destroyed = 0;
+            for (int i = 0; i < copy.Length; i++)
+            {
+                WorldItemPickup pickup = copy[i];
+                if (pickup == null || !ReferenceEquals(pickup._room, room))
+                {
+                    continue;
+                }
+
+                pickup.DestroyView();
+                destroyed++;
+            }
+
+            return destroyed;
+        }
+
+        /// <summary>
+        /// Build a view for every record on <paramref name="room"/> that does not already have one.
+        /// Called by <c>RoomVisualController.Initialize</c>, after the props and units are up.
+        /// </summary>
+        /// <returns>How many pickups were rebuilt.</returns>
+        /// <remarks>
+        /// <para><b>The already-live check is not defensive, it is required.</b> <c>Initialize</c> also
+        /// runs when a save is applied to the room the player is standing in, and a pickup dropped in
+        /// that room a moment earlier is still live — rebuilding it would leave two views over one
+        /// record, so taking one would silently leave the other behind.</para>
+        ///
+        /// <para><b>A record whose id no longer resolves is kept, not dropped.</b> The resolver is
+        /// published by <c>PlayerInventory.Construct</c>, and a room can be built before the player
+        /// exists. Deleting the record in that window would destroy a save's loot because of a load
+        /// order. The record stays on the room and is retried on the next build.</para>
+        /// </remarks>
+        public static int RestoreForRoom(RoomInstance room)
+        {
+            if (room?.droppedItems == null || room.droppedItems.Count == 0)
+            {
+                return 0;
+            }
+
+            int restored = 0;
+            for (int i = 0; i < room.droppedItems.Count; i++)
+            {
+                DroppedItemInstance record = room.droppedItems[i];
+                if (!PFE.Systems.Map.RoomStateRules.IsRestorableLoot(record))
+                {
+                    continue;
+                }
+
+                if (HasLiveView(record))
+                {
+                    continue;
+                }
+
+                Vector3 position = FromRoomLocal(room, record.position);
+
+                if (record.isWeapon)
+                {
+                    WeaponDefinition weapon = WeaponDefinitionResolver?.Invoke(record.itemId);
+                    if (weapon == null)
+                    {
+                        continue;
+                    }
+
+                    Sprite icon = weapon.weaponVisual != null ? weapon.weaponVisual.IdleSprite : null;
+                    if (SpawnCore(weapon.weaponId, record.quantity, position, record.autoCollect,
+                                  icon: icon, fallbackColor: WeaponFallbackColor,
+                                  itemDefinition: null, weaponDefinition: weapon,
+                                  variant: record.variant, condition: record.condition,
+                                  jump: false, room: room, fallSoundId: null,
+                                  existingRecord: record, settled: true) != null)
+                    {
+                        restored++;
+                    }
+
+                    continue;
+                }
+
+                ItemDefinition item = ItemDefinitionResolver?.Invoke(record.itemId);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                if (SpawnCore(item.itemId, record.quantity, position, record.autoCollect,
+                              icon: item.icon, fallbackColor: item.fallbackColor,
+                              itemDefinition: item, weaponDefinition: null,
+                              variant: 0, condition: 1f,
+                              jump: false, room: room, fallSoundId: null,
+                              existingRecord: record, settled: true) != null)
+                {
+                    restored++;
+                }
+            }
+
+            return restored;
+        }
+
+        private static bool HasLiveView(DroppedItemInstance record)
+        {
+            for (int i = 0; i < Live.Count; i++)
+            {
+                WorldItemPickup pickup = Live[i];
+                if (pickup != null && ReferenceEquals(pickup.Record, record))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // ── Falling ──────────────────────────────────────────────────────────
@@ -677,7 +1024,7 @@ namespace PFE.Systems.Inventory
         /// read rather than the sprite's size, so a sprite whose pivot is not centred still lands on its
         /// drawn bottom edge.</para>
         /// </summary>
-        private void BeginFall(bool jump, RoomInstance room, string fallSoundId)
+        private void BeginFall(bool jump, RoomInstance room, string fallSoundId, bool settled = false)
         {
             _room = room;
             _fallSoundId = fallSoundId ?? string.Empty;
@@ -694,6 +1041,12 @@ namespace PFE.Systems.Inventory
             // No room means no grid to land on: leave the pickup exactly where it was asked to be, which
             // is the behaviour every caller had before this existed.
             if (_room == null) return;
+
+            // A record rebuilt from the room is already at rest, and re-arming the fall would drop it a
+            // second time — from a position that is already the floor, so it would either jitter or,
+            // worse, land on whatever tile the probe happens to hit now instead of where it was left.
+            // The probes are deliberately NOT wired in this case either: nothing here needs them.
+            if (settled) return;
 
             _tileProbe = ProbeTile;
             _shelfProbe = ProbeShelf;
@@ -721,17 +1074,63 @@ namespace PFE.Systems.Inventory
         /// </summary>
         private void Update()
         {
-            if (!_falling) return;
-
-            // A tab-out can hand in a delta of seconds; capping it keeps one frame from teleporting a
-            // pickup through a floor, and the cap is a whole tick so nothing is lost in the common case.
-            _tickAccumulator += Mathf.Min(Time.deltaTime, TickSeconds * 4f);
-
-            while (_tickAccumulator >= TickSeconds && _falling)
+            if (_falling)
             {
-                _tickAccumulator -= TickSeconds;
-                FallTick();
+                // A tab-out can hand in a delta of seconds; capping it keeps one frame from teleporting a
+                // pickup through a floor, and the cap is a whole tick so nothing is lost in the common case.
+                _tickAccumulator += Mathf.Min(Time.deltaTime, TickSeconds * 4f);
+
+                while (_tickAccumulator >= TickSeconds && _falling)
+                {
+                    _tickAccumulator -= TickSeconds;
+                    FallTick();
+                }
             }
+
+            // The record follows the view, not the other way round, and it has to follow even when the
+            // view is not falling: the magnet (`PlayerAutoPickup`) writes the transform directly and
+            // clears `_falling`, so a sync placed inside the fall path would leave the record at the
+            // position the item was lobbed from. That position is what a room rebuild restores, so the
+            // item would jump back across the room the next time the player walked in.
+            SyncRecordPosition();
+        }
+
+        /// <summary>
+        /// Copy this view's position into its room-owned record, in room-local pixels. See
+        /// <see cref="DroppedItemInstance.position"/>.
+        /// </summary>
+        private void SyncRecordPosition()
+        {
+            if (Record == null || _room == null)
+            {
+                return;
+            }
+
+            Record.position = ToRoomLocal(_room, transform.position);
+        }
+
+        /// <summary>
+        /// Unity world units → room-local pixels. The inverse of <see cref="FromRoomLocal"/>.
+        /// </summary>
+        /// <remarks>
+        /// <b>The origin subtraction is the whole point.</b> <c>transform.position</c> is world; the room
+        /// grid, <c>TileData.GetBounds()</c> and every other record's <c>position</c> are room-local. The
+        /// two agree only in a room at land (0,0), which is exactly the room a quick test visits — the
+        /// same trap <c>LootFallStepRules</c> and <c>TilePhysicsController.SetRoom</c> both document.
+        /// </remarks>
+        public static Vector2 ToRoomLocal(RoomInstance room, Vector3 worldPosition)
+        {
+            Vector2 origin = WorldCoordinates.RoomOriginPixel(room);
+            Vector2 pixels = WorldCoordinates.UnityToPixel(worldPosition);
+            return new Vector2(pixels.x - origin.x, pixels.y - origin.y);
+        }
+
+        /// <summary>Room-local pixels → Unity world units. See <see cref="ToRoomLocal"/>.</summary>
+        public static Vector3 FromRoomLocal(RoomInstance room, Vector2 roomLocalPixels)
+        {
+            Vector2 origin = WorldCoordinates.RoomOriginPixel(room);
+            return WorldCoordinates.PixelToUnity(
+                new Vector2(roomLocalPixels.x + origin.x, roomLocalPixels.y + origin.y));
         }
 
         /// <summary>
@@ -748,6 +1147,18 @@ namespace PFE.Systems.Inventory
         public void FallTick()
         {
             if (!_falling) return;
+
+            // ── Levitation replaces the whole gravity half of `Loot.step` ─────────────────────────────
+            //
+            // `if(!levit && !this.vsos && dy < World.maxdy) dy += World.ddy; else if(levit && !isPlav)
+            //  { dy *= 0.8; dx *= 0.8; }` (`Loot.as:352-360`) — the two branches are exclusive, so a
+            // carried pickup must not run the gravity line at all. It still integrates and collides
+            // through `StepOnce`, which is `run()`.
+            if (_levitating)
+            {
+                LevitateTick();
+                return;
+            }
 
             if (_magnetized)
             {
@@ -768,6 +1179,55 @@ namespace PFE.Systems.Inventory
             // (`Loot.as:380`, inside `if(!stay)`). It cannot splash on a landing tick — `run()` has
             // already zeroed `dy`, and the gate is `dy > 5` — but it does keep `isPlav` truthful, and
             // skipping it left the flag stale on the one tick the loot stopped.
+            CheckWater();
+        }
+
+        /// <summary>
+        /// One 30 Hz tick of a <b>carried</b> pickup — the two halves the oracle splits between the caster
+        /// and the object, in the order AS3 runs them.
+        ///
+        /// <para><b>1. The caster's half</b> — <c>UnitPlayer.as:1247-1262</c>, which is
+        /// <c>TelekinesisMath.HoldAccelStep</c>: nudge the velocity by <c>teleAccel</c> toward the target
+        /// while outside a 15 px deadzone and under the per-axis <c>teleSpeed</c> cap. There is no
+        /// proportional term, so the pickup does not ease in; it accelerates and then coasts.</para>
+        ///
+        /// <para><b>2. The object's half</b> — <c>Box.forces</c>/<c>Loot.step</c>: <c>dx *= 0.8;
+        /// dy *= 0.8</c> (<c>Loot.as:356-360</c>), then <c>run()</c>. The damping is what stops it, and it
+        /// is applied at exactly one AS3 frame here, so the plain constant is correct — unlike the prop
+        /// path, which may be stepped at 60 Hz and therefore needs
+        /// <c>TelekinesisMath.DampingOverInterval</c>. The fixed <see cref="TickSeconds"/> accumulator
+        /// above is what makes that true.</para>
+        ///
+        /// <para><b>The target is compared against the CENTRE, on both axes.</b> AS3 compares
+        /// <c>X</c> (horizontal centre) and <c>Y - scY/2</c> (vertical centre); <c>Y</c> is the bottom in
+        /// the oracle and in this component (<see cref="_bottomOffsetPx"/>). Comparing the bottom would
+        /// bias the vertical target by half the sprite's height — for a 33 px cogwheel that is 16 px
+        /// against a 15 px deadzone, i.e. a pickup that settles one whole deadzone low.</para>
+        /// </summary>
+        private void LevitateTick()
+        {
+            Vector2 centre = CentreRoomLocalPixels;
+
+            _vx = TelekinesisMath.HoldAccelStep(
+                centre.x, _levTargetRoomLocalPixels.x, _vx,
+                TelekinesisMath.PlayerTeleSpeed, TelekinesisMath.PlayerTeleAccel, TelekinesisMath.Deadzone);
+
+            _vy = TelekinesisMath.HoldAccelStep(
+                centre.y, _levTargetRoomLocalPixels.y, _vy,
+                TelekinesisMath.PlayerTeleSpeed, TelekinesisMath.PlayerTeleAccel, TelekinesisMath.Deadzone);
+
+            _vx *= TelekinesisMath.LevitDamping;
+            _vy *= TelekinesisMath.LevitDamping;
+
+            int steps = LootFallRules.SubstepCount(_vx, _vy);
+            for (int i = 0; i < steps && _levitating; i++)
+            {
+                StepOnce(steps);
+            }
+
+            // `checkWater()` runs outside the `if(!stay)` block in the oracle (`Loot.as:380`), so a
+            // carried item splashes when it is dragged into a pool. `dy > 5` gates it, and a carried
+            // item's dy is at most 4, so in practice this only fires on the tick after a throw.
             CheckWater();
         }
 
@@ -797,7 +1257,7 @@ namespace PFE.Systems.Inventory
                 localX, localBottom, _halfWidthPx, _heightPx, _vx, _vy, divisor,
                 _room.width * WorldConstants.TILE_SIZE,
                 _room.height * WorldConstants.TILE_SIZE,
-                _tileProbe, _shelfProbe);
+                _tileProbe, _shelfProbe, _levitating);
 
             _vx = state.Vx;
             _vy = state.Vy;
@@ -810,6 +1270,10 @@ namespace PFE.Systems.Inventory
             switch (state.Contact)
             {
                 case LootContact.Floor:
+                    // A carried pickup never reports `Floor` — `LootFallStepRules.Step` returns
+                    // `LootContact.None` with the bottom clamped while `levitating`, because AS3's
+                    // `stay = true` / `dy = dx = 0` half of the landing block is inside `if(!levit)`
+                    // (`Loot.as:479-487`). So this branch is the free fall only.
                     _falling = false;
                     // The sound is emitted at the <b>landed</b> position, which is already written above:
                     // the oracle moves `Y` and only then calls `Snd.ps(…, X, Y, …)` (`Loot.as:478-483`).
@@ -954,6 +1418,12 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public void MagnetToward(Vector2 target)
         {
+            // AS3 `Loot.take()` clears `levitPoss` as it magnetises (`Loot.as:316`), which is what makes
+            // the caster's hold tick release it (`UnitPlayer.as:1274`). Reproduced rather than special-
+            // cased: the two mechanisms would otherwise fight for the position and the pickup would
+            // stutter between the magnet's fifth-of-the-gap step and the hold's acceleration.
+            _levitPoss = false;
+
             // AS3 `Loot.vsos` — a magnetised loot has gravity suppressed (`Loot.as:352`), so the fall has
             // to stop or the two would fight for the position every tick and the pickup would stutter.
             if (_falling)
@@ -970,6 +1440,130 @@ namespace PFE.Systems.Inventory
             transform.position = new Vector3(
                 current.x + step.x, current.y + step.y, transform.position.z);
         }
+
+        // ── Telekinesis ──────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// AS3 <c>Obj.levitPoss</c> — whether this pickup may be lifted right now. The grab gate reads it,
+        /// and the hold tick drops the pickup when it turns false.
+        /// </summary>
+        public bool IsLiftable => _levitPoss;
+
+        /// <summary>True while telekinesis is carrying this pickup.</summary>
+        public bool IsHeldByTelekinesis => _levitating;
+
+        /// <summary>AS3 <c>Loot.massa</c> — see <see cref="As3Massa"/>.</summary>
+        public float GetAs3Massa() => As3Massa;
+
+        /// <summary>The room this pickup was filed under, or <c>null</c> for a bare spawn.</summary>
+        public RoomInstance Room => _room;
+
+        /// <summary>
+        /// This pickup's <b>centre</b> in room-local pixels — the point AS3 measures a telekinesis
+        /// distance to. Not <see cref="Position"/>, which is the transform and therefore the sprite's
+        /// pivot; and not the bottom, which is what the oracle's <c>Y</c> names but not what the hold
+        /// controller compares against.
+        /// </summary>
+        public Vector2 CentreRoomLocalPixels
+        {
+            get
+            {
+                if (_room == null) return Vector2.zero;
+                Vector2 origin = WorldCoordinates.RoomOriginPixel(_room);
+                float bottom = transform.position.y / PixelsToUnits - origin.y - _bottomOffsetPx;
+                return new Vector2(
+                    transform.position.x / PixelsToUnits - origin.x,
+                    bottom + _heightPx * 0.5f);
+            }
+        }
+
+        /// <summary>
+        /// This pickup's <b>bottom edge</b> in room-local pixels — the point AS3 calls <c>Y</c> and the
+        /// one its <c>celDist</c> is measured from (<c>Location.as:3494</c> uses <c>celObj.X/Y</c>, and
+        /// <c>Y</c> is the bottom). Used for the grab gate and the drop rule, both of which compare
+        /// against <c>teleDist</c>.
+        /// </summary>
+        public Vector2 BottomRoomLocalPixels
+        {
+            get
+            {
+                if (_room == null) return Vector2.zero;
+                Vector2 origin = WorldCoordinates.RoomOriginPixel(_room);
+                return new Vector2(
+                    transform.position.x / PixelsToUnits - origin.x,
+                    transform.position.y / PixelsToUnits - origin.y - _bottomOffsetPx);
+            }
+        }
+
+        /// <summary>
+        /// Start carrying this pickup — the object half of <c>UnitPlayer.actTele</c>'s tail
+        /// (<c>UnitPlayer.as:1825-1832</c>: <c>levit = 1</c>, <c>stay = false</c>).
+        ///
+        /// <para><b>Refused without a room, and that is not defensive.</b> Levitation is a <i>motion</i>
+        /// model with collision against the room's tile grid; a pickup with no room has no grid, so it
+        /// would fly through walls. The debug overlay's bare spawns are exactly that case.</para>
+        ///
+        /// <para>The two probes are (re-)wired here because <c>BeginFall</c> deliberately skips them for a
+        /// record restored at rest (<c>settled: true</c>) — and a restored pickup is precisely the one a
+        /// player is most likely to lift, since it is lying on the floor of a room they walked back
+        /// into.</para>
+        /// </summary>
+        /// <param name="targetRoomLocalPixels">Where to put its centre, room-local pixels.</param>
+        public bool TryBeginTelekineticHold(Vector2 targetRoomLocalPixels)
+        {
+            if (_room == null)
+            {
+                return false;
+            }
+
+            _tileProbe ??= ProbeTile;
+            _shelfProbe ??= ProbeShelf;
+
+            _levitating = true;
+            _magnetized = false;
+            _levTargetRoomLocalPixels = targetRoomLocalPixels;
+
+            // AS3 keeps the loot's dx/dy across the grab — `actTele` only sets `levit` — but a pickup at
+            // rest has neither, and carrying over a fall's terminal 20 px/frame would make every grab of
+            // a mid-air item fling it past the cursor. Zeroing is the oracle's own resting case.
+            _vx = 0f;
+            _vy = 0f;
+
+            // The levitation tick rides the same accumulator as the fall, so `_falling` is what keeps
+            // Update() ticking. It is cleared on release, when the ordinary fall resumes.
+            _falling = true;
+            return true;
+        }
+
+        /// <summary>Where the holder wants this pickup's centre, room-local pixels — written every frame.</summary>
+        public void SetTelekineticTarget(Vector2 targetRoomLocalPixels)
+        {
+            _levTargetRoomLocalPixels = targetRoomLocalPixels;
+        }
+
+        /// <summary>
+        /// Release the carry — AS3 <c>dropTeleObj</c> (<c>UnitPlayer.as:1904-1920</c>) plus the throw's
+        /// velocity impulse (<c>:1852-1868</c>).
+        /// </summary>
+        /// <param name="velocityPixelsPerSecond">
+        /// The release velocity in the port's units (px/second, y-up). A plain drop passes
+        /// <see cref="Vector2.zero"/>; a throw passes the impulse. Converted to the pickup's own
+        /// px/frame here, at the boundary.
+        /// </param>
+        public void ReleaseTelekineticHold(Vector2 velocityPixelsPerSecond)
+        {
+            if (!_levitating) return;
+
+            _levitating = false;
+            _vx = velocityPixelsPerSecond.x / TelekinesisMath.As3FramesPerSecond;
+            _vy = velocityPixelsPerSecond.y / TelekinesisMath.As3FramesPerSecond;
+
+            // `Loot.as:350` — `if(!stay)` runs the gravity/damping block. The oracle's loot has no `levit`
+            // any more, so it falls from here, and `stay` is false because a carried item was never at
+            // rest. Arming the fall is what re-enables gravity in FallTick.
+            _falling = true;
+        }
+
 
         /// <summary>Destroy every live pickup. Debug affordance for the F2 drop tab.</summary>
         public static int DespawnAll()
