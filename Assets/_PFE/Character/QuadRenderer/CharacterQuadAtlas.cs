@@ -480,19 +480,22 @@ namespace PFE.Character
             var materialised = new List<Sprite>(sprites);
             CharacterQuadAtlas atlas = BuildCore(materialised, bilinear, armorId, mips, false);
 
-            if (atlas != null && atlas.RegionsMissingAnEdge > 0)
+            if (atlas != null && (atlas.RegionsMissingAnEdge > 0 || atlas.ReadbackInconclusive))
             {
                 atlas.Dispose();
                 atlas = BuildCore(materialised, bilinear, armorId, mips, true);
 
-                if (atlas != null && atlas.RegionsMissingAnEdge > 0)
+                if (atlas != null && (atlas.RegionsMissingAnEdge > 0 || atlas.ReadbackInconclusive))
                 {
-                    // Both routes produced a wrong atlas. Say so and hand back nothing: the caller
-                    // keeps one material per part texture, which draws correctly. A wrong picture is
-                    // worse than a slow one, and this is the whole reason the read-back exists.
+                    // Both routes produced a wrong or unverifiable atlas. Say so and hand back
+                    // nothing: the caller keeps one material per part texture, which draws
+                    // correctly. A wrong picture is worse than a slow one, and an unverifiable
+                    // atlas is a wrong picture waiting to be discovered.
+                    string reason = atlas.ReadbackInconclusive
+                        ? "read-back was inconclusive (GPU writes not visible to CPU)"
+                        : $"{atlas.RegionsMissingAnEdge} of {atlas.RegionCount} regions are only partly filled";
                     Debug.LogWarning(
-                        $"[CharacterQuad] Atlas abandoned: {atlas.RegionsMissingAnEdge} of " +
-                        $"{atlas.RegionCount} regions are only partly filled even after a blit " +
+                        $"[CharacterQuad] Atlas abandoned: {reason} even after a blit " +
                         $"through a render texture ({atlas.RegionMismatchSample}). Falling back to " +
                         "one material per part texture — the quad side will draw correctly but not " +
                         "batch.");

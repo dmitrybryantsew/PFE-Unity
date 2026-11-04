@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using PFE.Character.Animation;
 using PFE.Data.Definitions;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace PFE.Character
 {
@@ -103,6 +104,37 @@ namespace PFE.Character
         readonly List<QuadSlot> _slotPool = new();
         readonly List<QuadOverlaySlot> _overlaySlots = new();
 
+        // ─── Consolidated mesh (one draw call per character) ────────────────
+        //
+        // Every visible part quad is written into a single dynamic mesh. The mesh has
+        // maxSlots * 4 vertices and maxSlots * 6 indices, pre-allocated at build time.
+        // Each frame, ApplyFrame writes the visible slots' vertices and then updates
+        // the index buffer to include only the visible quads. The renderer draws
+        // whatever the index buffer describes.
+        //
+        // Why one mesh and not one per slot: 26 parts × (GameObject + MeshFilter +
+        // MeshRenderer + Mesh) is the overhead the sprite path pays; the quad path
+        // was designed to avoid it. One mesh also means one draw call when the atlas
+        // is active, and one draw call per material when it is not.
+
+        /// <summary>The single GameObject that carries the consolidated mesh renderer.</summary>
+        GameObject _meshRoot;
+        MeshFilter _meshFilter;
+        MeshRenderer _meshRenderer;
+        Mesh _sharedMesh;
+
+        /// <summary>Pre-allocated vertex buffers, sized to maxSlots * 4.</summary>
+        Vector3[] _allVertices;
+        Vector2[] _allUvs;
+        Color[] _allColors;
+        int[] _allTriangles;
+
+        /// <summary>How many slots the shared mesh can hold (primary + secondary + overlays).</summary>
+        int _meshCapacity;
+
+        /// <summary>How many quads were written into the shared mesh this frame.</summary>
+        int _activeQuadCount;
+
         /// <summary>
         /// The node the part quads hang from — AS3's <c>osn</c> child of the outer visual symbol, the
         /// one that carries the placement's scale. <b>This is what the quad path was missing.</b>
@@ -132,6 +164,13 @@ namespace PFE.Character
         readonly HashSet<string> _hiddenHeadParts = new();
 
         readonly CharacterQuadMaterialCache _materials = new();
+
+        /// <summary>
+        /// Cached <see cref="CharacterQuadSource"/> per sprite, so <c>FromSprite</c> is not called
+        /// repeatedly for the same sprite. A sprite's textureRect, texture dimensions and PPU are
+        /// stable for the lifetime of the asset, so this cache never invalidates.
+        /// </summary>
+        readonly Dictionary<Sprite, CharacterQuadSource> _sourceCache = new();
 
         /// <summary>
         /// The one-texture, one-material view of this character. Null when atlasing is off, when the
@@ -298,6 +337,15 @@ namespace PFE.Character
         /// </remarks>
         public int ArmourPartsDrawn { get; private set; }
 
+        /// <summary>How many quads were written into the shared mesh on the last frame.</summary>
+        public int ActiveQuadCount => _activeQuadCount;
+
+        /// <summary>How many slots the shared mesh can hold (primary + secondary + overlays).</summary>
+        public int MeshCapacity => _meshCapacity;
+
+        /// <summary>Whether the shared mesh renderer is currently enabled (i.e. something was drawn).</summary>
+        public bool IsMeshRendererActive => _meshRenderer != null && _meshRenderer.enabled;
+
         /// <summary>
         /// Give the atlas a mip chain. <b>Off by default.</b>
         ///
@@ -416,6 +464,7 @@ namespace PFE.Character
             }
 
             SyncOverlays(0);
+            StartOverlayCoroutineIfNeeded();
         }
 
         public void ApplyAppearance()
@@ -526,10 +575,24 @@ namespace PFE.Character
                 }
             }
 
+            // Capacity: primary slots + potential secondary hair layers + overlay slots.
+            // Secondary slots are created lazily but share the same mesh, so they must
+            // be counted here. The worst case is every primary slot having a secondary.
+            int overlayCount = _definition.overlays?.Length ?? 0;
+            _meshCapacity = maxPlacements * 2 + overlayCount;
+
+            EnsureSharedMesh();
+
             for (int i = 0; i < maxPlacements; i++)
             {
-                QuadSlot slot = CreateSlot($"quad_{i}");
-                slot.sortingOrder = i * 2;
+                var slot = new QuadSlot
+                {
+                    vertexBase = i * CharacterQuadGeometry.VertexCount,
+                    sortingOrder = i * 2,
+                    partIndex = -1,
+                    partDef = null,
+                    _owner = this
+                };
                 _slotPool.Add(slot);
             }
         }
@@ -569,79 +632,102 @@ namespace PFE.Character
         /// </summary>
         public Transform BodyRoot => _bodyRoot;
 
-        QuadSlot CreateSlot(string objectName, bool bodySpace = true)
+        /// <summary>
+        /// Creates the single GameObject that carries the consolidated mesh, plus the mesh itself.
+        /// Called once per build; the mesh is pre-allocated to <see cref="_meshCapacity"/> quads.
+        /// </summary>
+        void EnsureSharedMesh()
         {
-            var go = new GameObject(objectName);
-            // A part hangs from the scaled body root so its baked vertices compose with the same
-            // parent scale the sprite path's slots get. An overlay does not — see _bodyRoot.
-            go.transform.SetParent(bodySpace ? EnsureBodyRoot() : transform, false);
+            if (_meshRoot != null)
+            {
+                return;
+            }
 
-            // Inherit the character's layer. A slot created lazily (the secondary hair layer is made
-            // on the first frame that needs it, not during Setup) would otherwise sit on layer 0 and
-            // be invisible to any camera that culls to the character's layer — the preview windows do
-            // exactly that.
-            go.layer = gameObject.layer;
+            _meshRoot = new GameObject("quad_mesh");
+            _meshRoot.transform.SetParent(EnsureBodyRoot(), false);
+            _meshRoot.layer = gameObject.layer;
 
             if (!Application.isPlaying)
             {
-                go.hideFlags = HideFlags.DontSave;
+                _meshRoot.hideFlags = HideFlags.DontSave;
             }
 
-            var filter = go.AddComponent<MeshFilter>();
-            var renderer = go.AddComponent<MeshRenderer>();
-            renderer.enabled = false;
-            renderer.sortingLayerName = _sortingLayerName;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
+            _meshFilter = _meshRoot.AddComponent<MeshFilter>();
+            _meshRenderer = _meshRoot.AddComponent<MeshRenderer>();
+            _meshRenderer.enabled = false;
+            _meshRenderer.sortingLayerName = _sortingLayerName;
+            _meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _meshRenderer.receiveShadows = false;
 
-            var mesh = new Mesh
+            int vertexCount = _meshCapacity * CharacterQuadGeometry.VertexCount;
+            int indexCount = _meshCapacity * 6; // two triangles per quad
+
+            _sharedMesh = new Mesh
             {
-                name = $"{name}_{objectName}",
+                name = $"{name}_shared",
                 hideFlags = HideFlags.HideAndDontSave
             };
-            mesh.MarkDynamic();
+            _sharedMesh.MarkDynamic();
 
-            var slot = new QuadSlot
+            _allVertices = new Vector3[vertexCount];
+            _allUvs = new Vector2[vertexCount];
+            _allColors = new Color[vertexCount];
+            _allTriangles = new int[indexCount];
+
+            // Pre-fill the index buffer with the quad topology. Each quad i uses
+            // vertices [i*4 .. i*4+3] and indices [i*6 .. i*6+5]. The index buffer
+            // is never rewritten per-frame; instead, the mesh's index count is set
+            // to _activeQuadCount * 6, which truncates from the end. This works
+            // because slots are written in order and hidden slots are simply not
+            // included in the active count.
+            for (int quad = 0; quad < _meshCapacity; quad++)
             {
-                gameObject = go,
-                filter = filter,
-                renderer = renderer,
-                mesh = mesh,
-                partIndex = -1,
-                partDef = null
-            };
+                int v = quad * 4;
+                int t = quad * 6;
+                _allTriangles[t + 0] = v + 0;
+                _allTriangles[t + 1] = v + 1;
+                _allTriangles[t + 2] = v + 2;
+                _allTriangles[t + 3] = v + 0;
+                _allTriangles[t + 4] = v + 2;
+                _allTriangles[t + 5] = v + 3;
+            }
 
-            // Fixed topology: four vertices, two triangles, allocated once. Only the positions move.
-            mesh.SetVertices(slot.vertices);
-            mesh.SetUVs(0, slot.uvs);
-            mesh.SetColors(slot.colors);
-            mesh.SetTriangles(QuadTriangles, 0);
+            _sharedMesh.vertices = _allVertices;
+            _sharedMesh.uv = _allUvs;
+            _sharedMesh.colors = _allColors;
+            _sharedMesh.triangles = _allTriangles;
 
-            filter.sharedMesh = mesh;
-            return slot;
+            _meshFilter.sharedMesh = _sharedMesh;
         }
 
         void ClearSlots()
         {
+            StopOverlayCoroutine();
             ClearOverlays();
-
-            foreach (QuadSlot slot in _slotPool)
-            {
-                if (slot.gameObject != null)
-                {
-                    slot.gameObject.SetActive(false);
-                    CharacterQuadMaterialCache.DestroyObject(slot.gameObject);
-                }
-
-                if (slot.mesh != null)
-                {
-                    CharacterQuadMaterialCache.DestroyObject(slot.mesh);
-                }
-            }
-
             _slotPool.Clear();
+            _sourceCache.Clear();
             _materials.Dispose();
             _assembled = false;
+            _activeQuadCount = 0;
+
+            if (_sharedMesh != null)
+            {
+                CharacterQuadMaterialCache.DestroyObject(_sharedMesh);
+                _sharedMesh = null;
+            }
+
+            _allVertices = null;
+            _allUvs = null;
+            _allColors = null;
+            _allTriangles = null;
+
+            if (_meshRoot != null)
+            {
+                CharacterQuadMaterialCache.DestroyObject(_meshRoot);
+                _meshRoot = null;
+                _meshFilter = null;
+                _meshRenderer = null;
+            }
 
             // The body root goes with the slots: it carries the definition's bodyScale, and a rebuild
             // after an import must pick up a changed one rather than keep the transform it was born
@@ -655,25 +741,9 @@ namespace PFE.Character
 
         void ApplySortingLayerToAllSlots()
         {
-            foreach (QuadSlot slot in _slotPool)
+            if (_meshRenderer != null)
             {
-                if (slot.renderer != null)
-                {
-                    slot.renderer.sortingLayerName = _sortingLayerName;
-                }
-
-                if (slot.secondary != null && slot.secondary.renderer != null)
-                {
-                    slot.secondary.renderer.sortingLayerName = _sortingLayerName;
-                }
-            }
-
-            foreach (QuadOverlaySlot overlay in _overlaySlots)
-            {
-                if (overlay.slot?.renderer != null)
-                {
-                    overlay.slot.renderer.sortingLayerName = _sortingLayerName;
-                }
+                _meshRenderer.sortingLayerName = _sortingLayerName;
             }
         }
 
@@ -819,36 +889,87 @@ namespace PFE.Character
 
         // ─── Overlays ───────────────────────────────────────────────────────
 
-        void Update()
+        Coroutine _overlayCoroutine;
+
+        void OnEnable()
         {
-            if (_overlaySlots.Count == 0 || _definition == null) return;
+            StartOverlayCoroutineIfNeeded();
+        }
 
-            float frameDuration = 1f / Mathf.Max(1f, _definition.frameRate);
-            _overlayTimer += Time.deltaTime;
+        void OnDisable()
+        {
+            StopOverlayCoroutine();
+        }
 
-            int steps = 0;
-            while (_overlayTimer >= frameDuration && steps < MaxOverlayStepsPerTick)
+        void StartOverlayCoroutineIfNeeded()
+        {
+            if (_overlayCoroutine == null && _overlaySlots.Count > 0 && _definition != null && isActiveAndEnabled)
             {
-                _overlayTimer -= frameDuration;
-                steps++;
+                _overlayCoroutine = StartCoroutine(OverlayTickRoutine());
             }
+        }
 
-            if (_overlayTimer > frameDuration) _overlayTimer = 0f;
+        void StopOverlayCoroutine()
+        {
+            if (_overlayCoroutine != null)
+            {
+                StopCoroutine(_overlayCoroutine);
+                _overlayCoroutine = null;
+            }
+        }
 
-            SyncOverlays(steps);
+        /// <summary>
+        /// Advances overlay frames at the definition's frame rate. Runs only while the component
+        /// is enabled and there are overlays to animate. Replaces the per-frame Update() polling
+        /// with a coroutine that sleeps between ticks — no work is done for characters standing
+        /// still with no visible overlays.
+        /// </summary>
+        System.Collections.IEnumerator OverlayTickRoutine()
+        {
+            float frameDuration = 1f / Mathf.Max(1f, _definition.frameRate);
+            var wait = new WaitForSeconds(frameDuration);
+
+            while (true)
+            {
+                yield return wait;
+
+                if (_overlaySlots.Count == 0 || _definition == null)
+                {
+                    continue;
+                }
+
+                // Recompute in case the definition was hot-swapped.
+                float newDuration = 1f / Mathf.Max(1f, _definition.frameRate);
+                if (Mathf.Abs(newDuration - frameDuration) > 0.001f)
+                {
+                    frameDuration = newDuration;
+                    wait = new WaitForSeconds(frameDuration);
+                }
+
+                SyncOverlays(1);
+            }
         }
 
         void BuildOverlays()
         {
             if (_definition?.overlays == null) return;
 
+            int overlayIndex = 0;
             foreach (CharacterOverlayDefinition def in _definition.overlays)
             {
                 if (def == null || string.IsNullOrEmpty(def.overlayName)) continue;
 
-                QuadSlot slot = CreateSlot($"quad_overlay_{def.overlayName}", bodySpace: false);
-                slot.sortingOrder = def.sortingOrder;
-                slot.renderer.sortingOrder = def.sortingOrder;
+                // Overlay vertices live after the primary and secondary slots in the shared mesh.
+                int vertexBase = (_slotPool.Count * 2 + overlayIndex) * CharacterQuadGeometry.VertexCount;
+
+                var slot = new QuadSlot
+                {
+                    vertexBase = vertexBase,
+                    sortingOrder = def.sortingOrder,
+                    partIndex = -1,
+                    partDef = null,
+                    _owner = this
+                };
 
                 _overlaySlots.Add(new QuadOverlaySlot
                 {
@@ -857,25 +978,13 @@ namespace PFE.Character
                     frame = OverlayClip.NoFrame,
                     visible = false
                 });
+
+                overlayIndex++;
             }
         }
 
         void ClearOverlays()
         {
-            foreach (QuadOverlaySlot overlay in _overlaySlots)
-            {
-                if (overlay.slot?.gameObject != null)
-                {
-                    overlay.slot.gameObject.SetActive(false);
-                    CharacterQuadMaterialCache.DestroyObject(overlay.slot.gameObject);
-                }
-
-                if (overlay.slot?.mesh != null)
-                {
-                    CharacterQuadMaterialCache.DestroyObject(overlay.slot.mesh);
-                }
-            }
-
             _overlaySlots.Clear();
             _overlayTimer = 0f;
         }
@@ -926,16 +1035,19 @@ namespace PFE.Character
                 float scale = def.localScale <= 0f ? 1f : def.localScale;
 
                 // White, never the character's tint: the shield is a magical dome, not fur.
-                Show(
+                WriteSlot(
                     overlay.slot,
                     def.frames[index],
                     def.pivotNormalized,
                     def.localPosition,
                     0f,
                     new Vector2(scale, scale),
-                    Color.white,
-                    def.sortingOrder);
+                    Color.white);
             }
+
+            // Overlays are written outside ApplyFrame, so the mesh must be flushed here too —
+            // otherwise an overlay frame change would not appear until the next animation frame.
+            FlushMesh();
         }
 
         // ─── Frame application ──────────────────────────────────────────────
@@ -975,14 +1087,18 @@ namespace PFE.Character
                 slot.partDef = null;
             }
 
+            _activeQuadCount = 0;
+
             if (_visualContext.transparent)
             {
+                FlushMesh();
                 return;
             }
 
             CharacterFrameData frameData = clip.frames[frameIndex];
             if (frameData.partPlacements == null)
             {
+                FlushMesh();
                 return;
             }
 
@@ -1042,15 +1158,14 @@ namespace PFE.Character
                 }
                 else
                 {
-                    Show(
+                    WriteSlot(
                         slot,
                         visual.primarySprite,
                         visual.primaryPivot,
                         position,
                         placement.localRotation,
                         placement.localScale,
-                        primaryColor,
-                        slot.sortingOrder);
+                        primaryColor);
                 }
 
                 if (visual.showSecondary && visual.secondarySprite != null)
@@ -1060,15 +1175,14 @@ namespace PFE.Character
                     secondary.partDef = part;
                     secondary.sortingOrder = slot.sortingOrder + 1;
 
-                    Show(
+                    WriteSlot(
                         secondary,
                         visual.secondarySprite,
                         visual.primaryPivot,
                         position,
                         placement.localRotation,
                         placement.localScale,
-                        ApplyAmbient(visual.secondaryColor),
-                        slot.sortingOrder + 1);
+                        ApplyAmbient(visual.secondaryColor));
                 }
                 else
                 {
@@ -1077,32 +1191,51 @@ namespace PFE.Character
 
                 slotIdx++;
             }
+
+            FlushMesh();
         }
 
         QuadSlot CreateSecondarySlot(QuadSlot primary)
         {
-            QuadSlot secondary = CreateSlot($"{primary.gameObject.name}_h1");
-            secondary.sortingOrder = primary.sortingOrder + 1;
+            // Secondary slots live in the second half of the primary slot range in the shared mesh.
+            // Primary slot i uses vertices [i*4 .. i*4+3]; its secondary uses
+            // [(maxPlacements + i) * 4 .. +3]. We track which primary index this secondary belongs
+            // to by storing it on the slot itself.
+            int primaryIndex = _slotPool.IndexOf(primary);
+            if (primaryIndex < 0) return null;
+
+            int maxPlacements = _slotPool.Count;
+            int secondaryVertexBase = (maxPlacements + primaryIndex) * CharacterQuadGeometry.VertexCount;
+
+            var secondary = new QuadSlot
+            {
+                vertexBase = secondaryVertexBase,
+                sortingOrder = primary.sortingOrder + 1,
+                partIndex = -1,
+                partDef = null,
+                _owner = this
+            };
+
             primary.secondary = secondary;
             return secondary;
         }
 
         /// <summary>
-        /// Writes one slot: geometry only when the sprite/pivot/settings changed, vertices every time
-        /// the placement changed. <see cref="Mesh.SetVertices(Vector3[])"/> copies from a cached array,
-        /// so this does not allocate.
+        /// Writes one slot's quad into the shared mesh buffers. Geometry (quad + UVs) is only
+        /// recomputed when the sprite/pivot/settings change; vertices and colors are written every
+        /// time the placement changes. Nothing is uploaded to the GPU here — that happens once
+        /// in <see cref="FlushMesh"/> after all slots are written.
         /// </summary>
-        void Show(
+        void WriteSlot(
             QuadSlot slot,
             Sprite sprite,
             Vector2 pivot,
             Vector2 position,
             float rotationDegrees,
             Vector2 scale,
-            Color color,
-            int sortingOrder)
+            Color color)
         {
-            if (sprite == null)
+            if (sprite == null || slot.vertexBase < 0 || slot.vertexBase + 3 >= _allVertices.Length)
             {
                 slot.Hide();
                 return;
@@ -1118,14 +1251,14 @@ namespace PFE.Character
                 slot.compensate = _compensatePivot;
                 slot.atlasVersion = _atlasVersion;
 
-                CharacterQuadSource source = CharacterQuadSource.FromSprite(sprite);
+                if (!_sourceCache.TryGetValue(sprite, out CharacterQuadSource source))
+                {
+                    source = CharacterQuadSource.FromSprite(sprite);
+                    _sourceCache[sprite] = source;
+                }
                 slot.quad = CharacterQuadGeometry.Build(source, pivot, _compensatePivot);
 
-                // The atlas changes only the UV window and the material — never the geometry. The four
-                // corners are pixels-against-pivot arithmetic, and where the pixels live is irrelevant
-                // to where the quad sits, so a part cannot shift by being atlased.
-                // Initialised before the `&&` because the call is short-circuited when there is no
-                // atlas, and an `out` parameter inside a short-circuit is not definitely assigned.
+                // The atlas changes only the UV window and the material — never the geometry.
                 Vector4 atlasUv = default;
                 bool atlased = _atlas != null && _atlas.TryGetUvRect(sprite, out atlasUv);
                 if (atlased)
@@ -1136,33 +1269,158 @@ namespace PFE.Character
                     slot.quad.VMax = atlasUv.w;
                 }
 
-                CharacterQuadGeometry.WriteUvs(slot.quad, slot.uvs);
-                slot.mesh.SetUVs(0, slot.uvs);
-
-                slot.filter.sharedMesh = slot.mesh;
-                slot.renderer.sharedMaterial = atlased
-                    ? _atlas.Material
-                    : _materials.GetMaterial(sprite.texture, _bilinear);
+                // Write UVs into the shared buffer at this slot's vertex offset.
+                int vb = slot.vertexBase;
+                _allUvs[vb + 0] = new Vector2(slot.quad.UMin, slot.quad.VMin);
+                _allUvs[vb + 1] = new Vector2(slot.quad.UMin, slot.quad.VMax);
+                _allUvs[vb + 2] = new Vector2(slot.quad.UMax, slot.quad.VMax);
+                _allUvs[vb + 3] = new Vector2(slot.quad.UMax, slot.quad.VMin);
 
                 slot.colorValid = false;
             }
 
             if (!slot.colorValid || slot.color != color)
             {
-                slot.colors[0] = color;
-                slot.colors[1] = color;
-                slot.colors[2] = color;
-                slot.colors[3] = color;
-                slot.mesh.SetColors(slot.colors);
+                int vb = slot.vertexBase;
+                _allColors[vb + 0] = color;
+                _allColors[vb + 1] = color;
+                _allColors[vb + 2] = color;
+                _allColors[vb + 3] = color;
                 slot.color = color;
                 slot.colorValid = true;
             }
 
-            CharacterQuadGeometry.WriteCorners(slot.quad, position, rotationDegrees, scale, slot.vertices);
-            slot.mesh.SetVertices(slot.vertices);
+            // Write vertices into the shared buffer at this slot's vertex offset.
+            CharacterQuadGeometry.WriteCorners(
+                slot.quad, position, rotationDegrees, scale, _allVertices, slot.vertexBase);
 
-            slot.renderer.sortingOrder = sortingOrder;
-            slot.renderer.enabled = true;
+            slot.visible = true;
+        }
+
+        /// <summary>
+        /// Uploads the shared mesh buffers to the GPU and sets the renderer's material and
+        /// active quad count. Called once per frame after all slots have been written.
+        /// </summary>
+        void FlushMesh()
+        {
+            if (_sharedMesh == null || _meshRenderer == null)
+            {
+                return;
+            }
+
+            // Count visible quads. Slots are written in order, so we count contiguously
+            // from the start. A hidden slot (visible == false) does not contribute.
+            // However, slots may be interleaved (primary visible, secondary hidden),
+            // so we count all visible slots and rewrite the index buffer to compact them.
+            int quadCount = 0;
+            int triangleCount = 0;
+
+            // Count primary slots and their secondaries
+            foreach (QuadSlot slot in _slotPool)
+            {
+                if (slot.visible)
+                {
+                    quadCount++;
+                    // Copy this quad's indices to the compacted position
+                    int srcBase = slot.vertexBase;
+                    int dstTriBase = triangleCount;
+                    _allTriangles[dstTriBase + 0] = srcBase + 0;
+                    _allTriangles[dstTriBase + 1] = srcBase + 1;
+                    _allTriangles[dstTriBase + 2] = srcBase + 2;
+                    _allTriangles[dstTriBase + 3] = srcBase + 0;
+                    _allTriangles[dstTriBase + 4] = srcBase + 2;
+                    _allTriangles[dstTriBase + 5] = srcBase + 3;
+                    triangleCount += 6;
+                }
+
+                if (slot.secondary != null && slot.secondary.visible)
+                {
+                    quadCount++;
+                    int srcBase = slot.secondary.vertexBase;
+                    int dstTriBase = triangleCount;
+                    _allTriangles[dstTriBase + 0] = srcBase + 0;
+                    _allTriangles[dstTriBase + 1] = srcBase + 1;
+                    _allTriangles[dstTriBase + 2] = srcBase + 2;
+                    _allTriangles[dstTriBase + 3] = srcBase + 0;
+                    _allTriangles[dstTriBase + 4] = srcBase + 2;
+                    _allTriangles[dstTriBase + 5] = srcBase + 3;
+                    triangleCount += 6;
+                }
+            }
+
+            // Count overlay slots
+            foreach (QuadOverlaySlot overlay in _overlaySlots)
+            {
+                if (overlay.slot != null && overlay.slot.visible)
+                {
+                    quadCount++;
+                    int srcBase = overlay.slot.vertexBase;
+                    int dstTriBase = triangleCount;
+                    _allTriangles[dstTriBase + 0] = srcBase + 0;
+                    _allTriangles[dstTriBase + 1] = srcBase + 1;
+                    _allTriangles[dstTriBase + 2] = srcBase + 2;
+                    _allTriangles[dstTriBase + 3] = srcBase + 0;
+                    _allTriangles[dstTriBase + 4] = srcBase + 2;
+                    _allTriangles[dstTriBase + 5] = srcBase + 3;
+                    triangleCount += 6;
+                }
+            }
+
+            _activeQuadCount = quadCount;
+
+            if (quadCount == 0)
+            {
+                _meshRenderer.enabled = false;
+                return;
+            }
+
+            // Upload the buffers. The triangle buffer is pre-filled at creation and never
+            // changes — hidden quads are excluded by rewriting the index buffer to compact
+            // visible quads at the start. SetTriangles with a count truncates the index
+            // buffer so only the active quads are drawn.
+            _sharedMesh.vertices = _allVertices;
+            _sharedMesh.uv = _allUvs;
+            _sharedMesh.colors = _allColors;
+            _sharedMesh.SetTriangles(_allTriangles, 0, triangleCount, 0, false);
+
+            // Resolve the material. If the atlas is active, all slots share the atlas material.
+            // If not, we use the material of the first visible slot — this is a limitation of
+            // the single-mesh approach: without the atlas, all parts must share one material.
+            // The atlas is what enables the full benefit; without it, the quad path still
+            // draws correctly but uses one material (the first part's texture).
+            if (_atlas != null && _atlas.IsReady)
+            {
+                _meshRenderer.sharedMaterial = _atlas.Material;
+            }
+            else
+            {
+                // Find the first visible slot to get its material
+                Material mat = null;
+                foreach (QuadSlot slot in _slotPool)
+                {
+                    if (slot.visible && slot.sprite != null)
+                    {
+                        mat = _materials.GetMaterial(slot.sprite.texture, _bilinear);
+                        break;
+                    }
+                }
+
+                if (mat == null)
+                {
+                    foreach (QuadOverlaySlot overlay in _overlaySlots)
+                    {
+                        if (overlay.slot != null && overlay.slot.visible && overlay.slot.sprite != null)
+                        {
+                            mat = _materials.GetMaterial(overlay.slot.sprite.texture, _bilinear);
+                            break;
+                        }
+                    }
+                }
+
+                _meshRenderer.sharedMaterial = mat;
+            }
+
+            _meshRenderer.enabled = true;
         }
 
         Color ApplyAmbient(Color color)
@@ -1392,20 +1650,15 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// One quad renderer. Unlike the shipped <c>PartSlot</c> there is no per-slot transform
-        /// writing: the placement is baked into the four vertices, and the slot GameObject stays at
-        /// identity. That is the Remains shape — one transform for the actor, vertices for the parts.
+        /// One quad's worth of rendering state. Unlike the shipped <c>PartSlot</c> there is no
+        /// GameObject per part: the placement is baked into four vertices written into a single
+        /// dynamic mesh shared by the whole character. That is the Remains shape — one transform
+        /// for the actor, vertices for the parts, one draw call.
         /// </summary>
         public sealed class QuadSlot
         {
-            public GameObject gameObject;
-            public MeshFilter filter;
-            public MeshRenderer renderer;
-            public Mesh mesh;
-
-            public readonly Vector3[] vertices = new Vector3[CharacterQuadGeometry.VertexCount];
-            public readonly Vector2[] uvs = new Vector2[CharacterQuadGeometry.VertexCount];
-            public readonly Color[] colors = new Color[CharacterQuadGeometry.VertexCount];
+            /// <summary>Index of this slot's first vertex in the shared mesh (slotIndex * 4).</summary>
+            public int vertexBase;
 
             public CharacterQuadLocal quad;
             public Sprite sprite;
@@ -1424,12 +1677,25 @@ namespace PFE.Character
             /// <summary>Sorting order this slot keeps within the character (index × 2).</summary>
             public int sortingOrder;
 
+            /// <summary>Whether this slot wrote vertices into the shared mesh this frame.</summary>
+            public bool visible;
+
             public QuadSlot secondary;
+
+            /// <summary>
+            /// The shared mesh renderer that draws this slot's quad. Exposed for the preview
+            /// window's bounds and material checks — with the consolidated mesh there is only one
+            /// renderer for the whole character, so every slot returns the same one.
+            /// </summary>
+            public MeshRenderer renderer => _owner != null ? _owner._meshRenderer : null;
+
+            /// <summary>Back-reference to the assembler that owns this slot, for the renderer shim.</summary>
+            internal CharacterQuadAssembler _owner;
 
             public void Hide()
             {
-                if (renderer != null) renderer.enabled = false;
-                if (secondary != null && secondary.renderer != null) secondary.renderer.enabled = false;
+                visible = false;
+                if (secondary != null) secondary.visible = false;
             }
         }
 

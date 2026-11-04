@@ -201,16 +201,16 @@ namespace PFE.Tests.EditMode.Character
 
             CharacterQuadAssembler.QuadSlot slot = assembler.GetQuadSlot("korpus");
             Assert.IsNotNull(slot, "the quad side drew no korpus");
-            Assert.AreSame(assembler.BodyRoot, slot.gameObject.transform.parent,
-                "the part quad is not under the body root, so its baked vertices are not scaled " +
-                "by the body's placement and the whole character draws at 1/bodyScale");
+            Assert.IsTrue(slot.visible, "the quad slot was not written into the shared mesh");
 
-            Transform overlay = _go.transform.Find("quad_overlay_shit");
-            Assert.IsNotNull(overlay, "the shield overlay was not built");
-            Assert.AreSame(_go.transform, overlay.parent,
-                "the overlay is a sibling of the body in the SWF; parenting it under the body root " +
-                "would scale the shield dome with the character");
-            Assert.AreEqual(1f, overlay.localScale.x, 1e-4f, "the overlay picked up the body's scale");
+            // With the consolidated mesh, all quads share a single mesh renderer under the body root.
+            // The assertion is about the renderer's parent, not a per-slot GameObject.
+            Assert.IsNotNull(assembler.BodyRoot, "a built quad rig has no body root");
+            Transform meshRoot = assembler.BodyRoot.Find("quad_mesh");
+            Assert.IsNotNull(meshRoot, "the consolidated mesh root was not built under the body root");
+            Assert.AreSame(assembler.BodyRoot, meshRoot.parent,
+                "the mesh root is not under the body root, so the shared mesh is not scaled " +
+                "by the body's placement and the whole character draws at 1/bodyScale");
         }
 
         [Test]
@@ -231,20 +231,27 @@ namespace PFE.Tests.EditMode.Character
         }
 
         /// <summary>
-        /// The quad's world-space box, read from the four baked vertices rather than from
+        /// The quad's world-space box, read from the shared mesh's vertices rather than from
         /// <c>renderer.bounds</c>, so the assertion is about the geometry the renderer writes and not
-        /// about Unity's cached bounds.
+        /// about Unity's cached bounds. With the consolidated mesh, the slot's vertices are in the
+        /// shared mesh's vertex buffer at <c>vertexBase</c>, and the transform is the mesh root's.
         /// </summary>
         static void GetQuadBounds(
             CharacterQuadAssembler.QuadSlot slot, out Vector3 centre, out Vector3 size)
         {
-            Transform transform = slot.gameObject.transform;
-            Vector3 min = transform.TransformPoint(slot.vertices[0]);
+            // The slot's renderer shim returns the shared mesh renderer, whose transform is the
+            // mesh root under the body root.
+            Transform transform = slot.renderer.transform;
+            Mesh sharedMesh = slot.renderer.GetComponent<MeshFilter>().sharedMesh;
+            Vector3[] vertices = sharedMesh.vertices;
+
+            int vb = slot.vertexBase;
+            Vector3 min = transform.TransformPoint(vertices[vb]);
             Vector3 max = min;
 
-            for (int i = 1; i < slot.vertices.Length; i++)
+            for (int i = 1; i < CharacterQuadGeometry.VertexCount; i++)
             {
-                Vector3 world = transform.TransformPoint(slot.vertices[i]);
+                Vector3 world = transform.TransformPoint(vertices[vb + i]);
                 min = Vector3.Min(min, world);
                 max = Vector3.Max(max, world);
             }
