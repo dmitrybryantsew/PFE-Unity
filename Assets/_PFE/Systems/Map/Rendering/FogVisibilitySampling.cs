@@ -35,19 +35,25 @@ namespace PFE.Systems.Map.Rendering
         /// covered by the mask at all — in which case the caller must treat it as <b>fully visible</b>,
         /// because nothing is drawn over it.
         ///
-        /// <para><b>Row order.</b> <paramref name="visibility"/> is the renderer's own
-        /// <c>_visibilityMaskCurrentVisibility</c>, indexed <c>y * width + x</c> with <c>y</c> counting
-        /// <b>up</b> from the room's bottom row — the port's tile order, matching how the mask texture is
-        /// uploaded (<c>Texture2D.SetPixels</c> starts at the bottom-left) and how the light pass writes
-        /// it (<see cref="FogOcclusionMath.ResolveLightSamplePixel"/> is <c>(40x, 40(y + 1))</c>, the
-        /// port tile's top edge). This is <b>not</b> the AS3 <c>getAbsTile</c> mirror: that one exists to
-        /// convert a Y-down oracle lookup into a Y-up row, and there is no oracle index here — only a
-        /// buffer this port wrote itself. A plain <c>floor</c> is correct and the <c>- 1</c> would be
-        /// wrong.</para>
+        /// <para><b>Row order and the border ring.</b> <paramref name="visibility"/> is the renderer's
+        /// own <c>_visibilityMaskCurrentVisibility</c>. The mask texture is one texel wider and taller
+        /// than the tile grid and game tile <c>(x, y)</c> lives at texel <c>(x, y + 1)</c> — the AS3
+        /// <c>lightBmp</c> alignment, whose never-written border cells keep the floor row's bottom half
+        /// and the right wall's right half dark (see
+        /// <c>RoomBackdropRenderer.VisibilityMaskTexelIndex</c>). <paramref name="width"/> and
+        /// <paramref name="height"/> are therefore the <b>texture</b> dimensions, and this function
+        /// converts the point's game tile to its texel with the same <c>+ 1</c> row offset the write
+        /// side uses. Row 0 and column <c>width - 1</c> of the buffer are the border ring; a point
+        /// inside the room never resolves to them, because its game tile is always in
+        /// <c>0 … width - 2</c> x <c>0 … height - 2</c>.</para>
+        ///
+        /// <para>This is <b>not</b> the AS3 <c>getAbsTile</c> mirror: that one exists to convert a
+        /// Y-down oracle lookup into a Y-up row, and there is no oracle index here — only a buffer
+        /// this port wrote itself. A plain <c>floor</c> is correct and the <c>- 1</c> would be wrong.</para>
         /// </summary>
-        /// <param name="visibility">The mask's per-tile visibility buffer; values in <c>[0, 1]</c>.</param>
-        /// <param name="width">Buffer width in tiles.</param>
-        /// <param name="height">Buffer height in tiles.</param>
+        /// <param name="visibility">The mask's per-texel visibility buffer; values in <c>[0, 1]</c>.</param>
+        /// <param name="width">Texture width in texels — the room's tile width plus one border column.</param>
+        /// <param name="height">Texture height in texels — the room's tile height plus one border row.</param>
         /// <param name="localPixels">Point in room-local pixels, origin at the room's bottom-left.</param>
         /// <param name="tileSizePixels">AS3 <c>Tile.tileX</c> — 40 in every shipped room.</param>
         /// <param name="value">The sampled visibility when the function returns <c>true</c>.</param>
@@ -61,7 +67,7 @@ namespace PFE.Systems.Map.Rendering
         {
             value = 1f;
 
-            if (visibility == null || width <= 0 || height <= 0 || tileSizePixels <= 0f)
+            if (visibility == null || width <= 1 || height <= 1 || tileSizePixels <= 0f)
             {
                 return false;
             }
@@ -73,19 +79,24 @@ namespace PFE.Systems.Map.Rendering
                 return false;
             }
 
-            // The mask covers exactly `width * 40` by `height * 40` pixels. A point on the far edge is
-            // outside the last tile, not inside it — the same half-open convention the tile grid uses.
-            float right = width * tileSizePixels;
-            float top = height * tileSizePixels;
+            // The mask's GAME TILES cover `(width - 1) * 40` by `(height - 1) * 40` pixels — the
+            // texture's extra row and column are the border ring, not room. A point on the far edge
+            // is outside the last tile, not inside it — the same half-open convention the tile grid
+            // uses.
+            int gameWidth = width - 1;
+            int gameHeight = height - 1;
+            float right = gameWidth * tileSizePixels;
+            float top = gameHeight * tileSizePixels;
             if (localPixels.x < 0f || localPixels.y < 0f || localPixels.x >= right || localPixels.y >= top)
             {
                 return false;
             }
 
-            int column = Mathf.Clamp(Mathf.FloorToInt(localPixels.x / tileSizePixels), 0, width - 1);
-            int row = Mathf.Clamp(Mathf.FloorToInt(localPixels.y / tileSizePixels), 0, height - 1);
+            int column = Mathf.Clamp(Mathf.FloorToInt(localPixels.x / tileSizePixels), 0, gameWidth - 1);
+            int row = Mathf.Clamp(Mathf.FloorToInt(localPixels.y / tileSizePixels), 0, gameHeight - 1);
 
-            value = Mathf.Clamp01(visibility[row * width + column]);
+            // Game tile (x, y) lives at texel (x, y + 1) — the write side's own offset.
+            value = Mathf.Clamp01(visibility[(row + 1) * width + column]);
             return true;
         }
 

@@ -263,8 +263,9 @@ namespace PFE.Systems.Map.Rendering
         /// How far up the unit's sprite the player's light sits, as a fraction of the sprite height.
         ///
         /// <para>AS3 is <c>gg.Y1 + gg.stayY * 0.247</c> (<c>Location.lighting():3140</c>) with
-        /// <c>Y1 = Y - scY</c> (<c>Unit.as:1875</c>) and <c>stayY = scY</c> — the sprite height
-        /// (<c>Unit.as:1027</c>). Substituting: <c>Y - scY + scY * 0.247 = Y - scY * 0.753</c>, i.e.
+        /// <c>Y1 = Y - scY</c> (<c>Unit.as:1875</c>) and <c>stayY = scY</c> while standing — the sprite
+        /// height (<c>Unit.as:1027</c>, and <c>Unit.sit(false):2524-2525</c> re-stamps it on every
+        /// re-evaluation). Substituting: <c>Y - scY + scY * 0.247 = Y - scY * 0.753</c>, i.e.
         /// <b>75.3 % of the way up the sprite, measured from the feet</b>. For a 70 px player that is
         /// 52.7 px above the feet — chest height, where eyes are.</para>
         ///
@@ -291,8 +292,16 @@ namespace PFE.Systems.Map.Rendering
         public const float PlayerLightHeightFraction = 0.753f;
 
         /// <summary>
+        /// The complementary fraction AS3 measures down from the sprite's top:
+        /// <c>gg.stayY * 0.247</c> (<c>Location.lighting():3140</c>). Kept separate from
+        /// <see cref="PlayerLightHeightFraction"/> because the two terms read <b>different</b> heights
+        /// while crouching — see <see cref="ResolvePlayerLightPixelOffset(int, float, float)"/>.
+        /// </summary>
+        public const float PlayerLightFromTopFraction = 0.247f;
+
+        /// <summary>
         /// The player's light source relative to its feet, in room-local pixels — AS3
-        /// <c>Location.lighting():3137-3140</c>.
+        /// <c>Location.lighting():3137-3140</c> for a <b>standing</b> unit (<c>scY == stayY</c>).
         ///
         /// <para>Y is positive <b>upwards</b>, matching this port's pixel space (AS3 runs Y downward,
         /// so its <c>Y - scY * 0.753</c> is the same point). <paramref name="facingDirection"/> is
@@ -305,6 +314,37 @@ namespace PFE.Systems.Map.Rendering
             return new Vector2(
                 forward * PlayerLightForwardOffsetPixels,
                 Mathf.Max(0f, spriteHeightPixels) * PlayerLightHeightFraction);
+        }
+
+        /// <summary>
+        /// The player's light source relative to its feet, in room-local pixels — the general form,
+        /// AS3 <c>gg.Y1 + gg.stayY * 0.247</c> with <c>Y1 = Y - scY</c>
+        /// (<c>Location.lighting():3140</c>, <c>Unit.as:1875</c>).
+        ///
+        /// <para><b>Why two heights.</b> AS3's <c>scY</c> is the unit's <i>current</i> box height and
+        /// its <c>stayY</c> the standing one: <c>Unit.sit(true):2520</c> sets
+        /// <c>scY = sitY = stayY / 2</c>, so a crawling unit's box halves while <c>stayY</c> does not
+        /// move. The light is the box's top (<c>Y - scY</c>) plus a term measured in the
+        /// <b>standing</b> height (<c>stayY * 0.247</c>) — for a 70 px player crawling
+        /// (<c>sitY = 35</c>) that is <c>35 - 70 * 0.247 ≈ 17.7</c> px above the feet, inside the
+        /// one-tile crawl space. Feeding the standing height into the single-argument form instead
+        /// parks the light at 52.7 px — inside the solid tile above the passage, where it reveals
+        /// the tiles overhead that the oracle leaves dark (the "crawling under one tile reveals 2
+        /// tiles above" report).</para>
+        ///
+        /// <para>Port Y is up: the offset is <c>currentHeightPixels - stayY * 0.247</c> above the
+        /// feet, which collapses to <c>stayY * 0.753</c> when the unit stands — the single-argument
+        /// form is exactly that case.</para>
+        /// </summary>
+        /// <param name="facingDirection">AS3 <c>storona</c>: -1 faces left, anything else right.</param>
+        /// <param name="currentHeightPixels">AS3 <c>scY</c> — the unit's current box height:
+        /// <c>stayY</c> standing, <c>sitY</c> crouched.</param>
+        /// <param name="standingHeightPixels">AS3 <c>stayY</c> — the unit's standing sprite height.</param>
+        public static Vector2 ResolvePlayerLightPixelOffset(int facingDirection, float currentHeightPixels, float standingHeightPixels)
+        {
+            float forward = facingDirection < 0 ? -1f : 1f;
+            float vertical = Mathf.Max(0f, currentHeightPixels) - Mathf.Max(0f, standingHeightPixels) * PlayerLightFromTopFraction;
+            return new Vector2(forward * PlayerLightForwardOffsetPixels, vertical);
         }
 
         /// <summary>

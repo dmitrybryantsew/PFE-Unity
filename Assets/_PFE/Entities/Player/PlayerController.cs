@@ -1796,5 +1796,43 @@ namespace PFE.Entities.Player
 
         public new UnitStats Stats => base._unitStats;
         public bool IsRunning => _locomotion != null ? _locomotion.CurrentSnapshot.IsRunning : _isRunning;
+
+        /// <summary>
+        /// Whether the unit is crouched/crawling — AS3 <c>isSit</c>. Read by the fog light: AS3
+        /// halves the unit's box height while sitting (<c>Unit.sit():2520</c>,
+        /// <c>scY = sitY = stayY / 2</c>), and the light hangs off the box's top, so a crawling
+        /// unit's light drops into the crawl space with it. See
+        /// <see cref="FogLightCurrentHeightPixels"/>.
+        /// </summary>
+        public bool IsCrouching => _locomotion != null && _locomotion.IsCrouching;
+
+        /// <summary>
+        /// The unit's <i>current</i> box height for the fog pass, in pixels — AS3 <c>scY</c>:
+        /// the standing sprite height normally, <c>sitY</c> while crouched
+        /// (<c>Unit.as:2519-2525</c>). <c>Location.lighting():3140</c> puts the light at the box's
+        /// top plus a standing-height term (<c>Y - scY + stayY * 0.247</c>), so feeding it the
+        /// standing height while crawling parks the light ~35 px too high — inside the solid tile
+        /// above a one-tile passage, where it reveals the tiles overhead that the oracle leaves
+        /// dark (the "crawling under one tile reveals 2 tiles above" report).
+        /// </summary>
+        public float FogLightCurrentHeightPixels
+        {
+            get
+            {
+                float standing = SpriteSizePixels.y;
+                if (!IsCrouching)
+                {
+                    return standing;
+                }
+
+                // AS3 `sitY` defaults to `stayY / 2` (Unit.as:1037-1044); the definition's
+                // `sitHeight` is that value in Unity units (0.35 for Littlepip = 35 px). Fall back
+                // to the half when no definition is wired, so the light still drops.
+                float sitPixels = _stats != null && _stats.sitHeight > 0f
+                    ? _stats.sitHeight * 100f
+                    : standing * 0.5f;
+                return Mathf.Min(sitPixels, standing);
+            }
+        }
     }
 }

@@ -568,6 +568,35 @@ namespace PFE.Systems.Map.Rendering
             return false;
         }
 
+        /// <summary>
+        /// Where game tile <c>(x, y)</c> lives in the visibility mask texture — texel
+        /// <c>(x, y + 1)</c> of a <c>(roomWidth + 1) x (roomHeight + 1)</c> bitmap.
+        ///
+        /// <para><b>Why the bitmap is larger than the grid, and why the row is offset.</b> AS3's
+        /// <c>lightBmp</c> is 49 x 28 for the 48 x 25 grid (<c>Grafon.as:141-143</c>), tile
+        /// <c>(i, j)</c> writes texel <c>(i, j + 1)</c> (<c>Location.lighting():3164</c>,
+        /// <c>Grafon.setLight():699</c>), and the <c>visLight</c> sprite sits at <c>(-20, -60)</c>
+        /// with a 40x scale (<c>Grafon.as:203-206</c>). Unrolled, the texel a tile writes is drawn
+        /// <b>centred on the tile's top-left corner</b> — a half-tile shift up-left — and the bitmap
+        /// cells the loop never writes (it runs <c>i = 1 … spaceX-1</c>, <c>j = 1 … spaceY-1</c>)
+        /// keep the constructor's opaque black.</para>
+        ///
+        /// <para><b>The visible consequence, in port terms</b> (port Y is up, so AS3's row offset
+        /// lands on the opposite edge): the floor row's <b>bottom half</b> and the right wall
+        /// column's <b>right half</b> are covered by never-written black texels, so the reveal can
+        /// never reach them. The port drew the mask exactly on the tile grid, so the reveal covered
+        /// the full floor tile and the full right wall — the "fog draws 1 tile deep into the floor
+        /// and the right-side wall tiles" report. This layout reproduces the oracle's coverage:
+        /// texel row 0 and texel column <c>roomWidth</c> are the never-written border, and the
+        /// sprite — still centred on the room — overhangs the room by half a tile on the left and
+        /// top and falls half a tile short on the right and bottom, with the permanently-black
+        /// border texels covering the remainder.</para>
+        /// </summary>
+        private static int VisibilityMaskTexelIndex(int tileX, int tileY, int textureWidth)
+        {
+            return (tileY + 1) * textureWidth + tileX;
+        }
+
         public void UpdateVisibilityMask(Vector3? playerWorldPosition = null)
         {
             if (_fogOfWarDisabled || _room == null || !UsesVisibilityMask() || _visibilityMaskTexture == null || _visibilityMaskRenderers.Count == 0)
@@ -608,8 +637,11 @@ namespace PFE.Systems.Map.Rendering
 
             bool returnsToDarkness = _room.environment != null && _room.environment.returnsToDarkness;
             float ambientVisibility = ResolveAmbientVisibility();
-            int width = _visibilityMaskTextureSize.x;
-            int height = _visibilityMaskTextureSize.y;
+            // The loop walks GAME TILES, not texels: the texture is one texel wider and taller than
+            // the tile grid and game tile (x, y) lives at texel (x, y + 1) — see
+            // VisibilityMaskTexelIndex for the AS3 alignment this reproduces.
+            int width = _room.width;
+            int height = _room.height;
 
             // Only upload when a texel actually moved — a follow-up frame that finds everything
             // already converged must not cost a texture upload.
@@ -617,7 +649,6 @@ namespace PFE.Systems.Map.Rendering
 
             for (int y = 0; y < height; y++)
             {
-                int rowStart = y * width;
                 for (int x = 0; x < width; x++)
                 {
                     // AS3 never assigns a light target to the room's outer ring on the low edge of each
@@ -631,7 +662,7 @@ namespace PFE.Systems.Map.Rendering
                         continue;
                     }
 
-                    int index = rowStart + x;
+                    int index = VisibilityMaskTexelIndex(x, y, _visibilityMaskTextureSize.x);
                     float currentVisibility = _visibilityMaskCurrentVisibility[index];
                     float targetVisibility = _visibilityMaskTargetVisibility[index];
 
@@ -837,9 +868,14 @@ namespace PFE.Systems.Map.Rendering
 
         private void EnsureVisibilityMaskBuffers(Vector2Int roomPixelSize)
         {
+            // The texture is one texel WIDER and one texel TALLER than the tile grid, and game tile
+            // (x, y) lives at texel (x, y + 1) — see VisibilityMaskTexelIndex. The border texels
+            // (row 0, column `width`) are never written and keep the opaque darkness the loop below
+            // gives them, which is what covers the floor row's bottom half and the right wall's
+            // right half the way AS3's unwritten lightBmp cells do.
             Vector2Int desiredSize = new Vector2Int(
-                Mathf.Max(1, _room?.width ?? 0),
-                Mathf.Max(1, _room?.height ?? 0));
+                Mathf.Max(1, (_room?.width ?? 0) + 1),
+                Mathf.Max(1, (_room?.height ?? 0) + 1));
 
             if (_visibilityMaskTextureSize == desiredSize &&
                 _visibilityMaskCurrentVisibility.Length == desiredSize.x * desiredSize.y &&

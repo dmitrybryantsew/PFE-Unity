@@ -559,6 +559,76 @@ namespace PFE.Tests.Editor.Map.Rendering
             Assert.AreEqual(0f, FogOcclusionMath.ResolvePlayerLightPixelOffset(1, 0f).y, Tolerance);
         }
 
+        // ── The crouch — `Unit.sit(true):2520` (scY = sitY = stayY / 2) ─────────────────────────
+        //
+        // AS3's light is `Y - scY + stayY * 0.247`: the box's TOP (which halves with the crouch)
+        // plus a term in the STANDING height. A 70 px player crawling (sitY = 35) therefore lights
+        // from ~17.7 px above the feet — inside the one-tile crawl space. The port fed the standing
+        // height in, parking the light at 52.7 px — inside the solid tile above the passage, which
+        // is the "crawling under one tile reveals 2 tiles above" report.
+
+        [Test]
+        public void PlayerLight_Crouching_DropsIntoTheCrawlSpace()
+        {
+            // THE regression pin. 70 px standing (Littlepip's stayY), 35 px crouched (sitY =
+            // stayY / 2, Unit.as:1037-1044). AS3: 35 - 70 * 0.247 = 17.71 px above the feet.
+            Vector2 offset = FogOcclusionMath.ResolvePlayerLightPixelOffset(1, currentHeightPixels: 35f, standingHeightPixels: 70f);
+
+            Assert.AreEqual(35f - 70f * 0.247f, offset.y, Tolerance,
+                "AS3 `Y - scY + stayY*0.247` with scY = sitY = 35, stayY = 70.");
+            Assert.AreEqual(17.71f, offset.y, 0.01f,
+                "The crawling light sits ~18 px up — inside the 40 px crawl space, below its ceiling.");
+        }
+
+        [Test]
+        public void PlayerLight_Crouching_KeepsTheForwardTerm()
+        {
+            Assert.AreEqual(12f, FogOcclusionMath.ResolvePlayerLightPixelOffset(1, 35f, 70f).x, Tolerance);
+            Assert.AreEqual(-12f, FogOcclusionMath.ResolvePlayerLightPixelOffset(-1, 35f, 70f).x, Tolerance);
+        }
+
+        [Test]
+        public void PlayerLight_StandingTwoHeightForm_AgreesWithTheSingleHeightForm()
+        {
+            // The control that ties the two overloads together: when scY == stayY the general form
+            // must collapse to the standing one — `stayY - stayY*0.247 == stayY*0.753`. If it did
+            // not, every standing reveal would shift the day the crouch shipped. Tolerance, not
+            // exact equality: `0.247f + 0.753f` is not 1 in float arithmetic, so the two
+            // associations of the same sum differ in the last bit.
+            Vector2 twoHeight = FogOcclusionMath.ResolvePlayerLightPixelOffset(1, 70f, 70f);
+            Vector2 oneHeight = FogOcclusionMath.ResolvePlayerLightPixelOffset(1, 70f);
+
+            Assert.AreEqual(oneHeight.x, twoHeight.x, Tolerance);
+            Assert.AreEqual(oneHeight.y, twoHeight.y, Tolerance);
+        }
+
+        [Test]
+        public void PlayerLight_CrouchingLight_StaysBelowTheTileAboveTheCrawlSpace()
+        {
+            // The end-to-end claim: a unit crawling through a one-tile passage has its feet on the
+            // passage floor (a tile boundary) and the passage ceiling 40 px up. The light must sit
+            // BELOW that ceiling — inside the passage — or it radiates from within the solid tile
+            // above and reveals it. The standing form fails this assertion; that failure is the
+            // reported bug.
+            const float Feet = 40f;             // passage floor = top edge of tile row 0
+            const float PassageCeiling = 80f;   // one tile up — the solid tile's bottom edge
+
+            float crawlingLightY = Feet + FogOcclusionMath.ResolvePlayerLightPixelOffset(1, 35f, 70f).y;
+            Assert.Less(crawlingLightY, PassageCeiling,
+                "The crawling light must sit inside the passage, not in the tile above it.");
+
+            float standingLightY = Feet + FogOcclusionMath.ResolvePlayerLightPixelOffset(1, 70f).y;
+            Assert.Greater(standingLightY, PassageCeiling,
+                "Control: the standing height really does park the light inside the tile above — " +
+                "this is the input that produced the report.");
+        }
+
+        [Test]
+        public void PlayerLight_ZeroHeights_HasNoVerticalOffset()
+        {
+            Assert.AreEqual(0f, FogOcclusionMath.ResolvePlayerLightPixelOffset(1, 0f, 0f).y, Tolerance);
+        }
+
         [Test]
         public void RayTransmission_LightOnTheFeet_TipsTheFirstSampleIntoTheTileBelow()
         {
