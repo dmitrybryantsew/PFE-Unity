@@ -87,11 +87,10 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public static Vector3 LocalPositionFor(TileData tile)
         {
-            if (tile == null) return Vector3.zero;
-
-            Vector3 unityPos = WorldCoordinates.PixelToUnity(tile.GetBounds().center);
-            unityPos.z = tile.gridPosition.y * 0.01f;
-            return unityPos;
+            // Delegates to TileLayoutMath.LocalPosition — the single source of truth this used to be
+            // one of three copies of. The public API stays because TileCollisionBuilderTests pin it
+            // by name; the arithmetic now lives in one place.
+            return TileLayoutMath.LocalPosition(tile);
         }
 
         /// <summary>

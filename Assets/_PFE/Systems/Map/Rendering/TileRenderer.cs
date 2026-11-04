@@ -44,6 +44,16 @@ namespace PFE.Systems.Map.Rendering
         /// after someone shoots a wall.</para>
         /// </summary>
         [SerializeField] private bool visualsSuppressed = false;
+
+        // Change detection for UpdateSprite — see SpritesMatch. Not serialized: a domain reload must
+        // re-apply, not trust a stale snapshot. _hasAppliedProvidedSprites starts false so the first
+        // provided-sprite pass always runs.
+        private bool _hasAppliedProvidedSprites = false;
+        private float _appliedHeightScale = 1f;
+
+        // The one flash in flight, so a new Flash stops it and DestroyTile can cancel it — see Flash.
+        private Coroutine _flashCoroutine;
+
         [SerializeField] private float currentOpacity = 1f;
         [SerializeField] private Color currentColor = Color.white;
         [SerializeField] private Color secondaryColorTint = Color.white;
@@ -94,6 +104,7 @@ namespace PFE.Systems.Map.Rendering
 
             EnsureChildRenderers(useProvidedSprites ? visualData : null);
             ApplyVisualData(assetDatabase, visualData, useProvidedSprites);
+            RememberAppliedSprites(visualData, useProvidedSprites);
 
             // Tile sprites use centered pivots, so place them at the tile bounds center.
             transform.localPosition = GetLocalPosition();
@@ -116,14 +127,16 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         private Vector3 GetLocalPosition()
         {
-            Rect tileBounds = tileData != null
-                ? tileData.GetBounds()
-                : WorldCoordinates.TileToRect(gridPosition);
-            Vector3 unityPos = WorldCoordinates.PixelToUnity(tileBounds.center);
+            // Delegates to TileLayoutMath.LocalPosition — see that class for why the position is the
+            // solid-rect centre and not the cell centre. The fallback for a null tileData keeps the
+            // old behaviour (the whole-cell rect for the serialized gridPosition).
+            if (tileData != null)
+            {
+                return TileLayoutMath.LocalPosition(tileData);
+            }
 
-            // Set Z for layering
-            unityPos.z = gridPosition.y * 0.01f; // Small Z offset for depth
-
+            Vector3 unityPos = WorldCoordinates.PixelToUnity(WorldCoordinates.TileToRect(gridPosition).center);
+            unityPos.z = gridPosition.y * TileLayoutMath.DepthPerRow;
             return unityPos;
         }
 
@@ -137,17 +150,70 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Update the sprite based on current tile data or provided overrides.
+        ///
+        /// <para><b>No-op when nothing changed.</b> <c>TileVisualManager.ResolveVisualData</c> allocates
+        /// a fresh <see cref="TileVisualData"/> every call, so the comparison is by value — the six
+        /// sprite references and the height scale — not by reference. A refresh that resolves to the
+        /// sprites already on the renderers skips <see cref="EnsureChildRenderers"/>,
+        /// <see cref="ApplyVisualData"/> and <see cref="ApplyScale"/> entirely: those rewrite child
+        /// transforms and re-run the bottom-left-anchored overlay layout for every slot, which is the
+        /// visible cost of <c>RefreshSprites</c> over a room. Sorting and colour are still applied —
+        /// they are cheap, and a sorting-layer or tint change can arrive on the same call that reuses
+        /// last frame's sprites.</para>
         /// </summary>
         public void UpdateSprite(TileAssetDatabase assetDatabase, TileVisualData visualData, bool useProvidedSprites = true)
         {
             if (spriteRenderer == null || tileData == null)
                 return;
 
-            EnsureChildRenderers(useProvidedSprites ? visualData : null);
-            ApplyVisualData(assetDatabase, visualData, useProvidedSprites);
-            ApplyScale(visualData != null ? visualData.HeightScale : GetHeightScale());
+            bool spritesUnchanged = useProvidedSprites && SpritesMatch(visualData);
+            if (!spritesUnchanged)
+            {
+                EnsureChildRenderers(useProvidedSprites ? visualData : null);
+                ApplyVisualData(assetDatabase, visualData, useProvidedSprites);
+                ApplyScale(visualData != null ? visualData.HeightScale : GetHeightScale());
+                RememberAppliedSprites(visualData, useProvidedSprites);
+            }
+
             ApplySorting();
             ApplyColor();
+        }
+
+        /// <summary>
+        /// Whether <paramref name="visualData"/> carries the same sprites and height scale as the last
+        /// provided-sprite pass applied. A null or empty <paramref name="visualData"/> matches only when
+        /// every slot is currently empty, so the first real update after a clear still runs.
+        /// </summary>
+        private bool SpritesMatch(TileVisualData visualData)
+        {
+            if (!_hasAppliedProvidedSprites)
+                return false;
+
+            return spriteRenderer.sprite == (visualData?.MainSprite)
+                && SpriteOf(secondarySpriteRenderer) == (visualData?.BackSprite)
+                && SpriteOf(rearOverlaySpriteRenderer) == (visualData?.RearOverlaySprite1)
+                && SpriteOf(rearOverlaySpriteRenderer2) == (visualData?.RearOverlaySprite2)
+                && SpriteOf(frontOverlaySpriteRenderer) == (visualData?.FrontOverlaySprite1)
+                && SpriteOf(frontOverlaySpriteRenderer2) == (visualData?.FrontOverlaySprite2)
+                && Mathf.Approximately(_appliedHeightScale, visualData != null ? visualData.HeightScale : 1f);
+        }
+
+        /// <summary>The sprite on a possibly-null child renderer; null slot and null sprite both read as null.</summary>
+        private static Sprite SpriteOf(SpriteRenderer renderer)
+        {
+            return renderer != null ? renderer.sprite : null;
+        }
+
+        /// <summary>
+        /// Remembers what a provided-sprite pass just applied, so the next <see cref="UpdateSprite"/>
+        /// can tell a re-resolve of the same tile from a real change. Cleared on the asset-database
+        /// path (<paramref name="useProvidedSprites"/> false), which resolves its own sprite and so has
+        /// no provided set to compare against.
+        /// </summary>
+        private void RememberAppliedSprites(TileVisualData visualData, bool useProvidedSprites)
+        {
+            _hasAppliedProvidedSprites = useProvidedSprites;
+            _appliedHeightScale = visualData != null ? visualData.HeightScale : 1f;
         }
 
         /// <summary>
@@ -260,23 +326,70 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Flash tile (for damage, etc.).
+        ///
+        /// <para><b>Restores the authoritative colour, not a captured one.</b> The old coroutine cached
+        /// <c>spriteRenderer.color</c> on entry and wrote it back on exit, so a
+        /// <see cref="SetColorTint"/> or <see cref="UpdateVisuals"/> landing mid-flash was silently
+        /// undone, and two overlapping flashes restored their stale snapshots in arbitrary order. The
+        /// renderer's true colour is derived state — <see cref="ApplyColor"/> from
+        /// <c>currentColor</c>/<c>secondaryColorTint</c>, alpha from <see cref="UpdateOpacity"/> — so
+        /// the restore re-applies that instead of a snapshot, and only one flash ever runs at a time:
+        /// a new <see cref="Flash"/> stops the one in flight.</para>
         /// </summary>
         public void Flash(Color flashColor, float duration = 0.1f)
         {
             if (spriteRenderer == null)
                 return;
 
-            StartCoroutine(FlashCoroutine(flashColor, duration));
+            StopFlash();
+            _flashCoroutine = StartCoroutine(FlashCoroutine(flashColor, duration));
         }
 
         private System.Collections.IEnumerator FlashCoroutine(Color flashColor, float duration)
         {
-            Color originalColor = spriteRenderer.color;
-            spriteRenderer.color = flashColor;
+            ApplyFlashColor(flashColor);
 
             yield return new WaitForSeconds(duration);
 
-            spriteRenderer.color = originalColor;
+            _flashCoroutine = null;
+            // Re-derive the colour from currentColor/secondaryColorTint/currentOpacity rather than
+            // restore a snapshot — whatever the tint became during the flash is the colour to keep.
+            ApplyColor();
+            UpdateOpacity();
+        }
+
+        /// <summary>Stops the flash in flight, if any, leaving the flash colour until the next apply.</summary>
+        private void StopFlash()
+        {
+            if (_flashCoroutine != null)
+            {
+                StopCoroutine(_flashCoroutine);
+                _flashCoroutine = null;
+            }
+        }
+
+        /// <summary>Writes the flash colour to every active slot, preserving each slot's alpha.</summary>
+        private void ApplyFlashColor(Color flashColor)
+        {
+            SetRendererRgb(spriteRenderer, flashColor);
+            SetRendererRgb(secondarySpriteRenderer, flashColor);
+            SetRendererRgb(rearOverlaySpriteRenderer, flashColor);
+            SetRendererRgb(rearOverlaySpriteRenderer2, flashColor);
+            SetRendererRgb(frontOverlaySpriteRenderer, flashColor);
+            SetRendererRgb(frontOverlaySpriteRenderer2, flashColor);
+        }
+
+        /// <summary>Sets RGB on a possibly-null renderer without touching its alpha.</summary>
+        private static void SetRendererRgb(SpriteRenderer renderer, Color color)
+        {
+            if (renderer == null)
+                return;
+
+            Color c = renderer.color;
+            c.r = color.r;
+            c.g = color.g;
+            c.b = color.b;
+            renderer.color = c;
         }
 
         /// <summary>
@@ -285,6 +398,10 @@ namespace PFE.Systems.Map.Rendering
         public void DestroyTile()
         {
             // TODO: Play destruction effect
+
+            // A flash still in flight would re-apply colour to a tile that is already hidden and about
+            // to be destroyed; stop it before the 0.5 s destroy delay, not after.
+            StopFlash();
 
             SetVisible(false);
 
@@ -548,12 +665,10 @@ namespace PFE.Systems.Map.Rendering
 
         private float GetHeightScale()
         {
-            if (tileData == null)
-            {
-                return 1f;
-            }
-
-            return Mathf.Clamp01(1f - tileData.heightLevel * 0.25f);
+            // Delegates to TileLayoutMath.HeightScale. That copy clamps heightLevel to [0, 3]; this one
+            // did not, so an out-of-range level could produce a negative scale here while TileData and
+            // the quarter renderer clamped. In-range values — every shipped tile — are identical.
+            return TileLayoutMath.HeightScale(tileData);
         }
 
         private void ApplySorting()

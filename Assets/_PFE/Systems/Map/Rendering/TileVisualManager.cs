@@ -529,7 +529,7 @@ namespace PFE.Systems.Map.Rendering
             {
                 MainSprite = main,
                 BackSprite = back,
-                HeightScale = Mathf.Clamp01(1f - tile.heightLevel * 0.25f)
+                HeightScale = TileLayoutMath.HeightScale(tile)
             };
 
             using (Profiler.Region("tiles.resolve.overlay", "boot: assetDatabase.GetOverlaySprite x2 — measured ~2ms total, believed trivial"))

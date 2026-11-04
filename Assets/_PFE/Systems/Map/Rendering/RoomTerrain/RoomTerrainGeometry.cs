@@ -210,7 +210,9 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// </summary>
         public static float HeightScale(int heightLevel)
         {
-            return Mathf.Clamp01(1f - Mathf.Clamp(heightLevel, 0, 3) * 0.25f);
+            // Delegates to TileLayoutMath.HeightScale — the same clamped formula, now in one place so
+            // the quarter renderer and the shipped sprite path cannot drift on an out-of-range level.
+            return TileLayoutMath.HeightScale(heightLevel);
         }
 
         /// <summary>How far a floor strip moves down with a lowered ceiling.</summary>
