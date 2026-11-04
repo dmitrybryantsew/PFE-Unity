@@ -47,7 +47,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars, 16: Room, 17: Cheats, 18: Security
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars, 16: Room, 17: Cheats, 18: Security, 19: Difficulty
 
         private static readonly string[] TabNames = new string[]
         {
@@ -69,7 +69,8 @@ namespace PFE.Core.Scripting
             "🏁 Campaign Vars",
             "🏠 Room",
             "🎮 Cheats",
-            "🔐 Security"
+            "🔐 Security",
+            "⚙️ Difficulty"
         };
 
         /// <summary>How many tabs the strip actually ships. Exposed <b>so the strip test can assert against
@@ -137,6 +138,20 @@ namespace PFE.Core.Scripting
         /// argument the Room tab makes.</para>
         /// </remarks>
         private const int SecurityTab = 18;
+
+        /// <summary>
+        /// Index of the "Difficulty" tab — the run-wide <c>globalDif</c> setting (Axis A), with what each
+        /// index actually changes printed beside it.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Exempt from the no-player guard, and this one matters most.</b>
+        /// <see cref="PFE.Systems.Campaign.GlobalDifficulty"/> is a static that reads nothing from the
+        /// player, and setting the difficulty <i>before</i> there is a player is the normal way to start a
+        /// test run — gating it on a live player would hide the tab in exactly the scene where it is the
+        /// first thing you want to touch. The "live effect" card says so when there is no player rather
+        /// than pretending.</para>
+        /// </remarks>
+        private const int DifficultyTab = 19;
 
         // Scroll positions for each tab
         private Vector2 _pipStatsScroll;
@@ -913,9 +928,13 @@ namespace PFE.Core.Scripting
             // section reads the player, while the room alarm, the lock profile of whatever the cursor
             // is on, and the process-wide attempt log are all readable without one. An alarm stuck on
             // is exactly when you want the tab that can clear it.
+            //
+            // The Difficulty tab (19) is exempt because GlobalDifficulty is a static: nothing on it
+            // reads the player, and choosing a difficulty before a run exists is the whole point.
             if (player == null && _activeTab != 9 && _activeTab != LandsTab &&
                 _activeTab != LandStateTab && _activeTab != LandMapTab && _activeTab != SaveLoadTab &&
-                _activeTab != CampaignVarsTab && _activeTab != RoomTab && _activeTab != SecurityTab)
+                _activeTab != CampaignVarsTab && _activeTab != RoomTab && _activeTab != SecurityTab &&
+                _activeTab != DifficultyTab)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
                 GUI.DragWindow(new Rect(0, 0, _windowRect.width, 30));
@@ -980,6 +999,9 @@ namespace PFE.Core.Scripting
                     break;
                 case SecurityTab:
                     DrawSecurityTab(player);
+                    break;
+                case DifficultyTab:
+                    DrawDifficultyTab(player);
                     break;
             }
 
@@ -8898,6 +8920,194 @@ namespace PFE.Core.Scripting
                 default:
                     return "#AAAAAA";
             }
+        }
+
+        // =========================================================================
+        // TAB 19: DIFFICULTY (globalDif — Axis A)
+        // =========================================================================
+
+        private Vector2 _difficultyScroll;
+
+        /// <summary>
+        /// The run-wide difficulty setting, plus <b>what each index actually changes</b> — so a tester can
+        /// read the effect instead of guessing it from a diff of two runs.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Every number printed here is read from the rule that gameplay reads.</b> The ladder
+        /// (<see cref="DifficultyLadder"/>) projects <see cref="DifficultyRules"/>, the two boss rule
+        /// classes and the main menu's own <c>NewGameDifficulty</c> names — there is no second table in
+        /// this file, so the panel cannot describe a game that does not exist.</para>
+        ///
+        /// <para><b>Pressing a button uses the console verb's path, not <c>Change</c>.</b>
+        /// <see cref="GlobalDifficulty.SetFromConsole"/> always re-applies the <c>Pers</c> table, which is
+        /// what <c>dif N</c> does (<c>Consol.as:237-247</c>); <see cref="GlobalDifficulty.Change"/>
+        /// early-returns when the raw argument already equals the value, so re-pressing the current
+        /// difficulty would silently do nothing — the worst possible behaviour for a test control.</para>
+        /// </remarks>
+        private void DrawDifficultyTab(PlayerController player)
+        {
+            _difficultyScroll = GUILayout.BeginScrollView(_difficultyScroll);
+
+            int current = GlobalDifficulty.Value;
+
+            GUILayout.Label("<b>Difficulty</b> — <color=#AAAAAA>globalDif, the run-wide SETTING (Axis A)</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"current <b>{current} · {DifficultyLadder.NameOf(current)}</b>   " +
+                $"<color=#AAAAAA>clamp {GlobalDifficulty.MinIndex}..{GlobalDifficulty.MaxIndex}, " +
+                $"default {GlobalDifficulty.Default} = Normal</color>",
+                GUILayout.ExpandWidth(true));
+
+            // Two lines because a label does not wrap: Axis B is the number this one is confused with.
+            GUILayout.Label("<color=#AAAAAA><size=11>NOT the land/run difficulty (Axis B) — that one is your</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>level, and it is baked when the land is built.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            GUILayout.BeginHorizontal();
+            for (int i = GlobalDifficulty.MinIndex; i <= GlobalDifficulty.MaxIndex; i++)
+            {
+                bool active = i == current;
+                GUIStyle style = active ? _tabActiveStyle : _tabInactiveStyle;
+
+                if (GUILayout.Button($"{i} · {DifficultyLadder.NameOf(i)}", style,
+                                     GUILayout.Height(26), GUILayout.Width(150)))
+                {
+                    GlobalDifficulty.SetFromConsole(i);
+                    current = GlobalDifficulty.Value;
+                }
+            }
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+            DrawDifficultyCaveatCard();
+            GUILayout.Space(6);
+            DrawDifficultyLiveCard(player, current);
+            GUILayout.Space(6);
+
+            GUILayout.Label("<b>What each level changes</b> <color=#AAAAAA>(live effects only — compare the " +
+                            "same line across levels)</color>", GUILayout.ExpandWidth(true));
+
+            for (int i = GlobalDifficulty.MinIndex; i <= GlobalDifficulty.MaxIndex; i++)
+            {
+                DrawDifficultyLevelCard(i, current);
+                GUILayout.Space(4);
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// The half of a difficulty change that does not happen — printed first, because "I changed it and
+        /// nothing moved" is the report this panel exists to answer, and every line here is a reason for
+        /// exactly that observation.
+        /// </summary>
+        private void DrawDifficultyCaveatCard()
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>What a change does NOT do</b> <color=#AAAAAA>— read before concluding " +
+                            "\"nothing happened\"</color>", GUILayout.ExpandWidth(true));
+
+            GUILayout.Label("<size=11>· Enemies already in the room keep the max HP they spawned with.</size>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<size=11>· The current room keeps its ears and enemy level — build-time writes.</size>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<size=11>· Loot already dropped keeps its money; the cap is read per roll.</size>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<size=11>· Your own stats DO change now (Changed → CharacterStats).</size>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<size=11>· Re-enter the land / rebuild the room for the build-time half.</size>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// The player's four applied cells, next to the table's own values for the current level.
+        /// </summary>
+        /// <remarks>
+        /// The verdict is the point: a difficulty panel that prints the new value while
+        /// <c>CharacterStats</c> still holds the old one would look perfectly healthy. Comparing the live
+        /// fields against <see cref="DifficultyLadder.For"/> is the only way this panel can be falsified
+        /// from a screenshot.
+        /// </remarks>
+        private void DrawDifficultyLiveCard(PlayerController player, int current)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>Live effect on you</b> <color=#AAAAAA>(CharacterStats after the last change)</color>",
+                GUILayout.ExpandWidth(true));
+
+            CharacterStats stats = player != null ? player.CharacterStats : null;
+            if (stats == null)
+            {
+                GUILayout.Label("<color=#AAAAAA>No live player — the table has been written nowhere, so " +
+                                "there is nothing to compare.</color>", GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            PersDifficultyTable table = DifficultyLadder.For(current).Pers;
+            bool matches =
+                Mathf.Abs(stats.organMult - table.OrganMult) < 0.0001f &&
+                Mathf.Abs(stats.dieDamage - table.DieDamage) < 0.0001f &&
+                Mathf.Abs(stats.teleMana - table.TeleMana) < 0.0001f &&
+                Mathf.Abs(stats.difCapsMult - table.DifCapsMult) < 0.0001f;
+
+            GUILayout.Label(
+                $"organ <b>{stats.organMult:0.##}</b>  die <b>{stats.dieDamage:0.##}</b>  " +
+                $"tele <b>{stats.teleMana:0.##}</b>  caps <b>{stats.difCapsMult:0.##}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                matches
+                    ? "<color=#66DD66>matches the table for this level — the change reached the player.</color>"
+                    : "<color=#FFAA33>differs from the table — the change never reached CharacterStats, or " +
+                      "something else wrote a cell.</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// One difficulty index: the five live effects, the delta against Normal, and the <c>Pers</c> cells
+        /// that have no destination field. The last group is greyed and labelled, so a tester does not
+        /// report a missing effect for a value nothing reads.
+        /// </summary>
+        private void DrawDifficultyLevelCard(int index, int current)
+        {
+            GUILayout.BeginVertical(index == current ? _cardActiveStyle : _cardStyle);
+
+            string header = $"<b>{index} · {DifficultyLadder.NameOf(index)}</b>";
+            if (index == current)
+            {
+                header += "   <color=#66DD66>← current</color>";
+            }
+
+            GUILayout.Label(header, GUILayout.ExpandWidth(true));
+
+            IReadOnlyList<string> changes = DifficultyLadder.ChangeLines(index);
+            for (int i = 0; i < changes.Count; i++)
+            {
+                GUILayout.Label($"<size=11>{changes[i]}</size>", GUILayout.ExpandWidth(true));
+            }
+
+            IReadOnlyList<string> delta = DifficultyLadder.DeltaLines(index);
+            for (int i = 0; i < delta.Count; i++)
+            {
+                GUILayout.Label($"<color=#AAAAAA><size=11>{delta[i]}</size></color>", GUILayout.ExpandWidth(true));
+            }
+
+            IReadOnlyList<string> specOnly = DifficultyLadder.SpecOnlyLines(index);
+            for (int i = 0; i < specOnly.Count; i++)
+            {
+                GUILayout.Label($"<color=#666666><size=11>{specOnly[i]}</size></color>", GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
         }
     }
 

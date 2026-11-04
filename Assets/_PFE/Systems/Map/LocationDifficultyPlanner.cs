@@ -1,4 +1,5 @@
 using PFE.Core.Rng;
+using PFE.Systems.Campaign;
 
 namespace PFE.Systems.Map
 {
@@ -126,8 +127,12 @@ namespace PFE.Systems.Map
             //    `enemyLevel` by 2 and 4 respectively. Note `earMult` is a MULTIPLY on the Location's own
             //    default of 1, so a second call would halve it again — which is why this runs once per
             //    room, at build time.
-            if (input.GlobalDifficulty < 2) difficulty.earMult *= 0.5f;
-            if (input.GlobalDifficulty > 2) difficulty.enemyLevel += (input.GlobalDifficulty - 2) * 2;
+            //
+            //    The two numbers come from DifficultyRules rather than from a literal here, because the
+            //    F2 difficulty panel prints the same values: one source, so the panel cannot describe a
+            //    rule the builder does not apply.
+            difficulty.earMult *= DifficultyRules.EarMultiplier(input.GlobalDifficulty);
+            difficulty.enemyLevel += DifficultyRules.EnemyLevelBonus(input.GlobalDifficulty);
 
             int tipEnemy = input.TipEnemy;
 

@@ -210,6 +210,31 @@ namespace PFE.Systems.Campaign
         public static bool ScalesUnitHp(int globalDif, bool isPlayer) => !isPlayer && globalDif <= 1;
 
         /// <summary>
+        /// AS3 <c>Land.setLocDif</c>'s hearing adjustment (<c>Land.as:988-991</c>):
+        /// <c>if(w.game.globalDif &lt; 2) loc.earMult *= 0.5;</c>.
+        ///
+        /// <para>It is a <b>multiplier</b> on the location's own default of 1, and it is written
+        /// <i>once per room at build time</i> — so a room that is already built keeps whatever it was
+        /// built with. <c>EnemyController.earMult</c> is the consumer (the hearing product
+        /// <c>noise × ear × earMult</c>).</para>
+        ///
+        /// <para>Named as a rule rather than inlined in <c>LocationDifficultyPlanner</c> because the F2
+        /// difficulty panel reports it: a tool that re-derives a number the gameplay path computes can
+        /// disagree with the thing it claims to describe.</para>
+        /// </summary>
+        public static float EarMultiplier(int globalDif) => globalDif < 2 ? 0.5f : 1f;
+
+        /// <summary>
+        /// AS3 <c>Land.setLocDif</c>'s enemy-level adjustment (<c>Land.as:992-995</c>):
+        /// <c>if(globalDif &gt; 2) loc.enemyLevel += (globalDif - 2) * 2;</c>.
+        ///
+        /// <para>The guard is <c>&gt; 2</c>, not <c>&gt;= 2</c>: Normal is the identity, and 3 / 4 add
+        /// <b>2</b> / <b>4</b> levels. Like <see cref="EarMultiplier"/> this is written at build time, so
+        /// an already-built room does not move.</para>
+        /// </summary>
+        public static int EnemyLevelBonus(int globalDif) => globalDif > 2 ? (globalDif - 2) * 2 : 0;
+
+        /// <summary>
         /// AS3 <c>Unit.isNoResBoss()</c> (<c>Unit.as:1743-1754</c>):
         /// <c>globalDif &lt;= 3 &amp;&amp; loc &amp;&amp; loc.land.act.tip != "base"</c>.
         ///
