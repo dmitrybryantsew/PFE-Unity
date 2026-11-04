@@ -15,26 +15,26 @@ MonoBehaviour:
   normal:
     overlayName: shit
     frames:
-    - {fileID: -985113564820616005, guid: d85a3f7a49e9594409f34bcf819e092c, type: 3}
-    - {fileID: 202404987911244711, guid: edd9db61004d51a43b1c3a8e3f63e8e8, type: 3}
-    - {fileID: -8764597738744933808, guid: 4773b6f4055f4ba48b937e230a350060, type: 3}
-    - {fileID: 2805633920695696223, guid: 871775cec6f57ab429ec2e760a0406a3, type: 3}
-    - {fileID: -7723724024098242069, guid: 8a7a398f32cb5304a9800e04289f43dc, type: 3}
-    - {fileID: 1296198028869233028, guid: 9cb66b3230aa50747828b89d7f775d36, type: 3}
-    - {fileID: 4243038468684218715, guid: 2c037edf48ea701489f205c5f37d45ad, type: 3}
-    - {fileID: 5760737632179803129, guid: f4eed5c2944ddb143b89a256cac978a3, type: 3}
-    - {fileID: 178528315620593539, guid: 427f281ea0b22604b860c321641a52b4, type: 3}
-    - {fileID: 3626981666587773793, guid: dad89fb3cbf3392478ebc334a68ef12c, type: 3}
-    - {fileID: -39957892216141377, guid: a6091200aa30b75468b4c71e78b75a09, type: 3}
-    - {fileID: 905864831991595785, guid: 02ff167c222c42147ae48efa9b451159, type: 3}
-    - {fileID: -378122100048681540, guid: 5f3e8c2f7ae9e5c41b9373957115509c, type: 3}
-    - {fileID: -2983719998795993426, guid: 44abf16cc15d70d49ab39c63e4c10640, type: 3}
-    - {fileID: -3545135326624840846, guid: 71f3918bd1c908a48b4e390fd2b11de8, type: 3}
-    - {fileID: -3378509263682496928, guid: f435d9ce41856e440ad5aed89ee11dd0, type: 3}
-    - {fileID: -7571332395713996475, guid: 2e96cfcbd5ada1943a8a97fe90ab44c7, type: 3}
-    - {fileID: -7343408912986953008, guid: dfb5028d188d8be43aa8da1b1118daab, type: 3}
-    - {fileID: 212381734724294192, guid: 6fab793b324291a4bb568ca95f63c733, type: 3}
-    - {fileID: -3269660356630656930, guid: e2a24427429c3df4e895fbdecc6e9198, type: 3}
+    - {fileID: 21300000, guid: 2b3c636ab25af6249980bf786c4168dc, type: 3}
+    - {fileID: 21300000, guid: 112e284ccc642b9468fb8712c02612bc, type: 3}
+    - {fileID: 21300000, guid: 9517bcfc168f9e1439cbe499b7d83a5e, type: 3}
+    - {fileID: 21300000, guid: c563d60205588394a92a10f9eff2a9d4, type: 3}
+    - {fileID: 21300000, guid: 96ade601763d8f14d80472bef6a6650d, type: 3}
+    - {fileID: 21300000, guid: 9dce6aa7625612a4c85b40a903b9f7c8, type: 3}
+    - {fileID: 21300000, guid: 9c6e7ec7376967242864f92b0850ecb4, type: 3}
+    - {fileID: 21300000, guid: 4042dc0db6d48134897557459e451ffc, type: 3}
+    - {fileID: 21300000, guid: f8a515951ffb23e4db0606c8a199b4c7, type: 3}
+    - {fileID: 21300000, guid: 284971579ab3e7a408907b19facbb2f8, type: 3}
+    - {fileID: 21300000, guid: 56a46ebd08ff7f3439f347eb13a318b3, type: 3}
+    - {fileID: 21300000, guid: dc87e59f00708ab488a626192b68b04b, type: 3}
+    - {fileID: 21300000, guid: 2b03751283aa1fb40bdc4d20c4965841, type: 3}
+    - {fileID: 21300000, guid: 2a7760fbfaf05a248841a0c73076b606, type: 3}
+    - {fileID: 21300000, guid: f9fa6f124b3242b408e2aacc341db0bb, type: 3}
+    - {fileID: 21300000, guid: 2a821a09b41c613438e30baa46145ad1, type: 3}
+    - {fileID: 21300000, guid: 2f52b41f7fa0c2842bcea84aa31eb908, type: 3}
+    - {fileID: 21300000, guid: 3d9c95c109ef93d49babffdfb0d73e66, type: 3}
+    - {fileID: 21300000, guid: 19b2f6b8575bb7e458e4687d76223ffb, type: 3}
+    - {fileID: 21300000, guid: 6e2643e6375d1ea4798373685bb4f44c, type: 3}
     pivotNormalized: {x: 0.5, y: 0.5}
     localPosition: {x: 0, y: 0.5}
     localScale: 1.5
@@ -42,7 +42,27 @@ MonoBehaviour:
     loopMode: 1
   large:
     overlayName: shit2
-    frames: []
+    frames:
+    - {fileID: 21300000, guid: 524f1cdc228221b48b8b130d72a8225f, type: 3}
+    - {fileID: 21300000, guid: 3054242884d1c6b4ca0caa7823a0ebf8, type: 3}
+    - {fileID: 21300000, guid: 02a521ff22bd4e04cbea3744b9dc7749, type: 3}
+    - {fileID: 21300000, guid: ca9fd41e4dc07bf4496052ecee9171d6, type: 3}
+    - {fileID: 21300000, guid: e49f616d62c32da41a77d442c267ce55, type: 3}
+    - {fileID: 21300000, guid: 879bd35b0466b8b4fa89ec29956e3675, type: 3}
+    - {fileID: 21300000, guid: d1fb8ef71ca13c94f9073667d63443ee, type: 3}
+    - {fileID: 21300000, guid: 182bdad9c0fbc6d468f06626fdb64c75, type: 3}
+    - {fileID: 21300000, guid: 53328caad81998a45b89894b87525e73, type: 3}
+    - {fileID: 21300000, guid: 162b4745fbeafb74cbae6888efaf3f41, type: 3}
+    - {fileID: 21300000, guid: 8f93ac6b88091ae45a4ab05941637138, type: 3}
+    - {fileID: 21300000, guid: b436fd91dcda4e8469a7d28958ee13e0, type: 3}
+    - {fileID: 21300000, guid: c811d8662a67c8f4aa9f3f6bfe840dcc, type: 3}
+    - {fileID: 21300000, guid: 8d5c6401e438f324a9abc79dcb74cfe5, type: 3}
+    - {fileID: 21300000, guid: 0e0328a99926c9f48ac25c6afa854cef, type: 3}
+    - {fileID: 21300000, guid: 3644a2c3ddd199c4282848031a0ee530, type: 3}
+    - {fileID: 21300000, guid: 0060465359702cf448706b7dc363315a, type: 3}
+    - {fileID: 21300000, guid: c05a12ee3abe7f24e93140b1646ce543, type: 3}
+    - {fileID: 21300000, guid: 0a7a186c668f374429d2f2531530f60d, type: 3}
+    - {fileID: 21300000, guid: 502fb9c47fe59e14c8b7744f4260de24, type: 3}
     pivotNormalized: {x: 0.5, y: 0.5}
     localPosition: {x: 0, y: 0.5}
     localScale: 1.5
@@ -50,7 +70,19 @@ MonoBehaviour:
     loopMode: 1
   boss:
     overlayName: shit3
-    frames: []
+    frames:
+    - {fileID: 21300000, guid: 1fa0da75252f96348a48db3fe8897c78, type: 3}
+    - {fileID: 21300000, guid: 23b275405fffe2a48805f3e5bc77ffbd, type: 3}
+    - {fileID: 21300000, guid: 2254580b9cb0b2649bbde5dab3abbc1f, type: 3}
+    - {fileID: 21300000, guid: 948af3e4e5936ac47b4e96c104da16f1, type: 3}
+    - {fileID: 21300000, guid: c9fd5855baea5a446a6a6e8dba6c90cf, type: 3}
+    - {fileID: 21300000, guid: 1095cc8b2a85a144cb1229ccf51a3a56, type: 3}
+    - {fileID: 21300000, guid: 65dede57ae762aa4a9def8bba4c4d51c, type: 3}
+    - {fileID: 21300000, guid: 6c5bcddef3364ea40b25b1a5c5462c2a, type: 3}
+    - {fileID: 21300000, guid: 2666541d460718f4a8539f38110f3191, type: 3}
+    - {fileID: 21300000, guid: 6cb9fe433d40c1c49969c681415ef1e8, type: 3}
+    - {fileID: 21300000, guid: 07d9a202861cc2f41ab0205e2191db9d, type: 3}
+    - {fileID: 21300000, guid: 86d769ae5379fe043831cd5bee0bbcba, type: 3}
     pivotNormalized: {x: 0.5, y: 0.5}
     localPosition: {x: 0, y: 0.5}
     localScale: 1.5

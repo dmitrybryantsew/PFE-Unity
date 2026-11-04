@@ -138463,7 +138463,7 @@ MonoBehaviour:
     - {fileID: 212381734724294192, guid: 6fab793b324291a4bb568ca95f63c733, type: 3}
     - {fileID: -3269660356630656930, guid: e2a24427429c3df4e895fbdecc6e9198, type: 3}
     pivotNormalized: {x: 0.5, y: 0.5}
-    localPosition: {x: 0, y: 0}
+    localPosition: {x: 0, y: 0.4}
     localScale: 1
     sortingOrder: 1000
     loopMode: 1

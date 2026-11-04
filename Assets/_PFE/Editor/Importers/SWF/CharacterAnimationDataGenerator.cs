@@ -117,7 +117,7 @@ namespace PFE.Editor.Importers.SWF
 
             // Build overlay clips — the siblings of the body sprite (vis.shit and friends).
             // These are NOT parts: they run on their own timeline and are drawn above the body.
-            var overlays = BuildOverlays(spriteImport);
+            var overlays = BuildOverlays(swfData, spriteImport, result.Warnings);
             definition.overlays = overlays.ToArray();
             if (overlays.Count > 0)
             {
@@ -198,11 +198,14 @@ namespace PFE.Editor.Importers.SWF
         /// draws nothing. The alternative, emitting a row with an empty <c>frames</c> array, looks the
         /// same at runtime but claims in the asset that the shield exists.</para>
         /// </summary>
-        static List<CharacterOverlayDefinition> BuildOverlays(CharacterSpriteImporter.ImportResult spriteImport)
+        static List<CharacterOverlayDefinition> BuildOverlays(
+            SWFFile swfData,
+            CharacterSpriteImporter.ImportResult spriteImport,
+            List<string> warnings)
         {
             var overlays = new List<CharacterOverlayDefinition>();
 
-            AddOverlay(overlays, spriteImport, ShieldSymbolId, ShieldOverlayName);
+            AddOverlay(overlays, swfData, spriteImport, ShieldSymbolId, ShieldOverlayName, warnings);
 
             return overlays;
         }
@@ -222,9 +225,11 @@ namespace PFE.Editor.Importers.SWF
 
         static void AddOverlay(
             List<CharacterOverlayDefinition> overlays,
+            SWFFile swfData,
             CharacterSpriteImporter.ImportResult spriteImport,
             int symbolId,
-            string overlayName)
+            string overlayName,
+            List<string> warnings)
         {
             if (!spriteImport.SpritesBySymbol.TryGetValue(symbolId, out var framesByFrameNum) ||
                 framesByFrameNum == null ||
@@ -258,7 +263,7 @@ namespace PFE.Editor.Importers.SWF
                 pivotNormalized = spriteImport.PivotsBySymbol.TryGetValue(symbolId, out var pivot)
                     ? pivot
                     : new Vector2(0.5f, 0.5f),
-                localPosition = Vector2.zero,
+                localPosition = ResolveOverlayLocalPosition(swfData, symbolId, overlayName, warnings),
                 localScale = 1f,
                 sortingOrder = 1000,
                 // visShit's frame script stops on frames 1 and 20 (visShit.as:14-21), so the clip plays
@@ -267,6 +272,56 @@ namespace PFE.Editor.Importers.SWF
             };
 
             overlays.Add(overlay);
+        }
+
+        /// <summary>
+        /// Where the overlay clip sits inside <c>visualPlayer</c>(3690) — the matrix the SWF gives
+        /// <c>vis.shit</c>(3625), read rather than assumed.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this cannot be zero.</b> 3690 places 3625 at <c>(0, -800)</c> twips — 40 px
+        /// above the registration point in Flash's y-down space — so the port's y-up answer is
+        /// <c>(0, +0.4)</c>. It was hardcoded to <see cref="Vector2.zero"/>, which put the dome's
+        /// centre on the player's <b>feet</b>: gate, frames, colour, pivot and sorting were all
+        /// correct and the whole graphic sat 40 px too low.</para>
+        ///
+        /// <para><b>Not the alicorns' <c>y = -50</c>.</b> <c>UnitAlicorn.as:202</c> assigns that to a
+        /// <c>visShit</c> it adds to the <i>unit's</i> container at runtime; the player's clip is
+        /// pre-placed inside 3690 by the symbol itself, and the two containers' origins are not the
+        /// same point. Reusing the alicorn number here would be an invented value that happens to be
+        /// close, which is the shape of defect this project keeps paying for.</para>
+        ///
+        /// <para><b>Absence is a warning, not a silent zero.</b> A parse that lost 3690, or a symbol
+        /// renumbered by an export, would otherwise put the dome back on the feet with nothing said.</para>
+        /// </remarks>
+        static Vector2 ResolveOverlayLocalPosition(
+            SWFFile swfData, int symbolId, string overlayName, List<string> warnings)
+        {
+            if (swfData?.Symbols == null ||
+                !swfData.Symbols.TryGetValue(AS3StateMapping.VisualPlayerSymbolId, out SWFSymbol visual) ||
+                visual.Frames == null || visual.Frames.Count == 0 ||
+                visual.Frames[0].Placements == null)
+            {
+                warnings.Add(
+                    $"overlay '{overlayName}': visualPlayer({AS3StateMapping.VisualPlayerSymbolId}) is not " +
+                    "in the parsed SWF, so its position falls back to (0,0) — which draws the dome on the " +
+                    "character's feet instead of over the body.");
+                return Vector2.zero;
+            }
+
+            foreach (SWFPlacement placement in visual.Frames[0].Placements)
+            {
+                if (placement != null && placement.CharacterId == symbolId)
+                {
+                    return FlashToUnityPosition(placement.Position);
+                }
+            }
+
+            warnings.Add(
+                $"overlay '{overlayName}': symbol {symbolId} is not a child of " +
+                $"visualPlayer({AS3StateMapping.VisualPlayerSymbolId}), so its position falls back to " +
+                "(0,0) — which draws the dome on the character's feet instead of over the body.");
+            return Vector2.zero;
         }
 
         /// <summary>

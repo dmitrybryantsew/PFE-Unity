@@ -134,5 +134,81 @@ namespace PFE.Tests.EditMode.Character
                 Object.DestroyImmediate(definition);
             }
         }
+
+        /// <summary>
+        /// The shield dome must be <b>on screen</b> when its gate is on — not merely configured.
+        ///
+        /// <para><b>The fault this guards.</b> <c>BuildOverlays</c> created the overlay GameObject
+        /// deactivated and nothing ever reactivated it, while every hide/show branch in
+        /// <c>SyncOverlays</c> writes the renderer's <c>enabled</c> flag. A SpriteRenderer on a
+        /// deactivated GameObject draws nothing however enabled it is, so the player's
+        /// <c>sp_mshit</c> dome had a correct gate (<c>shithp &gt; 0</c>), 20 imported frames, a
+        /// resolved sprite and sorting order 1000, and was still invisible. Every one of those was
+        /// asserted somewhere; the one thing nobody asserted was that the object is alive.</para>
+        ///
+        /// <para><b>Both edges.</b> The gate-off half is the control: it proves the two assertions
+        /// after it are reading values that can change, rather than a constant that would make the
+        /// test pass against any implementation.</para>
+        /// </summary>
+        [Test]
+        public void TheShieldDomeIsActuallyOnScreenWhenItsGateIsOn()
+        {
+            var go = new GameObject("player shield fixture");
+            var definition = ScriptableObject.CreateInstance<CharacterAnimationDefinition>();
+            var texture = new Texture2D(8, 8);
+            Sprite frame = null;
+            try
+            {
+                frame = Sprite.Create(texture, new Rect(0f, 0f, 8f, 8f), new Vector2(0.5f, 0.5f), 1f);
+
+                definition.characterId = "fixture";
+                definition.bodyScale = Vector2.one;
+                definition.parts = System.Array.Empty<CharacterPartDefinition>();
+                definition.stateClips = System.Array.Empty<CharacterStateClip>();
+                definition.overlays = new[]
+                {
+                    new CharacterOverlayDefinition
+                    {
+                        overlayName = "shit",
+                        frames = new[] { frame },
+                        pivotNormalized = new Vector2(0.5f, 0.5f),
+                        localScale = 1f,
+                        sortingOrder = 1000,
+                        loopMode = AnimationLoopMode.ClampForever,
+                    },
+                };
+
+                var context = CharacterVisualContext.Default;
+                var assembler = go.AddComponent<CharacterSpriteAssembler>();
+                assembler.Setup(definition, null, CharacterAppearance.CreateDefault(), context);
+
+                Transform overlay = go.transform.Find("overlay_shit");
+                Assert.IsNotNull(overlay, "the shield overlay was not built");
+                var renderer = overlay.GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(renderer, "the shield overlay has no SpriteRenderer");
+
+                // Control: gate off, so nothing may draw.
+                Assert.IsFalse(renderer.enabled, "the shield drew with showShield off");
+
+                // The rise edge — AS3 `vis.shit.visible = true; gotoAndPlay(1)`.
+                context.showShield = true;
+                assembler.VisualContext = context;
+
+                Assert.IsTrue(overlay.gameObject.activeSelf,
+                    "the shield overlay's GameObject is deactivated, so its SpriteRenderer draws " +
+                    "nothing no matter what `enabled` says. This is the 'cast the shield spell and " +
+                    "see no dome' fault: BuildOverlays switched the object off and nothing ever " +
+                    "switched it back on.");
+                Assert.IsTrue(renderer.enabled, "the shield renderer was not enabled on the rise edge");
+                Assert.IsNotNull(renderer.sprite, "the shield overlay resolved no sprite");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(definition);
+                if (frame != null) Object.DestroyImmediate(frame);
+                Object.DestroyImmediate(texture);
+            }
+        }
     }
 }

@@ -606,8 +606,14 @@ namespace PFE.Character
 
                 var go = new GameObject($"overlay_{def.overlayName}");
                 go.transform.SetParent(transform, false);
-                go.SetActive(false);
 
+                // Deliberately NOT `SetActive(false)`. Visibility here is the renderer's `enabled` flag,
+                // because that is what every hide branch in SyncOverlays writes; a deactivated
+                // GameObject ignores that flag and draws nothing. This object used to be deactivated at
+                // build and never reactivated, so the player's sp_mshit dome (vis.shit) was invisible
+                // with a correct gate, 20 imported frames, a resolved sprite and sorting order 1000 —
+                // the one thing wrong was that its GameObject was switched off. Draw() re-asserts the
+                // activation so the same mistake cannot come back silently.
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sortingLayerName = _sortingLayerName;
                 sr.sortingOrder = def.sortingOrder;
@@ -698,6 +704,10 @@ namespace PFE.Character
 
             Sprite source = slot.def.frames[index];
             Sprite sprite = GetPivotedSprite(source, slot.def.pivotNormalized);
+
+            // A disabled GameObject renders nothing however `enabled` its SpriteRenderer is, so the draw
+            // path asserts its own liveness instead of trusting whoever built the slot. See BuildOverlays.
+            if (!slot.gameObject.activeSelf) slot.gameObject.SetActive(true);
 
             slot.renderer.sprite = sprite;
             // An overlay is never tinted: tintCategory belongs to the body, and the shield is a
