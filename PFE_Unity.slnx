@@ -51,6 +51,7 @@
   <Project Path="Unity.2D.Tilemap.Extras.Editor.csproj" />
   <Project Path="PFE.ModAPI.csproj" />
   <Project Path="Unity.TextMeshPro.csproj" />
+  <Project Path="com.flipbookgames.scriptinspector3.csproj" />
   <Project Path="UniTask.Linq.csproj" />
   <Project Path="Unity.TextMeshPro.Editor.csproj" />
   <Project Path="PsdPlugin.csproj" />
