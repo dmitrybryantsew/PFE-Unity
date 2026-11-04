@@ -125,18 +125,44 @@ namespace PFE.Entities.Player
 
             var state = new CharacterStats.ManaTickState();
 
-            if (_telekinesis != null && _telekinesis.IsHoldingObject && _telekinesis.HeldObject != null)
+            // A hold is ONE `teleObj` in AS3, and its cost is `sqrt(massa)` above `telePorog` whatever
+            // the target happens to be (UnitPlayer.as:1807-1813). This block used to read `HeldObject`
+            // only, so a carried pickup was never charged at all -- invisible today purely because
+            // `WorldItemPickup.As3Massa` is 0.1 and `CharacterStats.telePorog` is 0.1, i.e. exactly ON
+            // the free threshold (`massa > telePorog` is false). Lower the threshold by a hundredth and
+            // the port would carry a cogwheel for nothing while the oracle charges for it. Reading both
+            // halves makes the cost depend on the rule instead of on that coincidence.
+            if (_telekinesis != null && _telekinesis.IsHoldingObject)
             {
-                state.TelekinesisActive = true;
+                bool hasSubject = false;
+                float massa = 0f;
 
-                // AS3's teleSqrtMassa is sqrt(massa) above telePorog and 0 at or below it
-                // (UnitPlayer.as:1807-1813), so a prop light enough to be under the threshold is
-                // free to hold. TelekinesisMath.HoldManaDrain applies the same rule; it is
-                // re-derived here rather than called because that helper folds in teleMult and
-                // this struct wants the raw term.
-                float massa = _telekinesis.HeldObject.GetAs3Massa();
-                state.TelekinesisSqrtMass =
-                    massa > _stats.TelePorog ? Mathf.Sqrt(Mathf.Max(0f, massa)) : 0f;
+                if (_telekinesis.HeldObject != null)
+                {
+                    massa = _telekinesis.HeldObject.GetAs3Massa();
+                    hasSubject = true;
+                }
+                else if (_telekinesis.HeldLoot != null)
+                {
+                    // `HeldLoot` stays non-null for a pickup that was DESTROYED (taken) until the
+                    // controller clears it, and Unity's `!= null` is false for a destroyed object --
+                    // so this arm correctly skips a hold that has nothing left to charge for.
+                    massa = _telekinesis.HeldLoot.GetAs3Massa();
+                    hasSubject = true;
+                }
+
+                if (hasSubject)
+                {
+                    state.TelekinesisActive = true;
+
+                    // AS3's teleSqrtMassa is sqrt(massa) above telePorog and 0 at or below it
+                    // (UnitPlayer.as:1807-1813), so an object light enough to be under the threshold
+                    // is free to hold. TelekinesisMath.HoldManaDrain applies the same rule; it is
+                    // re-derived here rather than called because that helper folds in teleMult and
+                    // this struct wants the raw term.
+                    state.TelekinesisSqrtMass =
+                        massa > _stats.TelePorog ? Mathf.Sqrt(Mathf.Max(0f, massa)) : 0f;
+                }
             }
 
             if (_locomotion != null && _locomotion.IsLevitating)

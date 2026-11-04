@@ -91,14 +91,14 @@ namespace PFE.Tests.Editor.Loot
 
         private static LootFallState Step(
             Grid grid, ShelfProbe shelf, float centreX, float bottom, float vx, float vy,
-            float height = 20f, float halfWidth = 15f, int divisor = 1)
+            float height = 20f, float halfWidth = 15f, int divisor = 1, bool levitating = false)
         {
             LootTileProbe tileProbe = grid == null ? null : (LootTileProbe)grid.Probe;
             LootShelfProbe shelfProbe = shelf == null ? null : (LootShelfProbe)shelf.Probe;
 
             return LootFallStepRules.Step(
                 centreX, bottom, halfWidth, height, vx, vy, divisor,
-                RoomWidthPx, RoomHeightPx, tileProbe, shelfProbe);
+                RoomWidthPx, RoomHeightPx, tileProbe, shelfProbe, levitating);
         }
 
         // ── Landing on a tile ──────────────────────────────────────────────────
@@ -297,6 +297,109 @@ namespace PFE.Tests.Editor.Loot
             Assert.That(right.Vx, Is.EqualTo(-9f));
         }
 
+        // ── Telekinesis (`levit`) ──────────────────────────────────────────────
+        //
+        // Loot is a telekinesis target in the oracle (`Loot.as:245` `levitPoss = true`, `:356-360` damps
+        // while `levit` is set, `:464` and `:468` skip both shelf tests, `:479` guards the stop on
+        // `!levit`). The port could not lift loot at all before these branches existed, so they are
+        // pinned here rather than left to a play-test.
+
+        [Test]
+        public void LevitatedLoot_RestingOnATile_KeepsItsVelocityAndReportsNoContact()
+        {
+            // `if(_loc4_) { Y = _loc4_ - 1; if(!levit) { … stay = true; dy = dx = 0; } }`
+            // (Loot.as:476-487). The clamp is unconditional; the STOP is not. So a carried pickup pressed
+            // into the floor is placed on the surface and keeps its speed — which is what lets the caster
+            // drag it along the ground instead of the carry ending on contact.
+            var grid = new Grid().With(5, 0, Kind.Solid);
+
+            LootFallState state = Step(grid, null, centreX: 220f, bottom: 45f, vx: 3f, vy: -9f,
+                                       levitating: true);
+
+            Assert.That(state.Bottom, Is.EqualTo(41f), "`Y = _loc4_ - 1` still applies.");
+            Assert.That(state.SurfaceTop, Is.EqualTo(40f));
+            Assert.That(state.Vx, Is.EqualTo(3f), "`dx` is not zeroed while `levit`.");
+            Assert.That(state.Vy, Is.EqualTo(-9f), "`dy` is not zeroed while `levit` either.");
+            Assert.That(state.Contact, Is.EqualTo(LootContact.None),
+                "no contact is reported: reporting Floor would make Stopped true and end the carry.");
+            Assert.That(state.Stopped, Is.False);
+        }
+
+        [Test]
+        public void LevitatedLoot_IgnoresTheShelfProp_AndSoFallsPastACrate()
+        {
+            // `if(_loc4_ == 0 && !levit && !this.vsos)` (Loot.as:468) — a carried item passes OVER a
+            // crate rather than landing on it, which is what makes lifting something out of a pile work.
+            var shelf = new ShelfProbe { Answer = true, Top = 95f };
+
+            LootFallState state = Step(new Grid(), shelf, centreX: 220f, bottom: 100f, vx: 0f, vy: -9f,
+                                       levitating: true);
+
+            Assert.That(shelf.Calls, Is.EqualTo(0), "`!levit` — the prop search must not run at all.");
+            Assert.That(state.Contact, Is.EqualTo(LootContact.None));
+            Assert.That(state.Bottom, Is.EqualTo(91f), "it moved through the crate's top edge.");
+            Assert.That(state.Vy, Is.EqualTo(-9f));
+
+            // Control: the same geometry WITHOUT the flag lands on the crate. Without this half, deleting
+            // the `!levitating` guard above would still pass the test.
+            LootFallState falling = Step(new Grid(), shelf, centreX: 220f, bottom: 100f, vx: 0f, vy: -9f);
+            Assert.That(falling.Contact, Is.EqualTo(LootContact.Floor));
+            Assert.That(falling.Bottom, Is.EqualTo(96f));
+            Assert.That(shelf.Calls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void LevitatedLoot_PassesThroughAShelfTile_WhereAFreeOneLandsOnIt()
+        {
+            // `_loc2_.shelf && !levit && !this.vsos && …` (Loot.as:464). EVERY shelf test in the oracle
+            // is `!levit`-gated — the tile clause here, the prop search at `:468`, and the prop-side
+            // equivalent `Box.collisionTile`'s `|| levit || this.isThrow` (`Box.as:1270`). That is what
+            // lets a carried object be pushed down THROUGH a beam.
+            //
+            // The port guarded the prop search and the stop but not this tile clause, so a levitated
+            // pickup was caught by every beam it was pushed onto — "I cannot drop a carried object
+            // through a ledge". Note the clamp (`Y = _loc4_ - 1`) runs for a levitated loot too, so the
+            // symptom was not a fall-through; it was the object refusing to go below the beam.
+            var grid = new Grid().With(5, 2, Kind.Shelf);   // spans y 80..120, top edge 120
+
+            LootFallState levitated = Step(grid, null, centreX: 220f, bottom: 124f, vx: 0f, vy: -9f,
+                                           levitating: true);
+
+            Assert.That(levitated.Contact, Is.EqualTo(LootContact.None),
+                "a beam must not exist for a carried object.");
+            Assert.That(levitated.Bottom, Is.EqualTo(115f), "it falls THROUGH: 124 - 9.");
+            Assert.That(levitated.Vy, Is.EqualTo(-9f), "and keeps its speed, so the carry continues.");
+
+            // Control: identical geometry, flag off. Without it, deleting the shelf clause outright
+            // would also satisfy the assertion above.
+            LootFallState falling = Step(grid, null, centreX: 220f, bottom: 124f, vx: 0f, vy: -9f);
+            Assert.That(falling.Contact, Is.EqualTo(LootContact.Floor));
+            Assert.That(falling.SurfaceTop, Is.EqualTo(120f), "a free loot lands on the beam.");
+            Assert.That(falling.Bottom, Is.EqualTo(121f));
+        }
+
+        [Test]
+        public void LevitatedLoot_StillCollidesWithWalls_AndIsStillBoundedByTheRoom()
+        {
+            // The two guards that are NOT gated on `levit` in the oracle: the horizontal wall pushes
+            // (`:417-434`) and the room-edge clamps (`:407-416`). A carried item must not be able to be
+            // dragged through a wall or out of the room.
+            var grid = new Grid().With(4, 1, Kind.Solid);
+
+            LootFallState wall = Step(grid, null, centreX: 205f, bottom: 60f, vx: -9f, vy: 0f,
+                                      levitating: true);
+
+            Assert.That(wall.Contact, Is.EqualTo(LootContact.WallLeft));
+            Assert.That(wall.CentreX, Is.EqualTo(201f));
+            Assert.That(wall.Vx, Is.EqualTo(9f));
+
+            LootFallState edge = Step(new Grid(), null, centreX: 10f, bottom: 500f, vx: -9f, vy: 0f,
+                                      levitating: true);
+
+            Assert.That(edge.CentreX, Is.EqualTo(15f), "`if(X - scX/2 < 0) X = scX/2`.");
+            Assert.That(edge.Vx, Is.EqualTo(9f));
+        }
+
         // ── Leaving the room, and free fall ────────────────────────────────────
 
         [Test]
@@ -396,6 +499,168 @@ namespace PFE.Tests.Editor.Loot
                     "`" + symbol + "` belongs to LootFallStepRules now. A tile-edge comparison in the " +
                     "component is a second copy of the decision, and the two will disagree.");
             }
+        }
+
+        // ── Telekinesis on loot ────────────────────────────────────────────────
+
+        [Test]
+        public void LevitateTick_RunsTheOracleController_NotAProportionalFollow()
+        {
+            // AS3's hold controller is accel-to-cap + 0.8 damping (`UnitPlayer.as:1247-1262`,
+            // `Loot.as:356-360`). The port's first telekinesis implementation used an invented
+            // proportional follow (`v = toTarget * 14`), which is a different controller in SHAPE — so
+            // this lint asserts the two calls, not a number.
+            string source = SourceLint.ReadStripped(Component);
+            string body = SourceLint.MethodBody(source, "private void LevitateTick()");
+
+            Assert.That(body, Does.Contain("TelekinesisMath.HoldAccelStep"),
+                "the per-axis accel step is the oracle's controller; anything proportional is invented.");
+            Assert.That(body, Does.Contain("TelekinesisMath.LevitDamping"),
+                "`dy *= 0.8; dx *= 0.8` is the only thing that stops a held object — there is no brake.");
+            Assert.That(body, Does.Contain("StepOnce("),
+                "a carried pickup must collide through the same resolver a falling one does, or it can be " +
+                "dragged through walls.");
+            Assert.That(body, Does.Not.Contain("TelekinesisFollowSpeed"),
+                "the invented proportional rate must not come back.");
+        }
+
+        [Test]
+        public void LevitateTick_TargetsTheCentre_NotTheBottom()
+        {
+            // AS3 compares `teleObj.X` and `teleObj.Y - teleObj.scY / 2` — the vertical CENTRE. `Y` is
+            // the bottom in both spaces, so comparing the bottom biases the target by half the sprite's
+            // height: 16 px for a 33 px cogwheel against a 15 px deadzone, i.e. it settles a whole
+            // deadzone low. This is the exact bug the prop step already shipped once.
+            string source = SourceLint.ReadStripped(Component);
+            string body = SourceLint.MethodBody(source, "private void LevitateTick()");
+
+            Assert.That(body, Does.Contain("CentreRoomLocalPixels"),
+                "the target must be compared against the pickup's centre.");
+            Assert.That(body, Does.Not.Contain("BottomRoomLocalPixels"),
+                "the bottom is for the grab/drop distance, never for the hold controller.");
+        }
+
+        [Test]
+        public void SpawnCore_AssignsTheUnlitPresenterMaterial()
+        {
+            // URP's Renderer2D makes `Sprite-Lit-Default` the default sprite material, and
+            // `BackgroundPhysicalObjects` is not in Global Light 2D's apply list — so a lit sprite there
+            // is multiplied by zero and drawn solid black. That is what "collectable objects are black"
+            // was: the right silhouette, the right alpha, no colour. Every other presenter in the project
+            // asks SpritePresenterMaterial; this component was the one that forgot.
+            string source = SourceLint.ReadStripped(Component);
+            string body = SourceLint.MethodBody(source, "private static WorldItemPickup SpawnCore(");
+
+            Assert.That(body, Does.Contain("SpritePresenterMaterial.Get()"),
+                "the loot renderer must use the shared unlit material, or it renders black on its layer.");
+            Assert.That(body, Does.Contain("sharedMaterial"),
+                "assigning `.material` would instantiate a copy per pickup and break batching.");
+        }
+
+        [Test]
+        public void TheController_HasALootArm_WithTheSameGateAndDropRule()
+        {
+            string source = SourceLint.ReadStripped("Entities/Player/PlayerTelekinesisController.cs");
+
+            Assert.That(source, Does.Contain("FindLootCandidate"),
+                "AS3's actTele scans ONE list containing loot and props; without a loot candidate search " +
+                "only crates can ever be lifted.");
+
+            string grab = SourceLint.MethodBody(source, "private bool TryGrabLoot(");
+            Assert.That(grab, Does.Contain("TelekinesisMath.CanGrab"),
+                "the loot grab must pass the SAME four-term gate as a prop, not a looser one.");
+            Assert.That(grab, Does.Contain("TryBeginTelekineticHold"),
+                "and it must check the hold was accepted rather than logging an unverified success.");
+
+            string hold = SourceLint.MethodBody(source, "private void UpdateLootHold(float deltaTime)");
+            Assert.That(hold, Does.Contain("TelekinesisMath.MustDrop"),
+                "the drop rule is the oracle's (`celDist > teleDist * 1.2 || mana <= 0 || !levitPoss`).");
+            Assert.That(hold, Does.Contain("SetTelekineticTarget"),
+                "the caster writes the target; the pickup integrates it. Writing nothing freezes the carry.");
+
+            string updateHold = SourceLint.MethodBody(source, "public void UpdateHold(float deltaTime)");
+            Assert.That(updateHold, Does.Contain("UpdateLootHold"),
+                "UpdateHold must route a loot hold to its own tick, or a carried pickup never updates.");
+        }
+
+        [Test]
+        public void TheProbe_ReportsALootHold_AndDoesNotDenyTheGrabItWouldMake()
+        {
+            // A diagnostic is part of the system: `tele probe` is how this project finds out WHY a grab
+            // did nothing. The probe searched props only, so with a cogwheel under the cursor it printed
+            // "VERDICT: TryGrab would REFUSE at the candidate search" -- a verdict the real `TryGrab`
+            // contradicts, because it takes the cogwheel. And while a cogwheel was carried, [7] read
+            // only `_heldObject` and printed "<none> (nothing is held right now)".
+            //
+            // Both are the failure this file's own [7a] block was written to prevent: the one run that
+            // had the evidence in hand reported nothing about it. Pinned here because nothing else can
+            // catch it -- the probe is not executed by any fixture.
+            // The body lives in `ProbeCore` -- `Probe` only wraps it so the recorder sees every early
+            // return. Asserting on `Probe` would pass vacuously: it contains none of the reporting.
+            string source = SourceLint.ReadStripped("Entities/Player/PlayerTelekinesisController.cs");
+            string probe = SourceLint.MethodBody(source, "private string ProbeCore()");
+
+            Assert.That(probe, Does.Contain("FindLootCandidate"),
+                "the [5] candidate search must ask the loot half too, or the probe denies a grab the " +
+                "real TryGrab would make.");
+            Assert.That(probe, Does.Contain("LootHeld"),
+                "the [7] held line must read the loot hold as well as `_heldObject`.");
+            Assert.That(probe, Does.Contain("_heldLoot.CentreRoomLocalPixels"),
+                "[7] must print where the carried pickup actually is -- the value the hold integrates.");
+            Assert.That(probe, Does.Contain("_lastHoldWasLoot"),
+                "[7a] must name the integrator: a prop is stepped by the room's layer, loot by the " +
+                "pickup's own tick, and those are different suspects.");
+
+            string deadzone = SourceLint.MethodBody(
+                source, "private static void AppendDeadzoneAnalysis(StringBuilder sb, string label,");
+            Assert.That(deadzone, Does.Contain("TelekinesisMath.HoldAccelStep"),
+                "the [7c] nudge must come from the same function the controller uses, for both halves.");
+        }
+
+        [Test]
+        public void TheManaCharge_SeesALootHold_NotJustAProp()
+        {
+            // The hold cost is `sqrt(massa)` above `telePorog` for ONE `teleObj`, whatever it is
+            // (UnitPlayer.as:1807-1813). `PlayerManaTicker` read `HeldObject` only, so a carried pickup
+            // was never charged -- and nothing would ever have shown it, because `As3Massa` is 0.1 and
+            // `telePorog` is 0.1, so the correct answer is also zero. A rule that is right by
+            // coincidence is one edit away from being wrong, and this is the edit.
+            string source = SourceLint.ReadStripped("Entities/Player/PlayerManaTicker.cs");
+            string step = SourceLint.MethodBody(source, "private void Step()");
+
+            Assert.That(step, Does.Contain("HeldLoot"),
+                "the charge must be computed from the loot half too, or a pickup hold is free by " +
+                "omission rather than by the threshold rule.");
+            Assert.That(step, Does.Contain("TelePorog"),
+                "and it must still be the oracle's threshold comparison, not a fixed zero.");
+        }
+
+        [Test]
+        public void ThePropLandingSample_IsPlayedThroughTheRule_AtBothLandingSites()
+        {
+            // `Box.as:1074-1077` plays `sndFall` when a prop reaches a surface, and the oracle's shelf
+            // branch (`:1069`) falls through into the same block — so a crate landing on a crate thuds
+            // like one landing on a tile. Both call sites are in `TryMoveAxis`, and both must go through
+            // the rule so the px/s → px/frame conversion and the sign live in one testable place.
+            string source = SourceLint.ReadStripped("Systems/Map/RoomObjectPhysicsLayer.cs");
+
+            Assert.That(source, Does.Contain("MapObjectSoundRule.PlaysOnLanding"),
+                "the gate belongs to MapObjectSoundRule, where an offline fixture can pin it.");
+
+            string move = SourceLint.MethodBody(
+                source, "void TryMoveAxis(RoomInstance room, ObjectInstance obj, MapObjectDynamicStateData state, Vector2 delta, bool verticalAxis)");
+
+            int calls = 0;
+            int index = 0;
+            while ((index = move.IndexOf("PlayLandingSound(", index, System.StringComparison.Ordinal)) >= 0)
+            {
+                calls++;
+                index += "PlayLandingSound(".Length;
+            }
+
+            Assert.That(calls, Is.EqualTo(2),
+                "two landing sites: the tile/room-bounds refusal and the prop-shelf support. A prop " +
+                "landing on another prop is silent without the second one.");
         }
     }
 }

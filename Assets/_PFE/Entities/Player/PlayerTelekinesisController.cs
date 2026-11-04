@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using VContainer;
+using PFE.Systems.Inventory;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
@@ -75,6 +76,25 @@ namespace PFE.Entities.Player
         private RoomInstance _derivedTileQueryRoom;
 
         private ObjectInstance _heldObject;
+
+        /// <summary>
+        /// The <b>floor loot</b> being carried, or <c>null</c>. The second half of what AS3 calls
+        /// <c>teleObj</c>.
+        ///
+        /// <para><b>Why this is a second field and not a widened one.</b> AS3 has a single
+        /// <c>Unit extends Obj</c> hierarchy and a single <c>loc.firstObj</c> list, so a crate and a
+        /// cogwheel are the same kind of thing to <c>actTele</c>. The port does not: a prop is an
+        /// <see cref="ObjectInstance"/> integrated by <c>RoomObjectPhysicsLayer</c>, and a dropped item is
+        /// a <see cref="WorldItemPickup"/> that integrates itself. Two integrators means two held
+        /// references, but the <i>decisions</i> — the gate, the drop rule, the throw — are shared, so this
+        /// is a second pointer rather than a second implementation.</para>
+        ///
+        /// <para>Compared with <see cref="ReferenceEquals"/> when the question is "is a hold in
+        /// progress": a pickup that was taken is destroyed, and Unity's <c>==</c> reports a destroyed
+        /// object as null, which would silently look like "not holding" and leave a stale reference.</para>
+        /// </summary>
+        private WorldItemPickup _heldLoot;
+
         private Vector2 _cursorRoomLocalPixels;
         private bool _cursorSetExternally;
         private Vector2? _explicitPlayerPositionPixels;
@@ -139,12 +159,41 @@ namespace PFE.Entities.Player
         private Vector2 _holdLastTarget;
         private float _holdManaDrained;
 
+        // Which half of the scan produced the last hold, and the pickup it produced.
+        //
+        // This matters because the two halves are integrated by DIFFERENT code: a prop by
+        // `RoomObjectPhysicsLayer` (driven by the room's tick), loot by `WorldItemPickup.LevitateTick`
+        // (driven by the pickup's own Update, a fixed 30 Hz accumulator). "The hold ran and nothing
+        // moved" therefore has two different suspects, and a probe that does not say which integrator
+        // was in play sends the next session to the wrong file. `_lastHeldLoot` is kept after the drop
+        // for the same reason `_lastHeldObject` is -- see the block above.
+        private WorldItemPickup _lastHeldLoot;
+        private bool _lastHoldWasLoot;
+
         // Counts this component's own Update calls. "UpdateHold never ran" and "Update never ran" are
         // different bugs with different fixes, and nothing distinguished them before this.
         private int _updateCallCount;
 
+        /// <summary>The prop being carried, or <c>null</c> when the hold is on loot (or nothing).</summary>
         public ObjectInstance HeldObject => _heldObject;
-        public bool IsHoldingObject => _heldObject != null;
+
+        /// <summary>The floor loot being carried, or <c>null</c>.</summary>
+        public WorldItemPickup HeldLoot => _heldLoot;
+
+        /// <summary>
+        /// Whether a hold is in progress — AS3's <c>if(this.teleObj)</c>. True for a prop <b>or</b> for
+        /// loot, because the oracle has one <c>teleObj</c> and every caller of this
+        /// (<c>PlayerController</c>'s throw-on-interact, the stealth check, the mana tick) asks the same
+        /// question the oracle asks. A caller that needs the prop specifically reads
+        /// <see cref="HeldObject"/>.
+        /// </summary>
+        public bool IsHoldingObject => _heldObject != null || LootHeld;
+
+        /// <summary>
+        /// "A loot hold is registered", including the frame in which the pickup was destroyed. See
+        /// <see cref="_heldLoot"/> for why this is not <c>_heldLoot != null</c>.
+        /// </summary>
+        private bool LootHeld => !ReferenceEquals(_heldLoot, null);
 
         /// <summary>
         /// True when the debug "infinite mana" switch is on, meaning telekinesis must neither spend nor
@@ -489,13 +538,43 @@ namespace PFE.Entities.Player
 
             // Find candidate within 50 px radius of cursor (AS3: 50 * 50)
             const float MaxCursorDistancePixels = 50f;
-            if (!room.ObjectPhysicsLayer.TryFindTelekineticCandidate(cursorPx, MaxCursorDistancePixels, maxTeleMassa, out ObjectInstance candidate))
+            bool hasProp = room.ObjectPhysicsLayer.TryFindTelekineticCandidate(
+                cursorPx, MaxCursorDistancePixels, maxTeleMassa, out ObjectInstance candidate);
+            WorldItemPickup loot = FindLootCandidate(room, cursorPx, MaxCursorDistancePixels, maxTeleMassa);
+
+            // AS3 scans ONE list — `loc.firstObj`, which holds boxes, loot and units together
+            // (`UnitPlayer.as:1769-1783`) — and takes the nearest match. The port splits that list across
+            // two owners, so the tie has to be broken here by the same rule the oracle uses: the closer
+            // of the two wins. Without this, a cogwheel lying on a crate could never be picked up,
+            // because the crate would always answer first.
+            if (hasProp && loot != null)
+            {
+                float propGap = (ReferencePoint(candidate) - cursorPx).sqrMagnitude;
+                float lootGap = (loot.CentreRoomLocalPixels - cursorPx).sqrMagnitude;
+                if (lootGap < propGap)
+                {
+                    hasProp = false;
+                    candidate = null;
+                }
+                else
+                {
+                    loot = null;
+                }
+            }
+
+            if (!hasProp && loot == null)
             {
                 TelekinesisTrace.Log(
                     $"TryGrab REFUSED: no candidate within {MaxCursorDistancePixels:F0}px of the cursor that is " +
                     $"liftable and <= {maxTeleMassa:F3} massa. Candidates:\n" +
-                    DescribeCandidates(room, cursorPx, maxTeleMassa));
+                    DescribeCandidates(room, cursorPx, maxTeleMassa) +
+                    $"\n  floor loot in this room: {DescribeLootCandidates(room, cursorPx, maxTeleMassa)}");
                 return false;
+            }
+
+            if (loot != null)
+            {
+                return TryGrabLoot(loot, cursorPx, playerFeetPx, playerEyePx, maxTeleMassa, teleDist, manaForGate);
             }
 
             TelekinesisTrace.Log(
@@ -586,6 +665,8 @@ namespace PFE.Entities.Player
             // Start a fresh hold post-mortem. `_lastHeldObject` deliberately keeps the reference after a
             // drop so `tele probe` can still report on it -- see the field block.
             _lastHeldObject = candidate;
+            _lastHeldLoot = null;
+            _lastHoldWasLoot = false;
             _lastHeldObjectId = candidate.objectId;
             _holdEntryTicks = 0;
             _holdUpdateTicks = 0;
@@ -614,12 +695,199 @@ namespace PFE.Entities.Player
             return true;
         }
 
+        // ── Floor loot as a telekinesis target ───────────────────────────────────────────────────
+        //
+        // AS3 lifts loot exactly like a crate: `Loot extends Obj`, `levitPoss` is true, `massa` is 0.1,
+        // and `actTele`'s scan walks a list that contains both. The port had no loot half at all —
+        // only props live in `RoomObjectPhysicsLayer` — which is why "you could lift crates but not a
+        // cogwheel" was not a bug in the gate but a missing target type.
+
         /// <summary>
-        /// Every dynamic object the room's physics layer holds, nearest-to-cursor first, with the terms
-        /// the candidate search tests. This is what turns "no candidate" from a dead end into a named
-        /// reason — in practice the answer is almost always "every prop near you is too heavy, and the
-        /// one you are aiming at is not in the room's dynamic list at all".
+        /// The nearest liftable pickup under the cursor, or <c>null</c>.
+        ///
+        /// <para><b>Same three terms as the prop filter, from the same oracle line</b>
+        /// (<c>UnitPlayer.as:1769-1783</c>): within the 50 px cursor box, <c>levitPoss</c>, and
+        /// <c>massa &lt;= maxTeleMassa</c>. <c>stay</c> is deliberately absent, for the same reason it is
+        /// absent on the prop side: AS3 will grab an item that is still falling.</para>
+        ///
+        /// <para><b>Scoped to the current room.</b> <see cref="WorldItemPickup.All"/> is a global list
+        /// (the F2 drop tab shows all of it), and the cursor is room-local, so an unscoped search would
+        /// compare a cursor against pickups in a room the player is not standing in — every room's loot
+        /// sits at its own room-local coordinates, so they would all look "right next to the cursor".</para>
         /// </summary>
+        private static WorldItemPickup FindLootCandidate(RoomInstance room, Vector2 cursorPx,
+                                                        float maxCursorDistancePixels, float maxMassa)
+        {
+            WorldItemPickup best = null;
+            float bestGap = maxCursorDistancePixels * maxCursorDistancePixels;
+
+            var all = WorldItemPickup.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                WorldItemPickup pickup = all[i];
+                if (pickup == null || pickup.Room != room) continue;
+                if (!pickup.IsLiftable || pickup.IsHeldByTelekinesis) continue;
+                if (pickup.GetAs3Massa() > maxMassa) continue;
+
+                float gap = (pickup.CentreRoomLocalPixels - cursorPx).sqrMagnitude;
+                if (gap > bestGap) continue;
+
+                bestGap = gap;
+                best = pickup;
+            }
+
+            return best;
+        }
+
+        /// <summary>
+        /// The loot half of the "no candidate" trace — one line per pickup in this room, with the terms
+        /// the filter tests. A refusal that names nothing is what made the first crate bug take four
+        /// sessions; there is no reason to repeat that for loot.
+        /// </summary>
+        private static string DescribeLootCandidates(RoomInstance room, Vector2 cursorPx, float maxMassa)
+        {
+            var all = WorldItemPickup.All;
+            var sb = new System.Text.StringBuilder();
+            int shown = 0;
+
+            for (int i = 0; i < all.Count; i++)
+            {
+                WorldItemPickup pickup = all[i];
+                if (pickup == null || pickup.Room != room) continue;
+
+                Vector2 centre = pickup.CentreRoomLocalPixels;
+                sb.Append("\n  loot ").Append(pickup.ItemId)
+                  .Append(" x").Append(pickup.Quantity)
+                  .Append(" centre=(").Append(centre.x.ToString("F1")).Append(',')
+                  .Append(centre.y.ToString("F1")).Append(')')
+                  .Append(" gap=").Append((centre - cursorPx).magnitude.ToString("F1")).Append("px")
+                  .Append(" massa=").Append(pickup.GetAs3Massa().ToString("F3"))
+                  .Append(" levitPoss=").Append(pickup.IsLiftable)
+                  .Append(" held=").Append(pickup.IsHeldByTelekinesis);
+                shown++;
+            }
+
+            if (shown == 0) sb.Append("\n  (no floor loot in this room)");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Grab a pickup — the loot arm of <c>UnitPlayer.actTele</c> (<c>UnitPlayer.as:1749-1833</c>).
+        ///
+        /// <para><b>Identical gate, identical line of sight, different integrator.</b> The four terms,
+        /// the mana floor and the <c>telemaster == 0</c> ray are the oracle's and are shared with the prop
+        /// arm; only the hold call differs, because the pickup integrates its own motion
+        /// (<see cref="WorldItemPickup.TryBeginTelekineticHold"/>).</para>
+        /// </summary>
+        private bool TryGrabLoot(WorldItemPickup loot, Vector2 cursorPx, Vector2 playerFeetPx,
+                                 Vector2 playerEyePx, float maxTeleMassa, float teleDist, float manaForGate)
+        {
+            // `celDist` is player-to-object and measured to the object's ORIGIN (`Location.as:3494`),
+            // which is the loot's bottom — not its centre. Same reference as the prop arm's
+            // `candidate.position`.
+            float distSq = (loot.BottomRoomLocalPixels - playerFeetPx).sqrMagnitude;
+            bool liftable = loot.IsLiftable;
+            float massa = loot.GetAs3Massa();
+
+            if (!TelekinesisMath.CanGrab(hasTarget: true,
+                                        levitPoss: liftable,
+                                        distanceSquared: distSq,
+                                        teleDistSquared: teleDist,
+                                        massa: massa,
+                                        maxTeleMassa: maxTeleMassa,
+                                        mana: manaForGate))
+            {
+                TelekinesisTrace.Log(
+                    $"TryGrab REFUSED by the gate (loot {loot.ItemId}): levitPoss={liftable} | " +
+                    $"distSq {distSq:F0} <= teleDist {teleDist:F0} ? {distSq <= teleDist} | " +
+                    $"massa {massa:F3} <= maxTeleMassa {maxTeleMassa:F3} ? {massa <= maxTeleMassa} | " +
+                    $"budgetMana {manaForGate:F1} >= {TelekinesisMath.MinManaToGrab:F0}");
+                return false;
+            }
+
+            CharacterStats stats = Stats;
+            if (stats != null && stats.Telemaster == 0 &&
+                !LootLineOfSightClear(loot, playerEyePx, out string blocked))
+            {
+                TelekinesisTrace.Log($"TryGrab REFUSED by line of sight (loot {loot.ItemId}): {blocked}");
+                return false;
+            }
+
+            if (!loot.TryBeginTelekineticHold(cursorPx) || !loot.IsHeldByTelekinesis)
+            {
+                TelekinesisTrace.Log(
+                    $"TryGrab FAILED at TryBeginTelekineticHold (loot {loot.ItemId}): the pickup has no " +
+                    "room to resolve its tile grid against, so it could not be carried. The grab was " +
+                    "abandoned rather than reported as a success.");
+                return false;
+            }
+
+            _heldObject = null;
+            _heldLoot = loot;
+
+            // The post-mortem is shared with the prop arm — `tele probe` reports one hold, and which
+            // integrator is behind it is the `loot` flag on the same block.
+            _lastHeldObject = null;
+            _lastHeldLoot = loot;
+            _lastHoldWasLoot = true;
+            _lastHeldObjectId = loot.ItemId;
+            _holdEntryTicks = 0;
+            _holdUpdateTicks = 0;
+            _holdTargetWrites = 0;
+            _holdManaDrained = 0f;
+            _holdFirstTarget = cursorPx;
+            _holdLastTarget = cursorPx;
+
+            TelekinesisTrace.Log(
+                $"TryGrab SUCCEEDED: holding loot {loot.ItemId} x{loot.Quantity} (massa={massa:F3}) | " +
+                $"room.isActive={CurrentRoom?.isActive}");
+
+            TelekinesisRecorder.Write(
+                $"[GRAB]  loot {loot.ItemId} x{loot.Quantity} massa={massa:F3} " +
+                $"cursor=({cursorPx.x:F1},{cursorPx.y:F1}) " +
+                $"bottom=({loot.BottomRoomLocalPixels.x:F1},{loot.BottomRoomLocalPixels.y:F1}) " +
+                $"centre=({loot.CentreRoomLocalPixels.x:F1},{loot.CentreRoomLocalPixels.y:F1})");
+            return true;
+        }
+
+        /// <summary>
+        /// The <c>telemaster == 0</c> line-of-sight ray, to a pickup's centre
+        /// (<c>UnitPlayer.as:1792</c>). Split out because the loot arm and the prop arm must ask the same
+        /// question — two copies of this ray is how one of them ends up testing a different point.
+        /// </summary>
+        private bool LootLineOfSightClear(WorldItemPickup loot, Vector2 playerEyePx, out string blocked)
+        {
+            blocked = null;
+
+            ITileQueryService tileQuery = ResolveTileQuery();
+            if (tileQuery == null)
+            {
+                // Same warning the prop arm emits: the test SHOULD run and cannot. Returning "clear"
+                // keeps the grab usable, and the line says the grab passed through walls because a
+                // query was missing rather than because nothing was in the way.
+                TelekinesisTrace.Log(
+                    "TryGrab (loot): WARNING telemaster == 0 so the line-of-sight test SHOULD run, but no " +
+                    "tile query could be derived from the room -- the test is being SKIPPED.");
+                return true;
+            }
+
+            Vector2 target = loot.CentreRoomLocalPixels;
+            Vector2 rayDelta = target - playerEyePx;
+            float rayDist = rayDelta.magnitude;
+            if (rayDist <= 1e-4f) return true;
+
+            var hit = tileQuery.Raycast(playerEyePx, rayDelta / rayDist, rayDist);
+            if (hit.HasValue && hit.Value.Tile != null)
+            {
+                blocked = $"ray eye({playerEyePx.x:F1},{playerEyePx.y:F1}) -> ({target.x:F1},{target.y:F1}) " +
+                          $"hit {hit.Value.Tile.physicsType}";
+                return false;
+            }
+
+            TelekinesisTrace.Log($"TryGrab (loot): line of sight clear over {rayDist:F1}px");
+            return true;
+        }
+
         /// <summary>
         /// The point a telekinesis distance is measured to: the object's AABB centre.
         ///
@@ -647,6 +915,45 @@ namespace PFE.Entities.Player
             }
 
             return $"{camera.name} id={camera.GetInstanceID()} depth={camera.depth} enabled={camera.enabled}";
+        }
+
+        /// <summary>
+        /// The [7c] deadzone analysis for one hold subject, given its centre.
+        ///
+        /// <para><b>Shared by the prop and the loot arm on purpose.</b> The nudge is the same function of
+        /// the centre on both sides (<see cref="TelekinesisMath.HoldAccelStep"/> against
+        /// <see cref="TelekinesisMath.Deadzone"/>), so two copies would be two places for the advice to
+        /// drift apart -- and the advice is the whole point of the block. A cursor parked inside the
+        /// deadzone, or below the centre of something resting on the floor, produces "grabbed, holding,
+        /// and inert", which is correct behaviour that reads exactly like a bug.</para>
+        /// </summary>
+        private static void AppendDeadzoneAnalysis(StringBuilder sb, string label,
+                                                   Vector2 subjectCenter, Vector2 cursor)
+        {
+            float speedCap = TelekinesisMath.PerFrameVelocityToPerSecond(TelekinesisMath.PlayerTeleSpeed);
+            float accel = TelekinesisMath.PerFrameAccelToPerSecondSquared(TelekinesisMath.PlayerTeleAccel);
+            float nudgeX = TelekinesisMath.HoldAccelStep(subjectCenter.x, cursor.x, 0f, speedCap, accel, TelekinesisMath.Deadzone);
+            float nudgeY = TelekinesisMath.HoldAccelStep(subjectCenter.y, cursor.y, 0f, speedCap, accel, TelekinesisMath.Deadzone);
+
+            sb.AppendLine($"[7c] deadzone : {label} centre=({subjectCenter.x:F1},{subjectCenter.y:F1})  " +
+                          $"cursor=({cursor.x:F1},{cursor.y:F1})  deadzone=+/-{TelekinesisMath.Deadzone:F0}px");
+            sb.AppendLine($"    nudge    : x={(nudgeX > 0f ? "+" : nudgeX < 0f ? "-" : "0")}  " +
+                          $"y={(nudgeY > 0f ? "+ (UP)" : nudgeY < 0f ? "- (DOWN)" : "0")}   " +
+                          $"(to lift this object the cursor must be above its centre by more than " +
+                          $"{TelekinesisMath.Deadzone:F0}px, i.e. y > {subjectCenter.y + TelekinesisMath.Deadzone:F1})");
+
+            if (nudgeX == 0f && nudgeY == 0f)
+            {
+                sb.AppendLine("    !! The cursor is INSIDE the deadzone on BOTH axes, so the hold applies no nudge at");
+                sb.AppendLine("       all and the object is inert BY DESIGN. Move the cursor more than 15 px away from");
+                sb.AppendLine("       its centre and it will follow.");
+            }
+            else if (nudgeY < 0f)
+            {
+                sb.AppendLine("    NOTE: the cursor is BELOW the object's centre, so the hold is pushing it DOWN -- into");
+                sb.AppendLine("          the floor it is already resting on, which refuses. Nothing can move. Aim above");
+                sb.AppendLine("          the centre to lift it. AS3 behaves the same way (UnitPlayer.as:1254-1262).");
+            }
         }
 
         private string DescribeCandidates(RoomInstance room, Vector2 cursorPx, float maxTeleMassa)
@@ -899,76 +1206,170 @@ namespace PFE.Entities.Player
 
             sb.AppendLine($"[4] candidates ({layer.DynamicObjectCount} in the layer, nearest to cursor first)");
             sb.AppendLine(DescribeCandidates(room, cursor, stats.MaxTeleMassa));
+            sb.AppendLine("    floor loot in this room (the other half of AS3's single `loc.firstObj` scan --");
+            sb.AppendLine("    `Loot extends Obj`, so a cogwheel is a telekinesis target exactly like a crate):");
+            sb.Append(DescribeLootCandidates(room, cursor, stats.MaxTeleMassa));
+            sb.AppendLine();
 
+            // [5]/[6] -- the candidate, reported by whichever HALF of the scan produced it.
+            //
+            // This block used to search props only, and returned "VERDICT: TryGrab would REFUSE at the
+            // candidate search" the moment no prop was in range. With loot in the scan that verdict is
+            // simply false: a cogwheel under the cursor is a candidate, `TryGrab` takes it, and the
+            // probe would have said the grab was impossible. A diagnostic that contradicts the code it
+            // diagnoses is worse than no diagnostic, because the next session believes it.
+            //
+            // So both halves are searched here, with the SAME nearest-wins tie-break `TryGrab` uses,
+            // and the winner is the one reported. The two halves keep separate reports because their
+            // gate inputs differ in one place that matters: `celDist` is measured to the prop's
+            // `position` (its bottom) and to the pickup's `BottomRoomLocalPixels` (its origin, also its
+            // bottom) -- never to the centre the cursor filter uses.
             const float MaxCursorDistancePixels = 50f;
-            if (!layer.TryFindTelekineticCandidate(cursor, MaxCursorDistancePixels, stats.MaxTeleMassa, out ObjectInstance candidate))
+            bool hasProp = layer.TryFindTelekineticCandidate(
+                cursor, MaxCursorDistancePixels, stats.MaxTeleMassa, out ObjectInstance candidate);
+            WorldItemPickup lootCandidate = FindLootCandidate(
+                room, cursor, MaxCursorDistancePixels, stats.MaxTeleMassa);
+
+            if (hasProp && lootCandidate != null)
             {
-                sb.AppendLine($"[5] gate     : NO candidate within {MaxCursorDistancePixels:F0}px of the cursor. See [4] for the reason each one was rejected.");
+                float propGap = (ReferencePoint(candidate) - cursor).sqrMagnitude;
+                float lootGap = (lootCandidate.CentreRoomLocalPixels - cursor).sqrMagnitude;
+                sb.AppendLine($"    tie-break: prop {candidate.objectId} at {Mathf.Sqrt(propGap):F1}px vs " +
+                              $"loot {lootCandidate.ItemId} at {Mathf.Sqrt(lootGap):F1}px -> " +
+                              $"{(lootGap < propGap ? "LOOT wins (it is the nearer of the two)" : "prop wins (it is the nearer of the two)")}");
+                if (lootGap < propGap)
+                {
+                    hasProp = false;
+                    candidate = null;
+                }
+                else
+                {
+                    lootCandidate = null;
+                }
+            }
+
+            if (!hasProp && lootCandidate == null)
+            {
+                sb.AppendLine($"[5] gate     : NO candidate within {MaxCursorDistancePixels:F0}px of the cursor, in EITHER half -- the props are listed above [4] and the floor loot under it, each with the term that rejected it.");
                 sb.AppendLine("VERDICT: TryGrab would REFUSE at the candidate search.");
                 return sb.ToString();
             }
 
-            sb.AppendLine($"[5] candidate: {candidate.objectId} at ({candidate.position.x:F1},{candidate.position.y:F1})");
-            float distSq = (candidate.position - feet).sqrMagnitude;
-            bool liftable = candidate.IsLiftable();
-            float massa = candidate.GetAs3Massa();
-            bool gate = TelekinesisMath.CanGrab(true, liftable, distSq, stats.TeleDist,
-                                                massa, stats.MaxTeleMassa, stats.MagicMana);
-            sb.AppendLine($"    levitPoss = {liftable}   (capability={candidate.GetResolvedPhysicalCapability()}, supportsTelekinesis={candidate.SupportsTelekinesis()})");
-            sb.AppendLine($"    distSq    = {distSq:F0}  <= teleDist {stats.TeleDist:F0} ?  {distSq <= stats.TeleDist}");
-            sb.AppendLine($"    massa     = {massa:F3}  <= maxTeleMassa {stats.MaxTeleMassa:F3} ?  {massa <= stats.MaxTeleMassa}");
-            sb.AppendLine($"    budgetMana = {stats.MagicMana:F1}  >= {TelekinesisMath.MinManaToGrab:F0} ?  {stats.MagicMana >= TelekinesisMath.MinManaToGrab}");
-            if (!gate)
+            if (lootCandidate != null)
             {
-                sb.AppendLine("VERDICT: TryGrab would REFUSE at the gate -- the term marked 'False' above is the one.");
-                return sb.ToString();
-            }
+                Vector2 lootCentre = lootCandidate.CentreRoomLocalPixels;
+                Vector2 lootBottom = lootCandidate.BottomRoomLocalPixels;
+                float lootDistSq = (lootBottom - feet).sqrMagnitude;
+                bool lootLiftable = lootCandidate.IsLiftable;
+                float lootMassa = lootCandidate.GetAs3Massa();
+                bool lootGate = TelekinesisMath.CanGrab(true, lootLiftable, lootDistSq, stats.TeleDist,
+                                                        lootMassa, stats.MaxTeleMassa, stats.MagicMana);
 
-            if (stats.Telemaster == 0)
-            {
-                ITileQueryService query = ResolveTileQuery();
-                if (query == null)
+                sb.AppendLine($"[5] candidate: LOOT {lootCandidate.ItemId} x{lootCandidate.Quantity}   (the pickup half of the scan)");
+                sb.AppendLine($"    centre=({lootCentre.x:F1},{lootCentre.y:F1})  bottom=({lootBottom.x:F1},{lootBottom.y:F1})  " +
+                              $"d(cursor)={(lootCentre - cursor).magnitude:F1}px  d(feet->bottom)={Mathf.Sqrt(lootDistSq):F1}px");
+                sb.AppendLine($"    levitPoss = {lootLiftable}   (Loot.as:10 inherits Obj.levitPoss, Obj.as:32)");
+                sb.AppendLine($"    distSq    = {lootDistSq:F0}  <= teleDist {stats.TeleDist:F0} ?  {lootDistSq <= stats.TeleDist}   (measured to the BOTTOM, not the centre)");
+                sb.AppendLine($"    massa     = {lootMassa:F3}  <= maxTeleMassa {stats.MaxTeleMassa:F3} ?  {lootMassa <= stats.MaxTeleMassa}   (Loot.as:81)");
+                sb.AppendLine($"    budgetMana = {stats.MagicMana:F1}  >= {TelekinesisMath.MinManaToGrab:F0} ?  {stats.MagicMana >= TelekinesisMath.MinManaToGrab}");
+                if (!lootGate)
                 {
-                    sb.AppendLine("[6] LOS      : SKIPPED -- no tile query could be derived from the room (the ray would have run).");
+                    sb.AppendLine("VERDICT: TryGrab would REFUSE at the gate -- the term marked 'False' above is the one.");
+                    return sb.ToString();
                 }
-                else
-                {
-                    Vector2 center = candidate.GetApproximateBounds().center;
-                    Vector2 delta = center - eye;
-                    float len = delta.magnitude;
-                    string blockedBy = null;
-                    if (len > 1e-4f)
-                    {
-                        var hit = query.Raycast(eye, delta / len, len);
-                        if (hit.HasValue && hit.Value.Tile != null)
-                        {
-                            blockedBy = hit.Value.Tile.physicsType.ToString();
-                        }
-                    }
 
-                    sb.AppendLine($"[6] LOS      : telemaster=0 so the ray runs: eye -> ({center.x:F1},{center.y:F1}) over {len:F1}px : " +
-                                  (blockedBy != null ? $"BLOCKED by {blockedBy}" : "clear"));
-                    if (blockedBy != null)
+                if (stats.Telemaster == 0)
+                {
+                    if (!LootLineOfSightClear(lootCandidate, eye, out string lootBlocked))
                     {
+                        sb.AppendLine($"[6] LOS      : BLOCKED -- {lootBlocked}");
                         sb.AppendLine("VERDICT: TryGrab would REFUSE at line of sight.");
                         return sb.ToString();
                     }
+
+                    sb.AppendLine($"[6] LOS      : telemaster=0 so the ray runs: eye -> loot centre over " +
+                                  $"{(lootCentre - eye).magnitude:F1}px : clear");
+                }
+                else
+                {
+                    sb.AppendLine($"[6] LOS      : not tested (telemaster={stats.Telemaster} bypasses it, UnitPlayer.as:1792)");
                 }
             }
             else
             {
-                sb.AppendLine($"[6] LOS      : not tested (telemaster={stats.Telemaster} bypasses it, UnitPlayer.as:1792)");
+                sb.AppendLine($"[5] candidate: {candidate.objectId} at ({candidate.position.x:F1},{candidate.position.y:F1})");
+                float distSq = (candidate.position - feet).sqrMagnitude;
+                bool liftable = candidate.IsLiftable();
+                float massa = candidate.GetAs3Massa();
+                bool gate = TelekinesisMath.CanGrab(true, liftable, distSq, stats.TeleDist,
+                                                    massa, stats.MaxTeleMassa, stats.MagicMana);
+                sb.AppendLine($"    levitPoss = {liftable}   (capability={candidate.GetResolvedPhysicalCapability()}, supportsTelekinesis={candidate.SupportsTelekinesis()})");
+                sb.AppendLine($"    distSq    = {distSq:F0}  <= teleDist {stats.TeleDist:F0} ?  {distSq <= stats.TeleDist}");
+                sb.AppendLine($"    massa     = {massa:F3}  <= maxTeleMassa {stats.MaxTeleMassa:F3} ?  {massa <= stats.MaxTeleMassa}");
+                sb.AppendLine($"    budgetMana = {stats.MagicMana:F1}  >= {TelekinesisMath.MinManaToGrab:F0} ?  {stats.MagicMana >= TelekinesisMath.MinManaToGrab}");
+                if (!gate)
+                {
+                    sb.AppendLine("VERDICT: TryGrab would REFUSE at the gate -- the term marked 'False' above is the one.");
+                    return sb.ToString();
+                }
+
+                if (stats.Telemaster == 0)
+                {
+                    ITileQueryService query = ResolveTileQuery();
+                    if (query == null)
+                    {
+                        sb.AppendLine("[6] LOS      : SKIPPED -- no tile query could be derived from the room (the ray would have run).");
+                    }
+                    else
+                    {
+                        Vector2 center = candidate.GetApproximateBounds().center;
+                        Vector2 delta = center - eye;
+                        float len = delta.magnitude;
+                        string blockedBy = null;
+                        if (len > 1e-4f)
+                        {
+                            var hit = query.Raycast(eye, delta / len, len);
+                            if (hit.HasValue && hit.Value.Tile != null)
+                            {
+                                blockedBy = hit.Value.Tile.physicsType.ToString();
+                            }
+                        }
+
+                        sb.AppendLine($"[6] LOS      : telemaster=0 so the ray runs: eye -> ({center.x:F1},{center.y:F1}) over {len:F1}px : " +
+                                      (blockedBy != null ? $"BLOCKED by {blockedBy}" : "clear"));
+                        if (blockedBy != null)
+                        {
+                            sb.AppendLine("VERDICT: TryGrab would REFUSE at line of sight.");
+                            return sb.ToString();
+                        }
+                    }
+                }
+                else
+                {
+                    sb.AppendLine($"[6] LOS      : not tested (telemaster={stats.Telemaster} bypasses it, UnitPlayer.as:1792)");
+                }
             }
 
-            // [7] The hold, as the physics layer sees it.
+            // [7] The hold, as its integrator sees it.
             //
             // `_heldObject` non-null while isHeldByTelekinesis reads false is the signature of a hold
             // that was never accepted or was cleared afterwards -- the state that reads from the outside
             // as "the grab succeeded but nothing moves". The target and velocity here are the two values
             // StepHeldObject consumes, so a target that follows the cursor while velocity stays (0,0)
             // and position never changes means the step is not running, which [1b] confirms.
+            //
+            // Loot is reported in the SAME block rather than a separate one, because the question the
+            // block answers ("is anything held, and is it being driven?") is the same question. What
+            // differs is the witness: a prop's hold state lives on the layer's dynamic state, a
+            // pickup's lives on the MonoBehaviour. Reading only `_heldObject` here reported
+            // "<none> (nothing is held right now)" while a cogwheel was in the air -- the exact
+            // failure this block exists to prevent, reintroduced for the new target type.
             MapObjectDynamicStateData heldState = _heldObject?.runtimeState?.dynamicState;
-            sb.AppendLine($"[7] held     : {(_heldObject != null ? _heldObject.objectId + "   (LIVE)" : "<none> (nothing is held right now)")}");
+            string heldDescription =
+                _heldObject != null ? _heldObject.objectId + "   (LIVE, prop -- integrator: RoomObjectPhysicsLayer)" :
+                LootHeld ? $"{_heldLoot.ItemId} x{_heldLoot.Quantity}   (LIVE, floor loot -- integrator: WorldItemPickup.LevitateTick)" :
+                "<none> (nothing is held right now)";
+            sb.AppendLine($"[7] held     : {heldDescription}");
             if (_heldObject != null)
             {
                 sb.AppendLine($"    pos=({_heldObject.position.x:F1},{_heldObject.position.y:F1})  " +
@@ -977,6 +1378,25 @@ namespace PFE.Entities.Player
                               $"hasTarget={heldState?.hasTelekineticTarget}  " +
                               $"target=({heldState?.telekineticTarget.x:F1},{heldState?.telekineticTarget.y:F1})  " +
                               $"vel=({heldState?.velocity.x:F1},{heldState?.velocity.y:F1})");
+            }
+            else if (LootHeld)
+            {
+                // `IsHeldByTelekinesis` is the pickup's own `_levitating`; `IsLiftable` is `_levitPoss`,
+                // which the oracle clears on magnet/take (`Loot.as:304,316`) but NOT on a throw. A
+                // levitating=true / liftable=false pair is therefore legitimate mid-throw, not a bug.
+                Vector2 lootCentre = _heldLoot.CentreRoomLocalPixels;
+                Vector2 lootBottom = _heldLoot.BottomRoomLocalPixels;
+                sb.AppendLine($"    centre=({lootCentre.x:F1},{lootCentre.y:F1})  bottom=({lootBottom.x:F1},{lootBottom.y:F1})  " +
+                              $"isHeldByTelekinesis={_heldLoot.IsHeldByTelekinesis}  levitPoss={_heldLoot.IsLiftable}  " +
+                              $"massa={_heldLoot.GetAs3Massa():F3}  falling={_heldLoot.IsFalling}");
+                sb.AppendLine("    !! The pickup integrates this hold ITSELF, on its own fixed 30 Hz accumulator.");
+                sb.AppendLine("       A [1b] layerTickCount that never moves does NOT explain a loot that will not");
+                sb.AppendLine("       follow -- the room's layer is not in that path at all. Use [7a]'s target");
+                sb.AppendLine("       writes and [7c]'s nudge instead.");
+            }
+
+            if (_heldObject != null || LootHeld)
+            {
                 sb.AppendLine("    Note: while something is held, pressing Q again DROPS it -- release before the next grab.");
             }
 
@@ -986,20 +1406,33 @@ namespace PFE.Entities.Player
             // prop) -> type `tele probe`. At that moment `_heldObject` is null, so a [7] that reads only
             // the live hold reports "<none>" on the one run that actually had the evidence in hand.
             // These counters survive the drop and answer the decisive question directly: did
-            // `UpdateHold` run at all while the prop was held?
+            // `UpdateHold` run at all while the object was held?
             //
-            // If it did not, the target stayed frozen at whatever `TrySetTelekineticHold` wrote -- the
-            // grab-time cursor -- and a grab-time cursor that happens to sit inside the 15 px deadzone
-            // means the prop can never move, no matter where the player aims afterwards. That is a
-            // completely different bug from "the cursor is in the wrong place now", and the two look
-            // identical from the screen.
+            // If it did not, the target stayed frozen at whatever the grab wrote -- `TrySetTelekineticHold`
+            // for a prop, `TryBeginTelekineticHold` for a pickup -- the grab-time cursor -- and a grab-time
+            // cursor that happens to sit inside the 15 px deadzone means the object can never move, no
+            // matter where the player aims afterwards. That is a completely different bug from "the cursor
+            // is in the wrong place now", and the two look identical from the screen.
             //
             // `_holdManaDrained` is NOT a witness that the tick ran, and an earlier revision wrongly used
             // it as one. The drain is legitimately zero whenever infinite mana is on, and also whenever
             // `massa <= telePorog` -- "a light object costs nothing to hold" is the oracle's own rule
             // (UnitPlayer.as:1807-1813). `_holdUpdateTicks` counts reaching the drain LINE, which is the
             // fact that actually distinguishes "ran" from "did not run".
+            //
+            // The counters are shared by both arms because both arms reach the drain through
+            // `UpdateHold` (which routes to `UpdateLootHold`), so the same number means the same thing in
+            // both cases. What the counters CANNOT say is which integrator was supposed to consume the
+            // target afterwards -- that is the `integrator` term on the [7a] line, and it decides which
+            // file to open next.
             sb.AppendLine($"[7a] last hold: {_lastHeldObjectId}");
+            // Kept as a local rather than inlined into the interpolation: `_lastHoldWasLoot` inside a
+            // string literal is invisible to the source lints, and the lint that pins this line is the
+            // only thing that can catch the two halves being reported by one integrator's name.
+            string integrator = _lastHoldWasLoot
+                ? "WorldItemPickup.LevitateTick (the pickup's own Update, fixed 30 Hz)"
+                : "RoomObjectPhysicsLayer (the room's tick)";
+            sb.AppendLine($"    integrator : {integrator}");
             sb.AppendLine($"    UpdateHold : entered={_holdEntryTicks}  reached-the-drain={_holdUpdateTicks}  " +
                           $"target writes={_holdTargetWrites}  mana drained={_holdManaDrained:F1}");
             if (_lastHeldObjectId != "(nothing has been held yet)")
@@ -1012,12 +1445,12 @@ namespace PFE.Entities.Player
             if (heldSomething && _holdEntryTicks == 0)
             {
                 sb.AppendLine("    !! ENTERED 0 TIMES for the last hold. This component's Update never called UpdateHold");
-                sb.AppendLine("       while the prop was held, so the target was never refreshed and stayed frozen at");
-                sb.AppendLine("       the cursor TrySetTelekineticHold wrote at grab time. If that cursor sat inside the");
-                sb.AppendLine("       15 px deadzone of the prop's centre, the prop can NEVER move, however the player");
-                sb.AppendLine("       aims afterwards. Check [1c] above: if it says the last press was 'holding X ->");
-                sb.AppendLine("       DROPPED it', the hold survived across presses, so this counter cannot be 0 and");
-                sb.AppendLine("       something else is wrong with this report.");
+                sb.AppendLine("       while the object was held, so the target was never refreshed and stayed frozen at");
+                sb.AppendLine("       the cursor the grab wrote (TrySetTelekineticHold for a prop, TryBeginTelekineticHold");
+                sb.AppendLine("       for a pickup). If that cursor sat inside the 15 px deadzone of the centre, the");
+                sb.AppendLine("       object can NEVER move, however the player aims afterwards. Check [1c] above: if it");
+                sb.AppendLine("       says the last press was 'holding X -> DROPPED it', the hold survived across presses,");
+                sb.AppendLine("       so this counter cannot be 0 and something else is wrong with this report.");
             }
             else if (heldSomething && _holdEntryTicks > 0 && _holdUpdateTicks == 0)
             {
@@ -1033,41 +1466,40 @@ namespace PFE.Entities.Player
                 sb.AppendLine("    Do NOT read an unchanged mana value as 'the hold tick never ran'.");
             }
 
-            // [7c] Would the hold move this prop RIGHT NOW, from where the cursor actually is?
+            // [7c] Would the hold move this object RIGHT NOW, from where the cursor actually is?
             //
-            // A held prop only accelerates when the cursor is MORE than 15 px outside its centre on some
+            // A held object only accelerates when the cursor is MORE than 15 px outside its centre on some
             // axis (UnitPlayer.as:1247-1262), and it can only travel where the tiles allow. A cursor
             // parked in the lower half of a box that is resting on the floor therefore produces
             // "grabbed, holding, and never moves" -- correct behaviour that reads exactly like a bug.
             // Printing the nudge the controller would apply removes that ambiguity.
-            ObjectInstance holdSubject = _heldObject ?? _lastHeldObject;
-            if (holdSubject != null && !holdSubject.IsDestroyed())
+            //
+            // The order is live-before-stale and prop-before-loot: a LIVE hold is always the subject when
+            // there is one, because that is what the player is looking at. Only when nothing is live does
+            // the post-mortem reference get analysed, which is the `grab -> drop -> probe` case this
+            // block was written for.
+            if (_heldObject != null && !_heldObject.IsDestroyed())
             {
-                Vector2 subjectCenter = holdSubject.GetApproximateBounds().center;
-                float speedCap = TelekinesisMath.PerFrameVelocityToPerSecond(TelekinesisMath.PlayerTeleSpeed);
-                float accel = TelekinesisMath.PerFrameAccelToPerSecondSquared(TelekinesisMath.PlayerTeleAccel);
-                float nudgeX = TelekinesisMath.HoldAccelStep(subjectCenter.x, cursor.x, 0f, speedCap, accel, TelekinesisMath.Deadzone);
-                float nudgeY = TelekinesisMath.HoldAccelStep(subjectCenter.y, cursor.y, 0f, speedCap, accel, TelekinesisMath.Deadzone);
-
-                sb.AppendLine($"[7c] deadzone : {holdSubject.objectId} centre=({subjectCenter.x:F1},{subjectCenter.y:F1})  " +
-                              $"cursor=({cursor.x:F1},{cursor.y:F1})  deadzone=+/-{TelekinesisMath.Deadzone:F0}px");
-                sb.AppendLine($"    nudge    : x={(nudgeX > 0f ? "+" : nudgeX < 0f ? "-" : "0")}  " +
-                              $"y={(nudgeY > 0f ? "+ (UP)" : nudgeY < 0f ? "- (DOWN)" : "0")}   " +
-                              $"(to lift this prop the cursor must be above its centre by more than " +
-                              $"{TelekinesisMath.Deadzone:F0}px, i.e. y > {subjectCenter.y + TelekinesisMath.Deadzone:F1})");
-
-                if (nudgeX == 0f && nudgeY == 0f)
-                {
-                    sb.AppendLine("    !! The cursor is INSIDE the deadzone on BOTH axes, so the hold applies no nudge at");
-                    sb.AppendLine("       all and the prop is inert BY DESIGN. Move the cursor more than 15 px away from");
-                    sb.AppendLine("       the box's centre and it will follow.");
-                }
-                else if (nudgeY < 0f)
-                {
-                    sb.AppendLine("    NOTE: the cursor is BELOW the prop's centre, so the hold is pushing it DOWN -- into");
-                    sb.AppendLine("          the floor it is already resting on, which refuses. Nothing can move. Aim above");
-                    sb.AppendLine("          the centre to lift it. AS3 behaves the same way (UnitPlayer.as:1254-1262).");
-                }
+                AppendDeadzoneAnalysis(sb, _heldObject.objectId,
+                                       _heldObject.GetApproximateBounds().center, cursor);
+            }
+            else if (LootHeld && _heldLoot != null)
+            {
+                AppendDeadzoneAnalysis(sb, "LOOT " + _heldLoot.ItemId,
+                                       _heldLoot.CentreRoomLocalPixels, cursor);
+            }
+            else if (_lastHeldObject != null && !_lastHeldObject.IsDestroyed())
+            {
+                AppendDeadzoneAnalysis(sb, _lastHeldObject.objectId,
+                                       _lastHeldObject.GetApproximateBounds().center, cursor);
+            }
+            else if (_lastHeldLoot != null)
+            {
+                // A pickup that was TAKEN is destroyed, and Unity's == on a destroyed MonoBehaviour is
+                // true, so this branch silently disappears for one -- which is correct: there is no
+                // centre left to analyse.
+                AppendDeadzoneAnalysis(sb, "LOOT " + _lastHeldLoot.ItemId,
+                                       _lastHeldLoot.CentreRoomLocalPixels, cursor);
             }
 
             // [7b] Why a held prop did not move.
@@ -1156,6 +1588,18 @@ namespace PFE.Entities.Player
             if (!IsHoldingObject)
             {
                 return false;
+            }
+
+            // ── The loot arm ────────────────────────────────────────────────────────────────────────
+            //
+            // `throwTele` is written over `teleObj` and never asks what it is (`UnitPlayer.as:1836-1887`):
+            // direction from the object's centre, impulse scaled by `pers.throwForce`, cost
+            // `massa * throwDmagic * allDManaMult`. A pickup's massa is 0.1, so the cost is 1/5 of a
+            // crate's and the impulse — thrown by mass — sends it much further, which is why a thrown
+            // cogwheel is a real action and not a curiosity.
+            if (LootHeld)
+            {
+                return TryThrowLoot();
             }
 
             CharacterStats stats = Stats;
@@ -1269,12 +1713,106 @@ namespace PFE.Entities.Player
         }
 
         /// <summary>
+        /// Throw the carried pickup — the loot arm of <c>throwTele</c> (<c>UnitPlayer.as:1836-1887</c>).
+        ///
+        /// <para><b>Same maths as the prop throw, deliberately, including the unskilled no-op.</b> With
+        /// <c>throwForce = 0</c> (the rank-0 default, <c>Pers.as:237</c>) the oracle normalises by zero and
+        /// releases the object with no impulse — a drop in place — so this drops too rather than inventing
+        /// a minimum throw. See <see cref="TryThrow"/>.</para>
+        /// </summary>
+        private bool TryThrowLoot()
+        {
+            CharacterStats stats = Stats;
+            WorldItemPickup loot = _heldLoot;
+            if (stats == null || loot == null)
+            {
+                Drop($"throw could not resolve stats or the pickup (stats={stats != null} loot={loot != null})");
+                return true;
+            }
+
+            float massa = loot.GetAs3Massa();
+            float throwForce = stats.ThrowForce;
+
+            if (throwForce <= 0f)
+            {
+                Drop($"THROW KEY pressed while holding loot, but throwForce is {throwForce:F2} " +
+                     "(unskilled -- AS3 Pers.as:237 default 0), so the throw is a drop in place");
+                return true;
+            }
+
+            float cost = TelekinesisMath.ThrowCost(massa, throwForce, stats.ThrowDmagic, stats.AllDManaMult);
+            float currentMana = stats.MagicMana;
+
+            Vector2 playerFeetPx = GetPlayerPositionPixels();
+            Vector2 objCenterPx = loot.CentreRoomLocalPixels;
+            Vector2 playerCenterPx = playerFeetPx + new Vector2(0f, 25f);
+
+            // ThrowImpulse speaks AS3's y-down space; the port is y-up, so both axes are negated on the
+            // way in and the y is negated again on the way out. Identical to the prop arm above — the
+            // conversion is the same conversion.
+            TelekinesisMath.ThrowImpulse(
+                objCenterPx.x, -objCenterPx.y, 0f,
+                playerCenterPx.x, -playerCenterPx.y, 0f,
+                throwForce, currentMana, cost,
+                out float as3ImpulseX, out float as3ImpulseY);
+
+            Vector2 releaseVelocity = new Vector2(
+                TelekinesisMath.PerFrameVelocityToPerSecond(as3ImpulseX),
+                TelekinesisMath.PerFrameVelocityToPerSecond(-as3ImpulseY));
+
+            if (!InfiniteMana)
+            {
+                float budgetSpend = Mathf.Min(cost, currentMana);
+
+                if (cost <= currentMana)
+                {
+                    stats.MagicMana -= cost;
+                }
+                else
+                {
+                    stats.MagicMana = 0f;
+                }
+
+                stats.ApplyManaDamage(budgetSpend * stats.throwDmanaMult);
+            }
+
+            string thrownId = loot.ItemId;
+            _heldLoot = null;
+            loot.ReleaseTelekineticHold(releaseVelocity);
+
+            TelekinesisRecorder.Write(
+                $"[THROW] loot {thrownId} -- releaseVelocity=({releaseVelocity.x:F1},{releaseVelocity.y:F1}) " +
+                $"throwForce={throwForce:F2} massa={massa:F3} cost={cost:F2} budgetBefore={currentMana:F1} " +
+                $"infiniteMana={InfiniteMana}");
+
+            return true;
+        }
+
+        /// <summary>
         /// Drops the held object without throwing. AS3's <c>UnitPlayer.dropTeleObj</c>.
         /// </summary>
         public void Drop(string reason = null)
         {
             if (!IsHoldingObject)
             {
+                return;
+            }
+
+            // ── The loot arm ────────────────────────────────────────────────────────────────────────
+            //
+            // `dropTeleObj` in the oracle is one method over `teleObj`, whatever it is: it clears
+            // `levit`, restores the visual, and — for loot — leaves the object to its own step. The
+            // pickup's `ReleaseTelekineticHold` is that, and passing a zero velocity is the "drop, do not
+            // throw" case.
+            if (LootHeld)
+            {
+                WorldItemPickup loot = _heldLoot;
+                string lootId = loot != null ? loot.ItemId : _lastHeldObjectId;
+                _heldLoot = null;
+                if (loot != null) loot.ReleaseTelekineticHold(Vector2.zero);
+
+                TelekinesisTrace.Log($"DROPPED loot {lootId} -- {reason ?? "unspecified"}");
+                TelekinesisRecorder.Write($"[DROP]  loot {lootId} -- {reason ?? "unspecified"}");
                 return;
             }
 
@@ -1323,6 +1861,16 @@ namespace PFE.Entities.Player
             // would be logging that exception every frame. Both counters at zero with a non-null
             // `_heldObject` means Update never called this at all. Those are different bugs.
             _holdEntryTicks++;
+
+            // The two integrators split here and nowhere else: everything below this block is the prop
+            // path, everything in UpdateLootHold is the pickup path. The gate, the drop rule and the
+            // throw stay shared — see _heldLoot.
+            if (LootHeld)
+            {
+                UpdateLootHold(deltaTime);
+                return;
+            }
+
             if (_holdEntryTicks == 1 || _holdEntryTicks % 30 == 0)
             {
                 TelekinesisRecorder.Write(
@@ -1441,6 +1989,91 @@ namespace PFE.Entities.Player
                 }
             }
             }
+        }
+
+        /// <summary>
+        /// The per-frame tick of a <b>loot</b> carry — AS3's <c>if(this.teleObj)</c> block
+        /// (<c>UnitPlayer.as:1231-1290</c>) applied to a <see cref="WorldItemPickup"/>.
+        ///
+        /// <para><b>What it does NOT do: move the pickup.</b> The caster writes the target and the pickup
+        /// integrates it in its own 30 Hz tick (<see cref="WorldItemPickup.SetTelekineticTarget"/> →
+        /// <c>LevitateTick</c>), which is the same split AS3 has — the player writes
+        /// <c>teleObj.dx/dy</c> and <c>Loot.step</c> does <c>run()</c>. The prop path splits the same way
+        /// (<c>StepHeldObject</c>), so a bug in one half has the same shape in both.</para>
+        /// </summary>
+        private void UpdateLootHold(float deltaTime)
+        {
+            // A pickup that was taken (cursor or magnet) is destroyed, and Unity reports it as null.
+            // Clearing here rather than in Drop keeps the "was it destroyed" question in one place.
+            if (_heldLoot == null)
+            {
+                ClearLootHold("the pickup was taken or destroyed");
+                return;
+            }
+
+            UpdateCursorPositionIfNeeded();
+
+            Vector2 cursorPx = _cursorRoomLocalPixels;
+            Vector2 playerFeetPx = GetPlayerPositionPixels();
+
+            CharacterStats stats = Stats;
+            if (stats == null)
+            {
+                Drop("Stats is null while holding loot");
+                return;
+            }
+
+            float teleDist = GrabAnything ? GrabAnythingDistanceSquared : stats.TeleDist;
+            float distSq = (_heldLoot.BottomRoomLocalPixels - playerFeetPx).sqrMagnitude;
+            float mana = stats.MagicMana;
+
+            // `loc.celDist > pers.teleDist * 1.2 || mana <= 0 || !teleObj.levitPoss` (UnitPlayer.as:1274).
+            // The third term is the one that fires in practice: the take window clears `levitPoss` as it
+            // magnetises a pickup (Loot.as:316), so walking over a carried item makes the player put it
+            // down — which is the oracle's behaviour, not a fight between two systems.
+            if (TelekinesisMath.MustDrop(distSq, teleDist, mana, _heldLoot.IsLiftable))
+            {
+                Drop($"MustDrop (loot) -- distSq={distSq:F0} teleDist={teleDist:F0} " +
+                     $"(drop past x1.2 = {teleDist * TelekinesisMath.DropDistanceMultiplier:F0}) " +
+                     $"budgetMana={mana:F1} levitPoss={_heldLoot.IsLiftable}");
+                return;
+            }
+
+            // Observed, not charged — the real cost is the per-tick `dmana -= teleSqrtMassa * teleMult`
+            // in PlayerManaTicker. For loot it is zero anyway: massa 0.1 is at or below `telePorog`, so
+            // `HoldManaDrain` answers 0 (`UnitPlayer.as:1807-1813`).
+            bool infiniteMana = InfiniteMana;
+            float drainThisStep = infiniteMana
+                ? 0f
+                : TelekinesisMath.HoldManaDrain(_heldLoot.GetAs3Massa(), stats.TelePorog, stats.TeleMult)
+                  * stats.AllDManaMult * deltaTime * TelekinesisMath.As3FramesPerSecond;
+
+            _holdUpdateTicks++;
+            _holdManaDrained += drainThisStep;
+
+            _heldLoot.SetTelekineticTarget(cursorPx);
+            _holdTargetWrites++;
+            _holdLastTarget = cursorPx;
+
+            if (_holdTargetWrites == 1 || _holdTargetWrites % 30 == 0)
+            {
+                TelekinesisRecorder.Write(
+                    $"[HOLD]  loot write #{_holdTargetWrites}  target=({cursorPx.x:F1},{cursorPx.y:F1})  " +
+                    $"bottom=({_heldLoot.BottomRoomLocalPixels.x:F1},{_heldLoot.BottomRoomLocalPixels.y:F1})  " +
+                    $"levitPoss={_heldLoot.IsLiftable}  infiniteMana={infiniteMana}  budgetMana={stats.MagicMana:F1}");
+            }
+        }
+
+        /// <summary>
+        /// Forget a loot hold without a release — the pickup is already gone. Only the bookkeeping is
+        /// cleared; calling <c>ReleaseTelekineticHold</c> on a destroyed object would be a no-op at best.
+        /// </summary>
+        private void ClearLootHold(string reason)
+        {
+            string id = _lastHeldObjectId;
+            _heldLoot = null;
+            TelekinesisTrace.Log($"DROPPED loot {id} -- {reason}");
+            TelekinesisRecorder.Write($"[DROP]  loot {id} -- {reason} (view destroyed)");
         }
 
         private void Update()

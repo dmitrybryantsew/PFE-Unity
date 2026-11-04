@@ -169,12 +169,22 @@ namespace PFE.Systems.Loot
     /// writes the answer back. The arithmetic is pinned by
     /// <c>LootFallStepRulesTests</c> against the oracle's lines.</para>
     ///
-    /// <para><b>What is deliberately not modelled.</b> The oracle's <c>levit</c> (telekinesis) and
-    /// <c>vsos</c> (the loot magnet) both suppress gravity and the shelf search. A magnetised pickup
-    /// never reaches this function — <c>FallTick</c> clears <c>_falling</c> first — and loot is never
-    /// levitated, so both are constant <c>false</c> here rather than parameters nobody varies. The
-    /// <c>loc.active == false</c> floor override (<c>Loot.as:472-475</c>) is likewise absent: the port
-    /// has no inactive-location loot to place.</para>
+    /// <para><b>What is deliberately not modelled.</b> The oracle's <c>vsos</c> (the loot magnet)
+    /// suppresses gravity and the shelf search. A magnetised pickup never reaches this function —
+    /// <c>FallTick</c> clears <c>_falling</c> first — so it is a constant <c>false</c> here rather than a
+    /// parameter nobody varies. The <c>loc.active == false</c> floor override (<c>Loot.as:472-475</c>) is
+    /// likewise absent: the port has no inactive-location loot to place.</para>
+    ///
+    /// <para><b><c>levit</c> used to be in that list, and was wrong to be.</b> AS3's loot IS liftable —
+    /// <c>Loot.as:245</c> sets <c>levitPoss = true</c> and <c>:356-360</c> damps it while <c>levit</c> is
+    /// set — so "loot is never levitated" was an assumption about the port, not a fact about the oracle.
+    /// <see cref="Step"/> now takes it as <paramref name="levitating"/>, and the three things it changes
+    /// are all from <c>Loot.run</c>: the tile's <c>shelf</c> clause is skipped (<c>:464</c> is
+    /// <c>_loc2_.shelf &amp;&amp; !levit &amp;&amp; !this.vsos</c>, so a carried object passes THROUGH a
+    /// beam), the shelf-prop search is skipped (<c>:468</c> is
+    /// <c>if(_loc4_ == 0 &amp;&amp; !levit &amp;&amp; !this.vsos)</c>) and a floor contact <b>clamps but does
+    /// not stop</b> the loot (<c>:476-487</c> zeroes <c>dx</c>/<c>dy</c> only inside
+    /// <c>if(!levit)</c>).</para>
     /// </summary>
     public static class LootFallStepRules
     {
@@ -221,11 +231,17 @@ namespace PFE.Systems.Loot
         /// <param name="roomHeightPx">The room's height, px (<c>loc.spaceY * Tile.tileY</c>).</param>
         /// <param name="tileProbe">Tile lookup; null means "no tiles", i.e. fall freely.</param>
         /// <param name="shelfProbe">Shelf-prop lookup; null means "no props".</param>
+        /// <param name="levitating">
+        /// AS3 <c>levit</c> — the loot is being carried by telekinesis. It skips <b>both</b> shelf tests
+        /// (the tile's <c>shelf</c> clause at <c>Loot.as:464</c> and the prop search at <c>:468</c>) and a
+        /// solid floor contact clamps its bottom without stopping it or reporting a contact. Default
+        /// <c>false</c> so every pre-existing call site keeps the falling behaviour.
+        /// </param>
         public static LootFallState Step(
             float centreX, float bottom, float halfWidth, float height,
             float vx, float vy, int divisor,
             float roomWidthPx, float roomHeightPx,
-            LootTileProbe tileProbe, LootShelfProbe shelfProbe)
+            LootTileProbe tileProbe, LootShelfProbe shelfProbe, bool levitating = false)
         {
             if (divisor < 1) divisor = 1;
 
@@ -309,7 +325,18 @@ namespace PFE.Systems.Loot
 
                 // Loot.as:463-467, both clauses. The solid one needs the old bottom above the tile's
                 // underside; the shelf one needs it above the shelf's TOP, which is what makes a catwalk
-                // catchable from above only.
+                // catchable from above only -- AND it is gated on `!levit`, like every other shelf test
+                // in the oracle (`Loot.as:464`, `:468`; the prop equivalent is `Box.collisionTile`'s
+                // `|| levit || this.isThrow` at `Box.as:1270`).
+                //
+                // Missing that guard is what "I cannot drop a carried object through a ledge" was: a
+                // levitated pickup was caught by every beam it was pushed onto, because the clamp below
+                // (`Y = _loc4_ - 1`) runs even for a levitated loot while the `if(!levit)` that follows
+                // only guards the STOP. AS3 leaves `_loc4_` at 0 for a levitated loot on a shelf, so the
+                // beam is simply not there for a carried object and it passes through. Solid tiles are
+                // NOT gated -- a levitated loot still cannot be pushed into a wall (`phis == 1` has no
+                // `levit` term in `Loot.run`), which is the difference between "passes through a catwalk"
+                // and "passes through the world".
                 if (tileProbe != null &&
                     tileProbe(x, bottomAfter, out LootTileBox below, out bool belowSolid, out bool belowShelf) &&
                     x >= below.Left && x <= below.Right)
@@ -318,16 +345,16 @@ namespace PFE.Systems.Loot
                     {
                         surface = below.Top;
                     }
-                    else if (belowShelf && bottomAfter <= below.Top && bottom >= below.Top)
+                    else if (belowShelf && !levitating && bottomAfter <= below.Top && bottom >= below.Top)
                     {
                         surface = below.Top;
                     }
                 }
 
                 // `if(_loc4_ == 0 && !levit && !this.vsos) _loc4_ = this.checkShelf(dy / param1);`
-                // — only when the tile search found nothing. `deltaY` is negative because the port's
-                // `TryFindLootSupport` documents "negative is downward".
-                if (float.IsNaN(surface) && shelfProbe != null &&
+                // — only when the tile search found nothing, and only for a free loot: a levitated one
+                // passes over crates rather than landing on them (`Loot.as:468`).
+                if (float.IsNaN(surface) && !levitating && shelfProbe != null &&
                     shelfProbe(x, bottom, bottomAfter - bottom, out float propTop))
                 {
                     surface = propTop;
@@ -339,6 +366,19 @@ namespace PFE.Systems.Loot
                     // the move, at the landed position (Loot.as:478-483). The clearance is added, not
                     // subtracted: see LandClearancePx.
                     float impact = -vy;
+
+                    // `Y = _loc4_ - 1;` happens unconditionally, but everything after it — the sample,
+                    // `stay = true`, and `dy = dx = 0` — sits inside `if(!levit)` (`Loot.as:479-487`).
+                    // So a levitated loot resting on the floor keeps its velocity and reports NO contact:
+                    // the controller is still driving it, and the next tick's accel continues from
+                    // whatever speed the damping left. Reporting `Floor` here would make `Stopped` true
+                    // and the caller would end the carry the first time the player pushed the item down.
+                    if (levitating)
+                    {
+                        return new LootFallState(x, surface + LandClearancePx, vx, vy,
+                                                 LootContact.None, surface, impact);
+                    }
+
                     return new LootFallState(x, surface + LandClearancePx, 0f, 0f,
                                              LootContact.Floor, surface, impact);
                 }
