@@ -479,18 +479,22 @@ namespace PFE.Entities.Enemies.Bosses
         /// preference.
         /// </summary>
         /// <remarks>
-        /// <b>Deviation, recorded.</b> AS3's <c>loc.gg</c> is a global handle on the player, so the
-        /// boss aims at him whether or not it can see him. The port has no player global; this uses
-        /// the visible target and then the last known position, the same substitution
-        /// <c>AlicornBrain.TryTeleportAway</c> documents. In a locked boss room the two agree; behind a
-        /// crate they do not, and the port's boss loses the aim for as long as the sighting does.
+        /// <para><b>The recorded deviation is gone.</b> This used to say that AS3 holds a global handle
+        /// on the player and the port has none, so the boss aimed at whatever its sensors had committed
+        /// and lost the aim for as long as the sighting did. The port does have one: every brain
+        /// refreshes <see cref="EnemyBrain.TargetCandidates"/> with the live units in the room, filtered
+        /// by faction, and <c>loc.gg</c> is the player. See <see cref="ResolveCelTarget"/>.</para>
+        ///
+        /// <para><b>The pet preference is still not modelled</b> (<c>:480-487</c> — 20 % of beats, only
+        /// on <c>attState &lt; 2</c>): it redirects the <i>aim</i> for one beat, and the port has no
+        /// per-beat aim override to hang it on.</para>
         /// </remarks>
         void Aim()
         {
             EnemyController enemy = _controller as EnemyController;
             if (enemy == null) return;
 
-            UnitController target = _blackboard.TargetUnit;
+            UnitController target = ResolveCelTarget();
             if (target != null)
             {
                 // Unity world units — the space EnemyWeaponMount.SetAimTarget works in. The point is
@@ -504,16 +508,59 @@ namespace PFE.Entities.Enemies.Bosses
 
             if (_blackboard.HasLastKnownTargetPosition)
             {
-                Vector2 origin = _tileQuery != null ? _tileQuery.OriginPixel : Vector2.zero;
+                // `LastKnownTargetPosition` is a WORLD pixel point — `EnemySensors` writes
+                // `seenCandidate.transform.position * 100f` — so it converts with the bare scale. This
+                // used to subtract the room's origin first, which produces a ROOM-LOCAL point and hands
+                // it to a world-space setter: an offset of the whole room origin, invisible in any room
+                // whose origin happens to be zero.
                 enemy.SetWeaponAimPoint(
-                    (_blackboard.LastKnownTargetPosition - origin) * TileQueryConstants.PixelToUnit);
+                    _blackboard.LastKnownTargetPosition * TileQueryConstants.PixelToUnit);
             }
+        }
+
+        /// <summary>
+        /// AS3 <c>loc.gg</c> — <b>the player</b>, alive and admissible — or, failing that, whatever the
+        /// sensors committed.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why not just <c>TargetUnit</c>.</b> The oracle's boss has exactly one target and it
+        /// is the player: <c>setCel(loc.gg)</c> (<c>:486</c>) is the only writer of <c>celX</c> in
+        /// <c>control()</c>, and <c>loc.gg</c> is the player global. The port's <c>TargetUnit</c> is
+        /// "whichever candidate the sensors liked best", and the candidate pool is
+        /// <i>every unit in the room of another faction</i> — so a summon, a pet or a hacked turret can
+        /// win it. Facing that instead of the player reads as "she is looking the wrong way", which is
+        /// the report this exists to close.</para>
+        ///
+        /// <para><b>Why the candidate list rather than a scene search.</b> <c>RefreshTargetCandidates</c>
+        /// has already applied the oracle's own admission rules — alive, not <c>doop</c>, different
+        /// faction, and not an invulnerable player (<c>Unit.as:4658</c>) — which is exactly
+        /// <c>isMeet</c> plus the player clause. Re-deriving them here would be a second copy of a rule
+        /// that is already fixture-pinned.</para>
+        /// </remarks>
+        UnitController ResolveCelTarget()
+        {
+            UnitController target = _blackboard.TargetUnit;
+            if (target != null && target.IsPlayer)
+            {
+                return target;
+            }
+
+            for (int i = 0; i < _targetCandidates.Count; i++)
+            {
+                UnitController candidate = _targetCandidates[i];
+                if (candidate != null && candidate.IsPlayer)
+                {
+                    return candidate;
+                }
+            }
+
+            return target;
         }
 
         // ── facing (:503-531) ────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// <c>aiState == 0</c> follows the drift; <c>aiState &gt; 0</c> turns toward the target over
+        /// <c>aiState == 0</c> follows the drift; <c>aiState &gt; 0</c> turns toward the aim point over
         /// <c>t_turn</c> ticks rather than snapping.
         /// </summary>
         void TickFacing()
@@ -526,32 +573,76 @@ namespace PFE.Entities.Enemies.Bosses
                 return;
             }
 
-            // `aiNapr = celX > X ? 1 : -1;` (:517). `celX` is whatever the last aim wrote, so a boss
-            // with no sighting keeps turning toward the stale point — which is what the oracle does.
-            float delta = _blackboard.TargetUnit != null
-                ? _blackboard.TargetDeltaX
-                : _blackboard.HasLastKnownTargetPosition
-                    ? _blackboard.LastKnownTargetPosition.x - ((Vector2)transform.position * TileQueryConstants.UnitToPixel).x
-                    : 0f;
+            // `aiNapr = celX > X ? 1 : -1;` (:517) — an ABSOLUTE point against a live position. See
+            // ResolveCelX for why the blackboard's stored delta cannot stand in for `celX`.
+            //
+            // **Deviation, recorded: the oracle's `celX` is up to nine ticks stale and this is not.**
+            // AS3 refreshes `celX` only on `aiTCh % 10 == 1` (:478), and `setPos` leaves it at `X`
+            // (:4727-4731), so after a teleport the oracle keeps her pre-teleport facing for nine ticks
+            // and then spends `t_turn` = 15 more turning — about 0.8 s facing where she used to be. The
+            // port reads the aim point every tick and turns 15 ticks after landing. Modelling the stale
+            // window would reproduce up to 0.8 s of exactly the wrong-side facing this fix is for, so
+            // the faster read is deliberate.
+            int aiNapr = BossAlicornRules.TurnDirection(ResolveCelX(), SelfFeetXPixels());
 
-            if (delta == 0f)
+            // `if(storona != aiNapr) { --t_turn; if(t_turn <= 0) { storona = aiNapr; t_turn = 15; } }
+            // else t_turn = 15;` (:518-530), with the ladder in the rules class.
+            //
+            // There is deliberately no "nothing to aim at ⇒ do nothing" branch here. With no target
+            // `setCel()` leaves `celX = X` (:4727-4731), `X > X` is false, and the oracle turns
+            // LEFT — see BossAlicornRules.TurnDirection. Holding the current facing instead is what
+            // left her staring at a wall after a teleport.
+            if (BossAlicornRules.TickTurn(_controller.FacingDirection, aiNapr, ref _tTurn))
             {
-                return;
+                ApplyFacing(aiNapr);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>celX</c> for the facing test, as an <b>absolute</b> world X in pixels.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this is not <c>TargetDeltaX</c> — the "she turned to the wrong side after a
+        /// teleport" defect.</b> <see cref="EnemySensors"/> writes <c>TargetDeltaX</c> on exactly one
+        /// branch: a sighting commit (<c>EnemySensors.cs:901</c>). It is a <i>difference</i> — the
+        /// target's centre minus the boss's eye <b>at the instant of that commit</b> — and the blackboard
+        /// keeps both it and <c>TargetUnit</c> across the ticks where nothing is visible. Reading it
+        /// later therefore compares a number measured from a position she has since left, and a
+        /// teleport is precisely the event that leaves it behind: land on the far side of the arena and
+        /// the remembered sign still says "he is that way", which is now the opposite way. It is
+        /// self-sustaining, too — the vision cone is built on the facing
+        /// (<see cref="EnemyBrain.UpdatePerception"/> passes <c>FacingDirection</c> to the sensors), so
+        /// the wrong facing is what stops the next sighting from refreshing the delta that caused
+        /// it.</para>
+        ///
+        /// <para><b>Three arms, in the oracle's own order.</b> <c>setCel(loc.gg)</c> — the player's
+        /// position carrying the quarter-width lead of <c>Unit.as:4707</c> — then the last <b>absolute</b>
+        /// point, then <c>setCel()</c>'s <c>celX = X</c> (<c>:4727-4731</c>, the state <c>setPos</c>
+        /// leaves behind at <c>:1879</c>). Only the middle arm is remembered, and it is safe to remember
+        /// because it is a <i>place</i>, not a displacement.</para>
+        /// </remarks>
+        float ResolveCelX()
+        {
+            UnitController target = ResolveCelTarget();
+            if (target != null)
+            {
+                // The same point Aim() hands the weapons, so the direction she turns and the direction
+                // she shoots are one expression rather than two that can drift apart.
+                return EnemySensors.GetUnitAimPixels(target).x;
             }
 
-            int aiNapr = delta > 0f ? 1 : -1;
-            if (_controller.FacingDirection != aiNapr)
+            if (_blackboard.HasLastKnownTargetPosition)
             {
-                if (--_tTurn <= 0)
-                {
-                    ApplyFacing(aiNapr);
-                    _tTurn = BossAlicornRules.TurnTicks;
-                }
+                return _blackboard.LastKnownTargetPosition.x;
             }
-            else
-            {
-                _tTurn = BossAlicornRules.TurnTicks;
-            }
+
+            return SelfFeetXPixels();
+        }
+
+        /// <summary>Her feet in world pixels — AS3's <c>X</c>, the right-hand side of <c>:517</c>.</summary>
+        float SelfFeetXPixels()
+        {
+            return ((Vector2)transform.position * TileQueryConstants.UnitToPixel).x;
         }
 
         // ── the hover bob (:489-498) ─────────────────────────────────────────────────────────────

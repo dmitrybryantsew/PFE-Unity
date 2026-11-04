@@ -496,5 +496,140 @@ namespace PFE.Tests.Editor.Combat
             Assert.AreEqual(60f, BossAlicornRules.ThrowForce);
             Assert.AreNotEqual(AlicornVariantRules.For(2).ThrowForce, BossAlicornRules.ThrowForce);
         }
+
+        // ── the facing (:503-531) ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>aiNapr = celX &gt; X ? 1 : -1;</c> (<c>:517</c>) — <b>she faces the aim point</b>, and the
+        /// reported expectation ("on the left she should face right, on the right she should face
+        /// left") is what that produces while the player is between the two sides.
+        ///
+        /// <para>The numbers are the oracle's own: move point 3 is <c>7*40+20 = 300</c> px (the left
+        /// pair) and move point 4 is <c>42*40+20 = 1700</c> px (the right pair), with the centre pair
+        /// at <c>24*40+20 = 980</c>. So a boss standing on either side of a player at the centre turns
+        /// <i>inward</i> — which is the behaviour the report describes, and the oracle agrees with
+        /// it.</para>
+        /// </summary>
+        [Test]
+        public void TurnDirection_FacesTheAimPoint_SoTheLeftSideTurnsRight()
+        {
+            const float leftPoint = 300f;
+            const float centrePoint = 980f;
+            const float rightPoint = 1700f;
+
+            // Landed on the left, player at the centre: face right.
+            Assert.AreEqual(1, BossAlicornRules.TurnDirection(centrePoint, leftPoint));
+
+            // Landed on the right: face left.
+            Assert.AreEqual(-1, BossAlicornRules.TurnDirection(centrePoint, rightPoint));
+
+            // And it tracks the player, not the arena: a player who has moved past her wins.
+            Assert.AreEqual(-1, BossAlicornRules.TurnDirection(100f, leftPoint));
+            Assert.AreEqual(1, BossAlicornRules.TurnDirection(1900f, rightPoint));
+        }
+
+        /// <summary>
+        /// <c>setPos</c> ends with <c>this.setCel()</c> (<c>Unit.as:1879</c>), and the no-argument
+        /// overload assigns <c>celX = X</c> (<c>:4727-4731</c>). The comparison is a <b>strict</b>
+        /// <c>&gt;</c>, so that state resolves to <b>−1</b>: on the tick after any teleport the oracle
+        /// turns her <i>left</i>, whatever the player is doing, until <c>setCel(loc.gg)</c> refreshes
+        /// the point on the next <c>aiTCh % 10 == 1</c> tick.
+        ///
+        /// <para>This is the discriminating fixture for the comparison operator. <c>&gt;=</c> would
+        /// return <c>+1</c> here, and "no target" would silently become "keep facing whatever way you
+        /// were", which is the behaviour that left her staring outward after a teleport.</para>
+        /// </summary>
+        [Test]
+        public void AnAimPointOnHerOwnFeetTurnsHerLeft_AndTheComparisonIsStrict()
+        {
+            Assert.AreEqual(-1, BossAlicornRules.TurnDirection(500f, 500f));
+            Assert.AreEqual(1, BossAlicornRules.TurnDirection(500.5f, 500f));
+            Assert.AreEqual(-1, BossAlicornRules.TurnDirection(499.5f, 500f));
+        }
+
+        /// <summary>
+        /// <c>if(storona != aiNapr) { --t_turn; if(t_turn &lt;= 0) { storona = aiNapr; t_turn = 15; } }</c>
+        /// (<c>:518-530</c>) — the flip lands on the <b>15th</b> consecutive disagreeing tick, not the
+        /// first, and the budget is restored as part of the flip.
+        /// </summary>
+        [Test]
+        public void TheFacingFlipsOnTheFifteenthDisagreeingTick()
+        {
+            int tTurn = BossAlicornRules.TurnTicks;
+
+            for (int tick = 1; tick < BossAlicornRules.TurnTicks; tick++)
+            {
+                Assert.IsFalse(BossAlicornRules.TickTurn(storona: 1, aiNapr: -1, ref tTurn),
+                    "the turn must not snap on tick " + tick);
+                Assert.AreEqual(BossAlicornRules.TurnTicks - tick, tTurn);
+            }
+
+            Assert.IsTrue(BossAlicornRules.TickTurn(storona: 1, aiNapr: -1, ref tTurn),
+                "tick 15 is the flip");
+            Assert.AreEqual(BossAlicornRules.TurnTicks, tTurn, "the flip restores the budget");
+        }
+
+        /// <summary>
+        /// One tick of agreement puts the countdown back to 15 — so a target that keeps flipping sides
+        /// never turns her, which is the oracle's hysteresis and not an oversight.
+        /// </summary>
+        [Test]
+        public void AnyAgreeingTickResetsTheCountdown()
+        {
+            int tTurn = BossAlicornRules.TurnTicks;
+
+            for (int i = 0; i < BossAlicornRules.TurnTicks - 1; i++)
+            {
+                Assert.IsFalse(BossAlicornRules.TickTurn(storona: 1, aiNapr: -1, ref tTurn));
+            }
+
+            Assert.AreEqual(1, tTurn, "one tick short of the flip");
+
+            // Agreement: no flip, and the budget is whole again.
+            Assert.IsFalse(BossAlicornRules.TickTurn(storona: 1, aiNapr: 1, ref tTurn));
+            Assert.AreEqual(BossAlicornRules.TurnTicks, tTurn);
+
+            // ...so the next disagreement needs the full 15 again.
+            for (int i = 0; i < BossAlicornRules.TurnTicks - 1; i++)
+            {
+                Assert.IsFalse(BossAlicornRules.TickTurn(storona: 1, aiNapr: -1, ref tTurn));
+            }
+
+            Assert.IsTrue(BossAlicornRules.TickTurn(storona: 1, aiNapr: -1, ref tTurn));
+        }
+
+        /// <summary>
+        /// <b>The teleport defect, in one assertion pair.</b> A <i>delta</i> measured before the
+        /// teleport and an <i>absolute point</i> read after it disagree about which way she should
+        /// face, and the delta is the one that is wrong.
+        ///
+        /// <para>The setup is the reported case: she stands on the right point (1700) with the player
+        /// at the centre (980), so a sighting records <c>celX - X = -720</c> and she faces left — the
+        /// cone included. She then teleports to the left point (300). The remembered delta still says
+        /// "he is 720 px to your left", which is now the opposite of the truth; the absolute point says
+        /// "he is 680 px to your right". <c>TurnDirection</c> reads the absolute pair, so she turns
+        /// inward; a brain that fed it the stored delta would turn her <i>outward</i>, and because the
+        /// cone follows the facing it would then never see the player well enough to correct
+        /// itself.</para>
+        /// </summary>
+        [Test]
+        public void AStoredDeltaPointsTheWrongWayAfterATeleport_AnAbsolutePointDoesNot()
+        {
+            const float oldPosition = 1700f;
+            const float newPosition = 300f;
+            const float playerX = 980f;
+
+            float storedDelta = playerX - oldPosition;
+
+            // What the delta says once she is standing somewhere else: face left — outward.
+            Assert.AreEqual(-1, storedDelta > 0f ? 1 : -1);
+
+            // What the oracle's absolute comparison says: face right — inward.
+            Assert.AreEqual(1, BossAlicornRules.TurnDirection(playerX, newPosition));
+
+            // And the two really do disagree, so this is a discriminating fixture and not a tautology.
+            Assert.AreNotEqual(storedDelta > 0f ? 1 : -1,
+                               BossAlicornRules.TurnDirection(playerX, newPosition));
+        }
     }
 }

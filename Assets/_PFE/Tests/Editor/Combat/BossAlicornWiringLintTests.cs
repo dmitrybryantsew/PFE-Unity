@@ -521,5 +521,55 @@ namespace PFE.Tests.Editor.Combat
                 "the animator is on the Visual CHILD, built after Initialize — GetComponent on the " +
                 "root finds nothing and a captured field stays null");
         }
+
+        // ── 8. The facing must be read from an absolute point, never a stored delta ────────────
+
+        /// <summary>
+        /// <c>TickFacing</c> must decide the turn from an <b>absolute</b> aim point
+        /// (<c>celX &gt; X</c>, <c>:517</c>) and must not read
+        /// <c>EnemyBlackboard.TargetDeltaX</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The defect this pins: she turned outward after a teleport.</b> <c>TargetDeltaX</c> is
+        /// written on exactly one branch of <c>EnemySensors.Evaluate</c> — a sighting commit
+        /// (<c>EnemySensors.cs:901</c>) — as <i>target centre minus the boss's eye at that moment</i>.
+        /// The blackboard keeps the value, and keeps <c>TargetUnit</c>, across the ticks where nothing
+        /// is visible, so the facing test was comparing a number measured from a position she had since
+        /// left. Teleporting to the other side of the arena leaves it behind by definition, and its sign
+        /// then points away from the player. Worse, the vision cone is built on the facing
+        /// (<c>EnemyBrain.UpdatePerception</c>), so the wrong facing prevents the sighting that would
+        /// have refreshed the delta: she hovers facing the wall for the rest of the beat.</para>
+        ///
+        /// <para><b>Why a lint.</b> The arithmetic is already pinned behaviourally
+        /// (<c>BossAlicornRulesTests</c>). What no behavioural fixture can see is <i>which value the
+        /// brain feeds it</i>, and that is where the bug was — the same shape as every other fixture in
+        /// this file.</para>
+        /// </remarks>
+        [Test]
+        public void TickFacing_ReadsAnAbsoluteAimPoint_NotAStoredDelta()
+        {
+            string source = SourceLint.ReadStripped(BrainPath);
+
+            string facing = SourceLint.MethodBody(source, "void TickFacing()");
+            string resolve = SourceLint.MethodBody(source, "float ResolveCelX()");
+
+            // Positive controls: both extractions have to be the real bodies.
+            Assert.That(facing, Does.Contain("BossAlicornRules.TurnDirection"),
+                "positive control: this has to be TickFacing's real body");
+            Assert.That(resolve, Does.Contain("GetUnitAimPixels"),
+                "positive control: this has to be ResolveCelX's real body");
+
+            Assert.That(facing, Does.Contain("BossAlicornRules.TickTurn"),
+                "the `t_turn` ladder belongs to the rules class, where a fixture can drive it");
+            Assert.That(facing, Does.Not.Contain("TargetDeltaX"),
+                "`celX > X` compares a PLACE with a position; `TargetDeltaX` is a displacement " +
+                "measured from wherever she stood when she last saw him, and a teleport invalidates " +
+                "it — see BossAlicornRules.TurnDirection");
+
+            Assert.That(resolve, Does.Contain("LastKnownTargetPosition"),
+                "the remembered point is the ABSOLUTE one, and is safe to remember for that reason");
+            Assert.That(resolve, Does.Not.Contain("TargetDeltaX"),
+                "same defect, second site: the resolver is where a stale delta would come back");
+        }
     }
 }

@@ -506,6 +506,62 @@ namespace PFE.Systems.Combat
                    && roll < ContactAttackChance;
         }
 
+        // ── the facing (UnitBossAlicorn.as:503-531) ───────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>aiNapr = celX &gt; X ? 1 : -1;</c> (<c>:517</c>) — the side the boss <b>wants</b> to face,
+        /// decided from an <b>absolute</b> aim point and her own live feet.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Both arguments are absolute X coordinates, and that is the whole point.</b> The
+        /// oracle compares <c>celX</c> — a field holding a world point — against <c>X</c>, the body's
+        /// current position. Neither is a delta, so nothing goes stale when the body moves without the
+        /// aim point moving. A stored <i>delta</i> (<c>celX - X</c>) cannot be compared this way after a
+        /// teleport: it was measured against where she used to stand, and its sign now describes a
+        /// direction she is no longer in.</para>
+        ///
+        /// <para><b>The strict <c>&gt;</c> is load-bearing.</b> <c>setPos</c> ends with
+        /// <c>this.setCel()</c> (<c>Unit.as:1879</c>), and the no-argument overload assigns
+        /// <c>celX = X</c> (<c>:4727-4731</c>) — so on the tick after every teleport the comparison is
+        /// <c>X &gt; X</c>, which is <b>false</b>, which means <b>−1</b>. That is why the oracle's boss
+        /// briefly faces left after landing anywhere, until <c>setCel(loc.gg)</c> refreshes the point on
+        /// the next <c>aiTCh % 10 == 1</c> tick. Writing <c>&gt;=</c> here would silently delete that
+        /// behaviour and make "no target" mean "keep the current facing".</para>
+        /// </remarks>
+        public static int TurnDirection(float celX, float selfX)
+        {
+            return celX > selfX ? 1 : -1;
+        }
+
+        /// <summary>
+        /// The <c>t_turn</c> ladder (<c>:518-530</c>): a flip is not a snap, it is a countdown, and the
+        /// countdown restarts every tick the facing is already right.
+        /// </summary>
+        /// <remarks>
+        /// <c>if(storona != aiNapr) { --t_turn; if(t_turn &lt;= 0) { storona = aiNapr; t_turn = 15; } }
+        /// else t_turn = 15;</c> — so the flip lands on the <b>15th</b> consecutive tick of disagreement,
+        /// and any tick of agreement puts the budget back to 15. Half a second at 30 Hz, which is what
+        /// makes the turn read as a turn.
+        /// </remarks>
+        /// <returns>Whether the facing should be applied this tick.</returns>
+        public static bool TickTurn(int storona, int aiNapr, ref int tTurn)
+        {
+            if (storona == aiNapr)
+            {
+                tTurn = TurnTicks;
+                return false;
+            }
+
+            --tTurn;
+            if (tTurn > 0)
+            {
+                return false;
+            }
+
+            tTurn = TurnTicks;
+            return true;
+        }
+
         // ── flight ────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
