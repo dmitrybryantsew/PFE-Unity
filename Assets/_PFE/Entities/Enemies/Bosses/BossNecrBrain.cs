@@ -1065,11 +1065,31 @@ namespace PFE.Entities.Enemies.Bosses
             _controller.DamageSystem?.Report(pending);
         }
 
+        /// <summary>
+        /// <c>UnitBossNecr.animate()</c>'s clip selection (<c>:120-212</c>), through
+        /// <see cref="BossNecrRules.ResolveAnimState"/> so an offline fixture pins the branch order.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This used to return <c>"stay"</c> for every living state.</b> With
+        /// <c>visualNecrBoss</c> being a 12-frame state selector, that froze her on frame one of the idle
+        /// clip for the entire fight: no <c>run</c> when she closes, no <c>cast</c> when a defence form
+        /// goes up, no <c>jump</c> off a ledge, and no <c>derg</c>. The same defect the raider boss had
+        /// (<c>BossRaiderBrain</c>), for the same reason — the branch ladder was never transcribed.</para>
+        ///
+        /// <para><b><c>dx</c> is the unit's own velocity, not the brain's intent.</b> AS3 reads
+        /// <c>dx</c>, which is what the motor integrated, so a boss pinned against a wall reads as
+        /// standing still even while trying to run — which is what the player sees.</para>
+        /// </remarks>
         protected override string ResolveAnimState()
         {
             if (_controller == null) return null;
-            if (!_controller.IsAlive) return "die";
-            return "stay";
+
+            return BossNecrRules.ResolveAnimState(
+                _controller.IsAlive,
+                _aiState,
+                _controller.IsGrounded,
+                _controller.IsLevitated,
+                _controller.VelocityPixelsPerFrame.x);
         }
     }
 }

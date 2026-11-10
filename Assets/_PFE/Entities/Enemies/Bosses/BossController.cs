@@ -366,6 +366,29 @@ namespace PFE.Entities.Enemies.Bosses
         public new const string ControllerAlias = "bossnecr";
 
         /// <summary>
+        /// <c>areaTestTip = "en"</c> (<c>UnitBossNecr.as:82</c>) — the key that makes the eight
+        /// <c>port</c> areas of <c>bossnecr1</c> treat <i>her</i> as their activator.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This is the whole teleport mechanic.</b> The arena's four left-wall and four
+        /// right-wall areas carry <c>tip="en"</c> and a destination on the opposite side; AS3's
+        /// <c>Area.step()</c> scans <c>loc.units</c> for a live body whose <c>areaTestTip</c> equals the
+        /// area's tip and moves it when it steps in (<c>Area.as:316-344</c>). Without this assignment the
+        /// scan matches nothing — which is why the port's boss never teleported even once the areas were
+        /// imported and the <c>port</c> attribute was finally read.</para>
+        ///
+        /// <para><b>Set in <c>Awake</c>, before the first tick.</b> The areas poll on a rising edge, so a
+        /// tip assigned on the first <c>control()</c> would still be in place before she can reach a wall
+        /// — but <c>Awake</c> also covers a placement that spawns <i>inside</i> one, which is how a
+        /// re-entry rebuild would deliver her.</para>
+        /// </remarks>
+        protected override void Awake()
+        {
+            base.Awake();
+            AreaTestTip = "en";
+        }
+
+        /// <summary>
         /// <c>currentWeapon = Weapon.create(this,"necrbullet")</c> (<c>UnitBossNecr.as:77</c>) — a
         /// constructor literal, so the unit node lists no <c>&lt;w&gt;</c> and
         /// <c>bossnecr.asset</c>'s <c>weapons:</c> is empty by design, not by an import gap.

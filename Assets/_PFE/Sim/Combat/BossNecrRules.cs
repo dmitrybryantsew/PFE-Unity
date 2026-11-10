@@ -532,5 +532,66 @@ namespace PFE.Systems.Combat
             curseCooldownTicks -= (int)Math.Floor(damageDealt / DamageCurseDivisor);
             attackTimerTicks -= (int)Math.Floor(damageDealt / DamageAttackDivisor);
         }
+
+        // ── animation (UnitBossNecr.animate():120-212) ────────────────────────────────────────────
+
+        /// <summary>
+        /// Which clip <c>animate()</c> selects, in the oracle's own branch order.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The port returned <c>"stay"</c> for every living state, and that is the "no
+        /// animation" half of the report.</b> <c>visualNecrBoss</c> is a 12-frame state selector whose
+        /// labels name the body clip to draw (<c>stay</c>, <c>trot</c>, <c>run</c>, <c>cast</c>,
+        /// <c>jump</c>, <c>laz</c>, <c>plav</c>, <c>punch</c>, <c>kick</c>, <c>die</c>, <c>derg</c>,
+        /// <c>walk</c>), so a single answer freezes the boss on frame one of <c>stay</c> for the whole
+        /// fight: she slides around the arena with her feet still.</para>
+        ///
+        /// <para><b>The order is the whole rule.</b> <c>die</c> beats <c>cast</c>; <c>cast</c> beats the
+        /// grounded ladder; the grounded ladder beats <c>derg</c>, which beats <c>jump</c>. Reading
+        /// <c>aiState == 3</c> before the death test would play the cast pose on a corpse, and reading
+        /// <c>aiState == 1</c> before <c>stay</c> would play <c>run</c> while she is rooted in the blast
+        /// state — which is the state that most needs to look different from moving.</para>
+        ///
+        /// <para><b><c>sost == 2</c> and <c>sost == 3</c> are the same answer</b> (<c>:123-139</c>):
+        /// both are the <c>die</c> clip. <c>sost == 2</c> is the phase-one death that becomes the revive,
+        /// so the port's <c>!alive</c> test covers the pair; the revive itself re-enters <c>stay</c> on
+        /// the next tick because <c>sost</c> returns to 1.</para>
+        /// </remarks>
+        /// <param name="alive"><c>sost &lt; 2</c>.</param>
+        /// <param name="state">The <c>aiState</c> integer.</param>
+        /// <param name="grounded">AS3 <c>stay</c> — the unit is standing on something.</param>
+        /// <param name="levitating">AS3 <c>levit</c>.</param>
+        /// <param name="velocityX">AS3 <c>dx</c> in px/frame; <c>|dx| &lt; 1</c> reads as standing still.</param>
+        public static string ResolveAnimState(
+            bool alive, NecrAiState state, bool grounded, bool levitating, float velocityX)
+        {
+            if (!alive)
+            {
+                return "die";
+            }
+
+            if (state == NecrAiState.Protect)
+            {
+                return "cast";
+            }
+
+            if (grounded)
+            {
+                if (Math.Abs(velocityX) < StationaryVelocity)
+                {
+                    return "stay";
+                }
+
+                return state == NecrAiState.Move ? "run" : "trot";
+            }
+
+            return levitating ? "derg" : "jump";
+        }
+
+        /// <summary>
+        /// <c>if(dx &lt; 1 &amp;&amp; dx &gt; -1)</c> (<c>:150</c>) — the "standing still" band. A strict
+        /// comparison in the oracle, so exactly 1 px/frame counts as moving.
+        /// </summary>
+        public const float StationaryVelocity = 1f;
     }
 }
