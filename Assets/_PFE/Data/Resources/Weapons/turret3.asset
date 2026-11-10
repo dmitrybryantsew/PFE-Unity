@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: turret3
   displayName: 
+  mess: 
   weaponType: 0
   punch: 0
   skillLevel: 0
   weaponLevel: 0
+  perslvl: 0
   baseDamage: 26
   rapid: 40
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 0
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 2

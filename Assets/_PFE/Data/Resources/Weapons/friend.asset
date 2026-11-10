@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: friend
   displayName: 
+  mess: 
   weaponType: 3
   punch: 0
   skillLevel: 3
   weaponLevel: 5
+  perslvl: 0
   baseDamage: 25
   rapid: 3
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 8
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 1

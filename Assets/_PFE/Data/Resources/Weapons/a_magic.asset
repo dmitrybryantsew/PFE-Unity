@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: a_magic
   displayName: 
+  mess: 
   weaponType: 5
   punch: 0
   skillLevel: 6
   weaponLevel: 0
+  perslvl: 28
   baseDamage: 38
   rapid: 8
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 0
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 8

@@ -47,6 +47,7 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 19
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
@@ -383,14 +384,6 @@ MonoBehaviour:
       frameStep: 1
       replay: 1
       isStatic: 0
-    bac:
-      row: 0
-      length: 31
-      firstFrame: 46
-      returnFrame: 46
-      frameStep: 1
-      replay: 1
-      isStatic: 0
     jump:
       row: 0
       length: 16
@@ -502,6 +495,14 @@ MonoBehaviour:
       returnFrame: 0
       frameStep: 0
       replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 31
+      firstFrame: 46
+      returnFrame: 46
+      frameStep: 1
+      replay: 1
       isStatic: 0
     drag:
       row: 0

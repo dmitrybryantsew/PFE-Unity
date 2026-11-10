@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: chopper
   displayName: 
+  mess: 
   weaponType: 1
   punch: 0
   skillLevel: 1
   weaponLevel: 1
+  perslvl: 0
   baseDamage: 14
   rapid: 12
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 43
   meleeMinDlina: 15
+  meleeMassa: 3
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0

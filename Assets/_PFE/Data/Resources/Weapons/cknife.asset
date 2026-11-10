@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: cknife
   displayName: 
+  mess: 
   weaponType: 1
   punch: 0
   skillLevel: 1
   weaponLevel: 2
+  perslvl: 0
   baseDamage: 15
   rapid: 8
   autoMode: 2
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 30
   meleeMinDlina: 10
+  meleeMassa: 2
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0

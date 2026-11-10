@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: tlance
   displayName: 
+  mess: 
   weaponType: 1
   punch: 0
   skillLevel: 1
   weaponLevel: 4
+  perslvl: 0
   baseDamage: 50
   rapid: 18
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 1
   meleeDlina: 60
   meleeMinDlina: 60
+  meleeMassa: 6
   meleeCombo: 0
   meleePowerAttack: 1
   projectileArchetype: 0

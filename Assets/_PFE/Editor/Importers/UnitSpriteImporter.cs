@@ -1397,7 +1397,7 @@ namespace PFE.Editor.Importers
         /// <summary>
         /// Which DisplayObject names supply this unit's visual, or null when there is none.
         /// Order: the declared <c>vclass</c>, then the <c>visual{Id}</c> convention, then the
-        /// code-assigned table.
+        /// code-assigned table, then the oracle's <c>vis{id}</c> derivation.
         /// </summary>
         static string[] ResolveVisualNames(UnitDefinition unit, Result result)
         {
@@ -1418,6 +1418,25 @@ namespace PFE.Editor.Importers
             if (CodeAssignedVisuals.TryGetValue(unit.id, out string[] explicitNames))
             {
                 return explicitNames;
+            }
+
+            // ── The oracle's own derivation: `vis` + id ───────────────────────────────────────────
+            //
+            // `UnitTrap.as:22`, `UnitTrigger.as:56` and `UnitDamager.as:54` all read
+            // `vis = Res.getVis("vis" + id, vismtrap)` — the ONE visual rule in the game that lives in
+            // code rather than in data. This importer only knew `vclass` and `blit`, so all ten units
+            // that use it imported as colliders with no art: the three satchel charges (`damexpl1`),
+            // the hidden grenade thrower, the hidden shooter, and every `trig*`/`mtrap` trap. In
+            // `rooms_begin/room_1_4` that is the reported "no visible bombs".
+            //
+            // Presence is the whole test — exactly like `Res.getVis`, which falls through to
+            // `vismtrap` when the derived class does not exist. Measured over the 83 sprite-less
+            // definitions: only ten have a `DefineSprite_*_vis<id>` folder, so this cannot hand a unit
+            // someone else's picture.
+            string fromId = TrapVisualNaming.CandidateFor(unit.id);
+            if (fromId != null && FindVisualFolder(fromId) != null)
+            {
+                return new[] { fromId };
             }
 
             return null;

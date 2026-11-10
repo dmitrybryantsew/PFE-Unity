@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: lasp
   displayName: 
+  mess: 
   weaponType: 2
   punch: 0
   skillLevel: 4
   weaponLevel: 1
+  perslvl: 0
   baseDamage: 8
   rapid: 7
   autoMode: 2
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 2
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 1

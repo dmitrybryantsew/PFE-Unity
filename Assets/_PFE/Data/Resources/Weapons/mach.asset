@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mach
   displayName: 
+  mess: 
   weaponType: 1
   punch: 0
   skillLevel: 1
   weaponLevel: 2
+  perslvl: 0
   baseDamage: 16
   rapid: 12
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 60
   meleeMinDlina: 20
+  meleeMassa: 3
   meleeCombo: 1
   meleePowerAttack: 0
   projectileArchetype: 0

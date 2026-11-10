@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: flamer
   displayName: 
+  mess: 
   weaponType: 3
   punch: 0
   skillLevel: 4
   weaponLevel: 2
+  perslvl: 0
   baseDamage: 2.5
   rapid: 1
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 10
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 3

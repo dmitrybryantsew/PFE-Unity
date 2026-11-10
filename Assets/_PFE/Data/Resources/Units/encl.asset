@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: encl
   width: 0.55
   height: 0.7
-  sitHeight: 0.5
+  sitHeight: 0.35
   mass: 50
   massafix: 0
   moveSpeed: 4
@@ -47,15 +47,17 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 8
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
   dexterity: 1
   skill: 1.2
-  waterAbility: 1
+  armourQuality: 1
   ear: 1.4
   damageType: 2
   isStable: 0
+  weaponKrep: 1
   bloodType: 1
   leavesCorpse: 1
   isInvulnerable: 0
@@ -68,7 +70,7 @@ MonoBehaviour:
   isInsect: 0
   isMechanical: 0
   isAlicorn: 0
-  heroType: 
+  heroType: encl
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 1
@@ -94,15 +96,77 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: 1d67ea57c612dde49b72068588f00663, type: 3}
   spriteSheetId: 
   visualClassName: 
-  spriteSheet: []
+  spriteSheet:
+  - {fileID: 21300000, guid: 1d67ea57c612dde49b72068588f00663, type: 3}
+  - {fileID: 21300000, guid: 31f024b514b67934f8510a16b413f62d, type: 3}
+  - {fileID: 21300000, guid: 3b486bc768a05f347a8bba35cedca57e, type: 3}
+  - {fileID: 21300000, guid: 6274f3d0ef59fa14c9e550a77cb1c57e, type: 3}
+  - {fileID: 21300000, guid: 39a09d0fa23f6004683be7e1ede9bc25, type: 3}
+  - {fileID: 21300000, guid: 5ff9e10406859be4985371fdfd03168d, type: 3}
+  - {fileID: 21300000, guid: b776b8c48dae75d489284d75149aea90, type: 3}
+  - {fileID: 21300000, guid: 16c25e64052472645a34769d5f0a5398, type: 3}
+  - {fileID: 21300000, guid: e2c0b99a1f4c16e499f4df91702b51a5, type: 3}
+  - {fileID: 21300000, guid: fadc4e02e4e213e4c8bbbbb067fe3bda, type: 3}
+  - {fileID: 21300000, guid: 35e3eb1d6387d4d46b9889653c113e96, type: 3}
+  - {fileID: 21300000, guid: b84369b549a819c41b985a901d58acc8, type: 3}
+  - {fileID: 21300000, guid: c4d3c5b6928e6434390e3626bfedfbc6, type: 3}
+  - {fileID: 21300000, guid: 264c7bda166cd6848bb73d3f175f5ad5, type: 3}
+  - {fileID: 21300000, guid: 0521370cb5edda1449a3a4d59b1bdd08, type: 3}
+  - {fileID: 21300000, guid: 94700c0fb7a357940b842f5b279adb46, type: 3}
+  - {fileID: 21300000, guid: 4515b6d13ca2fe74a8d29571e353b0b8, type: 3}
+  - {fileID: 21300000, guid: 9b267f21c1ffdd141bbc6b5a4df1e701, type: 3}
+  - {fileID: 21300000, guid: 3ae744475426e6845802cd93b7af10f7, type: 3}
+  - {fileID: 21300000, guid: 5f4bad4dca7b4b841821b156ad0aa035, type: 3}
+  - {fileID: 21300000, guid: 9bf1fb36949b471418c7520a94755afb, type: 3}
+  - {fileID: 21300000, guid: 689ca24d7d5b61d40bbabf0885737c37, type: 3}
+  - {fileID: 21300000, guid: 5d7c0aafb3bf67047aacd6fdf362f850, type: 3}
+  - {fileID: 21300000, guid: b6ded88f4d5aa014294f25e73f9552bc, type: 3}
+  - {fileID: 21300000, guid: c595ecec9a4a99e47a5cfcf12c30ceac, type: 3}
+  - {fileID: 21300000, guid: c8a8f07b97225964a8c5511670bbda37, type: 3}
+  - {fileID: 21300000, guid: 3d6437a6207d5384788d5e0975108025, type: 3}
+  - {fileID: 21300000, guid: 47206d86a338fe14f914f34908fcf195, type: 3}
+  - {fileID: 21300000, guid: 98c5129ce8576b94189e168aee8b6d53, type: 3}
+  - {fileID: 21300000, guid: e093a0708219fdb488d00d9126ad08b8, type: 3}
+  - {fileID: 21300000, guid: 95b3eeff47aae134ead2ac964b7d19db, type: 3}
+  - {fileID: 21300000, guid: 62b8fee24f562294792bc982e41cdd45, type: 3}
+  - {fileID: 21300000, guid: ad298476d72eef6449396c0b07ed2857, type: 3}
+  - {fileID: 21300000, guid: 93d7a2d0f2e51134aa46e51b08bf1035, type: 3}
+  - {fileID: 21300000, guid: f3396320fdef4fa4591356099ec79717, type: 3}
+  - {fileID: 21300000, guid: 38bf7a9c82919634c8ecbae6bd874e5a, type: 3}
+  - {fileID: 21300000, guid: 85c76ebaae1a69b43a2b2b0049f39ca7, type: 3}
+  - {fileID: 21300000, guid: 2803991e48abc104a8394984f3758cab, type: 3}
+  - {fileID: 21300000, guid: 2ef941df7f1a06a49ac07afb84dbeac7, type: 3}
+  - {fileID: 21300000, guid: 34a5b2a1b3b056f4ba940df6ce3987bf, type: 3}
+  - {fileID: 21300000, guid: 0ffdf71df94c64947a5adb17e615b59f, type: 3}
+  - {fileID: 21300000, guid: 6322f83019c0aa24385bf8cae09720a9, type: 3}
+  - {fileID: 21300000, guid: 473c7267099861544b442d7bbdcdd497, type: 3}
+  - {fileID: 21300000, guid: 8edfd742103c1ba4f893c6bb6dbbbcc6, type: 3}
+  - {fileID: 21300000, guid: 0cb6548a4b16e384b83300af20df4e7f, type: 3}
+  - {fileID: 21300000, guid: e57191fda3e721841ae887a8b7b6deb4, type: 3}
+  - {fileID: 21300000, guid: 03c8e1c2746e5944381c0f942be92dae, type: 3}
+  - {fileID: 21300000, guid: 8cbe6e68071707c469dbbd583e98d37d, type: 3}
+  - {fileID: 21300000, guid: f47aadd9a54a2234cbcdac7b837c46da, type: 3}
+  - {fileID: 21300000, guid: bfd5ab736c8e1e94db449cd7b67afb96, type: 3}
+  - {fileID: 21300000, guid: 34f0daea291edcc49ac6c7c260c4debc, type: 3}
+  - {fileID: 21300000, guid: 053ebb81137796846a390d0d76b6b8ad, type: 3}
+  - {fileID: 21300000, guid: 46b9f6e8e3537d245bde4913c3bb67cd, type: 3}
+  - {fileID: 21300000, guid: 37b31706ba0fea64087a2ccc59b0c220, type: 3}
+  - {fileID: 21300000, guid: 05ea0dcd52f4b8f4b97beca6cef7f903, type: 3}
+  - {fileID: 21300000, guid: a076e9a01421f2e47930ede4cc0a5962, type: 3}
+  - {fileID: 21300000, guid: 0ad49fd099fa2eb43b88dc7ea0b45d0b, type: 3}
+  - {fileID: 21300000, guid: 7f209892cd8255f4eb3bd85e7133e3ae, type: 3}
+  - {fileID: 21300000, guid: 0fb5875695d19e94aa060270fc8b8180, type: 3}
+  - {fileID: 21300000, guid: f6937cd1e1704c34a83e4d1dbbf363cc, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 0
-  spriteSheetRows: 0
+  spriteSheetColumns: 60
+  spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
+  armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: combat_1
   deathSoundId: rm
@@ -122,6 +186,8 @@ MonoBehaviour:
   usesEnclaveWeapons: 0
   willStayInPlace: 0
   canResurrect: 0
+  superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -266,6 +332,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

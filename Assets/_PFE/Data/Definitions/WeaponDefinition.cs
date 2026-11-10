@@ -1,6 +1,7 @@
 using UnityEngine;
 using PFE.ModAPI;
 using PFE.Systems.Combat;
+using PFE.Systems.Weapons;
 #if ODIN_INSPECTOR
 using Sirenix.OdinInspector;
 #endif
@@ -692,9 +693,12 @@ namespace PFE.Data.Definitions
         ///
         /// <para><b>Consuming this needs the merge, not a field copy.</b> The override is a
         /// <i>partial</i> delta: <c>oldshot</c> tier 1 raises damage 6→7 and hp 150→250 and says nothing
-        /// about <c>kol</c> or <c>knock</c>, which stay 5 and 3. The port must therefore fold it over the
-        /// base node's run — <c>WeaponVariantXml.MergeRuns</c> — and read the result, rather than reading
-        /// the override's fields directly. Reading it directly turns every unmentioned stat into 0.</para>
+        /// about <c>kol</c> or <c>knock</c>, which stay 5 and 3. Reading the raw runs field-by-field
+        /// would turn every unmentioned stat into 0, so the rule is
+        /// <see cref="WeaponVariantOverrides"/> (which encodes "absent" per field) and
+        /// <see cref="WeaponVariantStats.ApplyTo"/> (which writes only what is present).
+        /// <c>WeaponVariantXml.MergeRuns</c> is the equivalent string form, used by the importer's
+        /// diagnostics and its own tests; gameplay never needs it.</para>
         /// </summary>
         [Tooltip("The unique (\"II\") variant override. Variant == 0 means this weapon has no variant.")]
         public WeaponVariantData variant;
@@ -776,5 +780,269 @@ namespace PFE.Data.Definitions
         int IWeaponStats.shineRadius => shineRadius;
         bool IWeaponStats.hasShell => hasShell;
         #endregion
+    }
+
+    /// <summary>
+    /// Applies a unique ("II") weapon's tier-1 numbers to a definition, and hands out the resulting
+    /// per-tier definition — the port of AS3's <c>Weapon.getXmlParam</c>
+    /// (<c>Weapon.as:454-580</c>: read <c>char[0]</c>, then re-read <c>char[variant]</c> over the same
+    /// object).
+    ///
+    /// <para><b>Why a copy and not a mutated asset.</b> <see cref="WeaponDefinition"/> is a
+    /// <c>ScriptableObject</c>: one asset is shared by every wielder, and an editor write survives
+    /// play-mode exit. Mutating it would upgrade the weapon for the whole game, permanently. AS3 has no
+    /// such problem because <c>Weapon.create</c> builds a fresh object per wielder
+    /// (<c>Weapon.as:345-394</c>), which is exactly the per-tier instance this returns.</para>
+    ///
+    /// <para><b>The split, and why it is where it is.</b> The rule — which attribute overrides what,
+    /// with which scaling, and the three fields AS3 <i>recomputes</i> instead of merging — lives in
+    /// <see cref="WeaponVariantOverrides"/>, which is plain C# and therefore runs in the offline
+    /// harness. This type is the Unity half: it copies a definition, writes the present fields, and
+    /// caches one copy per (row, tier). Creating a <c>ScriptableObject</c> is an ECall and throws
+    /// outside the editor, so nothing here can be behaviourally tested offline; a source lint
+    /// (<c>WeaponVariantStatsTests.ApplyTo_WritesEveryOverrideField</c>) is the guard that the write
+    /// half does not fall behind the rule half.</para>
+    /// </summary>
+    public static class WeaponVariantStats
+    {
+        /// <summary>
+        /// One effective definition per (weapon id, tier). The copy is immutable once built and every
+        /// wielder of that tier wants the same numbers, so sharing it is correct as well as cheaper than
+        /// one copy per equip. Bounded by the data: 71 variant rows in the shipped file.
+        ///
+        /// <para>Keyed by id rather than by object identity on purpose — <c>GetInstanceID()</c> and
+        /// <c>Object.Equals</c> are ECalls, and a cache that throws offline would take the whole type
+        /// with it.</para>
+        /// </summary>
+        private static readonly System.Collections.Generic.Dictionary<string, WeaponDefinition> Cache =
+            new System.Collections.Generic.Dictionary<string, WeaponDefinition>(System.StringComparer.Ordinal);
+
+        /// <summary>
+        /// The definition to actually fire with: <paramref name="definition"/> itself for tier 0, and a
+        /// cached tier-<paramref name="variant"/> copy otherwise.
+        ///
+        /// <para><b>Returns the input unchanged whenever there is nothing to do</b> — a null definition, a
+        /// non-positive tier, a row with no second <c>&lt;char&gt;</c>, or a tier the row does not carry.
+        /// That last case warns instead of silently handing back tier-0 numbers, because a caller asking
+        /// for tier 2 on a two-tier row has a bug the player would otherwise experience as "the unique
+        /// does nothing".</para>
+        /// </summary>
+        public static WeaponDefinition Effective(WeaponDefinition definition, int variant)
+        {
+            if (definition == null || variant <= 0) return definition;
+
+            WeaponVariantOverrides overrides = WeaponVariantOverrides.Parse(definition.variant);
+            if (overrides == null) return definition;
+
+            if (definition.variant.Variant != variant)
+            {
+                Debug.LogWarning(
+                    "[WeaponVariantStats] '" + definition.weaponId + "' carries only tier " +
+                    definition.variant.Variant + " but tier " + variant + " was requested — " +
+                    "firing the base tier. The shipped data has no weapon with more than two <char> nodes.");
+                return definition;
+            }
+
+            string key = definition.weaponId + "^" + variant;
+            if (!string.IsNullOrEmpty(definition.weaponId) &&
+                Cache.TryGetValue(key, out WeaponDefinition cached) && cached != null)
+            {
+                return cached;
+            }
+
+            WeaponDefinition copy = ScriptableObject.CreateInstance<WeaponDefinition>();
+            CopyAllFields(definition, copy);
+            copy.name = key;
+            ApplyTo(copy, overrides);
+
+            // An id-less definition is a test or debug object; caching it by "" would hand every such
+            // object the first one's numbers.
+            if (!string.IsNullOrEmpty(definition.weaponId)) Cache[key] = copy;
+
+            return copy;
+        }
+
+        /// <summary>
+        /// Write every tier-1 value <paramref name="o"/> carries over <paramref name="target"/>, and
+        /// nothing else — the port of <c>getXmlParam</c>'s second pass.
+        ///
+        /// <para><b>Two writes are unconditional, and they are the oracle's.</b> See
+        /// <see cref="WeaponVariantOverrides"/>'s remarks: <c>auto</c> is re-derived from
+        /// <c>rapid</c> and <c>massa</c> resets to 0. A tier-1 node that says nothing about them
+        /// still changes them, which is why they cannot be presence-gated like the rest.</para>
+        ///
+        /// <para><b>Five parsed fields are deliberately not applied here</b>, and each one is a place
+        /// where the obvious port is the wrong one: <c>vweap</c> (the held sprite — a presentation
+        /// gap, not a stat), and <c>long</c> / <c>minlong</c> / <c>pow</c> / <c>combo</c>, which the
+        /// oracle reads from <c>index 0</c> in <c>WClub</c> rather than merging in
+        /// <c>getXmlParam</c>. See the comments at their write sites.</para>
+        /// </summary>
+        public static void ApplyTo(WeaponDefinition target, WeaponVariantOverrides o)
+        {
+            if (target == null || o == null) return;
+
+            // ── <char> — getCharParam ─────────────────────────────────────────────
+            if (WeaponVariantOverrides.Has(o.MaxHp))      target.maxDurability     = (int)o.MaxHp;
+            if (WeaponVariantOverrides.Has(o.Damage))     target.baseDamage         = o.Damage;
+            if (WeaponVariantOverrides.Has(o.ExplDamage)) target.explosionDamage    = o.ExplDamage;
+            if (WeaponVariantOverrides.Has(o.Rapid))      target.rapid              = o.Rapid;
+            if (WeaponVariantOverrides.Has(o.Pier))       target.armorPenetration   = o.Pier;
+            if (WeaponVariantOverrides.Has(o.Knock))      target.knockback          = o.Knock;
+            if (WeaponVariantOverrides.Has(o.Destroy))    target.destroyTiles       = o.Destroy;
+            if (WeaponVariantOverrides.Has(o.Prec))       target.precision          = o.Prec * 40f;
+            if (WeaponVariantOverrides.Has(o.AntiPrec))   target.antiPrecision      = o.AntiPrec * 40f;
+            if (WeaponVariantOverrides.Has(o.Kol))        target.projectilesPerShot = o.Kol;
+            if (WeaponVariantOverrides.Has(o.Dkol))       target.burstCount         = o.Dkol;
+            if (WeaponVariantOverrides.Has(o.Expl))       target.explRadius         = o.Expl;
+            if (WeaponVariantOverrides.Has(o.ExplTip))    target.explTip            = o.ExplTip;
+            if (WeaponVariantOverrides.Has(o.ExplKol))    target.explKol            = o.ExplKol;
+            if (WeaponVariantOverrides.Has(o.Prep))       target.prepFrames         = o.Prep;
+            if (WeaponVariantOverrides.Has(o.Tipdam))     target.damageType         = (DamageType)o.Tipdam;
+
+            // pow / combo: parsed, and DELIBERATELY NOT APPLIED. `Weapon.getCharParam` never reads
+            // them — `WClub.as:131-137` does, and it reads `node.char[0]`, the base tier. So the
+            // oracle's tier-1 weapon keeps tier 0's power/combo flags, and so must this one. Writing
+            // them here would make the port strictly "better" than the oracle and therefore wrong.
+
+            // crit: the importer's rule, reproduced so tier 1 agrees with tier 0 — `crit > 0` scales the
+            // chance by 0.1 and stores the multiplier; anything else restores the two class defaults.
+            // (AS3's getCharParam is `critM = @crit - 1`; the port's base tier stores `@crit` itself.
+            // Tier 1 mirrors the port, not AS3, because a tier that disagreed with its own base tier
+            // would be the more visible defect. Recorded in the research doc's open list.)
+            if (WeaponVariantOverrides.Has(o.Crit))
+            {
+                if (o.Crit > 0f) { target.critChance = 0.1f * o.Crit; target.critMultiplier = o.Crit; }
+                else             { target.critChance = 0.1f;         target.critMultiplier = 2f; }
+            }
+
+            // auto: recomputed on every pass, never inherited. 0 is this port's "derive from rapid".
+            target.autoMode = o.Auto < 0 ? 0 : (o.Auto == 1 ? 2 : 1);
+
+            // ── <phis> — getPhisParam ─────────────────────────────────────────────
+            // massa: `massa = @massa > 0 ? @massa/50 : 0`, unconditional. Stored raw here.
+            target.meleeMassa = WeaponVariantOverrides.Has(o.Massa) && o.Massa > 0f ? o.Massa : 0f;
+
+            if (WeaponVariantOverrides.Has(o.Speed))     target.projectileSpeed = o.Speed;
+            if (WeaponVariantOverrides.Has(o.Deviation)) target.deviation       = o.Deviation;
+            if (WeaponVariantOverrides.Has(o.Flame))     target.bulletFlame     = o.Flame;
+            if (WeaponVariantOverrides.Has(o.Grav))      target.bulletGravity   = o.Grav;
+            if (WeaponVariantOverrides.Has(o.Accel))     target.bulletAccel     = o.Accel;
+            if (WeaponVariantOverrides.Has(o.Navod))     target.bulletNavod     = o.Navod;
+            if (WeaponVariantOverrides.Has(o.Recoil))    target.recoilFrames    = o.Recoil;
+            if (o.Bumc == 1)                             target.bumc            = true;
+
+            // dlina / mindlina: parsed, and DELIBERATELY NOT APPLIED. They are not part of
+            // `getXmlParam` at all — `WClub.as:121-129` reads `node.phis[0].@long` / `@minlong`, the
+            // BASE tier, and falls back to `mindlina = dlina` itself. So a tier-1 `long` is dead data
+            // in the oracle. It is not hypothetical: `sword` authors `long='80'` at tier 0 and
+            // `long='90'` at tier 1, so applying the override would give the II a 10 px longer reach
+            // than the oracle's. The base tier's own read is `WeaponDataImporter`'s job (it assigns
+            // `meleeDlina` / `meleeMinDlina` from `phis[0]`, with the same `minlong > 0 ? … : dlina`
+            // rule the oracle uses).
+
+            // ── <vis> — getVisParam ───────────────────────────────────────────────
+            if (WeaponVariantOverrides.Has(o.Vbul))    target.vbul          = o.Vbul;
+            if (WeaponVariantOverrides.Has(o.VisExpl)) target.visExpl       = o.VisExpl;
+            if (WeaponVariantOverrides.Has(o.Spring))  target.springMode    = o.Spring;
+            if (WeaponVariantOverrides.Has(o.Shine))   target.shineRadius   = o.Shine;
+            if (WeaponVariantOverrides.Has(o.Flare))   target.muzzleFlareId = o.Flare;
+            if (o.BulAnim == 1)                        target.bulletAnimated = true;
+            if (o.Shell == 1)                          target.hasShell       = true;
+            if (o.PhisBul == 1)                        target.isPhysBullet   = true;
+
+            if (WeaponVariantOverrides.Has(o.Tipdec))
+            {
+                target.decalType = System.Enum.IsDefined(typeof(DecalType), o.Tipdec)
+                    ? (DecalType)o.Tipdec
+                    : DecalType.None;
+            }
+
+            // ── <snd> — getSndParam ───────────────────────────────────────────────
+            if (WeaponVariantOverrides.Has(o.Shoot))   target.soundShoot  = o.Shoot;
+            if (WeaponVariantOverrides.Has(o.Reload))  target.soundReload = o.Reload;
+            if (WeaponVariantOverrides.Has(o.Hit))     target.soundHit    = o.Hit;
+            if (WeaponVariantOverrides.Has(o.PrepSnd)) target.soundPrep   = o.PrepSnd;
+            if (WeaponVariantOverrides.Has(o.T1))      target.soundPrepT1 = o.T1;
+            if (WeaponVariantOverrides.Has(o.T2))      target.soundPrepT2 = o.T2;
+            if (WeaponVariantOverrides.Has(o.Noise))   target.noiseRadius = o.Noise;
+
+            // ── <ammo> — getAmmoParam ─────────────────────────────────────────────
+            if (WeaponVariantOverrides.Has(o.Holder))     target.magazineSize   = o.Holder;
+            if (WeaponVariantOverrides.Has(o.ReloadTime)) target.reloadTime     = o.ReloadTime;
+            if (WeaponVariantOverrides.Has(o.Rashod))     target.ammoPerShot     = o.Rashod;
+            if (WeaponVariantOverrides.Has(o.Recharg))    target.rechargeFrames = o.Recharg;
+            if (WeaponVariantOverrides.Has(o.Mana))       target.manaHealthCost = o.Mana;
+            if (WeaponVariantOverrides.Has(o.Magic))      target.magicPoolCost  = o.Magic;
+
+            // ── <dop> — getDopParam ───────────────────────────────────────────────
+            if (WeaponVariantOverrides.Has(o.Effect))    target.dopEffect = o.Effect;
+            if (WeaponVariantOverrides.Has(o.DopDamage)) target.dopDamage = o.DopDamage;
+            if (WeaponVariantOverrides.Has(o.DopCh))     target.dopChance = o.DopCh;
+            if (WeaponVariantOverrides.Has(o.Probiv))    target.penetration = o.Probiv;
+
+            // ── <com> — getComParam: price only, see WeaponVariantOverrides.Price ──
+            if (WeaponVariantOverrides.Has(o.Price)) target.comPrice = o.Price;
+        }
+
+        /// <summary>
+        /// <c>char[variant]@maxhp</c> — the durability a tier-1 weapon should spawn with
+        /// (<c>Invent.as:1068-1075</c>: <c>hp = round(char[variant].@maxhp * sost * multHP)</c>), or the
+        /// row's own durability when the tier does not author one. 62 of the 71 variants raise it.
+        /// </summary>
+        public static int MaxDurability(WeaponDefinition definition, int variant)
+        {
+            if (definition == null) return 0;
+
+            WeaponVariantOverrides o = variant > 0 ? WeaponVariantOverrides.Parse(definition.variant) : null;
+            return o != null && WeaponVariantOverrides.Has(o.MaxHp)
+                ? (int)o.MaxHp
+                : definition.maxDurability;
+        }
+
+        /// <summary>
+        /// <c>com[variant]@price</c>, or 0 when the variant node carries none — the branch
+        /// <c>Item.getPrice</c> uses to decide between "the unique's own price" and "3× the base"
+        /// (<c>Item.as:357-367</c>). 9 of the 71 variants carry one.
+        /// </summary>
+        public static float VariantPrice(WeaponDefinition definition)
+        {
+            WeaponVariantOverrides o = definition != null ? WeaponVariantOverrides.Parse(definition.variant) : null;
+            return o != null && WeaponVariantOverrides.Has(o.Price) ? o.Price : 0f;
+        }
+
+        // ── The copy ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Every public instance field of the type, discovered once. Reflection rather than 88 hand
+        /// written assignments: this class gained five fields in the last month (<c>meleeMassa</c>,
+        /// <c>comRep</c>, <c>perslvl</c>, …), and a hand-copied list that misses one fails <i>silently</i>
+        /// — the tier-1 weapon would read 0 for it while the base tier read the authored value. The type
+        /// is pure data with no computed members, so "copy everything public" is exactly right; the
+        /// companion test asserts it field-for-field.
+        /// </summary>
+        private static readonly System.Reflection.FieldInfo[] CopyFields = DiscoverCopyFields();
+
+        private static System.Reflection.FieldInfo[] DiscoverCopyFields()
+        {
+            System.Reflection.FieldInfo[] all = typeof(WeaponDefinition).GetFields(
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            var copyable = new System.Collections.Generic.List<System.Reflection.FieldInfo>(all.Length);
+            foreach (System.Reflection.FieldInfo field in all)
+            {
+                if (!field.IsInitOnly && !field.IsLiteral) copyable.Add(field);
+            }
+
+            return copyable.ToArray();
+        }
+
+        /// <summary>Field-for-field copy — see <see cref="CopyFields"/>.</summary>
+        public static void CopyAllFields(WeaponDefinition source, WeaponDefinition target)
+        {
+            if (source == null || target == null) return;
+
+            foreach (System.Reflection.FieldInfo field in CopyFields)
+                field.SetValue(target, field.GetValue(source));
+        }
     }
 }

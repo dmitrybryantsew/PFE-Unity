@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u0413\u0440\u0430\u043D\u0430\u0442\u044B"
   width: 0.2
   height: 0.2
-  sitHeight: 0.5
+  sitHeight: 0.1
   mass: 50
   massafix: 0
   moveSpeed: 4
@@ -47,15 +47,17 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 10
+  damagerTip: 2
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
   dexterity: 3
   skill: 1
-  waterAbility: 1
+  armourQuality: 0
   ear: 1
   damageType: 2
   isStable: 0
+  weaponKrep: 1
   bloodType: 0
   leavesCorpse: 0
   isInvulnerable: 0
@@ -94,15 +96,18 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: 98292cb4f6df52b4ba9598ce8b3437e9, type: 3}
   spriteSheetId: 
   visualClassName: 
-  spriteSheet: []
+  spriteSheet:
+  - {fileID: 21300000, guid: 98292cb4f6df52b4ba9598ce8b3437e9, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 0
-  spriteSheetRows: 0
+  spriteSheetColumns: 1
+  spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
+  armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: 
@@ -122,6 +127,8 @@ MonoBehaviour:
   usesEnclaveWeapons: 0
   willStayInPlace: 0
   canResurrect: 0
+  superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -266,6 +273,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

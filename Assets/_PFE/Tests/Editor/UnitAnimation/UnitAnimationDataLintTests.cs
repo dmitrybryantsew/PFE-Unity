@@ -250,11 +250,25 @@ namespace PFE.Tests.Editor.UnitAnimation
                 ". Add a field for the id (and to As3Ids / Assign / GetMapped) rather than adding it to " +
                 "UnitAnimationParser.KnownUnmappedIds — that list is what hid this the first time.");
 
-            CollectionAssert.AreEquivalent(AnimationSet.As3Ids, authored,
-                "AnimationSet's id list and the ids actually authored in AllData.as must be the same set. " +
-                "Extra in As3Ids => a field no row can ever populate (a brain returning it animates " +
-                "nothing). Missing from As3Ids => an authored row is being dropped. " +
-                "As3Ids=" + AnimationSet.As3Ids.Length + ", authored=" + authored.Count + ".");
+            // The two directions, with the one documented exception folded in.
+            //
+            // `VclassOnlyIds` are ids that a DisplayObject clip's `osn` selector names as a frame label
+            // and a class selects with gotoAndStop, but that no `<blit>` row declares — `bac` (the raider
+            // boss's quake wind-up, `UnitBossRaider.as:144-151`) and `cast` (the necromancer's protect
+            // pose, `UnitBossNecr.as:140-147`). Before that list existed this assertion could only pass
+            // by *not* having a field for `bac`, which is precisely how 31 frames of the raider boss's
+            // animation were imported and left unreachable. The assertion stays exact: a field that is
+            // neither authored nor a known vclass label still fails, and a vclass label with no field
+            // still fails the `droppedRows` check above.
+            var expected = new HashSet<string>(authored);
+            expected.UnionWith(AnimationSet.VclassOnlyIds);
+
+            CollectionAssert.AreEquivalent(AnimationSet.As3Ids, expected,
+                "AnimationSet's id list and the ids actually authored in AllData.as (plus the documented " +
+                "vclass-only labels) must be the same set. Extra in As3Ids => a field no row can ever " +
+                "populate (a brain returning it animates nothing). Missing from As3Ids => an authored row " +
+                "is being dropped. As3Ids=" + AnimationSet.As3Ids.Length + ", authored=" + authored.Count +
+                ", vclassOnly=" + string.Join("/", AnimationSet.VclassOnlyIds) + ".");
 
             // Positive controls: the two ids every unit's idle and locomotion depend on.
             Assert.IsTrue(authored.Contains("stay"), "control: `stay` is authored by 26 units");

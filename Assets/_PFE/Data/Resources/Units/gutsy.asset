@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u0425\u0440\u0430\u0431\u0440\u0435\u0446"
   width: 0.6
   height: 0.75
-  sitHeight: 0.5
+  sitHeight: 0.375
   mass: 105
   massafix: 0
   moveSpeed: 4
@@ -47,12 +47,13 @@ MonoBehaviour:
   magicArmor: 10
   armorHealth: 350
   damage: 18
+  damagerTip: 1
   observationRange: 5
   radiationDamage: 0
   skinThickness: 0
   dexterity: 1
   skill: 1
-  armourQuality: 0
+  armourQuality: 0.85
   ear: 1
   damageType: 2
   isStable: 1
@@ -69,7 +70,7 @@ MonoBehaviour:
   isInsect: 0
   isMechanical: 0
   isAlicorn: 0
-  heroType: 
+  heroType: gutsy
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 1
@@ -206,6 +207,7 @@ MonoBehaviour:
   willStayInPlace: 0
   canResurrect: 0
   superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -362,6 +364,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

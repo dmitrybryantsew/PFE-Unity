@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: autoaxe
   displayName: 
+  mess: 
   weaponType: 1
   punch: 0
   skillLevel: 1
   weaponLevel: 4
+  perslvl: 0
   baseDamage: 25
   rapid: 6
   autoMode: 2
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 2
   meleeDlina: 70
   meleeMinDlina: 30
+  meleeMassa: 10
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0

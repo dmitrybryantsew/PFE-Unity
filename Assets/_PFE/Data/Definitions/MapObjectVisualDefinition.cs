@@ -30,6 +30,23 @@ namespace PFE.Data.Definitions
         [Tooltip("Pixel size of the first frame.")]
         public Vector2Int pixelSize;
 
+        // ── Nested Flash MovieClips ────────────────────────────────────────────
+        //
+        // `vischeckpoint` (symbol 3006) is a ONE-frame symbol whose motion lives entirely in three
+        // named children declared by `vischeckpoint.as`: `osn` (cid 2992, 45 frames, labels
+        // "reopen"@26 / "open"@45), `lock` (cid 3002, 5 frames) and `fiol` (cid 3005, 25 frames).
+        // The SWF exporter flattened frame 1 of all three into a single PNG, so the port drew a
+        // permanently closed checkpoint with a padlock baked in and could not animate an activation.
+        //
+        // `frames` holds `osn`; these two hold the other children. All three arrays are composited onto
+        // the SAME 130x229 canvas by the asset generator, so every layer shares one pivot and one
+        // transform — no per-layer offsets to keep in sync. Empty for every other visual in the project.
+        [Header("Checkpoint child clips (assets.swf symbol 3006)")]
+        [Tooltip("vis.lock — one frame per checkpoint1..5 variant; composited on the same canvas.")]
+        public Sprite[] lockFrames;
+        [Tooltip("vis.fiol — the 25-frame violet glow; frame 1 is fully transparent.")]
+        public Sprite[] glowFrames;
+
         [Header("Placement")]
         [Tooltip("Normalized sprite pivot intended for gameplay presentation.")]
         public Vector2 pivot = new Vector2(0.5f, 0f);
@@ -40,9 +57,66 @@ namespace PFE.Data.Definitions
         [Tooltip("Helpful hint for wall cabinets, terminals, and similar objects.")]
         public bool wallMounted;
 
+        /// <summary>
+        /// Pixels of transparent padding below the drawn art inside the exported frame.
+        ///
+        /// <para><b>The floating checkpoint.</b> <c>vischeckpoint</c> exports at 130x229 with opaque
+        /// pixels only in y=69..188, so 40 px of empty canvas sit beneath the machine. AS3 places the
+        /// MovieClip's <i>registration point</i> at the bottom-centre anchor (<c>CheckPoint.as:56-59</c>),
+        /// not the padded export canvas. The generic placement path bottom-aligns the frame, which lifts
+        /// the art 40 px (0.4 world units) above the floor. Subtracting this value puts the art back on
+        /// the anchor. Zero for every other visual, so this changes no other prop.</para>
+        /// </summary>
+        [Tooltip("Transparent pixels below the drawn art; subtracted from the anchor Y. " +
+                 "vischeckpoint exports 130x229 with art only in y=69..188, so its value is 40.")]
+        public float artBottomInsetPixels;
+
+        /// <summary>
+        /// The drawn size in pixels, when it cannot be read off a tight mesh.
+        ///
+        /// <para><b>Only the checkpoint composites need this.</b> Their three child clips share a
+        /// pinned <b>FullRect</b> 130x229 canvas so the layers stay registered (a Tight mesh would
+        /// re-trim each frame to its own alpha bbox and make the violet glow slide across the screen
+        /// as it animates). A FullRect mesh has four corner vertices, so <see cref="ArtBoundsPixels"/>
+        /// would report the whole padded frame instead of the machine. The override restores the
+        /// 80x120 a tight mesh measured from <c>vis.osn</c> frame 1 — the value AS3's
+        /// <c>vis.width/vis.height</c> would have given — without giving up the stable canvas.</para>
+        ///
+        /// <para><b>Zero means "measure the mesh"</b>, which is every other visual in the project and
+        /// therefore the behaviour this class had before the field existed. See
+        /// <c>docs/OnMapObjects/07_PropFootprint_2026-11-01.md</c> for why the drawn size, not the
+        /// frame size, is the physical footprint.</para>
+        /// </summary>
+        [Tooltip("Drawn art size in pixels; zero lets the tight mesh measure it. " +
+                 "Set to 80x120 for the FullRect checkpoint layers.")]
+        public Vector2Int artBoundsPixelsOverride;
+
         public bool HasFrames => frames != null && frames.Length > 0;
         public bool HasAnimation => frames != null && frames.Length > 1;
+        public bool HasLockFrames => lockFrames != null && lockFrames.Length > 0;
+        public bool HasGlowFrames => glowFrames != null && glowFrames.Length > 0;
+
+        /// <summary>Structural discriminator, not an id string: a visual with a <c>vis.lock</c> clip is
+        /// a checkpoint composite and must not be treated as a generic animated door sheet.</summary>
+        public bool IsCheckpointVisual => HasLockFrames && HasGlowFrames;
+
         public Sprite FirstFrame => HasFrames ? frames[0] : null;
+
+        /// <summary>The <c>vis.lock</c> sprite for a 0-based variant frame, or null.</summary>
+        public Sprite GetLockFrame(int frameIndex)
+        {
+            return HasLockFrames && frameIndex >= 0 && frameIndex < lockFrames.Length
+                ? lockFrames[frameIndex]
+                : null;
+        }
+
+        /// <summary>The <c>vis.fiol</c> sprite for a 0-based glow frame, or null.</summary>
+        public Sprite GetGlowFrame(int frameIndex)
+        {
+            return HasGlowFrames && frameIndex >= 0 && frameIndex < glowFrames.Length
+                ? glowFrames[frameIndex]
+                : null;
+        }
 
         // ── The drawn bounds, which is NOT the frame size ────────────────────
         //
@@ -78,6 +152,14 @@ namespace PFE.Data.Definitions
                 if (_artBoundsResolved) return _artBoundsPixels;
 
                 _artBoundsResolved = true;
+                // A FullRect composite has no tight outline to measure. Its authored drawn size is
+                // the measured bbox of the source art, recorded at import time; see the field's docs.
+                if (artBoundsPixelsOverride.x > 0 && artBoundsPixelsOverride.y > 0)
+                {
+                    _artBoundsPixels = artBoundsPixelsOverride;
+                    return _artBoundsPixels;
+                }
+
                 _artBoundsPixels = MeasureArtBounds(FirstFrame);
 
                 // A FullRect mesh (or no sprite at all) leaves nothing to measure. The frame is then
@@ -194,7 +276,7 @@ namespace PFE.Data.Definitions
         /// ever <i>plays</i> rather than seeks to. -1 when the sheet is a single frame, and -1 for a
         /// button lamp sheet, which authors no <c>comein</c> label (only <c>close</c> and <c>open</c>).
         /// </summary>
-        public int ComeInFrame => HasAnimation && !IsButtonLampSheet ? 1 : -1;
+        public int ComeInFrame => HasAnimation && !IsButtonLampSheet && !IsCheckpointVisual ? 1 : -1;
 
         /// <summary>The sprite for <paramref name="frameIndex"/>, or null when out of range.</summary>
         public Sprite GetFrame(int frameIndex)

@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u0420\u043E\u0431\u043E\u043C\u043E\u0437\u0433"
   width: 0.55
   height: 0.7
-  sitHeight: 0.5
+  sitHeight: 0.35
   mass: 85
   massafix: 0
   moveSpeed: 2
@@ -47,12 +47,13 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 120
   damage: 10
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
   dexterity: 1
   skill: 1
-  armourQuality: 0
+  armourQuality: 0.75
   ear: 1
   damageType: 2
   isStable: 1
@@ -69,7 +70,7 @@ MonoBehaviour:
   isInsect: 0
   isMechanical: 0
   isAlicorn: 0
-  heroType: 
+  heroType: robot
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 1
@@ -157,6 +158,7 @@ MonoBehaviour:
   willStayInPlace: 0
   canResurrect: 0
   superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -174,19 +176,19 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 1
+      length: 0
       firstFrame: 0
       returnFrame: 0
-      frameStep: 1
-      replay: 1
+      frameStep: 0
+      replay: 0
       isStatic: 0
     walk:
       row: 0
-      length: 20
-      firstFrame: 1
-      returnFrame: 1
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     trot:
       row: 0
@@ -214,11 +216,11 @@ MonoBehaviour:
       isStatic: 0
     die:
       row: 0
-      length: 10
-      firstFrame: 21
-      returnFrame: 21
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     death:
       row: 0
@@ -309,6 +311,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

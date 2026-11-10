@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: elsword
   displayName: 
+  mess: 
   weaponType: 1
   punch: 0
   skillLevel: 1
   weaponLevel: 4
+  perslvl: 0
   baseDamage: 30
   rapid: 12
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 75
   meleeMinDlina: 30
+  meleeMassa: 5
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0

@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: lmg
   displayName: 
+  mess: 
   weaponType: 3
   punch: 0
   skillLevel: 2
   weaponLevel: 5
+  perslvl: 0
   baseDamage: 12
   rapid: 2
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 12
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0

@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: buckshot
   displayName: 
+  mess: 
   weaponType: 3
   punch: 0
   skillLevel: 3
   weaponLevel: 4
+  perslvl: 0
   baseDamage: 16
   rapid: 18
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 11
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0

@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u0421\u0442\u0440\u0430\u0436"
   width: 1.1
   height: 1.1
-  sitHeight: 0.5
+  sitHeight: 0.55
   mass: 400
   massafix: 0
   moveSpeed: 3
@@ -47,12 +47,13 @@ MonoBehaviour:
   magicArmor: 6
   armorHealth: 750
   damage: 25
+  damagerTip: 1
   observationRange: 5
   radiationDamage: 0
   skinThickness: 0
   dexterity: 0.7
   skill: 1
-  armourQuality: 0
+  armourQuality: 0.8
   ear: 1
   damageType: 2
   isStable: 1
@@ -69,7 +70,7 @@ MonoBehaviour:
   isInsect: 0
   isMechanical: 0
   isAlicorn: 0
-  heroType: 
+  heroType: sentinel
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 0.85
@@ -170,6 +171,7 @@ MonoBehaviour:
   willStayInPlace: 0
   canResurrect: 0
   superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -191,11 +193,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 1
+      length: 0
       firstFrame: 0
       returnFrame: 0
-      frameStep: 1
-      replay: 1
+      frameStep: 0
+      replay: 0
       isStatic: 0
     walk:
       row: 0
@@ -223,19 +225,19 @@ MonoBehaviour:
       isStatic: 0
     jump:
       row: 0
-      length: 25
-      firstFrame: 1
-      returnFrame: 1
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     die:
       row: 0
-      length: 18
-      firstFrame: 26
-      returnFrame: 26
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     death:
       row: 0
@@ -326,6 +328,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

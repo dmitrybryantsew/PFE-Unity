@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: kosa
   displayName: 
+  mess: 
   weaponType: 1
   punch: 0
   skillLevel: 1
   weaponLevel: 5
+  perslvl: 0
   baseDamage: 66
   rapid: 20
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 80
   meleeMinDlina: 70
+  meleeMassa: 6
   meleeCombo: 0
   meleePowerAttack: 1
   projectileArchetype: 0

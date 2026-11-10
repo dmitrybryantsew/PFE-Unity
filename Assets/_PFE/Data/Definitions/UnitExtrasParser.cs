@@ -13,21 +13,23 @@ namespace PFE.Data.Definitions
     /// right is a <em>guard</em>, and a wrong guard is wrong <b>silently</b> — exactly the class of
     /// defect that needs a test rather than a careful reading.</para>
     ///
-    /// <para><b>Eight attributes are read here; the node carries twenty-two.</b> The remaining fourteen
-    /// (<c>ss</c> 9, <c>skill</c> 7, <c>attr</c> 4, <c>attch</c> 4, <c>tip</c> 3, <c>enclweap</c> 3,
+    /// <para><b>Nine attributes are read here; the node carries twenty-two.</b> The remaining thirteen
+    /// (<c>ss</c> 9, <c>skill</c> 7, <c>attr</c> 4, <c>attch</c> 4, <c>enclweap</c> 3,
     /// <c>chootch</c> 3, <c>robot</c> 1, <c>plate</c> 1, <c>one</c> 1, <c>gryz</c> 1, <c>gren</c> 1,
     /// <c>glow</c> 1, <c>drop</c> 1, <c>bulb</c> 1 — the counts are over the 52 <c>&lt;un&gt;</c> nodes
     /// in <c>AllData.as</c>) are deliberately left unwritten: closing the node is its own workstream, and
     /// giving an attribute a writer before anything reads it is the trap
     /// <see cref="UnitDefinition.canResurrect"/> was already in.</para>
     ///
-    /// <para><b>Why these eight are different.</b> <c>res</c>, <c>walker</c>, <c>sniper</c>, <c>stay</c>,
-    /// <c>och</c>, <c>dist</c>, <c>stalk</c> and <c>grenader</c> are each read by a ported code path, so
-    /// an unread attribute here is a live divergence rather than a dormant one: <c>zebra3</c> alone
-    /// authors <c>walker='1' sniper='1' stay='1'</c> (<c>AllData.as:361</c>) and the port dropped all
+    /// <para><b>Why these nine are different.</b> <c>res</c>, <c>walker</c>, <c>sniper</c>, <c>stay</c>,
+    /// <c>och</c>, <c>dist</c>, <c>stalk</c>, <c>grenader</c> and <c>tip</c> are each read by a ported
+    /// code path, so an unread attribute here is a live divergence rather than a dormant one: <c>zebra3</c>
+    /// alone authors <c>walker='1' sniper='1' stay='1'</c> (<c>AllData.as:361</c>) and the port dropped all
     /// three. <c>och</c>/<c>dist</c>/<c>stalk</c>/<c>grenader</c> were added on 2026-10-19 with their
     /// readers — <c>ArmedShooterBrain</c>'s burst cadence and commit range, the flyer's hover radius, and
-    /// the mercenary/enclave secondary weapon.</para>
+    /// the mercenary/enclave secondary weapon. <c>tip</c> was added 2026-11-05 with
+    /// <see cref="ParseDamagerTip"/>: the three <c>UnitDamager</c> rows are a shooter, a grenade thrower
+    /// and a satchel charge, and with the attribute unread all three were the same weaponless unit.</para>
     /// </summary>
     public static class UnitExtrasParser
     {
@@ -216,6 +218,25 @@ namespace PFE.Data.Definitions
         public static int? ParseGrenadeCount(string unitContent) => ReadInt(UnAttributes(unitContent), "grenader");
 
         /// <summary>
+        /// The unit's <c>&lt;un tip='…'&gt;</c> — AS3 <c>UnitDamager.tipDamager</c>
+        /// (<c>UnitDamager.as:107</c>, declared <c>= 1</c> at <c>:32</c>).
+        ///
+        /// <para><b>Presence, then value — the value is the dispatch.</b> <c>1</c> is a hidden shooter
+        /// (<c>setWeapon</c> builds <c>lshot</c>/<c>hunt</c>/<c>assr</c>/<c>dartgun</c>/<c>flamer</c> from
+        /// <c>tr</c>), <c>2</c> a hidden grenade thrower (<c>hgren</c>, <c>och = 3</c>), <c>3</c> a satchel
+        /// charge (<c>damageExpl 250</c>, <c>destroy 1000</c>, <c>explRadius 200</c>, one round). Only
+        /// three rows in <c>AllData.as</c> author it — <c>damshot</c> 1, <c>damgren</c> 2,
+        /// <c>damexpl1</c> 3 — so an absent attribute leaves the oracle's own default of 1 in place,
+        /// which is what every non-damager row needs.</para>
+        ///
+        /// <para><b>Not gated on a family id, unlike <c>res</c>/<c>ss</c>.</b> The attribute has exactly
+        /// one reader in the oracle and the field has exactly one consumer, so there is no second
+        /// meaning to defend against — and gating it would need the unit's class, which is the thing
+        /// this attribute helps decide.</para>
+        /// </summary>
+        public static int? ParseDamagerTip(string unitContent) => ReadInt(UnAttributes(unitContent), "tip");
+
+        /// <summary>
         /// The unit's <c>&lt;un ss='…'&gt;</c> — AS3 <c>UnitZombie.superSilaTip</c>
         /// (<c>UnitZombie.as:151-156</c>), which <c>setSuper()</c> turns into the super-attack ladder
         /// (<c>:954-1037</c>).
@@ -257,6 +278,39 @@ namespace PFE.Data.Definitions
         /// <c>&gt; 0</c>; the one shipped author writes <c>'1'</c>.</para>
         /// </summary>
         public static bool ParseGlows(string unitContent) => Declares(UnAttributes(unitContent), "glow");
+
+        /// <summary>
+        /// False when the unit's <c>&lt;param&gt;</c> element declares <c>sats='0'</c> — AS3
+        /// <c>Unit.isSats</c> (<c>Unit.as:432</c>, default <c>true</c>), the flag that keeps a unit out
+        /// of the S.A.T.S. target set (<c>Sats.as:464</c>).
+        ///
+        /// <para><b>It lives on <c>&lt;param&gt;</c>, not <c>&lt;un&gt;</c>.</b> The five friendly NPC
+        /// rows author it there — <c>npc</c>, <c>vendor</c>, <c>doctor</c>, <c>captive</c>,
+        /// <c>ponpon</c> (<c>AllData.as:36-64</c>,
+        /// <c>&lt;param invulner='1' acttrap='0' sats='0' npc='1'/&gt;</c>) — alongside the other
+        /// <c>&lt;param&gt;</c> flags the importer already reads (<c>blood</c>, <c>trup</c>,
+        /// <c>hero</c>). This is the one read here that is not on the <c>&lt;un&gt;</c> node.</para>
+        ///
+        /// <para><b>Value-tested, not presence-tested, and that is the oracle's own asymmetry.</b>
+        /// <c>Unit.as:432</c> declares <c>isSats = true</c> and the only writer anywhere is the
+        /// <c>sats='0'</c> on those five rows, so the attribute's <i>presence</i> always means "cannot
+        /// target". Reading the value rather than the presence is what keeps a hypothetical
+        /// <c>sats='1'</c> from being misread as a ban — the same call <c>blood</c> makes and the
+        /// opposite of <c>trup</c>, whose default is the other way up.</para>
+        /// </summary>
+        /// <param name="unitContent">The unit's own <c>&lt;unit&gt;…&lt;/unit&gt;</c> text.</param>
+        public static bool ParseSatsTargetable(string unitContent)
+        {
+            if (string.IsNullOrEmpty(unitContent)) return true;
+
+            Match paramMatch = Regex.Match(unitContent, @"<param\s+([^>]*)/>");
+            if (!paramMatch.Success) return true;
+
+            string attrs = paramMatch.Groups[1].Value;
+            // `sats='0'` is the only writer in the shipped data, and it means "cannot target". Any
+            // other value (or its absence) leaves AS3's declared default of true.
+            return !Regex.IsMatch(attrs, @"(?:^|\s)sats='0'");
+        }
 
         /// <summary>
         /// The integer value of <paramref name="name"/> on the <c>&lt;un&gt;</c> attribute run, or

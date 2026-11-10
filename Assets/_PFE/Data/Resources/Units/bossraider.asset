@@ -47,12 +47,13 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 19
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
   dexterity: 0.5
   skill: 1.2
-  armourQuality: 0
+  armourQuality: 0.25
   ear: 1
   damageType: 2
   isStable: 0
@@ -336,6 +337,7 @@ MonoBehaviour:
   willStayInPlace: 0
   canResurrect: 0
   superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -353,11 +355,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 20
+      length: 0
       firstFrame: 0
       returnFrame: 0
-      frameStep: 1
-      replay: 1
+      frameStep: 0
+      replay: 0
       isStatic: 0
     walk:
       row: 0
@@ -369,43 +371,35 @@ MonoBehaviour:
       isStatic: 0
     trot:
       row: 0
-      length: 18
-      firstFrame: 20
-      returnFrame: 20
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     run:
       row: 0
-      length: 8
-      firstFrame: 38
-      returnFrame: 38
-      frameStep: 1
-      replay: 1
-      isStatic: 0
-    bac:
-      row: 0
-      length: 31
-      firstFrame: 46
-      returnFrame: 46
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     jump:
       row: 0
-      length: 16
-      firstFrame: 77
-      returnFrame: 77
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     die:
       row: 0
-      length: 33
-      firstFrame: 169
-      returnFrame: 169
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     death:
       row: 0
@@ -449,11 +443,11 @@ MonoBehaviour:
       isStatic: 0
     swim:
       row: 0
-      length: 24
-      firstFrame: 105
-      returnFrame: 105
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     crawl:
       row: 0
@@ -465,11 +459,11 @@ MonoBehaviour:
       isStatic: 0
     climb:
       row: 0
-      length: 12
-      firstFrame: 93
-      returnFrame: 93
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     preAttack:
       row: 0
@@ -489,13 +483,29 @@ MonoBehaviour:
       isStatic: 0
     derg:
       row: 0
-      length: 8
-      firstFrame: 202
-      returnFrame: 202
-      frameStep: 1
-      replay: 1
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

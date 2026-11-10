@@ -350,6 +350,23 @@ namespace PFE.Data.Definitions
         /// </summary>
         public AnimationFrame bac;
 
+        /// <summary>
+        /// <c>cast</c> — a <b><c>vclass</c> label, not an <c>AllData</c> <c>&lt;blit&gt;</c> row</b>.
+        ///
+        /// <para><b>What authors it.</b> <c>UnitBossNecr.animate()</c> selects it for
+        /// <c>aiState == 3</c> (<c>:140-147</c>) — the protect-cast pose, the thirty-frame clip she holds
+        /// while one of her three defence forms goes up. It is the one animation that tells the player
+        /// <i>which</i> form she is taking, so a brain that returns <c>cast</c> into a set with no field
+        /// for it animates nothing and the tell disappears.</para>
+        ///
+        /// <para><b>Where the frames come from.</b> <c>visualNecrBoss</c>'s <c>osn</c> is a 12-frame state
+        /// selector (<c>DefineSprite_2165</c>), and its fourth label is <c>cast</c> — a 30-frame body clip
+        /// (<c>DefineSprite_2152</c>). <see cref="DisplayObjectClipLayout.As3IdForLabel"/> passes the
+        /// label through unchanged, so the id reaches <see cref="TrySet"/> as <c>"cast"</c>. Same shape
+        /// as <see cref="bac"/>, and listed in <see cref="VclassOnlyIds"/> for the same reason.</para>
+        /// </summary>
+        public AnimationFrame cast;
+
         /// <summary>No oracle id — never populated.</summary>
         public AnimationFrame drag;
 
@@ -413,6 +430,7 @@ namespace PFE.Data.Definitions
                 case "derg": derg = frame; break;
                 case "super": super = frame; break;
                 case "bac": bac = frame; break;
+                case "cast": cast = frame; break;
             }
         }
 
@@ -420,8 +438,28 @@ namespace PFE.Data.Definitions
         public static readonly string[] As3Ids =
         {
             "stay", "walk", "trot", "run", "jump", "die", "death", "fall", "sit", "fly", "dig",
-            "plav", "polz", "laz", "pre", "attack", "derg", "super", "bac"
+            "plav", "polz", "laz", "pre", "attack", "derg", "super", "bac", "cast"
         };
+
+        /// <summary>
+        /// The ids in <see cref="As3Ids"/> that are <b>not</b> authored as <c>&lt;blit&gt;</c> rows in
+        /// <c>AllData.as</c> — they name a state only inside a DisplayObject clip's <c>osn</c> selector.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this list has to exist.</b> <c>UnitAnimationDataLintTests</c> asserts that
+        /// <see cref="As3Ids"/> and the set of ids authored in the oracle are the same set, in both
+        /// directions: a field with no row anywhere can never be populated, and an authored row with no
+        /// field is deleted. Both are true statements about <c>&lt;blit&gt;</c> rows — and neither is
+        /// true of a <c>vclass</c> label, which is authored by a MovieClip rather than by the unit node.
+        /// Before this list the assertion could only hold by <i>not</i> having a field for <c>bac</c>,
+        /// which is how the raider boss's quake wind-up lost its 31 frames.</para>
+        ///
+        /// <para><b>Nothing may be added here to silence a dropped row.</b> A name lands here only when a
+        /// DisplayObject clip's <c>osn</c> carries it as a frame label <i>and</i> a class selects it with
+        /// <c>gotoAndStop</c>. <c>grep "blit id='bac'"</c> and <c>grep "blit id='cast'"</c> are both 0 —
+        /// that is the check, not the comment.</para>
+        /// </remarks>
+        public static readonly string[] VclassOnlyIds = { "bac", "cast" };
 
         AnimationFrame GetMapped(string as3Id)
         {
@@ -446,6 +484,7 @@ namespace PFE.Data.Definitions
                 case "derg": return derg;
                 case "super": return super;
                 case "bac": return bac;
+                case "cast": return cast;
                 default: return default;
             }
         }

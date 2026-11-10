@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u0441\u0438\u043B\u043E\u0432\u043E\u0435 \u043F\u043E\u043B\u0435"
   width: 0.4
   height: 1.2
-  sitHeight: 0.5
+  sitHeight: 0.6
   mass: 50
   massafix: 0
   moveSpeed: 4
@@ -47,15 +47,17 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 10
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
   dexterity: 0
   skill: 1
-  waterAbility: 1
+  armourQuality: 0
   ear: 1
   damageType: 2
   isStable: 0
+  weaponKrep: 1
   bloodType: 0
   leavesCorpse: 0
   isInvulnerable: 0
@@ -94,15 +96,37 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: db7842330d31b15409db28ea59d0c520, type: 3}
   spriteSheetId: 
   visualClassName: 
-  spriteSheet: []
+  spriteSheet:
+  - {fileID: 21300000, guid: db7842330d31b15409db28ea59d0c520, type: 3}
+  - {fileID: 21300000, guid: b693da4213a815b4faecf1c3bdaeb442, type: 3}
+  - {fileID: 21300000, guid: f29cb83d3db32e24583d618b2f7c6df4, type: 3}
+  - {fileID: 21300000, guid: 7111c6842b8aae94ca04715cbd30182f, type: 3}
+  - {fileID: 21300000, guid: 0a895e7efd2cdc1468458dc044954a64, type: 3}
+  - {fileID: 21300000, guid: f8d34bbffa59db248a51b4b576d4187d, type: 3}
+  - {fileID: 21300000, guid: 7ee4785c99d0c0e44aa3c67bff189448, type: 3}
+  - {fileID: 21300000, guid: e3dffa551734c874986c89bfa7814a23, type: 3}
+  - {fileID: 21300000, guid: d37a25fbc2929dd439ab3c6ee59b8735, type: 3}
+  - {fileID: 21300000, guid: 748cd5b4289d0bf4f9258a48dc71caff, type: 3}
+  - {fileID: 21300000, guid: a08a89bcda578594990bc40a1866d0da, type: 3}
+  - {fileID: 21300000, guid: daed63c598153e545b2ecd6b1aa4cd6a, type: 3}
+  - {fileID: 21300000, guid: baa91142a0aea184ea5c25c010549a51, type: 3}
+  - {fileID: 21300000, guid: 43227383374bb7342ac3ccae8765522e, type: 3}
+  - {fileID: 21300000, guid: 5569addf6abe23546a5a3b7b4f994fbb, type: 3}
+  - {fileID: 21300000, guid: 55c632c39fb4b504ea577820aa2ae23e, type: 3}
+  - {fileID: 21300000, guid: 8d49b55637bbff040a996385589e05bc, type: 3}
+  - {fileID: 21300000, guid: c7791eb13e043f04fa269fb051a20e39, type: 3}
+  - {fileID: 21300000, guid: e8a4caaf3eaf36d4fb66a82aa1d30cb1, type: 3}
+  - {fileID: 21300000, guid: edcddf8321207d04ab72abf2c8e4791c, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 0
-  spriteSheetRows: 0
+  spriteSheetColumns: 20
+  spriteSheetRows: 1
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
+  armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: 
   deathSoundId: 
@@ -122,6 +146,8 @@ MonoBehaviour:
   usesEnclaveWeapons: 0
   willStayInPlace: 0
   canResurrect: 0
+  superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -266,6 +292,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

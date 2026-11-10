@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: exc4
   displayName: 
+  mess: 
   weaponType: 4
   punch: 0
   skillLevel: 5
   weaponLevel: 5
+  perslvl: 0
   baseDamage: 10
   rapid: 60
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 0
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -89,7 +92,7 @@ MonoBehaviour:
   soundPrep: 
   soundPrepT1: 0
   soundPrepT2: 0
-  noiseRadius: 600
+  noiseRadius: 0
   soundFall: 
   soundSens: 
   uniq: -1

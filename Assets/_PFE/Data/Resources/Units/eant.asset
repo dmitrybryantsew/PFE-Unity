@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u043C\u0443\u0440\u0430\u0432\u0435\u0439\u043D\u0438\u043A"
   width: 0.8
   height: 0.8
-  sitHeight: 0.5
+  sitHeight: 0.4
   mass: 500
   massafix: 0
   moveSpeed: 4
@@ -47,9 +47,10 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 30
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
-  skinThickness: 0
+  skinThickness: 10
   dexterity: 0.5
   skill: 1
   armourQuality: 0
@@ -127,6 +128,7 @@ MonoBehaviour:
   willStayInPlace: 0
   canResurrect: 0
   superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -271,6 +273,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

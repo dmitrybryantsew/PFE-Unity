@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: lshot
   displayName: 
+  mess: 
   weaponType: 2
   punch: 0
   skillLevel: 2
   weaponLevel: 2
+  perslvl: 0
   baseDamage: 8
   rapid: 15
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 4
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0

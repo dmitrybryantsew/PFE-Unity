@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: merc
   width: 0.55
   height: 0.7
-  sitHeight: 0.5
+  sitHeight: 0.35
   mass: 50
   massafix: 0
   moveSpeed: 4
@@ -47,15 +47,17 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 8
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
   dexterity: 1
   skill: 1.2
-  waterAbility: 0.65
+  armourQuality: 0.65
   ear: 1.4
   damageType: 2
   isStable: 0
+  weaponKrep: 1
   bloodType: 1
   leavesCorpse: 1
   isInvulnerable: 0
@@ -68,7 +70,7 @@ MonoBehaviour:
   isInsect: 0
   isMechanical: 0
   isAlicorn: 0
-  heroType: 
+  heroType: merc
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 1
@@ -103,6 +105,8 @@ MonoBehaviour:
   spriteSheetRows: 0
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
+  armSprite: {fileID: 0}
+  variantSprites: []
   gender: 2
   musicTrack: combat_1
   deathSoundId: rm
@@ -122,6 +126,8 @@ MonoBehaviour:
   usesEnclaveWeapons: 0
   willStayInPlace: 0
   canResurrect: 0
+  superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -266,6 +272,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

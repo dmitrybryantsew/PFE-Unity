@@ -684,6 +684,13 @@ namespace PFE.Editor.Importers
             int? grenadeCount = UnitExtrasParser.ParseGrenadeCount(content);
             if (grenadeCount.HasValue) SetPrivateField(unit, "grenadeCount", grenadeCount.Value);
 
+            // `tip` — AS3 `UnitDamager.tipDamager` (`UnitDamager.as:107`). Three rows author it and
+            // they are three different traps: `damshot` 1 (a hidden shooter), `damgren` 2 (a hidden
+            // grenade thrower), `damexpl1` 3 (a satchel charge). Absent leaves the field at the oracle's
+            // own declaration default of 1, which is what `if(node0.un.@tip.length())` does.
+            int? damagerTip = UnitExtrasParser.ParseDamagerTip(content);
+            if (damagerTip.HasValue) SetPrivateField(unit, "damagerTip", damagerTip.Value);
+
             // ── The zombie super (2026-10-19) ───────────────────────────────────────────────────────
             //
             // `ss` is a DISPATCH INDEX, not a strength: 1 pounce, 2 telekinesis, 3 venom, 4 acid,
@@ -699,6 +706,15 @@ namespace PFE.Editor.Importers
             if (UnitExtrasParser.ParseGlows(content))
             {
                 SetPrivateField(unit, "glows", true);
+            }
+
+            // `sats` lives on `<param>`, not `<un>` — the one read here that is not on the extras node.
+            // AS3's field default is true (Unit.as:432) and the only writer in the shipped data is the
+            // `sats='0'` on the five friendly NPC rows, so the importer only ever writes false; every
+            // other unit keeps the field's own default.
+            if (!UnitExtrasParser.ParseSatsTargetable(content))
+            {
+                SetPrivateField(unit, "satsTargetable", false);
             }
         }
 

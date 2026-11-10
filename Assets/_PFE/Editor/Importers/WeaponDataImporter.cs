@@ -108,15 +108,18 @@ namespace PFE.Editor.Importers
             return m.Success ? m.Groups[1].Value.Trim() : "";
         }
 
-        // Returns all attribute strings for repeated nodes (e.g. multiple <char> nodes)
+        // Returns all attribute strings for repeated nodes (e.g. multiple <char> nodes).
+        //
+        // Delegates to WeaponVariantXml.Runs rather than carrying its own pattern. It used to carry one,
+        // and the copy was wrong in a way the runtime reader no longer is: it required whitespace after
+        // the tag name, so an ATTRIBUTE-LESS node (`<dop/>`) was invisible and every following sibling
+        // shifted down one index. Measured on the shipped file: exactly one weapon is affected —
+        // `spear` (AllData.as:2223) is `<dop/>` then `<dop effect='poison' …/>`, so `dopNodes[0]` here
+        // was the TIER-1 node and the base tier imported the variant's poison while the variant's own
+        // read found nothing at index 1. One reader, one behaviour, and it is the one the offline wall
+        // can exercise (`Read_EmptyNodeBeforeARealOne_KeepsTheIndex`).
         private static List<string> AllNodes(string parent, string tag)
-        {
-            var list = new List<string>();
-            foreach (Match m in Regex.Matches(parent,
-                $@"<{tag}(\s[^>]*)(?:/>|>)", RegexOptions.Singleline))
-                list.Add(m.Groups[1].Value);
-            return list;
-        }
+            => WeaponVariantXml.Runs(parent, tag);
 
         // ── Archetype derivation ────────────────────────────────────────────────
 

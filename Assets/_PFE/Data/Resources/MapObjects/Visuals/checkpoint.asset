@@ -14,13 +14,98 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
   visualId: checkpoint
   objectId: checkpoint
+  linkedObjectIds:
+  - checkpoint
+  - checkpoint1
+  - checkpoint2
+  - checkpoint3
+  - checkpoint4
+  - checkpoint5
   sourceFolderName: DefineSprite_3006_vischeckpoint
   sourceSymbolId: 3006
   frames:
-  - {fileID: 21300000, guid: f97e40ce1adf26443b6cc3b7c73f0383, type: 3}
+  - {fileID: 21300000, guid: 991c02f192efeaa4aa9a27dd9b037945, type: 3}
+  - {fileID: 21300000, guid: 8636b4f9bc15f8aeec4b8214afde0876, type: 3}
+  - {fileID: 21300000, guid: f8cdfe435346e18da78a37567ce0ecd0, type: 3}
+  - {fileID: 21300000, guid: 4e1f3cba61106631fea9d2680031bbe5, type: 3}
+  - {fileID: 21300000, guid: a9122e645be66e3c8852c2dacf310156, type: 3}
+  - {fileID: 21300000, guid: df26e8a9ee3a1722fbea8eaeda8a9aa7, type: 3}
+  - {fileID: 21300000, guid: 993021be95015f5f0e9c506efe4bab5c, type: 3}
+  - {fileID: 21300000, guid: 6bd38d05e28219131721d4927647e130, type: 3}
+  - {fileID: 21300000, guid: 14b3e37058283dc4697d96064749f2a7, type: 3}
+  - {fileID: 21300000, guid: 458ae9dc23890013f585c9f1478bb149, type: 3}
+  - {fileID: 21300000, guid: 96e44cf5cc3c0720d17c5683d25c2b9a, type: 3}
+  - {fileID: 21300000, guid: e940e4ee787347c811a9ab94e194d9aa, type: 3}
+  - {fileID: 21300000, guid: 3414abe7c445648cb410e8de91b144d0, type: 3}
+  - {fileID: 21300000, guid: 0cccf5b55a7053b308dff8a8da4b270a, type: 3}
+  - {fileID: 21300000, guid: 5529e750dbec0f230639c4f65270bf69, type: 3}
+  - {fileID: 21300000, guid: 5903ed47bb7c23784ce122d35b73f1bf, type: 3}
+  - {fileID: 21300000, guid: 53b9944f1def6139a614f254034dd8bc, type: 3}
+  - {fileID: 21300000, guid: 56aad2371fdd517a1e2f5811503a4e78, type: 3}
+  - {fileID: 21300000, guid: ec112a263e1b5bfb173d55f6166cb4ea, type: 3}
+  - {fileID: 21300000, guid: 03a23ce439f81ba792bc14ae25057c5e, type: 3}
+  - {fileID: 21300000, guid: 711528273eac4f74e930589db36c6ae8, type: 3}
+  - {fileID: 21300000, guid: bbb320a84465594f634f58755c5f45ac, type: 3}
+  - {fileID: 21300000, guid: e8ce18f2dad82abf68e318f6d3dd6a73, type: 3}
+  - {fileID: 21300000, guid: ac7fa36fc1a2417c16ad702991bb3bed, type: 3}
+  - {fileID: 21300000, guid: c1cbccc82862bf1503f2bf22d5ffbf0c, type: 3}
+  - {fileID: 21300000, guid: 0db33dd709dfe0e213bbf6ceee9bcba1, type: 3}
+  - {fileID: 21300000, guid: 05920ee33a212357dad5f9bec9ef253c, type: 3}
+  - {fileID: 21300000, guid: abbb8bf3497d040022eb2f71bb07e363, type: 3}
+  - {fileID: 21300000, guid: 84b99f77d954c2fe3301ee66a8350800, type: 3}
+  - {fileID: 21300000, guid: ea3725ee82e2f899e152d2e8f2ff440c, type: 3}
+  - {fileID: 21300000, guid: 94ed1420ffbb038293f798a7165ed97b, type: 3}
+  - {fileID: 21300000, guid: 6fea13fce85e808842a405fc7da0dbfb, type: 3}
+  - {fileID: 21300000, guid: fef8ed2b3478b1786bb91f752e5aa03b, type: 3}
+  - {fileID: 21300000, guid: 2d01e04451702e4b3d79e9691d4ee8fa, type: 3}
+  - {fileID: 21300000, guid: e3c8cdd9a5c954db76bec1ac2c84039c, type: 3}
+  - {fileID: 21300000, guid: 33a6113794f4b1e06e130ace183ca5f6, type: 3}
+  - {fileID: 21300000, guid: 0717065f683dd18765a2ad31529c4814, type: 3}
+  - {fileID: 21300000, guid: 60f23ee5f55229ceeb1e68c254e77d00, type: 3}
+  - {fileID: 21300000, guid: 47d7fc93f357f0990db8e0561ccc1ffd, type: 3}
+  - {fileID: 21300000, guid: 9e1943e24d98bcec8dc3a85a61c213a0, type: 3}
+  - {fileID: 21300000, guid: a7fde6b63ec1a056c0b9ce454d03d62b, type: 3}
+  - {fileID: 21300000, guid: 0817a67cdaf5376863de40e694755cb4, type: 3}
+  - {fileID: 21300000, guid: 86e30a557167eb3ca9d9ce0db305c7cf, type: 3}
+  - {fileID: 21300000, guid: 29dc22c11d43b6428e516acc546bb5d1, type: 3}
+  - {fileID: 21300000, guid: 3fdb40d558df0713d15f7d96e78f90e2, type: 3}
   pixelsPerUnit: 100
   pixelSize: {x: 130, y: 229}
+  lockFrames:
+  - {fileID: 21300000, guid: 3ba7c25952e18990bbfcd0fdb1cbdab9, type: 3}
+  - {fileID: 21300000, guid: 4a6bb7d5869794dbd74db63f472bd7d5, type: 3}
+  - {fileID: 21300000, guid: ad3e212aa22680a3702bd65eb3f67902, type: 3}
+  - {fileID: 21300000, guid: e1b17675af7730ac149aed8b8f3be9df, type: 3}
+  - {fileID: 21300000, guid: 28e360eb2409d0fe8e29f1ff4616a7b3, type: 3}
+  glowFrames:
+  - {fileID: 21300000, guid: 8430413fed8e191fe3d93735dd38d1b8, type: 3}
+  - {fileID: 21300000, guid: 8b0656fc60a975b5c85f9ef7ee88f974, type: 3}
+  - {fileID: 21300000, guid: 07aa50ae3380f6e7a03aa8ee907ad73c, type: 3}
+  - {fileID: 21300000, guid: ca7dac18259c5cab531805fff552d445, type: 3}
+  - {fileID: 21300000, guid: 2a10cf4ed71a43afda9504b3c84ab770, type: 3}
+  - {fileID: 21300000, guid: 432c807b75ce56ec01ff6c1d57d83d81, type: 3}
+  - {fileID: 21300000, guid: b7b29d8d3227ce72e475a9d1804bb30f, type: 3}
+  - {fileID: 21300000, guid: 30f47cb0219281541ad7e987b3bbde3c, type: 3}
+  - {fileID: 21300000, guid: 90ad7fae2b3b4d9fae9a63d0a1951ca6, type: 3}
+  - {fileID: 21300000, guid: eff7436b4419e4ba3f9e58d90f0b5366, type: 3}
+  - {fileID: 21300000, guid: 394715fc5afd0ac8997ac4984fcc6642, type: 3}
+  - {fileID: 21300000, guid: fc673f6a9dbeda8231625b9e0c36ec3b, type: 3}
+  - {fileID: 21300000, guid: 9ab67d6ea1e147b89f95539c009ebb80, type: 3}
+  - {fileID: 21300000, guid: e1b2f1a4e8d135adc133c32d2f89dbb9, type: 3}
+  - {fileID: 21300000, guid: a38eb8a51d97cb7a6a600762a17f51af, type: 3}
+  - {fileID: 21300000, guid: 58dbd8ffd38f8b531cc696996716b917, type: 3}
+  - {fileID: 21300000, guid: 1e8ab48acff21b4a70e8509ada03373c, type: 3}
+  - {fileID: 21300000, guid: b6b555298c1dd94d97b9405a1d00a4f5, type: 3}
+  - {fileID: 21300000, guid: 1fc623d5d11ec971c550d913bbc32571, type: 3}
+  - {fileID: 21300000, guid: 739322df66485167bc3c45a4779d5e80, type: 3}
+  - {fileID: 21300000, guid: 1d824b2c0af3d2681f3799be3b465814, type: 3}
+  - {fileID: 21300000, guid: a5f7f42f9bdc4e56565da283b7127bde, type: 3}
+  - {fileID: 21300000, guid: a1e08eec389c18db90bf6205db1fb628, type: 3}
+  - {fileID: 21300000, guid: e7f802f2144c8e0917e620715bd5f0c2, type: 3}
+  - {fileID: 21300000, guid: 0cc32efc038c7d0ca28ff3b5eb0ec2e0, type: 3}
   pivot: {x: 0.5, y: 0}
   localOffset: {x: 0, y: 0}
   sortingOrder: 0
   wallMounted: 0
+  artBottomInsetPixels: 40
+  artBoundsPixelsOverride: {x: 80, y: 120}

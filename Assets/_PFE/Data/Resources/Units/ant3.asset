@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u041E\u0433\u043D\u0435\u043D\u043D\u044B\u0439 \u043C\u0443\u0440\u0430\u0432\u0435\u0439"
   width: 0.55
   height: 0.7
-  sitHeight: 0.5
+  sitHeight: 0.35
   mass: 10
   massafix: 0
   moveSpeed: 4
@@ -47,9 +47,10 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 7
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
-  skinThickness: 0
+  skinThickness: 2
   dexterity: 1
   skill: 1
   armourQuality: 0
@@ -69,7 +70,7 @@ MonoBehaviour:
   isInsect: 0
   isMechanical: 0
   isAlicorn: 0
-  heroType: 
+  heroType: ant
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 1
@@ -141,6 +142,7 @@ MonoBehaviour:
   willStayInPlace: 0
   canResurrect: 0
   superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -285,6 +287,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

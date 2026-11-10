@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: cryo
   displayName: 
+  mess: 
   weaponType: 3
   punch: 0
   skillLevel: 4
   weaponLevel: 3
+  perslvl: 0
   baseDamage: 18
   rapid: 20
   autoMode: 0
@@ -53,6 +55,7 @@ MonoBehaviour:
   meleeType: 0
   meleeDlina: 50
   meleeMinDlina: 50
+  meleeMassa: 10
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -70,7 +73,7 @@ MonoBehaviour:
   bulletAnimated: 0
   hasShell: 0
   shineRadius: 500
-  decalType: 0
+  decalType: 18
   destroyTiles: 10
   piercing: 0
   penetration: 0

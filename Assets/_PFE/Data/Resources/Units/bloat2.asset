@@ -24,7 +24,7 @@ MonoBehaviour:
   displayName: "\u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442"
   width: 0.55
   height: 0.7
-  sitHeight: 0.5
+  sitHeight: 0.35
   mass: 50
   massafix: 0
   moveSpeed: 5
@@ -47,6 +47,7 @@ MonoBehaviour:
   magicArmor: 0
   armorHealth: 0
   damage: 3
+  damagerTip: 1
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
@@ -69,7 +70,7 @@ MonoBehaviour:
   isInsect: 0
   isMechanical: 0
   isAlicorn: 0
-  heroType: 
+  heroType: bloat
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 0.25
@@ -129,6 +130,7 @@ MonoBehaviour:
   willStayInPlace: 0
   canResurrect: 0
   superSkill: 0
+  satsTargetable: 1
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0
@@ -142,11 +144,11 @@ MonoBehaviour:
   animations:
     stay:
       row: 0
-      length: 3
+      length: 0
       firstFrame: 0
       returnFrame: 0
-      frameStep: 1
-      replay: 1
+      frameStep: 0
+      replay: 0
       isStatic: 0
     walk:
       row: 0
@@ -277,6 +279,22 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     super:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    bac:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    cast:
       row: 0
       length: 0
       firstFrame: 0

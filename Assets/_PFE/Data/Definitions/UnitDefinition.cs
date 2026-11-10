@@ -92,9 +92,10 @@ namespace PFE.Data.Definitions
         #region Physics (phis tag)
 
         [Header("Physics")]
-        [Tooltip("Width from 'sX' in AS3 (55px = 0.55 units)")]
+        [Tooltip("Width from 'sX' in AS3, in world units (sX / 100; littlepip's sX='50' is 0.50). " +
+                 "The oracle value is 50 px, not 55 — see AllData.as:21 and PHASE_0_3_TASK.md.")]
         [Range(0.1f, 2f)]
-        public float width = 0.55f;
+        public float width = 0.5f;
 
         [Tooltip("Height from 'sY' in AS3 (70px = 0.70 units)")]
         [Range(0.1f, 3f)]
@@ -321,6 +322,23 @@ namespace PFE.Data.Definitions
         [Tooltip("Base damage")]
         [Range(0, 200)]
         public int damage = 10;
+
+        /// <summary>
+        /// AS3 <c>UnitDamager.tipDamager</c> — <c>&lt;un tip='…'&gt;</c> (<c>UnitDamager.as:107</c>,
+        /// declared <c>= 1</c> at <c>:32</c>).
+        ///
+        /// <para><b>1 shooter, 2 grenade thrower, 3 satchel charge.</b> Only three rows in
+        /// <c>AllData.as</c> author it — <c>damshot</c> 1, <c>damgren</c> 2, <c>damexpl1</c> 3 — and the
+        /// port read none of them, so every damager was the same weaponless, invisible, <i>armed</i>
+        /// unit. That is why a placed satchel charge neither drew nor did anything, and why
+        /// <c>damgren</c> never threw a grenade.</para>
+        ///
+        /// <para>The default is the oracle's own declaration, not zero: a row that authors no
+        /// <c>tip</c> is a shooter, because <c>setWeapon()</c> builds one for <c>tipDamager == 1</c>.</para>
+        /// </summary>
+        [Tooltip("UnitDamager kind: 1 shooter, 2 grenade thrower, 3 satchel charge (<un tip>)")]
+        [Range(0, 3)]
+        public int damagerTip = 1;
 
         /// <summary>
         /// AS3 <c>Unit.observ</c> — the enemy's <b>observation power</b>, authored on the
@@ -862,6 +880,23 @@ namespace PFE.Data.Definitions
         [Tooltip("AS3 UnitZombie.superSilaTip from <un ss=N/> — 0 = no super, 1..9 = the effect " +
                  "ladder in ZombieBrain. Only zombie1..9 author it.")]
         public int superSkill = 0;
+
+        /// <summary>
+        /// AS3 <c>Unit.isSats</c> (<c>Unit.as:432</c>, default <c>true</c>) — whether S.A.T.S. may
+        /// place this unit in its target set (<c>Sats.as:464</c>). False only for the five friendly
+        /// NPC rows carrying <c>&lt;param … sats='0' …/&gt;</c> — <c>npc</c>, <c>vendor</c>,
+        /// <c>doctor</c>, <c>captive</c>, <c>ponpon</c> (<c>AllData.as:36-64</c>) — and for the unit
+        /// classes the port does not spawn through this definition (<c>UnitDamager</c>,
+        /// <c>UnitPet</c>, <c>UnitTrigger</c>, a cloaked <c>UnitTurret</c>), which the controller
+        /// reports through its own <c>IsSatsTargetable</c> instead.
+        ///
+        /// <para><b>Default true, and the importer only ever writes false.</b> That is the oracle's
+        /// own asymmetry: <c>isSats</c> declares true and the only writer in the shipped data is the
+        /// <c>sats='0'</c> on those five rows. See <see cref="UnitExtrasParser.ParseSatsTargetable"/>.</para>
+        /// </summary>
+        [Tooltip("Can be targeted by S.A.T.S. — AS3 Unit.isSats (false only on the five friendly " +
+                 "NPC rows carrying <param sats='0'/>). Default true.")]
+        public bool satsTargetable = true;
 
         [Tooltip("Glows")]
         public bool glows = false;
