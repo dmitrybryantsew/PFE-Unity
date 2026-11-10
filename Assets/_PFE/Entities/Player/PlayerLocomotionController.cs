@@ -275,6 +275,25 @@ namespace PFE.Entities.Player
             }
         }
 
+        /// <summary>
+        /// Consume one tick of intent as a <see cref="PFE.Core.Input.PlayerCommand"/> — the
+        /// transport-ready form of <see cref="SetIntent(Vector2, bool, bool, bool, bool, bool, float)"/>.
+        /// This is the seam a host (applying a received command) or a predicting client (replaying a
+        /// buffered command) drives; the intent it carries is identical to the parameter-list form,
+        /// so behaviour is unchanged — only the shape of the hand-off differs.
+        /// </summary>
+        public void SetIntent(in PFE.Core.Input.PlayerCommand command)
+        {
+            SetIntent(
+                new Vector2(command.MoveXFloat, command.MoveYFloat),
+                command.JumpHeld,
+                command.RunHeld,
+                command.JumpPressed,
+                command.DashPressed,
+                command.DropThroughPressed,
+                command.AimAngle);
+        }
+
         private void FixedUpdate()
         {
             if (_motor == null)

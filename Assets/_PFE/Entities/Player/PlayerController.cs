@@ -2,6 +2,7 @@
 using VContainer;
 using R3;
 using MessagePipe;
+using PFE.Core;
 using PFE.Core.Input;
 using PFE.Core.Messages;
 using PFE.Entities.Units;
@@ -56,18 +57,23 @@ namespace PFE.Entities.Player
         [Header("Player Specifics")]
         [SerializeField]
         [Tooltip("Should the player always face the mouse cursor?")]
+        [LocalOnly(Note = "Config toggle; never replicated")]
         private bool _mouseAiming = true;
 
         [SerializeField]
         [Tooltip("Maximum time between directional taps for dash/drop-through detection.")]
+        [LocalOnly(Note = "Config tuning; never replicated")]
         private float _doubleTapWindowSeconds = 0.25f;
+        [LocalOnly(Note = "Wiring reference; legacy fallback motor, never replicated")]
         private TilePhysicsController _tilePhysics;
+        [LocalOnly(Note = "Wiring reference; primary motor, never replicated")]
         private PlayerLocomotionController _locomotion;
 
         /// <summary>
         /// Runs the hold-to-act gesture for world objects. Optional — a player prefab without one keeps
         /// the immediate-press behaviour for every target, since every use below is null-guarded.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; hold-to-act gesture runner, never replicated")]
         private PlayerActionInteractor _actionInteractor;
 
         /// <summary>
@@ -76,6 +82,7 @@ namespace PFE.Entities.Player
         /// what stops one key press acting twice, which for a door would open and close it in a single
         /// frame.
         /// </summary>
+        [ClientPredicted(Note = "Input edge dedup; local input-sampling state, predicted (F-03)")]
         private int _lastInteractPressFrame = -1;
 
         /// <summary>
@@ -97,6 +104,7 @@ namespace PFE.Entities.Player
         /// what the player can observe; the rest is reported by
         /// <c>ScriptPresentationHost.ReportUnconsumed</c>'s siblings rather than guessed at here.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 ggControl cutscene lock; host-owned Sim truth (F-02)")]
         public bool ScriptControlEnabled { get; set; } = true;
 
         /// <summary>
@@ -113,6 +121,7 @@ namespace PFE.Entities.Player
         /// cutscene's <c>control off</c> that the popup never took. Two independent flags ORed at the
         /// point of use cannot fight and need no restoration.</para>
         /// </summary>
+        [Authoritative(Note = "Modal-HUD input block (guiPause); host-owned Sim truth (F-02)")]
         public bool ModalInputBlocked { get; set; }
 
         /// <summary>
@@ -123,7 +132,97 @@ namespace PFE.Entities.Player
         public bool ControlActive => ScriptControlEnabled && !ModalInputBlocked;
 
         // Dependencies (injected via VContainer)
+        [LocalOnly(Note = "Wiring reference; injected input service, never replicated")]
         private InputReader _input;
+
+        /// <summary>
+        /// The input service, for the systems that need to read the mode's own keys.
+        ///
+        /// <para><b>Not named <c>Input</c>.</b> A member called <c>Input</c> shadows
+        /// <c>UnityEngine.Input</c> inside this class, and every <c>Input.GetKey</c> below silently
+        /// becomes a member lookup on <see cref="InputReader"/>. That is a compile error here, but it
+        /// would be a silent rebind in a file that only used <c>Input.mousePosition</c>.</para>
+        /// </summary>
+        public InputReader InputService => _input;
+
+        /// <summary>
+        /// The interface pause gate — the port of <c>World.allStat</c>. Held by S.A.T.S. and the
+        /// PipBuck while either is open.
+        ///
+        /// <para><b>Why the player reads it.</b> The gate freezes the room by skipping non-view
+        /// tickables, but the player's own input handling runs in <c>Update</c>, which no bucket
+        /// governs. Without this check the player walks and aims with the PipBuck open — the defect
+        /// <c>10_SATS_TACTICAL_MODE.md</c> §5 lists as a prerequisite, and with S.A.T.S. open the
+        /// queue would fire during the frozen frame it exists to plan.</para>
+        /// </summary>
+        [LocalOnly(Note = "Wiring reference; the shared pause gate, never replicated")]
+        private PFE.Core.InterfacePauseGate _pauseGate;
+
+        /// <summary>S.A.T.S. — the queue's aim override, and the plan's invalidation triggers.</summary>
+        [LocalOnly(Note = "Wiring reference; the interface mode, never replicated")]
+        private PFE.Systems.Combat.Sats.SatsController _sats;
+
+        /// <summary>True while an interface (PipBuck or S.A.T.S.) has the world frozen.</summary>
+        private bool IsWorldPaused => _pauseGate != null && _pauseGate.IsWorldPaused;
+
+        /// <summary>
+        /// One of the §3.11 cancel triggers — every call site names which of the seventeen it is, so
+        /// <c>grep SatsInvalidationReason</c> enumerates the ledger instead of a reader having to
+        /// trust a comment. Null-safe: a scene without the S.A.T.S. bootstrapper is legitimate.
+        /// </summary>
+        private void InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason reason)
+            => _sats?.Invalidate(reason);
+
+        /// <summary>The room the S.A.T.S. ledger last saw — <c>null</c> until the first observation.</summary>
+        [LocalOnly(Note = "S.A.T.S. room-transition observation cache; local interface state, derived on each peer and never replicated")]
+        private PFE.Systems.Map.RoomInstance _satsObservedRoom;
+
+        /// <summary>
+        /// §3.11 row 11 — the plan dies when the player leaves the location
+        /// (<c>UnitPlayer.as:602-605</c>, inside <c>outLoc</c>).
+        ///
+        /// <para><b>Why a poll rather than a call in <c>outLoc</c>.</b> The port has no <c>outLoc</c>:
+        /// the Oracle's one method is split across <c>DoorTrigger</c>,
+        /// <c>RoomTransitionManager</c>, <c>TerminalActions</c> and <c>ExitAction</c>, and none of those
+        /// components participates in the container, so none of them can be handed the controller.
+        /// Watching <c>landMap.currentRoom</c> from the player — which <i>is</i> injected — covers every
+        /// one of those paths plus any a script invents, and cannot be forgotten by a future exit
+        /// handler.</para>
+        ///
+        /// <para>The first observation is not a transition: it establishes the baseline, or a plan
+        /// queued before the land map finished loading would be cancelled by startup.</para>
+        /// </summary>
+        private void PollSatsLocationExit()
+        {
+            PFE.Systems.Map.RoomInstance room = CurrentRoom;
+            if (ReferenceEquals(room, _satsObservedRoom)) return;
+
+            bool hadBaseline = _satsObservedRoom != null;
+            _satsObservedRoom = room;
+
+            if (hadBaseline)
+            {
+                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.LocationExit);
+            }
+        }
+
+        /// <summary>
+        /// The interface gate and S.A.T.S., as a <b>second</b> injection method.
+        ///
+        /// <para><b>Why not two more parameters on <see cref="Construct"/>.</b> <c>PlayerRigBuilder</c>
+        /// calls <c>PlayerWeaponLoadout.Construct</c> positionally, and <c>Construct</c> is the seam a
+        /// hand-built rig uses; inserting parameters in the middle of it silently re-binds every
+        /// argument after the insertion point. A separate <c>[Inject]</c> method leaves that seam
+        /// exactly as it was and still gets the container's instances.</para>
+        /// </summary>
+        [Inject]
+        public void InjectInterfaces(PFE.Core.InterfacePauseGate pauseGate,
+                                     PFE.Systems.Combat.Sats.SatsController sats)
+        {
+            _pauseGate = pauseGate;
+            _sats = sats;
+        }
+        [LocalOnly(Note = "Wiring reference; injected debug settings asset, never replicated")]
         private PFE.Core.PfeDebugSettings _debugSettings;
 
         /// <summary>
@@ -138,7 +237,9 @@ namespace PFE.Entities.Player
         /// retired in Phase 2.2. It had been unreachable since the Player prefab gained a
         /// <c>PlayerWeaponLoadout</c>, but it kept a second, half-wired weapon system alive.</para>
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; weapon loadout, never replicated")]
         private PlayerWeaponLoadout _loadout;
+        [LocalOnly(Note = "Wiring reference; telekinesis component, never replicated")]
         private PlayerTelekinesisController _telekinesis;
 
         /// <summary>
@@ -147,6 +248,7 @@ namespace PFE.Entities.Player
         /// returns early for it and there is no other per-tick hook. See
         /// <see cref="PlayerManaTicker"/> for why it is a separate component.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; sim-tick component, never replicated")]
         private PlayerManaTicker _manaTicker;
 
         /// <summary>
@@ -155,6 +257,7 @@ namespace PFE.Entities.Player
         /// the player is motor-driven, so <c>UnitController.SimTick</c> returns early for it and a
         /// separate <see cref="ISimTickable"/> is the only per-tick hook.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; sim-tick component, never replicated")]
         private PlayerRadiationTicker _radiationTicker;
 
         /// <summary>
@@ -163,6 +266,7 @@ namespace PFE.Entities.Player
         /// AS3 has them adjacent inside one <c>actions()</c> and the radiation ceiling must be current
         /// before regen reads it.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; sim-tick component, never replicated")]
         private PlayerHealthRegenTicker _regenTicker;
 
         /// <summary>
@@ -185,6 +289,7 @@ namespace PFE.Entities.Player
         /// player is motor-driven, so <c>UnitController.SimTick</c> returns early for it and a separate
         /// <see cref="ISimTickable"/> is the only per-tick hook. See <see cref="PlayerAutoPickup"/>.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; sim-tick component, never replicated")]
         private PlayerAutoPickup _autoPickup;
 
         /// <summary>
@@ -193,6 +298,7 @@ namespace PFE.Entities.Player
         /// <c>UnitController.SimTick</c> returns early for it and a separate <c>ISimTickable</c> is the
         /// only way to get a per-tick hook. See <see cref="PlayerSpellCaster"/>.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; spell caster, never replicated")]
         private PlayerSpellCaster _spellCaster;
 
         /// <summary>
@@ -201,6 +307,7 @@ namespace PFE.Entities.Player
         /// <see cref="AttachSimulation"/>, for the same reason as <see cref="PlayerManaTicker"/>: the
         /// player is motor-driven, so a separate <see cref="ISimTickable"/> is the only per-tick hook.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; companion manager, never replicated")]
         private PFE.Entities.Pets.PetCompanion _petCompanion;
 
         /// <summary>
@@ -208,6 +315,7 @@ namespace PFE.Entities.Player
         /// <c>Construct</c> and <c>Awake</c> — see <see cref="WireInventoryIfReady"/>. Per-player by
         /// construction, which is what a second co-op player needs.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; inventory component, never replicated")]
         private PlayerInventory _inventoryComponent;
 
         /// <summary>
@@ -220,20 +328,29 @@ namespace PFE.Entities.Player
         /// exactly one place in the game, and that place is a <c>&lt;scr eve='take' item='col1'&gt;</c>
         /// block (<c>GameData.as:44-46</c>).</para>
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; take-event scripts, never replicated")]
         private PFE.Systems.Map.Scripting.LandItemScriptRunner _itemTakeScripts;
 
         // The three spell input subscribers, held between Construct and Awake because Unity does not
         // order the two. Same reason and same shape as _pendingEffectResolver above.
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private ISubscriber<SpellCastMessage> _pendingSpellCastSubscriber;
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private ISubscriber<SpellHotkeyMessage> _pendingSpellHotkeySubscriber;
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private PFE.Systems.Map.LandMap _pendingLandMap;
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private PFE.Systems.Audio.ISoundService _pendingSoundService;
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private PFE.Data.ContentRegistry _pendingRegistry;
 
         // MessagePipe subscriptions (disposable)
+        [LocalOnly(Note = "Wiring reference; subscription bag, never replicated")]
         private CompositeDisposable _disposables;
 
+        [LocalOnly(Note = "View reference; cached camera, never replicated")]
         private Camera _mainCamera;
+        [Authoritative(Note = "Locomotion run state mirror; host-owned Sim truth (F-02)")]
         private bool _isRunning;
 
         /// <summary>AS3 <c>isrnd(0.1)</c> (<c>UnitPlayer.as:1509</c>) — the per-tick <c>autoAttack</c> flip chance.</summary>
@@ -247,9 +364,11 @@ namespace PFE.Entities.Player
         /// on purpose: AS3's forced-aim arm only reassigns <c>celX</c>/<c>celY</c> on the 5 % roll, so
         /// the aim freezes wherever it last was.
         /// </summary>
+        [Authoritative(Note = "vote-effect held aim point (AS3 celX/celY); host-owned Sim truth (F-02)")]
         private Vector3 _forcedAimTarget;
 
         /// <summary>Whether <see cref="_forcedAimTarget"/> has been seeded since the effect started.</summary>
+        [Authoritative(Note = "Forced-aim seed flag; host-owned Sim truth (F-02)")]
         private bool _forcedAimValid;
 
         /// <summary>
@@ -257,16 +376,44 @@ namespace PFE.Entities.Player
         /// tracking only: the loadout is told on the transition, not every tick, because
         /// <c>BeginAttack</c>/<c>EndAttack</c> latch a held flag rather than firing once.
         /// </summary>
+        [Authoritative(Note = "vote-effect trigger-hold latch; host-owned Sim truth (F-02)")]
         private bool _forcedAttackActive;
+        [ClientPredicted(Note = "Sampled aim angle fed into PlayerCommand; predicted (F-03)")]
         private float _aimAngle;
+
+        // F-03 / Phase 2.1: the local player's intent as a tick-stamped command stream. The tape
+        // holds the redundant last-N window a client would send (and replay for prediction); today it
+        // is the single-player command tape. Single-player slot is always 0.
+        //
+        // 2026-11-07: the tape is a Producer, not a read-back cache. Update() samples input per
+        // render frame while SimLoop ticks at 30 Hz, so several frames share one commandTick.
+        // PlayerCommandTape folds them into ONE entry per tick; the local consumer must not look in
+        // that tape for this frame's intent (see HandleMovementInput below).
+        private const int CommandBufferCapacity = 64;
+        [ClientPredicted(Note = "One-command-per-tick replay tape; predicted (F-03)")]
+        private readonly PFE.Core.Input.PlayerCommandTape _commandTape =
+            new PFE.Core.Input.PlayerCommandTape(CommandBufferCapacity);
+        [ClientPredicted(Note = "Command tape sequence counter; predicted (F-03)")]
+        private uint _commandSequence;
+
+        /// <summary>The local player's recent command window (redundant last-N). Read-only to callers.</summary>
+        public PFE.Core.Input.PlayerCommandBuffer CommandBuffer => _commandTape.Buffer;
+
+        [ClientPredicted(Note = "Double-tap dash detection; local input-sampling state, predicted (F-03)")]
         private float _lastLeftTapTime = float.NegativeInfinity;
+        [ClientPredicted(Note = "Double-tap dash detection; local input-sampling state, predicted (F-03)")]
         private float _lastRightTapTime = float.NegativeInfinity;
+        [ClientPredicted(Note = "Double-tap drop-through detection; local input-sampling state, predicted (F-03)")]
         private float _lastDownTapTime = float.NegativeInfinity;
+        [ClientPredicted(Note = "Dash edge tracking; local input-sampling state, predicted (F-03)")]
         private bool _wasLeftHeld;
+        [ClientPredicted(Note = "Dash edge tracking; local input-sampling state, predicted (F-03)")]
         private bool _wasRightHeld;
+        [ClientPredicted(Note = "Drop-through edge tracking; local input-sampling state, predicted (F-03)")]
         private bool _wasDownHeld;
 
         public PlayerTelekinesisController Telekinesis => _telekinesis;
+        [LocalOnly(Note = "Wiring reference; RPG stats component, never replicated")]
         private CharacterStats _characterStats;
         public CharacterStats CharacterStats => _characterStats;
 
@@ -274,6 +421,7 @@ namespace PFE.Entities.Player
         /// The room resolver this controller installed on <c>WorldItemPickup.RoomProvider</c>, kept so
         /// <see cref="OnDestroy"/> can tell "still mine" from "already replaced" before clearing it.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; installed room resolver delegate, never replicated")]
         private System.Func<PFE.Systems.Map.RoomInstance> _lootRoomProvider;
 
         /// <summary>
@@ -294,6 +442,7 @@ namespace PFE.Entities.Player
             ISubscriber<SpellHotkeyMessage> spellHotkeySubscriber,
             ISubscriber<GrenadeMessage> grenadeSubscriber,
             ISubscriber<PunchMessage> punchSubscriber,
+            ISubscriber<MagicWeaponMessage> magicWeaponSubscriber,
             PFE.Core.PfeDebugSettings debugSettings,
             // Required, not optional: VContainer has no optional parameters (it resolves every [Inject]
             // argument or throws), so a default value here would document a fallback that never happens.
@@ -428,8 +577,13 @@ namespace PFE.Entities.Player
                     return;
                 }
 
-                bool threw = _loadout != null && _loadout.ThrowGrenade();
+                // AS3 `:2188-2191` — `if(sats.que.length > 0) sats.clearAll();` sits *inside* the gated
+                // block and *before* the throw, so a refused throw (the gate above) leaves the plan
+                // standing while an accepted one drops it. Placing this above the gate instead would
+                // cancel a plan during a `vote`, when the player did nothing they could have wanted.
+                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.Grenade);
 
+                bool threw = _loadout != null && _loadout.ThrowGrenade();
                 if (_debugSettings.LogWeaponLifecycle)
                 {
                     Debug.Log(threw
@@ -495,6 +649,15 @@ namespace PFE.Entities.Player
                 // are distinguishable from each other in the flight log.
                 TelekinesisRecorder.Write($"[DELIVER] TeleportMessage IsStarted={message.IsStarted}");
 
+                // AS3 `:2143-2147` — `clearAll` sits inside `if(!teleReady)`, i.e. on the press edge
+                // only, not on every held frame. `teleReady` is the latch that makes one hold one
+                // teleport; the port's message carries the same two edges, so `IsStarted` is the
+                // equivalent observation.
+                if (message.IsStarted)
+                {
+                    InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.Teleport);
+                }
+
                 if (_telekinesis != null)
                 {
                     _telekinesis.OnTeleportKeyPressed(message.IsStarted);
@@ -516,6 +679,39 @@ namespace PFE.Entities.Player
                 {
                     EndInteract();
                 }
+            }).AddTo(_disposables);
+
+            // ── The remaining §3.11 cancel triggers that arrive as messages ──────────────────────────
+            //
+            // Each of these is `if(sats.que.length > 0) sats.clearAll();` at the top of an otherwise
+            // unrelated handler in UnitPlayer.as. They are subscribed here rather than folded into the
+            // spell caster because the caster is a *component* that can be absent from a hand-built
+            // rig, and a cancel trigger that disappears with an optional component is worse than one
+            // that is slightly out of place.
+            //
+            // Note the cast subscriber is shared with `_spellCaster.BindInput`: MessagePipe delivers to
+            // every handler on a subscriber, so both the cast and this cancel see the same message.
+
+            // T — AS3 `keyMagic` (:2208-2211). The magic weapon is a separate slot, so this is not the
+            // attack key and does not clear on a plain shot.
+            magicWeaponSubscriber.Subscribe(message =>
+            {
+                if (!message.IsHeld) return;
+                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.MagicWeapon);
+            }).AddTo(_disposables);
+
+            // C — the defend spell (:2228-2231).
+            spellCastSubscriber.Subscribe(message =>
+            {
+                if (!message.IsHeld) return;
+                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.DefendSpell);
+            }).AddTo(_disposables);
+
+            // Any favourite-spell hotkey (:2259-2262).
+            spellHotkeySubscriber.Subscribe(message =>
+            {
+                if (!message.IsHeld) return;
+                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.SpellHotkey);
             }).AddTo(_disposables);
         }
 
@@ -543,6 +739,7 @@ namespace PFE.Entities.Player
         /// <c>Construct</c>/<c>Awake</c> runs second removes the dependency on that order rather than
         /// asserting one.</para>
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private IEffectDefinitionResolver _pendingEffectResolver;
 
         private void ApplyEffectResolverIfReady()
@@ -570,6 +767,7 @@ namespace PFE.Entities.Player
         /// already exists. Applying in whichever of <c>Construct</c>/<c>Awake</c> runs second removes
         /// the dependency on that order instead of asserting one.</para>
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private PFE.Systems.Particles.Adapters.RoomParticleEmitter _pendingParticleEmitter;
 
         private void ApplyParticleEmitterIfReady()
@@ -948,6 +1146,7 @@ namespace PFE.Entities.Player
         {
             HandleAiming();
             HandleMovementInput();
+            PollSatsLocationExit();
 
             // Refreshed every frame, before anything reads it: this is the port of AS3's
             // `World.w.loc.celObj`, which `Location.step` recomputes on every frame
@@ -1005,7 +1204,12 @@ namespace PFE.Entities.Player
             // vector rather than early-returning keeps the rest of this method running, which matters:
             // the locomotion controller has to be told "no input" so it decelerates, whereas an early
             // return would leave it holding the last direction for the whole cutscene.
-            Vector2 input = ControlActive ? _input.CurrentMoveInput : Vector2.zero;
+            //
+            // The interface pause gate joins `ControlActive` for the same reason and with the same
+            // mechanism: `World.as:1257` freezes the room while the PipBuck or S.A.T.S. is open, and a
+            // player who keeps walking through a frozen frame is the visible half of that bug. Zero
+            // rather than return, so the motor still decelerates instead of freezing mid-stride.
+            Vector2 input = (ControlActive && !IsWorldPaused) ? _input.CurrentMoveInput : Vector2.zero;
 
             // AS3 `zaput` (UnitPlayer.as:93, read at :2085-2086) swaps the two movement keys at the
             // moment they are read: `left = zaput ? keyRight : keyLeft`. Negating the horizontal axis
@@ -1097,7 +1301,53 @@ namespace PFE.Entities.Player
                     _telekinesis?.SetCursorWorldPixels(cursorWorldPixels);
                 }
 
-                _locomotion.SetIntent(input, jumpHeld, runHeld, jumpPressed, dashPressed, dropThroughPressed, _aimAngle);
+                // Build the intent as a tick-stamped command. What this frame sampled has TWO
+                // separate consumers, and confusing them is the 2026-11-06 "Space no longer always
+                // jumps" defect:
+                //
+                // (1) LOCAL INTENT — locomotion consumes the command THIS frame built. Jump is a
+                //     WasPressedThisFrame() edge, a one-frame signal. The old code enqueued the
+                //     command and then read it back with an oldest-first tick lookup. At 60–144 fps
+                //     against a 30 Hz SimLoop several Update() frames share one commandTick, so the
+                //     lookup returned the FIRST frame's command: a press on the second frame of a
+                //     tick window was silently dropped, SetIntent never armed _jumpBufferTimer, and
+                //     TryConsumeJump bailed at its <= 0f guard. Never interpose the tape between
+                //     producing and consuming a local edge. Pinned by
+                //     PlayerCommandConsumptionLintTests (a MonoBehaviour cannot be run offline).
+                // (2) THE REPLAY TAPE — a host replaying tick N must see ONE command carrying every
+                //     edge produced during N. PlayerCommandTape folds the frames sharing a tick:
+                //     edges OR'd, levels and analogue intent from the newest frame, and that tick's
+                //     buffered entry replaced in place rather than duplicated. Behaviourally pinned
+                //     by PlayerCommandTapeTests.
+                //
+                // F-03 / Phase 2.3: TickIndex is the session tick the command applies to — the next
+                // tick the SimLoop steps (TickIndex is the last COMPLETED tick). With no SimLoop
+                // attached (the legacy FixedUpdate path) it stays 0: there is no tick clock, so the
+                // tape degenerates to one rolling entry and nothing replays it. Local intent is
+                // unaffected, because it never reads the tape. The slot comes from the
+                // IPlayerSlotContext (F-09); single-player resolves to slot 0.
+                int commandTick = SimLoop != null ? SimLoop.TickIndex + 1 : 0;
+                // The player's own slot from the F-09 context. Single-player has one local slot
+                // (index 0); a multiplayer context would resolve this client's slot differently.
+                // The seam is that the context is consulted, not that the answer changes today.
+                byte commandSlot = (byte)0;
+                var command = PFE.Core.Input.PlayerCommand.FromIntent(
+                    tickIndex: commandTick,
+                    slotIndex: commandSlot,
+                    sequence: _commandSequence++,
+                    moveInputX: input.x,
+                    moveInputY: input.y,
+                    jumpHeld: jumpHeld,
+                    runHeld: runHeld,
+                    jumpPressed: jumpPressed,
+                    dashPressed: dashPressed,
+                    dropThroughPressed: dropThroughPressed,
+                    aimAngle: _aimAngle);
+
+                // (2) first, so the tape always contains this frame's intent for the tick...
+                _commandTape.Push(command);
+                // (1) ...then hand the FRESH command straight to locomotion. No read-back.
+                _locomotion.SetIntent(command);
                 _isGrounded = _locomotion.CurrentSnapshot.IsGrounded;
                 _isRunning = _locomotion.CurrentSnapshot.IsRunning;
                 return;
@@ -1125,7 +1375,7 @@ namespace PFE.Entities.Player
             float targetSpeed = _isRunning ? base._stats.RunSpeed : base._stats.WalkSpeed;
             float acceleration = base._stats.Acceleration * Time.deltaTime * 50f;
             float targetVelocityX = input.x * targetSpeed;
-            _velocity.x = Mathf.MoveTowards(_velocity.x, targetVelocityX, acceleration);
+            SetVelocityX(Mathf.MoveTowards(_velocity.x, targetVelocityX, acceleration));
         }
 
         private bool DetectHorizontalDoubleTap(float horizontalInput)
@@ -1178,6 +1428,24 @@ namespace PFE.Entities.Player
         private void HandleAiming()
         {
             if (!_mouseAiming || _mainCamera == null) return;
+
+            // AS3 `:1164-1176` — the aim block is a THREE-way, and S.A.T.S. is the first arm:
+            //   if (sats.que.length > 0)  { celX = que[0].X; celY = que[0].Y }
+            //   else if (attackForever)   { if(isrnd(0.05)) celX/celY = a random point in the room }
+            //   else                      { celX = World.w.celX; celY = World.w.celY }
+            //
+            // The queued cell wins over everything, including the `vote` effect: a plan the player
+            // has already paid for is not scattered by a panic. It also wins over the pause gate,
+            // because a live queue outlives the mode — that is what "accept" means — and the weapon
+            // keeps its aim on the queued target until the plan is spent.
+            if (_sats != null && _sats.QueueAimWorldUnits.HasValue)
+            {
+                ApplyAimTarget(_sats.QueueAimWorldUnits.Value);
+                return;
+            }
+
+            // The world is frozen while an interface is open; a frozen player does not re-aim.
+            if (IsWorldPaused) return;
 
             // AS3 `:1164-1176` — the third read site of `attackForever`, and the one that makes `vote`
             // read as panic rather than as a stuck trigger. The oracle's aim block is a three-way:
@@ -1269,6 +1537,28 @@ namespace PFE.Entities.Player
         /// <summary>Start attacking when attack button is pressed.</summary>
         private void HandleAttackStart()
         {
+            // AS3 `:2334-2340` — a manual attack while a plan is standing cancels the plan **and is
+            // itself swallowed** (`keyAttack = false`). So the click that ends a plan does not also
+            // spend a round; the player who meant to cancel gets the cancel, not a shot they did not
+            // aim. `_latchAttackEdge` in SatsController.Step2 covers the same trigger from the
+            // mode's side, but that runs on a tick — by which time this handler has already fired.
+            //
+            // `!IsActive` is load-bearing: while the mode is open an attack press *queues a cell*
+            // (Sats.as:181-201 consumes it first), so this must not treat a queued shot as a manual
+            // one and wipe the plan the player is still building.
+            if (_sats != null && _sats.HasQueuedShots && !_sats.IsActive)
+            {
+                _sats.Invalidate(PFE.Systems.Combat.Sats.SatsInvalidationReason.ManualFire);
+                return;
+            }
+
+            // Sats.step() consumes keyAttack while the mode is open (Sats.as:185-188): LMB queues a
+            // cell and is NOT a manual trigger pull. The bootstrapper reads the same InputAction and
+            // latches the cell, so this handler must not also latch `BeginAttack()` — otherwise an
+            // ordinary planning click leaves _attackHeld down, and accepting the plan inherits a
+            // held trigger that outlives the queue on an automatic weapon.
+            if (_sats != null && _sats.IsActive) return;
+
             // If the mouse is aimed directly at an interactable within reach, interact instead of
             // attacking. Cursor only — this must not fall back to the nearest target, or a click meant
             // as a shot would be swallowed by whatever happens to be standing next to the player.
@@ -1428,6 +1718,7 @@ namespace PFE.Entities.Player
         /// </summary>
         public override void TakeDamage(float damage)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             // Call base implementation (handles UnitStats damage and death check)
             base.TakeDamage(damage);
 
@@ -1444,6 +1735,7 @@ namespace PFE.Entities.Player
 
         public override bool ApplyDamage(in DamageOutcome outcome)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             bool broke = base.ApplyDamage(outcome);
             if (_characterStats != null && outcome.HpDamage > 0f)
             {
@@ -1463,6 +1755,7 @@ namespace PFE.Entities.Player
         public override string ReplicaId => "pip";
 
         /// <summary>The last line the player said — <c>UnitPlayer.prev_replic</c> (<c>:307</c>).</summary>
+        [Authoritative(Note = "AS3 prev_replic no-repeat speech state; host-owned Sim truth (F-02)")]
         private string _prevReplic;
 
         /// <summary>
@@ -1494,6 +1787,7 @@ namespace PFE.Entities.Player
         /// </remarks>
         public override bool TryReplic(PFE.Sim.Units.ReplicKind kind)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (!IsAlive || !isActiveAndEnabled) return false;
             if (kind == PFE.Sim.Units.ReplicKind.None) return false;
             if (_replicCooldown > 0) return false;
@@ -1547,6 +1841,7 @@ namespace PFE.Entities.Player
 
         // Organ trauma can fire more than once (each of head/torso/legs/blood is checked), and a
         // dead player must not run the death path repeatedly.
+        [Authoritative(Note = "Once-only organ-death latch; host-owned Sim truth (F-02)")]
         private bool _characterDeathHandled;
 
         /// <summary>
@@ -1577,6 +1872,7 @@ namespace PFE.Entities.Player
         /// </summary>
         protected override void OnDeath()
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             base.OnDeath();
 
             // Player-specific death handling
@@ -1608,6 +1904,7 @@ namespace PFE.Entities.Player
         /// </summary>
         public void KillFromRadiation()
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (base._unitStats == null || !IsAlive)
             {
                 return;
@@ -1632,6 +1929,7 @@ namespace PFE.Entities.Player
         /// </summary>
         public void ApplyRadiationElementalDamage(float damage, PFE.Data.Definitions.DamageType type)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             ReportEffectDamage(damage, type);
         }
 
@@ -1649,6 +1947,7 @@ namespace PFE.Entities.Player
         /// script holds control. Read-only: the prompt view consumes it, nothing writes it but
         /// <see cref="Update"/>.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 celObj per-frame target; host-owned Sim truth (F-02)")]
         public IInteractable CurrentInteractTarget { get; private set; }
 
         /// <summary>
@@ -1742,6 +2041,12 @@ namespace PFE.Entities.Player
                     return;
                 }
             }
+
+            // AS3 `:2117-2124` — `clearAll` sits inside the `if(!this.teleObj)` arm, *after* the
+            // throw-what-you-hold branch above. So an Action press that throws a held prop leaves the
+            // plan alone, while one that actually acts on the world drops it. The port's `teleObj` is
+            // `_telekinesis.IsHoldingObject`, which is why this cannot move above that block.
+            InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.Interact);
 
             // A hold in flight owns the action: AS3 will not start a second while actionObj is set —
             // actAction() only re-checks the incumbent (:1924-1930).

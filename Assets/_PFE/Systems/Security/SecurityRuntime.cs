@@ -105,7 +105,7 @@ namespace PFE.Systems.Security
             {
                 if (_cachedPlayer != null) return _cachedPlayer;
 
-                var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+                var player = PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
                 _cachedPlayer = player != null ? player.gameObject : null;
                 return _cachedPlayer;
             }
@@ -1184,9 +1184,9 @@ namespace PFE.Systems.Security
 
             var instance = new UnitInstance
             {
-                entityId = PFE.Core.Ids.EntityId
-                    .CreateForRoomSpawn(room.id, "reinforcement:" + unitId, _reinforcementSerial++)
-                    .ToString(),
+                // Phase 3.2 (F-05): host-assigned runtime id; see FlyerSpawner for why the
+                // per-spawner static serial had to go.
+                entityId = PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId().ToString(),
                 unitId = unitId,
                 unitType = unitId,
                 isDead = false,
@@ -1237,10 +1237,6 @@ namespace PFE.Systems.Security
             Debug.Log($"[Security] Alarm reinforcement '{unitId}' spawned in '{room.id}' " +
                       $"near ({originPixels.x:0},{originPixels.y:0}).");
         }
-
-        /// <summary>Serial for reinforcement entity ids — a monotonic counter, so two reinforcements of
-        /// the same family in one alarm never share an id even after one of them dies.</summary>
-        private int _reinforcementSerial;
 
         /// <summary>
         /// <c>loc.enemySpawn(false, false, "alicorn")</c> (<c>Location.as:2977-2998</c>) — a

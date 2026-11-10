@@ -28,9 +28,6 @@ namespace PFE.Entities.Pets
     /// </summary>
     public static class PetSpawner
     {
-        /// <summary>Distinct per spawn, so two pets in one tick cannot share an entity id.</summary>
-        static int _serial;
-
         static bool _reportedNoController;
 
         /// <summary>
@@ -68,9 +65,9 @@ namespace PFE.Entities.Pets
 
             var instance = new UnitInstance
             {
-                entityId = PFE.Core.Ids.EntityId
-                    .CreateForRoomSpawn(room.id, "pet:" + unitId, _serial++)
-                    .ToString(),
+                // Phase 3.2 (F-05): host-assigned runtime id; see FlyerSpawner for why the
+                // per-spawner static serial had to go.
+                entityId = PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId().ToString(),
                 unitId = unitId,
                 unitType = unitId,
                 isDead = false,

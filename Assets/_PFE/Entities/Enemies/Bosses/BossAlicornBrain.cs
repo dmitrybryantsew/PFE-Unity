@@ -132,9 +132,6 @@ namespace PFE.Entities.Enemies.Bosses
         /// </summary>
         const int NpcLevel = 0;
 
-        /// <summary>Distinct per blade, so six spawned in one tick cannot share an entity id.</summary>
-        static int _scytheSerial;
-
         /// <summary>
         /// The live visual controller for <see cref="Room"/>, cached for the shield break's six
         /// back-to-back spawns. <c>RoomVisualController.FindForRoom</c> does a scene scan.
@@ -883,9 +880,10 @@ namespace PFE.Entities.Enemies.Bosses
             float health = definition.health;
             var instance = new UnitInstance
             {
-                entityId = PFE.Core.Ids.EntityId
-                    .CreateForRoomSpawn(room.id, "scythe", _scytheSerial++)
-                    .ToString(),
+                // Phase 3.2 (F-05): host-assigned runtime id; see FlyerSpawner for why the
+                // per-spawner static serial had to go. The two UnityEngine.Random draws above are
+                // untouched — RngSimLintTests pins this inventory exactly.
+                entityId = PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId().ToString(),
                 unitId = ScytheController.ControllerId,
                 unitType = ScytheController.ControllerId,
                 isDead = false,
@@ -955,7 +953,7 @@ namespace PFE.Entities.Enemies.Bosses
         /// </remarks>
         static UnitController FindPlayerUnit()
         {
-            return UnityEngine.Object.FindFirstObjectByType<PlayerController>();
+            return PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
         }
 
         static void ReportScytheGapOnce(ref bool flag, string message)

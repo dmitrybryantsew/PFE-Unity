@@ -53,6 +53,28 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
             }
         }
 
+        /// <summary>
+        /// Phase 1.5 (F-02): every hash this recorder has computed, in call order.
+        ///
+        /// <para>The 43 golden fixtures assert behavioural invariants and <c>hash != 0</c> but pin no
+        /// expected hash value, so a green EditMode run is <b>not</b> a byte-identical trace baseline.
+        /// <c>GoldenTraceTests</c> flushes this list to <c>Logs/golden_trace_hashes.txt</c> at the end
+        /// of the fixture; diffing that file across two runs is the byte-identical check the Phase 1.5
+        /// acceptance asks for. The list is cleared by the fixture's one-time setup so a second run in
+        /// the same editor domain cannot append to the first run's hashes.</para>
+        /// </summary>
+        public static readonly List<ulong> ComputedHashes = new List<ulong>();
+
+        /// <summary>
+        /// Parallel to <see cref="ComputedHashes"/>: the NUnit test that produced each hash. A bare
+        /// list of numbers says only "line 17 changed"; with the label it says which fixture changed,
+        /// which is what turns a trace break into a named slice (§7 of the Phase 1.5 brief).
+        /// </summary>
+        public static readonly List<string> ComputedHashLabels = new List<string>();
+
+        /// <summary>Set by <c>GoldenTraceTests</c>' [SetUp] before each fixture runs.</summary>
+        public static string CurrentLabel = string.Empty;
+
         private readonly List<TickState> _frames = new List<TickState>();
 
         public IReadOnlyList<TickState> Frames => _frames;
@@ -95,6 +117,8 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
                 hash = HashInt(hash, fnvPrime, flags);
             }
 
+            ComputedHashes.Add(hash);
+            ComputedHashLabels.Add(CurrentLabel);
             return hash;
         }
 

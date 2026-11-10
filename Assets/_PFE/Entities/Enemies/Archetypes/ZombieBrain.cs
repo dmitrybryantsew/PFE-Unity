@@ -1322,7 +1322,7 @@ namespace PFE.Entities.Enemies.Archetypes
         {
             if (_player == null)
             {
-                _player = FindFirstObjectByType<PlayerController>();
+                _player = PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
             }
 
             return _player;

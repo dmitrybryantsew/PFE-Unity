@@ -33,9 +33,6 @@ namespace PFE.Entities.Enemies.Bosses
     /// </summary>
     public static class BossSummonSpawner
     {
-        /// <summary>Distinct per spawn, so three bodies in one tick cannot share an entity id.</summary>
-        static int _serial;
-
         static bool _reportedNoController;
         static bool _reportedNoPoints;
         static bool _reportedNoDefinition;
@@ -154,9 +151,9 @@ namespace PFE.Entities.Enemies.Bosses
 
             var instance = new UnitInstance
             {
-                entityId = PFE.Core.Ids.EntityId
-                    .CreateForRoomSpawn(room.id, "summon:" + unitId, _serial++)
-                    .ToString(),
+                // Phase 3.2 (F-05): host-assigned runtime id; see FlyerSpawner for why the
+                // per-spawner static serial had to go.
+                entityId = PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId().ToString(),
                 unitId = unitId,
                 unitType = unitId,
                 isDead = false,

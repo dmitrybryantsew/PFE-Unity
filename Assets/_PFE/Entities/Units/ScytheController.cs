@@ -447,7 +447,7 @@ namespace PFE.Entities.Units
         /// </remarks>
         static UnitController ResolvePlayer()
         {
-            return UnityEngine.Object.FindFirstObjectByType<PlayerController>();
+            return PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
         }
     }
 }

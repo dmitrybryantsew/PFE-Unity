@@ -139,6 +139,18 @@ namespace PFE.Core
             set => _worldGate = value;
         }
 
+        /// <summary>
+        /// Phase 2.4: which kind of simulation this loop drives. <b>Pushed, not injected</b> — six call
+        /// sites across five fixtures construct <c>new SimLoop(clock, settings)</c>, so a constructor
+        /// parameter is not available (same reasoning as <see cref="WorldGate"/>). The default is
+        /// <see cref="SimLoopRole.Host"/>, which keeps every existing fixture and the whole
+        /// single-player game on the permissive context. A Phase 4 prediction driver sets
+        /// <see cref="SimLoopRole.ClientPrediction"/> on <i>its own</i> loop instance; the tick dispatch
+        /// then scopes <see cref="SimAuthorityContext"/> and every reviewed mutator fails loud instead
+        /// of silently desyncing.
+        /// </summary>
+        public SimLoopRole Role { get; set; } = SimLoopRole.Host;
+
         /// <summary>Index of the most recently completed tick, or -1 before the first tick.</summary>
         public int TickIndex => _tickIndex;
 
@@ -221,6 +233,21 @@ namespace PFE.Core
         /// </summary>
         public int StepOnce()
         {
+            // Phase 3.2 (F-05): stamp the tick BEFORE anything can spawn. A runtime spawn inside a
+            // tickable must see this tick, and a spawn outside any tick (Awake, console, load) must see
+            // the last host tick rather than a made-up zero. AdvanceTick takes a maximum, so a second
+            // SimLoop in the process cannot rewind the allocator. The increment used to live just below
+            // `EnsureOrder()`; it moved here so the stamp and the index can never disagree.
+            _tickIndex++;
+            RuntimeEntityIdContext.AdvanceTick(_tickIndex);
+
+            // Phase 2.4: scope the whole dispatch so guarded mutators can tell a host tick from a
+            // client prediction tick. The #if is the release half of the contract: with
+            // UNITY_ASSERTIONS undefined there is no scope, no allocation and no static write in the
+            // tick path at all. In that configuration the next statement is just the profiler using.
+#if UNITY_ASSERTIONS
+            using (SimAuthorityContext.EnterSimulation(Role))
+#endif
             // The single most important number for "the room is at 2 FPS": how many ticks a FRAME
             // runs. `Advance` caps that at SimClock.MaxCatchupTicks (5), so a frame whose cost
             // exceeds 5 * SimDt saturates the cap and then the frame time IS 5 x (cost of one tick).
@@ -232,8 +259,6 @@ namespace PFE.Core
                 "sim: one fixed tick across every ISimTickable. calls / calls(sim.frame) == ticks per frame."))
             {
                 EnsureOrder();
-
-                _tickIndex++;
 
                 // The interface pause gate — the port of `allStat`.
                 //

@@ -171,6 +171,46 @@ public class GameLifetimeScope : LifetimeScope
         // === Entity Registry (P3) ===
         builder.Register<IEntityRegistry, EntityRegistry>(Lifetime.Singleton);
 
+        // === Player slot context (F-09 / Phase 2.2) ===
+        // The slot-indexed answer to "which player is mine", replacing the single-player global
+        // scan in Sim-facing code. Single-player today: exactly one slot. Registered for the
+        // container's own factories below, and pushed to SinglePlayerSlotContext.Current so the
+        // AddComponent-built consumers (RoomUnitSpawner units, SecurityRuntime) that VContainer
+        // never observes can read it back — the same push-at-build shape as SoundBus.Current and
+        // CharacterStats.CombatRng. Under multiplayer a different IPlayerSlotContext is pushed and
+        // no consumer changes.
+        builder.Register<IPlayerSlotContext, SinglePlayerSlotContext>(Lifetime.Singleton);
+        builder.RegisterBuildCallback(container =>
+        {
+            SinglePlayerSlotContext.Current = container.Resolve<IPlayerSlotContext>();
+
+            // Phase 2.4: this process is the host. Pushed once, at the same build-callback moment as
+            // the slot context, so every non-tick authoritative write (console, save/load, Awake)
+            // stays on the permissive ambient context. A future joined peer pushes
+            // SimPeerRole.Client here instead; no consumer changes. See SimAuthorityContext for why
+            // the ambient default is the peer role rather than a globally-permissive Host flag.
+            SimAuthorityContext.SetPeerRole(SimPeerRole.Host);
+
+            // Phase 3.2 (F-05): push the container's real singletons into the ambient id carrier.
+            // Runtime spawners are static classes and the room presenters are AddComponent-built, so
+            // neither can be reached by constructor injection; they read RuntimeEntityIdContext
+            // instead. Configure also resets the allocator, so a scene reload starts a fresh run
+            // rather than inheriting a process-lifetime serial.
+            RuntimeEntityIdContext.Configure(
+                container.Resolve<IEntityRegistry>(), new RuntimeEntityIdAllocator());
+
+            // Phase 3.3 follow-up: the interned content-id tables that DefinitionId addresses. Pushed
+            // as SOURCES, not tables, because the content registry is still empty at build time —
+            // GameDatabase's constructor creates it and the mod loader populates it afterwards. Building
+            // here would produce two empty tables and every projected DefinitionId would be 0 for the
+            // rest of the session. The first access is a spawn path, which cannot run before its
+            // definition exists. See ContentInternContext.
+            ContentRegistry contentRegistry = container.Resolve<ContentRegistry>();
+            ContentInternContext.SetSources(
+                () => contentRegistry.GetAllIds(PFE.ModAPI.ContentType.Unit),
+                () => contentRegistry.GetAllIds(PFE.ModAPI.ContentType.Weapon));
+        });
+
         // === Lua Scripting Engine & Developer Console ===
         builder.Register<ILuaEngine, MoonSharpScriptEngine>(Lifetime.Singleton);
         builder.Register<DeveloperConsoleService>(Lifetime.Singleton).AsSelf();
@@ -245,6 +285,32 @@ public class GameLifetimeScope : LifetimeScope
             .As<IAutoRegisteredSimTickable>();
 
         builder.RegisterComponentOnNewGameObject<PipBuckBootstrapper>(Lifetime.Singleton, "PipBuck");
+
+        // === S.A.T.S. (Item I14) ===
+        //
+        // The controller is a plain class for the same reason PipBuckManager is: its state machine has
+        // to be constructible in a fixture, and a MonoBehaviour is not. It is a SINGLETON, not scoped —
+        // its action-point pool is per-session state that survives a room change, exactly like the
+        // Oracle's `World.sats.od`.
+        //
+        // AsSelf() is required for the FOUR consumers that take it concretely (PlayerController,
+        // PlayerWeaponLoadout, PipBuckBootstrapper, SatsBootstrapper). NOT marked
+        // IAutoRegisteredSimTickable: the bootstrapper registers it on the loop itself, because a
+        // controller with no canvas and no player bound must not start ticking during a test or a
+        // scene with no UI.
+        //
+        // The bootstrapper must INJECT this instance, not build its own. A second controller holds
+        // the input, the pause and the queued cells while the loadout asks this one to fire them —
+        // the mode opens, queues and accepts, and never shoots. See SatsRuntimeWiringLintTests.
+        builder.Register<PFE.Systems.Combat.Sats.SatsController>(Lifetime.Singleton);
+
+        builder.RegisterComponentOnNewGameObject<PFE.Systems.Combat.Sats.SatsBootstrapper>(
+            Lifetime.Singleton, "Sats");
+
+        // Same laziness trap as the HUD and the PipBuck: nothing injects the bootstrapper, so without
+        // an explicit resolve no GameObject is created and S.A.T.S. simply never exists.
+        builder.RegisterBuildCallback(container =>
+            container.Resolve<PFE.Systems.Combat.Sats.SatsBootstrapper>());
 
         // Same laziness trap as the HUD above: nothing injects PipBuckBootstrapper, so without an
         // explicit resolve no GameObject is created and the device simply never exists.
@@ -321,8 +387,9 @@ public class GameLifetimeScope : LifetimeScope
         // Both lookups are `Func<>`s and not values, for the reason the ScriptPlayerHost block above
         // gives: CharacterStats/PlayerInventory are components on a scene object that a respawn, a room
         // rebuild or a scene reload replaces. Resolving once would leave quests paying a destroyed
-        // object, which throws nothing and changes nothing. The lookup body mirrors
-        // PlayerScriptControlLock.cs:96 and the rest of the codebase — a lazy FindFirstObjectByType.
+        // object, which throws nothing and changes nothing. The lookup body resolves the player
+        // through the slot context (SinglePlayerSlotContext.Current) — the F-09 seam that replaced
+        // the lazy FindFirstObjectByType the rest of the Sim-facing codebase used to make.
         //
         // `IQuestScriptHost` stays a null factory, and that is now a measured answer rather than an
         // assumption: `endscr` occurs ZERO times across every `<quest>` in GameData.as, so the seam has
@@ -332,14 +399,12 @@ public class GameLifetimeScope : LifetimeScope
             .As<IQuestRewardHost>()
             .WithParameter<Func<PFE.Systems.RPG.CharacterStats>>(_ => () =>
             {
-                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
-                    FindObjectsInactive.Include);
+                PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
                 return player != null ? player.CharacterStats : null;
             })
             .WithParameter<Func<PFE.Systems.Inventory.PlayerInventory>>(_ => () =>
             {
-                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
-                    FindObjectsInactive.Include);
+                PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
                 return player != null ? player.GetComponent<PFE.Systems.Inventory.PlayerInventory>() : null;
             })
             .WithParameter<Action<string>>(_ => null);
@@ -389,8 +454,7 @@ public class GameLifetimeScope : LifetimeScope
 
             campaign.VendorLimitBuysProvider = () =>
             {
-                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
-                    FindObjectsInactive.Include);
+                PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
                 return player != null && player.CharacterStats != null
                     ? player.CharacterStats.limitBuys
                     : 1f;
@@ -398,11 +462,33 @@ public class GameLifetimeScope : LifetimeScope
 
             campaign.VendorBarterLevelProvider = () =>
             {
-                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
-                    FindObjectsInactive.Include);
+                PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
                 return player != null && player.CharacterStats != null
                     ? player.CharacterStats.barterLvl
                     : 0;
+            };
+
+            // AS3 CheckPoint.activate() (:191-201): heal(pers.manaCPres, 6) THEN expa(loc.unXp * 3).
+            // A lazy lookup, like the two vendors above — the player is rebuilt on respawn and on
+            // room change, so resolving CharacterStats once would pay a destroyed object. The
+            // CampaignManager owns WHEN and HOW MUCH (CheckpointRules); this owns WHO receives it.
+            campaign.CheckpointRestoreBonusApplier = bonus =>
+            {
+                PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
+                PFE.Systems.RPG.CharacterStats stats = player != null ? player.CharacterStats : null;
+                if (stats == null)
+                {
+                    Debug.LogWarning($"[CheckpointBonus] a fresh checkpoint owes {bonus.xp} xp and " +
+                                     $"{bonus.manaHeal} mana, but no player CharacterStats is reachable; " +
+                                     "the payout was dropped.");
+                    return;
+                }
+
+                // organType 6 is mana — the port of Pers.heal(amount, 6). AddXp's default world
+                // coords are -inf, which is AS3 expa's own default: the "+Nxp" text spawns ON the
+                // player (Pers.as:961-984), not at an invented world point.
+                stats.HealOrgan(bonus.manaHeal, PFE.Sim.Campaign.CheckpointRules.ManaOrganIndex);
+                stats.AddXp(bonus.xp);
             };
         });
 
@@ -450,8 +536,7 @@ public class GameLifetimeScope : LifetimeScope
 
                 if (land == null) return (LandLevelFacts?)null;
 
-                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
-                    FindObjectsInactive.Include);
+                PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
                 int playerLevel = player != null && player.CharacterStats != null
                     ? player.CharacterStats.Level
                     : 1;
@@ -477,8 +562,7 @@ public class GameLifetimeScope : LifetimeScope
             .As<IScriptPlayerHost>()
             .WithParameter<Func<PFE.Systems.RPG.CharacterStats>>(_ => () =>
             {
-                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
-                    FindObjectsInactive.Include);
+                PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
                 return player != null ? player.CharacterStats : null;
             })
             .WithParameter<Action<string>>(_ => null);
@@ -665,6 +749,15 @@ public class GameLifetimeScope : LifetimeScope
         // The single place every always-on tickable is attached to SimLoop. This replaces the
         // per-system `IStartable` driver that ParticleWorld used to need.
         builder.RegisterEntryPoint<SimTickRegistrar>();
+
+        // Phase 3.3 (F-05 closure): the host-side snapshot producer, and the first shipping reader of
+        // RuntimeEntityIdContext.Registry. AsSelf() so the debug overlay and the offline lint can
+        // resolve the concrete type for its counters; As<IAutoRegisteredSimTickable> is what puts it on
+        // SimLoop — without that marker it would be constructed, injected and never ticked, which is
+        // the silent failure SimTickRegistrar exists to prevent.
+        builder.Register<PFE.Systems.Replication.SimProjectileSnapshotProjector>(Lifetime.Singleton)
+            .AsSelf()
+            .As<IAutoRegisteredSimTickable>();
 
         // Syncs GameSettings audio sliders → ISoundService / IMusicService each tick
         builder.RegisterEntryPoint<AudioVolumeSync>();

@@ -1908,7 +1908,7 @@ namespace PFE.Entities.Units
         {
             if (_playerStats != null) return _playerStats;
 
-            PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+            PlayerController player = PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
             _playerStats = player != null ? player.CharacterStats : null;
             return _playerStats;
         }
@@ -1918,7 +1918,7 @@ namespace PFE.Entities.Units
         {
             if (_playerInventory != null) return _playerInventory;
 
-            PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+            PlayerController player = PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
             PlayerInventory component = player != null ? player.GetComponent<PlayerInventory>() : null;
             _playerInventory = component != null ? component.Inventory : null;
             return _playerInventory;

@@ -26,11 +26,6 @@ namespace PFE.Entities.Enemies.Archetypes
     /// </summary>
     public static class FlyerSpawner
     {
-        /// <summary>
-        /// Distinct per spawn, so two children of one nest in the same tick cannot share an id.
-        /// </summary>
-        static int _serial;
-
         static bool _reportedNoController;
 
         /// <summary>
@@ -75,9 +70,10 @@ namespace PFE.Entities.Enemies.Archetypes
 
             var instance = new UnitInstance
             {
-                entityId = PFE.Core.Ids.EntityId
-                    .CreateForRoomSpawn(room.id, "emit:" + unitId, _serial++)
-                    .ToString(),
+                // Phase 3.2 (F-05): host-assigned, tick-stamped id from the one run allocator.
+                // The old static `_serial++` survived room rebuilds and replays, so the same
+                // replayed tick sequence produced a different id on the second run.
+                entityId = PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId().ToString(),
                 unitId = unitId,
                 unitType = unitId,
                 isDead = false,

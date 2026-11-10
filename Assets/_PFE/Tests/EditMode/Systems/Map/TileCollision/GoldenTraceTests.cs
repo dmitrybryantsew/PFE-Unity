@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 using PFE.Systems.Map;
@@ -20,6 +23,58 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
     [TestFixture]
     public class GoldenTraceTests
     {
+        /// <summary>
+        /// Phase 1.5 (F-02): leave a byte-comparable trace baseline on disk.
+        ///
+        /// <para>No fixture here pins an expected hash — the 39 <c>ComputeHash()</c> calls assert
+        /// <c>!= 0</c> or compare two runs of the same build — so "43/43 passed" proves only that the
+        /// behavioural invariants still hold, not that the AS3 arithmetic produces the same trajectory.
+        /// State-location changes specifically need the latter. Writing the ordered hash list makes a
+        /// diff of two EditMode runs the oracle: run once on the pre-edit sources, once on the
+        /// record-backed sources, and the files must be identical.</para>
+        /// </summary>
+        [OneTimeSetUp]
+        public void ResetTraceHashes()
+        {
+            TraceRecorder.ComputedHashes.Clear();
+            TraceRecorder.ComputedHashLabels.Clear();
+            TraceRecorder.CurrentLabel = string.Empty;
+        }
+
+        [SetUp]
+        public void LabelTraceHashes()
+        {
+            TraceRecorder.CurrentLabel = TestContext.CurrentContext.Test.Name;
+        }
+
+        [OneTimeTearDown]
+        public void DumpTraceHashes()
+        {
+            if (TraceRecorder.ComputedHashes.Count == 0) return; // offline run: all fixtures threw ECall
+
+            try
+            {
+                string logDir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs"));
+                Directory.CreateDirectory(logDir);
+
+                var lines = new List<string>();
+                for (int i = 0; i < TraceRecorder.ComputedHashes.Count; i++)
+                {
+                    string label = i < TraceRecorder.ComputedHashLabels.Count
+                        ? TraceRecorder.ComputedHashLabels[i]
+                        : "(unlabelled)";
+                    lines.Add(TraceRecorder.ComputedHashes[i].ToString("X16") + "\t" + label);
+                }
+
+                File.WriteAllLines(Path.Combine(logDir, "golden_trace_hashes.txt"), lines);
+            }
+            catch (Exception)
+            {
+                // A dump that cannot be written must never turn a green suite red. The absence of
+                // the file is the signal that no baseline was captured.
+            }
+        }
+
         // ──────────────────────────────────────────────────────────────────────────
         // 4.1 Ladders (L1–L7)
         // ──────────────────────────────────────────────────────────────────────────
