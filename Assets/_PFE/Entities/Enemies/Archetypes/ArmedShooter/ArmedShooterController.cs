@@ -212,14 +212,11 @@ namespace PFE.Entities.Enemies.Archetypes
         ///     <see cref="EnemyWeaponDropRules.ShouldUpgradeToHeroVariant"/>.</description></item>
         /// </list>
         ///
-        /// <para><b>The tier is recorded but not yet applied to the fired stats.</b> AS3's
-        /// <c>updVariant</c> re-runs <c>getXmlParam()</c>, so a <c>carbine^1</c> hits harder and holds
-        /// more. The port's weapon controllers read the base <see cref="WeaponDefinition"/>, and the
-        /// merge that would produce the tier-1 numbers
-        /// (<see cref="PFE.Systems.Weapons.WeaponVariantXml.MergeRuns"/>) has no runtime applier — the
-        /// same open gap that stops a player's picked-up unique from firing better. It is one gap, and
-        /// this field is the identity half of it: the drop, the pickup name and the trader price are
-        /// correct, the damage is not.</para>
+        /// <para><b>The tier is applied to the fired stats.</b> AS3's <c>updVariant</c> re-runs
+        /// <c>getXmlParam()</c>, so a <c>carbine^1</c> hits harder and holds more. This value is passed to
+        /// <see cref="EnemyController.EquipWeapon(string, int)"/>, which resolves the effective definition
+        /// through <c>WeaponVariantStats</c> before building the mount — so the drop, the pickup name, the
+        /// trader price <i>and</i> the damage are all the tier's own.</para>
         /// </summary>
         public int HeldWeaponVariant { get; private set; }
 
@@ -444,7 +441,11 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (!string.IsNullOrEmpty(EquippedWeaponId))
             {
-                EquipWeapon(EquippedWeaponId);
+                // The tier the placement's `weap='lmg^1'` asked for, or the one `setHero` stamped. Before
+                // this was passed, the tier was recorded, named, dropped and priced correctly while the
+                // gun still fired the base row's numbers — the identity half of the variant feature
+                // without the stat half.
+                EquipWeapon(EquippedWeaponId, HeldWeaponVariant);
             }
 
             EquipFamilySecondaries();

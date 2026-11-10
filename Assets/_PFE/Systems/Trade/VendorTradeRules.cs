@@ -43,6 +43,13 @@ namespace PFE.Systems.Trade
         /// <summary><c>Item.getPrice()</c>'s base — the row's <c>@price</c>.</summary>
         public int Price;
 
+        /// <summary>
+        /// <c>com[variant]@price</c> — the unique's own price, or <b>0</b> when its <c>&lt;com&gt;</c>
+        /// node authors none. This is the branch selector of <c>Item.getPrice</c>
+        /// (<c>Item.as:357-367</c>): present means "use it", absent means "3× the base".
+        /// </summary>
+        public float VariantPrice;
+
         /// <summary>The row's <c>@sell</c>; 0 means "this item cannot be sold".</summary>
         public int SellPrice;
 
@@ -287,8 +294,13 @@ namespace PFE.Systems.Trade
         /// <para><b>Except for weapons, where <c>&lt;com price&gt;</c> is the ONLY price.</b> No
         /// <c>&lt;weapon&gt;</c> row in AllData carries a root <c>@price</c> — measured: 0 of 213 — so
         /// the <c>com[0].@price</c> arm is not an override there, it is the whole answer. The vendor
-        /// source supplies it as <see cref="VendorItemFacts.Price"/>; the <c>variant &gt; 0</c> ×3 rule
-        /// remains a named gap.</para>
+        /// source supplies it as <see cref="VendorItemFacts.Price"/>.</para>
+        ///
+        /// <para><b>The variant branch is the oracle's, not "×3 for every unique".</b>
+        /// <c>Item.getPrice</c> re-reads <c>com[variant].@price</c> and only falls back to
+        /// <c>price *= 3</c> when that node has none (<c>Item.as:357-367</c>). 9 of the 71 variants
+        /// author their own price — <c>ice^1</c> is 1800, not 3× its 400 — so a flat ×3 charged the wrong
+        /// number for all nine.</para>
         /// </summary>
         public static int BuyUnitPrice(VendorStock row, VendorItemFacts item, float vendorMult,
             out float multiplier)
@@ -296,13 +308,19 @@ namespace PFE.Systems.Trade
             multiplier = BuyMultiplier(row, item, vendorMult);
 
             float basePrice = item.Price;
+
+            // `if(this.xml.com[1]) price = com[1].@price …; else price *= 3` — the unique's own price
+            // wins outright when it has one. Only weapons reach here: the rule lives inside
+            // `com.length() && com.@price`, and a weapon is the one table priced exclusively through
+            // `<com>`.
+            if (row.Variant > 0)
+            {
+                if (item.VariantPrice > 0f) basePrice = item.VariantPrice;
+                else if (row.Tip == "weapon") basePrice *= 3f;
+            }
+
             if (row.Sost > 0f && row.Sost != 1f) basePrice *= row.Sost;
             if (row.HasPmult) basePrice *= row.Pmult;
-
-            // Item.as:357-367 — a variant row with no second `<com>` costs THREE TIMES the base. Only
-            // weapons reach it in practice: the whole rule lives inside `com.length() && com.@price`
-            // (`:354`), and a weapon is the one table that prices exclusively through `<com>`.
-            if (row.Variant > 0 && row.Tip == "weapon") basePrice *= 3f;
 
             return (int)Math.Round(basePrice * multiplier);
         }

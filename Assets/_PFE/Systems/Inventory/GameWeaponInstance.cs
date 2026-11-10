@@ -216,7 +216,11 @@ namespace PFE.Systems.Inventory
             }
 
             weaponDefinition = weaponRow;
-            maxHealth = weaponRow.maxDurability;
+
+            // `char[variant].@maxhp` when the tier authors one — `Invent.as:1068-1075` computes
+            // `hp = round(char[variant].@maxhp * sost * multHP)` for a taken weapon, and 62 of the 71
+            // variants raise the durability. Tier 0 falls through to the row's own value.
+            maxHealth = WeaponVariantStats.MaxDurability(weaponRow, variantLevel);
             currentHealth = (health == float.MaxValue || health > maxHealth) ? maxHealth : health;
             currentAmmo = ammo;
             loadedAmmoType = weaponRow.ammoType ?? "";
@@ -257,25 +261,26 @@ namespace PFE.Systems.Inventory
         /// <c>take</c>. Keeping the guard here as well means a second caller cannot walk a weapon back
         /// down a tier.</para>
         ///
-        /// <para><b>Why the health is reset.</b> <c>updVariant</c> re-runs <c>getXmlParam()</c>, and that
-        /// method ends with <c>this.hp = this.maxhp</c> (<c>Weapon.as:579</c>) — so an upgrade in the
-        /// original game <i>also</i> repairs the weapon to full. That is a real consequence of picking a
-        /// unique up, not an invention here.</para>
+        /// <para><b>The health is recomputed from the new tier.</b> <c>updVariant</c> re-runs
+        /// <c>getXmlParam()</c>, and that method ends with <c>this.hp = this.maxhp</c>
+        /// (<c>Weapon.as:579</c>) — so an upgrade in the original game <i>also</i> repairs the weapon to
+        /// full. That is a real consequence of picking a unique up, not an invention here.</para>
         ///
-        /// <para><b>What is deliberately not done: the tier-1 stats.</b> The oracle's
-        /// <c>getXmlParam</c> re-reads <c>char[variant]</c> over the base run, so a
-        /// <c>carbine^1</c> fires at 13 damage instead of 11 and holds 40 rounds instead of 30. The
-        /// port's <see cref="maxHealth"/> stays the base tier's because the merge that produces those
-        /// numbers (<c>WeaponVariantXml.MergeRuns</c>) has no runtime applier yet — see
-        /// <c>docs/OnWeaponsSystemImplementation/15_UniqueWeaponVariants_PortResearch_2026-10-13.md</c>
-        /// §8.7. The tier is recorded, named and priced correctly; the stat delta is the remaining
-        /// half, and it is one gap for the player and the enemy alike.</para>
+        /// <para><b>The tier's own stats come from <see cref="WeaponVariantStats.Effective"/></b>, which
+        /// the equip path resolves from <see cref="Variant"/>; this instance only owns the identity and
+        /// the condition. The tier-1 numbers themselves are applied to a per-tier definition, so two
+        /// wielders of the same row cannot see each other's upgrade.</para>
         /// </summary>
         public void UpgradeVariant(int newVariant)
         {
             if (newVariant <= variant) return;
 
             variant = newVariant;
+
+            // `Invent.updWeapon` -> `updVariant` -> `getXmlParam`, which re-reads `char[variant].@maxhp`.
+            // 62 of the 71 variants raise it, so keeping the base figure would leave a 250 hp weapon
+            // capped at 150 for the rest of its life.
+            maxHealth = WeaponVariantStats.MaxDurability(weaponDefinition, newVariant);
             currentHealth = maxHealth;
         }
 

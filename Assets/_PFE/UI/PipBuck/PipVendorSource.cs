@@ -38,7 +38,9 @@ namespace PFE.UI.PipBuck
         float BarterMultiplier { get; }
 
         /// <summary>The item table row for an id, or <c>Exists = false</c>.</summary>
-        VendorItemFacts Item(string itemId);
+        /// <param name="variant">The shelf row's <c>^N</c> tier, 0 for a plain row — it selects the
+        /// variant's name and its own <c>com[variant]@price</c>.</param>
+        VendorItemFacts Item(string itemId, int variant = 0);
 
         /// <summary>How many of this id the player holds — the buy row's "you have".</summary>
         int PlayerStock(string itemId);
@@ -71,7 +73,12 @@ namespace PFE.UI.PipBuck
         // ── mutations ─────────────────────────────────────────────────────────
 
         /// <summary><c>inv.take(item, 1)</c> — land a purchased row in the bag.</summary>
-        bool AddPurchased(string itemId, int count);
+        /// <param name="variant">
+        /// The shelf row's <c>^N</c> tier — <c>VendorStock.Variant</c>. AS3's <c>Item</c> carries it and
+        /// <c>Invent.take</c> hands it to <c>addWeapon</c>, so buying the unique gives the unique. Dropping
+        /// it here bought a <c>ice^1</c> and delivered a plain <c>ice</c> — at the unique's price.
+        /// </param>
+        bool AddPurchased(string itemId, int count, int variant = 0);
 
         /// <summary><c>inv.items[key] -= bou</c> — remove a sold row from the bag.</summary>
         bool RemoveSold(string itemId, int count);
@@ -211,7 +218,7 @@ namespace PFE.UI.PipBuck
             }
         }
 
-        public VendorItemFacts Item(string itemId)
+        public VendorItemFacts Item(string itemId, int variant = 0)
         {
             var facts = new VendorItemFacts { Exists = false };
             if (string.IsNullOrEmpty(itemId)) return facts;
@@ -228,15 +235,18 @@ namespace PFE.UI.PipBuck
                 if (weapon == null) return facts;
 
                 facts.Exists = true;
-                // `Res.txt("w", id)` — the weapon table's name, via the same helper the inventory
-                // page's rows use. Variant 0: the shelf's `^N` rows are named by their base id here,
-                // and the row's `rid` still carries the variant for the purchase.
-                facts.Name = PipItemNames.Weapon(TextTable, weapon.weaponId, 0, weapon.displayName);
+                // `Res.txt("w", id)` with the shelf row's own `^N` — `Item.as:206-219` names a variant
+                // from `id^N` and falls back to `name + " - II"`. Passing 0 here labelled every unique
+                // as its base weapon, so a player could not tell which row they were buying.
+                facts.Name = PipItemNames.Weapon(TextTable, weapon.weaponId, variant, weapon.displayName);
                 facts.Tip = "weapon";
                 // `Item.getPrice()` (`Item.as:352-372`): a `<com>` row's `@price` wins over the root
                 // attribute, and a weapon has ONLY the `<com>` form. `sost`/`pmult`/`mp` are applied
                 // later by VendorTradeRules.BuyUnitPrice, exactly as `getPrice` chains them.
                 facts.Price = (int)Math.Round(weapon.comPrice);
+                // `com[variant].@price` when the unique authors one — 9 of the 71 do, and for those the
+                // oracle uses it instead of the ×3 fallback.
+                facts.VariantPrice = WeaponVariantStats.VariantPrice(weapon);
                 // Weapons are not in the sell list — `PipPageVend.as:237` iterates `inv.items` only —
                 // so a sell price here would be a number nothing reads.
                 facts.SellPrice = 0;
@@ -517,7 +527,7 @@ namespace PFE.UI.PipBuck
 
         // ── mutations ─────────────────────────────────────────────────────────
 
-        public bool AddPurchased(string itemId, int count)
+        public bool AddPurchased(string itemId, int count, int variant = 0)
         {
             GameInventory inventory = _inventory?.Invoke();
             if (inventory == null || count <= 0) return false;
@@ -554,7 +564,12 @@ namespace PFE.UI.PipBuck
             // A weapon id has no item row — the two tables are separate (Invent.as:1049+ routes
             // weapons through addWeapon). `AddWeapon` resolves the weapon table itself and reports
             // its own miss.
-            if (inventory.AddWeapon(itemId) != null) return true;
+            //
+            // The tier is handed over rather than applied here: `AddWeapon` owns the instance, and its
+            // constructor reads `char[variant].@maxhp` for the durability (Invent.as:1068-1075), so the
+            // shelf's `^N` reaches the bag intact.
+            if (inventory.AddWeapon(itemId, float.MaxValue, 0, WeaponRespect.Active, variant) != null)
+                return true;
 
             // Last resort: an armour id whose asset is missing from the ITEM registry but present in
             // the armour one. `AddArmor` resolves through `ArmorDefinitionResolver`, which is a

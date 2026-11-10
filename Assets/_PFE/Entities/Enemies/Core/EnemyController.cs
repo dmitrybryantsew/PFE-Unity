@@ -436,6 +436,19 @@ namespace PFE.Entities.Enemies
         /// runtime. The id is also what the oracle actually writes.</para>
         /// </summary>
         protected EnemyWeaponMount EquipWeapon(string weaponId)
+            => EquipWeapon(weaponId, 0);
+
+        /// <summary>
+        /// Equip a weapon at a specific variant tier — AS3 <c>Weapon.create</c> on a
+        /// <c>weap='lmg^1'</c> placement, or after <c>setHero</c>'s <c>updVariant(1)</c>.
+        ///
+        /// <para><b>Why the tier is a parameter and not read from the placement here.</b> This base class
+        /// sees only an id; the archetype that parsed the placement is the one that knows the tier
+        /// (<see cref="Archetypes.ArmedShooter.ArmedShooterController.HeldWeaponVariant"/>). Passing it in
+        /// keeps the two from disagreeing about which weapon was rolled, and a caller with no tier
+        /// (<c>alilight</c>, a turret's fixed gun) says 0 by simply not using this overload.</para>
+        /// </summary>
+        protected EnemyWeaponMount EquipWeapon(string weaponId, int variant)
         {
             if (string.IsNullOrEmpty(weaponId)) return null;
             if (_weaponMounts.TryGetValue(weaponId, out EnemyWeaponMount existing)) return existing;
@@ -447,6 +460,10 @@ namespace PFE.Entities.Enemies
                     "The enemy fights unarmed (no projectile, no flare, no report).");
                 return null;
             }
+
+            // The tier-1 numbers, or the row itself for tier 0. Same rule the player's loadout uses —
+            // one gap for both, and now one fix for both.
+            def = WeaponVariantStats.Effective(def, variant);
 
             // One child GameObject per weapon, because a unit may carry several at once — the tr3
             // alicorn holds `alilight` and `alipsy` and fires them independently — and

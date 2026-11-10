@@ -603,7 +603,7 @@ namespace PFE.UI.PipBuck.Pages
                 VendorStock stock = _vendor.Buys[i];
                 if (stock == null) continue;
 
-                VendorItemFacts item = _source.Item(stock.Id);
+                VendorItemFacts item = _source.Item(stock.Id, stock.Variant);
 
                 // The eleven guards, in the Oracle's order (PipPageVend.as:129-210). A row that fails
                 // is absent from the list — this is a build-time filter, not a click-time refusal.
@@ -1257,7 +1257,7 @@ namespace PFE.UI.PipBuck.Pages
                 VendorStock stock = _vendor.Buys[i];
                 if (stock == null || stock.Bou <= 0) continue;
 
-                if (!_source.AddPurchased(stock.Id, stock.Bou))
+                if (!_source.AddPurchased(stock.Id, stock.Bou, stock.Variant))
                 {
                     Debug.LogWarning($"[PipPageVendView] Paid for '{stock.Key}' x{stock.Bou} but the " +
                                      "row could not be added to the bag. The caps were already debited " +
