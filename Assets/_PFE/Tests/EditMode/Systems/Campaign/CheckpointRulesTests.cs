@@ -787,5 +787,154 @@ namespace PFE.Tests.EditMode.Systems.Campaign
             Assert.IsTrue(refusedSomething && acceptedSomething,
                 "the guard must both refuse and accept, or it is not a guard");
         }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // vischeckpoint's three child clips — assets.swf symbols 3006 / 2992 / 3002 / 3005
+        // ─────────────────────────────────────────────────────────────────────────────
+
+        [Test]
+        public void VisualConstants_MatchTheSourceSwf()
+        {
+            Assert.AreEqual(45, CheckpointVisualRules.BodyFrameCount, "cid 2992 frameCount");
+            Assert.AreEqual(26, CheckpointVisualRules.ReopenLabelFrame, "cid 2992 FrameLabel 'reopen'");
+            Assert.AreEqual(45, CheckpointVisualRules.OpenLabelFrame, "cid 2992 FrameLabel 'open'");
+            Assert.AreEqual(5, CheckpointVisualRules.LockFrameCount, "cid 3002 frameCount");
+            Assert.AreEqual(25, CheckpointVisualRules.GlowFrameCount, "cid 3005 frameCount");
+            Assert.AreEqual(1f / 24f, CheckpointVisualRules.FrameDuration, "SWF header frame rate");
+        }
+
+        [Test]
+        public void ResolveLockFrame_PlainCheckpointHasNoPadlock()
+        {
+            Assert.AreEqual(-1,
+                CheckpointVisualRules.ResolveLockFrame(CheckpointRules.PlainCheckpointId, false),
+                "AS3 CheckPoint.as:70-73 hides vis.lock for the ten-character id; the flattened " +
+                "composite currently bakes frame 1 of the lock in, which is the reported defect.");
+        }
+
+        [Test]
+        public void ResolveLockFrame_EveryVariantMapsToItsOwnFrame()
+        {
+            for (int variant = 1; variant <= CheckpointRules.LockedVariantCount; variant++)
+            {
+                Assert.AreEqual(variant - 1,
+                    CheckpointVisualRules.ResolveLockFrame(
+                        CheckpointRules.PlainCheckpointId + variant.ToString(
+                            System.Globalization.CultureInfo.InvariantCulture), false),
+                    "checkpoint" + variant + " -> vis.lock.gotoAndStop(" + variant + ")");
+            }
+        }
+
+        [Test]
+        public void ResolveLockFrame_IsNotAConstant()
+        {
+            int plain = CheckpointVisualRules.ResolveLockFrame("checkpoint", false);
+            int first = CheckpointVisualRules.ResolveLockFrame("checkpoint1", false);
+            int last = CheckpointVisualRules.ResolveLockFrame("checkpoint5", false);
+
+            Assert.AreNotEqual(plain, first, "plain and checkpoint1 must differ");
+            Assert.AreNotEqual(first, last, "checkpoint1 and checkpoint5 must differ");
+            Assert.AreNotEqual(plain, last, "plain and checkpoint5 must differ");
+        }
+
+        [Test]
+        public void ResolveLockFrame_PickedLockHidesTheGraphic()
+        {
+            // CheckPoint.as:312-316 — step() clears `locked` when inter.lock == 0 && inter.mine == 0.
+            for (int variant = 1; variant <= CheckpointRules.LockedVariantCount; variant++)
+            {
+                Assert.AreEqual(-1,
+                    CheckpointVisualRules.ResolveLockFrame("checkpoint" + variant, true),
+                    "a picked lock must hide vis.lock even though the id still names a variant");
+            }
+        }
+
+        [Test]
+        public void ResolveLockFrame_OutOfRangeDigitsAreNotPadlocks()
+        {
+            Assert.AreEqual(-1, CheckpointVisualRules.ResolveLockFrame("checkpoint6", false));
+            Assert.AreEqual(-1, CheckpointVisualRules.ResolveLockFrame("checkpoint9", false));
+            Assert.AreEqual(-1, CheckpointVisualRules.ResolveLockFrame("checkpointX", false));
+            Assert.AreEqual(-1, CheckpointVisualRules.ResolveLockFrame(null, false));
+        }
+
+        [Test]
+        public void ResolveBodyStartFrame_DistinguishesAllFourStates()
+        {
+            Assert.AreEqual(CheckpointVisualRules.ClosedBodyFrame,
+                CheckpointVisualRules.ResolveBodyStartFrame(CheckpointRules.Fresh, false));
+            Assert.AreEqual(CheckpointVisualRules.ReopenBodyFrame,
+                CheckpointVisualRules.ResolveBodyStartFrame(CheckpointRules.Reopenable, false),
+                "deactivate() seeked vis.osn to 'reopen' (frame 26)");
+            Assert.AreEqual(CheckpointVisualRules.OpenBodyFrame,
+                CheckpointVisualRules.ResolveBodyStartFrame(CheckpointRules.Activated, false));
+            Assert.AreEqual(CheckpointVisualRules.OpenBodyFrame,
+                CheckpointVisualRules.ResolveBodyStartFrame(CheckpointRules.Fresh, true),
+                "a main checkpoint is never activated but is forced active == 2 by Construct");
+            Assert.AreEqual(25, CheckpointVisualRules.ReopenBodyFrame);
+            Assert.AreEqual(44, CheckpointVisualRules.OpenBodyFrame);
+        }
+
+        [Test]
+        public void GlowPlays_OnlyForAnUnusedReturnOffer()
+        {
+            Assert.IsTrue(CheckpointVisualRules.GlowPlays(offersTeleport: true, used: false));
+            Assert.IsFalse(CheckpointVisualRules.GlowPlays(offersTeleport: false, used: false));
+            Assert.IsFalse(CheckpointVisualRules.GlowPlays(offersTeleport: true, used: true));
+            Assert.AreEqual(0, CheckpointVisualRules.GlowHiddenFrame, "fiol frame 1 is transparent");
+            Assert.AreEqual(24, CheckpointVisualRules.GlowFullFrame);
+        }
+
+        [Test]
+        public void ArtBottomInsetPixels_MeasuresTheExportedComposite()
+        {
+            // vischeckpoint/1.png is 130x229 with opaque pixels in y=69..188 (bbox lower = 189).
+            Assert.AreEqual(40, CheckpointVisualRules.ArtBottomInsetPixels(229, 189));
+            Assert.AreEqual(0, CheckpointVisualRules.ArtBottomInsetPixels(229, 229));
+            Assert.AreEqual(0, CheckpointVisualRules.ArtBottomInsetPixels(229, 300),
+                "an art box past the frame is malformed data, not a negative offset");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Fresh activation's restore bonus — CheckPoint.as:191-203
+        // ─────────────────────────────────────────────────────────────────────────────
+
+        [Test]
+        public void ResolveRestoreBonus_UnauthoredLandUsesTheOracleDefault()
+        {
+            CheckpointRestoreBonus bonus = CheckpointRules.ResolveRestoreBonus(0);
+
+            Assert.AreEqual(50f, bonus.manaHeal, "Pers.as:149 manaCPres");
+            Assert.AreEqual(300, bonus.xp, "Location.as:243 unXp=100, CheckPoint.as:202 * 3");
+            Assert.AreEqual(6, CheckpointRules.ManaOrganIndex, "pers.heal(50, 6)");
+        }
+
+        [Test]
+        public void ResolveRestoreBonus_UsesTheLandsAuthoredXp()
+        {
+            Assert.AreEqual(300, CheckpointRules.ResolveRestoreBonus(100).xp);
+            Assert.AreEqual(600, CheckpointRules.ResolveRestoreBonus(200).xp);
+            Assert.AreEqual(1500, CheckpointRules.ResolveRestoreBonus(500).xp);
+        }
+
+        [Test]
+        public void ResolveRestoreBonus_IsNotAConstant()
+        {
+            Assert.AreNotEqual(CheckpointRules.ResolveRestoreBonus(0).xp,
+                CheckpointRules.ResolveRestoreBonus(500).xp,
+                "unXp must be read off the land, not fixed at the default");
+        }
+
+        [Test]
+        public void ResolveRestoreBonus_TheTwoGatesAreIndependent()
+        {
+            CheckpointRestoreBonus noMana = CheckpointRules.ResolveRestoreBonus(0, false, true);
+            CheckpointRestoreBonus noXp = CheckpointRules.ResolveRestoreBonus(0, true, false);
+
+            Assert.AreEqual(0f, noMana.manaHeal);
+            Assert.AreEqual(300, noMana.xp, "turning manaCPres off must not cancel xpCPadd");
+            Assert.AreEqual(50f, noXp.manaHeal, "turning xpCPadd off must not cancel manaCPres");
+            Assert.AreEqual(0, noXp.xp);
+        }
     }
 }

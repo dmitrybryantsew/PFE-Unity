@@ -646,5 +646,193 @@ namespace PFE.Sim.Campaign
 
             return new CheckpointRoom { x = roomX, y = roomY, z = roomZ };
         }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Fresh activation's restore bonus — AS3 CheckPoint.as:191-203
+        // ─────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>AS3 <c>LandAct.xp</c> (<c>LandAct.as:58</c>) and <c>Location.unXp</c>
+        /// (<c>Location.as:243</c>), both 100. <c>LandAct</c>'s constructor only overwrites it when
+        /// <c>&lt;options xp='…'&gt;</c> is actually present (<c>LandAct.as:182-188</c>), so a land with
+        /// no <c>xp</c> attribute keeps 100 — it does not become 0.</summary>
+        public const int DefaultUnitXp = 100;
+
+        /// <summary>AS3 <c>Pers.manaCPres</c> (<c>Pers.as:149</c>) — the amount <c>activate()</c> heals
+        /// with <c>pers.heal(manaCPres, 6)</c>. No writer exists anywhere in the oracle source, so 50 is
+        /// both the initialiser and the effective value.</summary>
+        public const float ManaCpRestore = 50f;
+
+        /// <summary>AS3's organ index for mana (<c>Pers.heal(val, 6)</c>, mirrored by
+        /// <c>CharacterStats.HealOrgan(amount, 6)</c>).</summary>
+        public const int ManaOrganIndex = 6;
+
+        /// <summary>AS3 <c>loc.unXp * 3</c> (<c>CheckPoint.as:202</c>).</summary>
+        public const int CheckpointXpMultiplier = 3;
+
+        /// <summary>
+        /// AS3 <c>CheckPoint.activate</c>'s <c>if(active == 0 &amp;&amp; param1 == false)</c> block
+        /// (<c>CheckPoint.as:191-203</c>): heal the mana organ and grant three land-unit XP.
+        ///
+        /// <para><b>Why <paramref name="landXpReward"/> at all.</b> The oracle's amount is
+        /// <c>loc.unXp * 3</c>, and <c>Location.unXp</c> is set from <c>land.act.xp</c>
+        /// (<c>Land.as:958</c>). The port stores exactly that attribute as
+        /// <c>LandDefinition.xpReward</c> (<c>CampaignDataParser</c> reads <c>options/@xp</c>), so it is
+        /// the port's <c>unXp</c> — there is no separate "unit XP" field to invent.</para>
+        ///
+        /// <para><b>Zero means "unauthored", not "no XP".</b> <c>CampaignDataParser</c> uses
+        /// <c>ParseInt(..., 0)</c> when the attribute is missing, while AS3's <c>LandAct</c> keeps its
+        /// 100 initialiser. Every <c>xp</c> attribute in <c>GameData.as</c> is positive (100..100000;
+        /// zero occurrences of <c>xp='0'</c>), so 0 can only be the missing-attribute case and maps back
+        /// to <see cref="DefaultUnitXp"/>. Treating 0 literally would make the 17 lands that author no
+        /// <c>xp</c> grant nothing, which is the opposite of the oracle.</para>
+        ///
+        /// <para><b>The two gates.</b> AS3 tests <c>if(World.w.pers.manaCPres)</c> and
+        /// <c>if(World.w.pers.xpCPadd)</c> (<c>Pers.as:149</c> = 50, <c>Pers.as:53</c> = 300); both are
+        /// constants with no writer in the whole oracle tree, so both are always on. They are parameters
+        /// rather than hardcoded truths so a future perk system can turn them off without editing this
+        /// rule. Note <c>xpCPadd</c> is a <i>gate</i>, not the XP amount — the amount is
+        /// <c>unXp * 3</c>.</para>
+        /// </summary>
+        public static CheckpointRestoreBonus ResolveRestoreBonus(
+            int landXpReward, bool manaRestoreEnabled = true, bool xpBonusEnabled = true)
+        {
+            int unitXp = landXpReward > 0 ? landXpReward : DefaultUnitXp;
+            return new CheckpointRestoreBonus
+            {
+                manaHeal = manaRestoreEnabled ? ManaCpRestore : 0f,
+                xp = xpBonusEnabled ? unitXp * CheckpointXpMultiplier : 0,
+            };
+        }
+    }
+
+    /// <summary>What one fresh checkpoint activation pays the player. Zero fields mean "this half is
+    /// disabled", not "the activation was refused" — the refusal is <c>CheckpointActivation.refused</c>
+    /// and lives on a different answer.</summary>
+    public struct CheckpointRestoreBonus
+    {
+        /// <summary>AS3 <c>pers.heal(pers.manaCPres, 6)</c> — the amount, not the organ.</summary>
+        public float manaHeal;
+
+        /// <summary>AS3 <c>pers.expa(loc.unXp * 3)</c>.</summary>
+        public int xp;
+    }
+
+    /// <summary>
+    /// The visual half of <c>vischeckpoint</c> that a single flattened PNG cannot express.
+    ///
+    /// <para><b>Measured from <c>assets.swf</c>, not inferred.</b> Symbol 3006
+    /// (<c>vischeckpoint</c>) has <c>frameCount=1</c> and no <c>DoAction</c>; all of its motion lives in
+    /// three named child MovieClips declared by <c>vischeckpoint.as</c>. Parsing the symbol's control
+    /// tags gives: <c>osn</c> = cid 2992 at (0,-60), <c>lock</c> = cid 3002 at (0,-59),
+    /// <c>fiol</c> = cid 3005 at (0,-73.95). Descending those sprites gives 45 / 5 / 25 frames, and
+    /// the only two FrameLabels in 2992 are <c>reopen</c>@26 and <c>open</c>@45.</para>
+    ///
+    /// <para><b>Why this is a rule and not a constant in the presenter.</b> The port's
+    /// <c>MapObjectVisualDefinition</c> has no sub-clip concept, so the three clips are stored as three
+    /// sprite arrays on the one visual asset. Which array index means what is a fact about the SWF, and
+    /// a wrong index is exactly the kind of defect an offline fixture catches and a screenshot review
+    /// does not (a frame that is merely "some other open pose" still looks plausible).</para>
+    /// </summary>
+    public static class CheckpointVisualRules
+    {
+        /// <summary><c>vis.osn</c> (cid 2992) frame count.</summary>
+        public const int BodyFrameCount = 45;
+
+        /// <summary><c>vis.osn</c> FrameLabel <c>reopen</c>, 1-based Flash frame number.</summary>
+        public const int ReopenLabelFrame = 26;
+
+        /// <summary><c>vis.osn</c> FrameLabel <c>open</c>, 1-based Flash frame number.</summary>
+        public const int OpenLabelFrame = 45;
+
+        /// <summary><c>vis.lock</c> (cid 3002) frame count — also
+        /// <c>CheckpointRules.LockedVariantCount</c>.</summary>
+        public const int LockFrameCount = 5;
+
+        /// <summary><c>vis.fiol</c> (cid 3005) frame count.</summary>
+        public const int GlowFrameCount = 25;
+
+        /// <summary>
+        /// Seconds per frame. The map-object SWF declares 24 fps; shared with
+        /// <c>DoorPropPresenter.FrameDuration</c> so the checkpoint and the doors cannot disagree.
+        /// </summary>
+        public const float FrameDuration = 1f / 24f;
+
+        /// <summary>0-based index of the closed body (<c>vis.osn.gotoAndStop(1)</c> in the constructor).</summary>
+        public const int ClosedBodyFrame = 0;
+
+        /// <summary>0-based index of Flash frame 26 — <c>deactivate()</c>'s <c>gotoAndStop("reopen")</c>
+        /// pose, used as the start of a second activation's <c>play()</c>.</summary>
+        public const int ReopenBodyFrame = ReopenLabelFrame - 1;
+
+        /// <summary>0-based index of Flash frame 45 — <c>gotoAndStop("open")</c>.</summary>
+        public const int OpenBodyFrame = OpenLabelFrame - 1;
+
+        /// <summary><c>vis.fiol</c> frame 1 is fully transparent (measured alpha bbox = empty).</summary>
+        public const int GlowHiddenFrame = 0;
+
+        /// <summary>0-based index of Flash frame 25 — <c>gotoAndStop(25)</c>, the full glow.</summary>
+        public const int GlowFullFrame = GlowFrameCount - 1;
+
+        /// <summary>
+        /// Which <c>vis.lock</c> frame an object draws, or <b>-1 for no padlock at all</b>.
+        ///
+        /// <para>AS3's constructor (<c>CheckPoint.as:62-76</c>) does
+        /// <c>vis.lock.gotoAndStop(int(id.charAt(10)))</c> for a numbered id and
+        /// <c>vis.lock.visible = false</c> for the plain ten-character <c>checkpoint</c>. The flattened
+        /// PNG the port imported is Flash frame 1 <i>with the lock child visible</i>, which is why every
+        /// plain checkpoint looked locked or mined.</para>
+        ///
+        /// <para><paramref name="lockCleared"/> is <c>step()</c>'s tail
+        /// (<c>CheckPoint.as:312-316</c>): once the lock or mine is picked, <c>vis.lock.visible = false</c>
+        /// regardless of the id. The caller owns the definition read for that.</para>
+        /// </summary>
+        public static int ResolveLockFrame(string objectId, bool lockCleared)
+        {
+            if (lockCleared) return -1;
+
+            int variant = CheckpointRules.LockVariantNumber(objectId);
+            return variant == 0 ? -1 : variant - 1;
+        }
+
+        /// <summary>
+        /// Where <c>vis.osn.play()</c> starts for a given <c>active</c> state. AS3's clip always plays
+        /// to frame 45; a fresh checkpoint plays the whole thing, a <c>deactivate()</c>'d one has already
+        /// been seeked to <c>"reopen"</c> (frame 26), and an activated/main one sits at <c>"open"</c>.
+        /// </summary>
+        public static int ResolveBodyStartFrame(int active, bool main)
+        {
+            if (main || active == CheckpointRules.Activated) return OpenBodyFrame;
+            if (active == CheckpointRules.Reopenable) return ReopenBodyFrame;
+            return ClosedBodyFrame;
+        }
+
+        /// <summary>
+        /// AS3 <c>CheckPoint.as:218-230</c> — the violet glow only plays when a return is armed:
+        /// <c>World.w.game.mReturn &amp;&amp; this.teleOn &amp;&amp; !this.used</c>. This is the same
+        /// expression as <c>CheckpointRules.ActionAfterActivate</c>; it is restated here (rather than
+        /// derived from <c>active</c>) because the visual decision is made by the presenter from the
+        /// activation result, which carries <c>offersTeleport</c> from that one rule.</summary>
+        public static bool GlowPlays(bool offersTeleport, bool used)
+        {
+            return offersTeleport && !used;
+        }
+
+        /// <summary>
+        /// Pixels between the bottom of an exported frame and the bottom of its drawn art.
+        ///
+        /// <para><b>The floating checkpoint.</b> <c>vischeckpoint</c> exports as 130x229 with opaque
+        /// pixels only in y=69..188, so there are 40 transparent pixels below the machine. The generic
+        /// placement path bottom-aligns the <i>frame</i> on the AS3 anchor, which lifts the art 40 px
+        /// (0.4 world units) off the floor — exactly the gap in the reported screenshot. AS3 places the
+        /// MovieClip at its registration point, not the padded export canvas.</para>
+        /// </summary>
+        /// <param name="frameHeight">Full PNG height in pixels.</param>
+        /// <param name="artBottomExclusive">Bottom of the opaque bounding box, exclusive (PIL
+        /// <c>getbbox()</c> convention), in top-left-origin pixels.</param>
+        public static int ArtBottomInsetPixels(int frameHeight, int artBottomExclusive)
+        {
+            int inset = frameHeight - artBottomExclusive;
+            return inset > 0 ? inset : 0;
+        }
     }
 }

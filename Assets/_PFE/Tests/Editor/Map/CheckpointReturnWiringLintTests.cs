@@ -163,5 +163,57 @@ namespace PFE.Tests.Editor.Map
                     "return, which is why this is asserted rather than left to the land rebuild.");
             }
         }
+
+        /// <summary>
+        /// The fresh-activation payout (<c>CheckPoint.as:191-201</c>) is a chain with a producer in
+        /// <c>CampaignManager</c> and a consumer in <c>GameLifetimeScope</c>. The consumer is a
+        /// <c>LifetimeScope</c> build callback — a <c>MonoBehaviour</c> that cannot be constructed in
+        /// this harness — so a lint is the only guard that can actually fail here. The behavioural
+        /// fixture (<c>CampaignManagerCheckpointReturnTests</c>) proves the RULE is invoked at the
+        /// right moment; it cannot prove the XP and mana ever reach a player.
+        ///
+        /// <para><b>Each link is named because "read and ignored" is the recurring failure shape.</b>
+        /// An applier that is computed but never assigned, assigned but healing nothing, or healing
+        /// the wrong organ all leave the player with no visible bonus while every other test stays
+        /// green.</para>
+        /// </summary>
+        [Test]
+        public void CheckpointRestoreBonus_IsProducedOnFreshActivation_AndDeliveredToThePlayer()
+        {
+            const string scopePath = "Core/Installers/GameLifetimeScope.cs";
+            string campaign = SourceLint.ReadStripped(CampaignPath);
+            string scope = SourceLint.ReadStripped(scopePath);
+
+            // ── Producer: called from a SUCCESSFUL fresh activation only. ───────────────────────
+            string activate = SourceLint.MethodBody(campaign, "public bool ActivateCheckpoint(");
+            Assert.That(activate, Does.Contain("result.grantsRestoreBonus"),
+                "ActivateCheckpoint no longer gates the payout on grantsRestoreBonus. A repeated " +
+                "activation, a main checkpoint or a load-time activate(true) would all pay again.");
+            Assert.That(activate, Does.Contain("ApplyCheckpointRestoreBonus("),
+                "ActivateCheckpoint computes grantsRestoreBonus but never hands it to the resolver — " +
+                "the rule would be dead code, which throws nothing and changes nothing.");
+
+            string resolver = SourceLint.MethodBody(campaign, "private void ApplyCheckpointRestoreBonus(");
+            Assert.That(resolver, Does.Contain("CheckpointRules.ResolveRestoreBonus("),
+                "The amounts no longer come from the oracle-literal rule. xpCPadd is a GATE, not an " +
+                "amount: the amount is the land's xp * 3.");
+
+            // ── Consumer: the DI applier must exist and deliver BOTH halves. ────────────────────
+            Assert.That(scope, Does.Contain("campaign.CheckpointRestoreBonusApplier ="),
+                "GameLifetimeScope no longer registers a restore-bonus applier. CampaignManager " +
+                "would log a warning and drop the payout on every checkpoint in the game.");
+            Assert.That(scope, Does.Contain("stats.HealOrgan("),
+                "The applier no longer heals. AS3's heal(pers.manaCPres, 6) is half the payout.");
+            Assert.That(scope, Does.Contain("stats.AddXp("),
+                "The applier no longer grants XP. AS3's expa(loc.unXp * 3) is the other half.");
+            Assert.That(scope, Does.Contain("PFE.Sim.Campaign.CheckpointRules.ManaOrganIndex"),
+                "The organ index stopped coming from the oracle-literal constant. Pers.heal(amount, 6) " +
+                "restores MANA; organ 4 would silently heal physical HP instead.");
+
+            // AS3 order: heal at :195, expa at :200. A swapped order is invisible to either call
+            // on its own, so it is asserted on the source directly.
+            Assert.Less(scope.IndexOf("stats.HealOrgan("), scope.IndexOf("stats.AddXp("),
+                "CheckPoint.as:191-201 heals mana BEFORE granting xp.");
+        }
     }
 }

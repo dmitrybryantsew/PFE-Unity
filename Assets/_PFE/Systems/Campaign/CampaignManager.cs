@@ -1031,6 +1031,26 @@ namespace PFE.Systems.Campaign
         }
 
         /// <summary>
+        /// Delivery seam for AS3 <c>CheckPoint.activate()</c>'s fresh-activation payout
+        /// (<c>CheckPoint.as:191-201</c>): <c>heal(pers.manaCPres, 6)</c> then
+        /// <c>expa(loc.unXp * 3)</c>.
+        ///
+        /// <para><b>Why an applier and not a <c>CharacterStats</c> field.</b> The player is a scene
+        /// object rebuilt on respawn and room change; every other status seam on this class is a lazy
+        /// <see cref="Func{TResult}"/> for exactly that reason, and <c>QuestRewardHost</c> takes a
+        /// <c>Func&lt;CharacterStats&gt;</c> rather than the component itself. Keeping the lookup in the
+        /// DI layer also leaves this class constructible in the offline wall, where there is no player.
+        /// <see cref="CheckpointRules"/> decides WHEN and HOW MUCH; the applier only delivers.</para>
+        ///
+        /// <para><b>Null is a headless host, and is reported once, not silently dropped.</b> A missing
+        /// seam throws nothing and changes nothing — the same failure shape the vendor providers above
+        /// already guard against.</para>
+        /// </summary>
+        public Action<CheckpointRestoreBonus> CheckpointRestoreBonusApplier { get; set; }
+
+        private bool _reportedMissingRestoreBonusApplier;
+
+        /// <summary>
         /// AS3 <c>CheckPoint.activate()</c> (<c>CheckPoint.as:184-248</c>) minus the visuals and the
         /// interact bookkeeping, which belong to the presenter.
         ///
@@ -1039,11 +1059,14 @@ namespace PFE.Systems.Campaign
         /// caller has confirmed the activation actually ran, and so this class stays free of a
         /// <c>SaveManager</c> reference.</para>
         ///
-        /// <para><b>Not yet wired (reported, not silent):</b> the <c>grantsRestoreBonus</c> half heals
-        /// <c>pers.manaCPres</c> and grants <c>pers.xpCPadd * 3</c> (<c>CheckPoint.as:191-201</c>); the port
-        /// has no checkpoint-restore seam into the player's stats yet, so the decision is computed and
-        /// returned by <see cref="CheckpointRules"/> but not applied here.</para>
-        /// </summary>
+        /// <para><b>The fresh-activation payout IS here.</b> AS3's
+        /// <c>if(active == 0 &amp;&amp; !param1)</c> branch calls <c>pers.heal(manaCPres, 6)</c> and
+        /// <c>pers.expa(loc.unXp * 3)</c>. <c>xpCPadd</c> and <c>manaCPres</c> are truthiness GATES,
+        /// not amounts — the XP amount is the land's authored <c>options/@xp</c>
+        /// (<c>LandAct.as:187</c>, copied to <c>loc.unXp</c> at <c>Land.as:958</c>) times three.
+        /// <see cref="CheckpointRules"/> encodes that decision and
+        /// <see cref="CheckpointRestoreBonusApplier"/> delivers it.</para>
+        ///
         /// <para><b>Two entry points, and they are not the same guard.</b> AS3 reaches this by
         /// <c>activate()</c> (the interaction button) or by <c>areaActivate()</c> (walking into the
         /// checkpoint's own area, <c>CheckPoint.as:269-275</c>), and the second one first requires
@@ -1115,6 +1138,15 @@ namespace PFE.Systems.Campaign
                 return false;
             }
 
+            // AS3 pays out BEFORE it writes `active = 2` / `currentCP` (:191-201 precede :204), and
+            // only for a FRESH activation: `grantsRestoreBonus` is the rule's
+            // `active == 0 && !param1`. A repeated activation, a `main` checkpoint (normalised to
+            // active 2 by Construct) and a load-time `activate(true)` therefore all pay nothing.
+            if (result.grantsRestoreBonus)
+            {
+                ApplyCheckpointRestoreBonus(resolved);
+            }
+
             CurrentCheckpoint = new CheckpointRecord
             {
                 landId = resolved,
@@ -1136,10 +1168,46 @@ namespace PFE.Systems.Campaign
 
             Debug.Log($"[CampaignManager] checkpoint activated in '{resolved}' at ({room.x},{room.y})" +
                       (result.writesCode ? $", code '{code}'" : ", no code") +
-                      (result.offersTeleport ? ", teleport offered" : string.Empty) + ".");
+                      (result.offersTeleport ? ", teleport offered" : string.Empty) +
+                      (result.grantsRestoreBonus ? ", restore bonus paid" : string.Empty) + ".");
 
             _events?.PublishCheckpointActivated(resolved, room.x, room.y, room.z, code);
             return true;
+        }
+
+        /// <summary>
+        /// Resolve and deliver AS3's fresh-activation payout. Kept out of <see cref="ActivateCheckpoint"/>
+        /// so the state write stays readable and the amounts have one owner in
+        /// <see cref="CheckpointRules.ResolveRestoreBonus"/>.
+        ///
+        /// <para><b>The 0 is an UNAUTHORED xp, not a zero-xp land.</b> AS3 leaves
+        /// <c>LandAct.xp</c> at its field initialiser 100 when <c>options/@xp</c> is absent
+        /// (<c>LandAct.as:58,187</c>), while <c>CampaignDataParser</c> writes 0 for the same missing
+        /// attribute. Most imported lands read 0 for exactly that reason.
+        /// <see cref="CheckpointRules.ResolveRestoreBonus"/> maps 0 back to the oracle's 100. A land
+        /// that genuinely authored <c>xp="0"</c> is indistinguishable from an unauthored one here —
+        /// recorded rather than papered over; the port's integer field carries no "was authored" bit.</para>
+        /// </summary>
+        private void ApplyCheckpointRestoreBonus(string landId)
+        {
+            LandDefinition land = Catalog?.GetLand(landId);
+            int landXp = land != null ? land.xpReward : 0;
+            CheckpointRestoreBonus bonus = CheckpointRules.ResolveRestoreBonus(landXp);
+
+            Action<CheckpointRestoreBonus> applier = CheckpointRestoreBonusApplier;
+            if (applier == null)
+            {
+                if (!_reportedMissingRestoreBonusApplier)
+                {
+                    _reportedMissingRestoreBonusApplier = true;
+                    Debug.LogWarning($"[CampaignManager] fresh checkpoint owes {bonus.xp} xp and " +
+                                     $"{bonus.manaHeal} mana, but no CheckpointRestoreBonusApplier is " +
+                                     "registered; the payout was dropped.");
+                }
+                return;
+            }
+
+            applier(bonus);
         }
 
         /// <summary>

@@ -64,6 +64,14 @@ namespace PFE.Systems.Map.Rendering
         private SpriteRenderer _debugSpriteRenderer;
         private CheckpointAreaTrigger _checkpointArea;
 
+        // AS3's `vischeckpoint` is one MovieClip with three named children
+        // (`vischeckpoint.as`: osn / lock / fiol), at display-list depths 1 / 13 / 15. The port's
+        // regenerated visual asset carries them as three sprite arrays on ONE shared 130x229
+        // FullRect canvas, so two child renderers at localPosition zero reproduce that display
+        // list. See CheckpointVisualRules for the measured frame counts and label positions.
+        private SpriteRenderer _checkpointLockRenderer;
+        private SpriteRenderer _checkpointGlowRenderer;
+
         /// <summary>
         /// The door's <b>solid</b> collider — the thing a weapon actually hits.
         ///
@@ -101,6 +109,15 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>Whether <see cref="_doorHitPoints"/> has been resolved from the definition yet.</summary>
         private bool _durabilityResolved;
+
+        /// <summary>Whether the two bullet-proxy attributes have been read yet.</summary>
+        private bool _bulletProxyResolved;
+
+        /// <summary>AS3 <c>Box.un</c> exists — the definition authors <c>actdam</c>.</summary>
+        private bool _hasBulletDamageProxy;
+
+        /// <summary>AS3 <c>VirtualUnit.nTipDam</c> — the placement's <c>tipdam</c>, or -1 for "any".</summary>
+        private int _requiredTipDamage;
 
         public static bool ShowDebugVisuals
         {
@@ -240,7 +257,48 @@ namespace PFE.Systems.Map.Rendering
                     // AS3 setAct("open", n) → setDoor(): restamp the tiles the object covers.
                     StampDoorTiles = (room, obj, isOpen) =>
                         PFE.Systems.Map.Scripting.AreaTriggerSystem.UpdateDoorTileCollision(room, obj, isOpen),
+
+                    // AS3 `loc.prob.check()` — reached from `setAct("open")` (Interact.as:880) and from
+                    // the `dam` verb's one-shot arm (:1753). This dispatcher had no binder for it, and
+                    // it is the one that runs a button's press, so a `buttons4` button lit its lamp and
+                    // the prob room never noticed. Shared with AreaTriggerSystem rather than copied:
+                    // the body is the same query against the same scene singleton.
+                    CheckProbRoom = PFE.Systems.Map.Scripting.AreaTriggerSystem.CheckProbRoomFor,
+
+                    // The `scrAct.start()` tail of actOsn (:1323-1325). Resolved through the live
+                    // presenter because the runner is per-room state this static composition cannot
+                    // hold — see RunInlineScriptFor.
+                    RunInlineScript = RunInlineScriptFor,
                 });
+        }
+
+        /// <summary>
+        /// The scene dispatcher's binder for <see cref="ObjectVerbHost.RunInlineScript"/> — finds the
+        /// live presenter for an object and runs that room's inline script through its trigger system.
+        ///
+        /// <para><b>A lookup rather than a captured delegate, because the two lifetimes differ.</b> The
+        /// dispatcher is composed once per scene and serves every room; the script runner is rebuilt
+        /// with each room, and only the presenter knows both the instance and the live
+        /// <c>AreaTriggerSystem</c>. <see cref="_activePresenters"/> is the registry the debug overlay
+        /// already maintains, so this adds no new bookkeeping and cannot outlive a room.</para>
+        ///
+        /// <para><b>No presenter means no script, not a throw.</b> An object can be asked to run its
+        /// script after its room was torn down (a queued broadcast, a destroyed presenter); the oracle
+        /// would run it against a detached box and change nothing visible, and a silent no-op is the
+        /// closest honest equivalent.</para>
+        /// </summary>
+        public static void RunInlineScriptFor(RoomInstance room, ObjectInstance obj)
+        {
+            if (obj == null) return;
+
+            for (int i = 0; i < _activePresenters.Count; i++)
+            {
+                DoorPropPresenter presenter = _activePresenters[i];
+                if (presenter == null || presenter._objectInstance != obj) continue;
+
+                presenter._triggerSystem?.OnObjectInteracted(room ?? presenter._room, obj);
+                return;
+            }
         }
 
         /// <summary>
@@ -330,6 +388,25 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>Index of the running <c>comein</c> clip, or -1 when it is not playing.</summary>
         private int _comeInFrameIndex = -1;
+
+        // ── Checkpoint child-clip playback (AS3 CheckPoint.as:61-76, :214-233, :285-286) ─────
+        //
+        // `vis.osn` is the body and uses the presenter's OWN renderer, so its frame is
+        // `_currentFrameIndex` / `_visual.frames`. `vis.lock` and `vis.fiol` are the two children
+        // above. Unlike a door (whose frames are all `gotoAndStop` seeks), a fresh checkpoint
+        // `play()`s both clips once at 24 fps and leaves them on their last frame.
+        private int _checkpointLockFrame = -1;   // -1 = AS3 `vis.lock.visible = false`
+        private int _checkpointGlowFrame;        // 0 = AS3 `vis.fiol.gotoAndStop(1)`, transparent
+        private bool _checkpointBodyPlaying;
+        private bool _checkpointGlowPlaying;
+        private float _checkpointFrameTimer;
+        private bool _checkpointLayersBuilt;
+
+        /// <summary>Structural test, not an id: only the regenerated composite has both child
+        /// clips. A visual imported before the fix has one flattened frame and must keep the old
+        /// door behaviour rather than animating a 45-frame sheet it does not own.</summary>
+        private bool IsCheckpointVisual =>
+            IsCheckpointObject && _visual != null && _visual.IsCheckpointVisual;
 
         public RoomInstance Room => _room;
         public ObjectInstance ObjectInstance => _objectInstance;
@@ -425,6 +502,129 @@ namespace PFE.Systems.Map.Rendering
         /// trigger collider and the <c>allact</c> dispatch hang off the other.</para>
         /// </summary>
         public bool IsDoorBox => _objectInstance != null && _objectInstance.IsDoorBox();
+
+        /// <summary>
+        /// Whether this object is AS3's <b>"button pressed by bullets"</b> — a definition that authors
+        /// <c>actdam</c>, which makes <c>Box</c> bind a <c>VirtualUnit</c> to itself
+        /// (<c>Box.as:410-419</c>). <c>knop2</c> is the only such row in the shipped data
+        /// (<c>actdam='1'</c>, <c>AllData.as</c>), and it has 41 placements across 12 rooms.
+        ///
+        /// <para><b>Presence, not value.</b> The oracle tests <c>node.@actdam.length()</c>, so
+        /// <c>actdam="0"</c> would still bind a proxy. <see cref="ShootButtonRules.HasBulletDamageProxy"/>
+        /// owns that reading; this property only remembers the answer.</para>
+        ///
+        /// <para><b>Why the port needs the flag at all.</b> AS3 pushes the bound <c>VirtualUnit</c> into
+        /// <c>loc.units</c> (<c>Location.as:2007-2009</c>), so a bullet meets the button through the
+        /// ordinary unit sweep and calls <c>owner.command("dam")</c> (<c>VirtualUnit.as:40-48</c> →
+        /// <c>Interact.as:1744-1758</c>). The port has no virtual unit: the surface a round can reach is
+        /// <see cref="_solidCollider"/>, and the press is <see cref="ApplyDestruction"/>'s first branch.
+        /// Both hang off this flag.</para>
+        /// </summary>
+        public bool HasBulletDamageProxy
+        {
+            get
+            {
+                ResolveBulletProxy();
+                return _hasBulletDamageProxy;
+            }
+        }
+
+        /// <summary>AS3 <c>Interact.knop</c> — the placement's <c>knop</c> overriding the definition's (<c>Interact.as:304-306</c>, <c>:403-405</c>).</summary>
+        private bool IsAuthoredKnob => ShootButtonRules.IsKnob(
+            _objectInstance != null ? _objectInstance.GetAttribute("knop", string.Empty) : string.Empty,
+            ReadDefinitionAttribute(_objectInstance, "knop"));
+
+        /// <summary>AS3 <c>Interact.action</c> — the placement's <c>inter</c> overriding the definition's (<c>Interact.as:292</c>, <c>:397-400</c>).</summary>
+        private int InteractionMode => ShootButtonRules.ResolveInteractionMode(
+            _objectInstance != null ? _objectInstance.GetAttribute("inter", string.Empty) : string.Empty,
+            ReadDefinitionAttribute(_objectInstance, "inter"));
+
+        /// <summary>
+        /// Reads the two authored attributes a bullet proxy needs, once per presenter.
+        ///
+        /// <para><b>The two attributes live on different nodes.</b> <c>actdam</c> is on the
+        /// <i>definition</i> (<c>AllData.as</c>, <c>id='knop2'</c>) and <c>tipdam</c> on the
+        /// <i>placement</i> — <c>Box.as:412-418</c> calls <c>bindUnit(xml.@tipdam)</c>, where
+        /// <c>xml</c> is the placed node. Reading either from the other node answers "no proxy" or
+        /// "no filter" for every shipped button, which is why this is spelled out rather than inlined
+        /// at one call site.</para>
+        /// </summary>
+        private void ResolveBulletProxy()
+        {
+            if (_bulletProxyResolved) return;
+            _bulletProxyResolved = true;
+
+            if (_objectInstance == null) return;
+
+            _hasBulletDamageProxy = ShootButtonRules.HasBulletDamageProxy(
+                ReadDefinitionAttribute(_objectInstance, "actdam"));
+
+            _requiredTipDamage = ShootButtonRules.ResolveTipDamage(
+                _objectInstance.GetAttribute("tipdam", string.Empty));
+        }
+
+        /// <summary>
+        /// A weapon's hit on the button — AS3 <c>VirtualUnit.udarBullet</c> / <c>VirtualUnit.damage</c>
+        /// (<c>VirtualUnit.as:30-48</c>), whose entire effect is <c>owner.command("dam")</c>.
+        ///
+        /// <para><b>A <c>tipdam</c> mismatch still consumes the round.</b> The oracle returns <c>0</c>,
+        /// and <c>Bullet.as:535</c> tests <c>_loc4_ &gt;= 0</c>, so the round stops on the button with a
+        /// surface sound and simply does not press it. Returning <c>false</c> there would let a
+        /// wrong-damage-type round fly through a solid button — a different game.</para>
+        ///
+        /// <para><b>Two arms, chosen by the same rule the verb uses.</b> A knob whose placement authored
+        /// <c>inter="0"</c> opens once and pokes the prob room (<c>Interact.as:1749-1753</c>); everything
+        /// else runs <c>actOsn</c> — the lamp toggle, the <c>allact</c> broadcast and the inline
+        /// <c>&lt;scr&gt;</c>. Deliberately the same code a player's press runs rather than a second
+        /// copy: in AS3 both land in <c>actOsn</c>.</para>
+        /// </summary>
+        public bool PressByDamage(DamageType damageType)
+        {
+            if (!HasBulletDamageProxy) return false;
+
+            if (!ShootButtonRules.AcceptsDamageType(_requiredTipDamage, (int)damageType))
+            {
+                return true;
+            }
+
+            if (ShootButtonRules.PressesOnce(IsAuthoredKnob, InteractionMode))
+            {
+                OpenOnceByDamage();
+            }
+            else
+            {
+                RunActOsn(null);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// The one-shot arm: <c>this.setAct("open",1); if(this.loc.prob) this.loc.prob.check();</c>
+        /// (<c>Interact.as:1749-1753</c>).
+        ///
+        /// <para><b>Not <see cref="SetOpen"/>, and that is not a shortcut.</b> <c>SetOpen</c> is the
+        /// <i>door's</i> state change: it refuses when <c>!IsInteractableDoor</c> — which is exactly what
+        /// an <c>inter="0"</c> placement is — ejects overlapping units, restamps tiles and raises the
+        /// inline script. AS3's <c>setAct("open")</c> for a knob does none of those, because its
+        /// <c>setDoor()</c> half is gated on <c>door &gt; 0</c> (<c>Interact.as:853-856</c>). So this
+        /// writes the flag, seeks the lamp and pokes the prob room, which is the whole arm.</para>
+        /// </summary>
+        private void OpenOnceByDamage()
+        {
+            _objectInstance.EnsureStructuredData();
+            _objectInstance.runtimeState.isOpen = true;
+
+            // `if(this.open) { this.lock = this.mine = 0; }` (Interact.as:866-869) — opening clears
+            // both, which is what lets a shot button release a mined or locked object it targets.
+            _objectInstance.runtimeState.hasMineValue = false;
+            _objectInstance.runtimeState.mineValue = 0;
+            _objectInstance.runtimeState.hasLockValue = false;
+            _objectInstance.runtimeState.lockValue = 0f;
+
+            UpdateVisualFrame();
+            PFE.Systems.Map.Scripting.AreaTriggerSystem.CheckProbRoomFor(_room);
+        }
 
         /// <summary>
         /// AS3 <c>phis == 2</c> — true while this closed door is a <b>level-2 solid</b>, so a bullet
@@ -536,6 +736,7 @@ namespace PFE.Systems.Map.Rendering
             }
 
             ResolveDurability();
+            ResolveBulletProxy();
 
             // AS3 applies the placement's `open` attribute before any door state exists (Interact's
             // constructor, Interact.as:325-329), so it has to land before the tile stamping below or the
@@ -566,6 +767,11 @@ namespace PFE.Systems.Map.Rendering
             StampSurfaceMaterial();
 
             EnsureCheckpointArea();
+
+            // Build the `vis.lock` / `vis.fiol` children and seek all three clips to the pose the
+            // oracle's constructor would have left them at, BEFORE the generic frame update runs.
+            EnsureCheckpointLayers();
+            InitializeCheckpointVisual();
 
             UpdateVisualFrame();
         }
@@ -666,6 +872,23 @@ namespace PFE.Systems.Map.Rendering
             }
 
             _triggerCollider.enabled = true;
+
+            if (_visual != null && _visual.IsCheckpointVisual && _visual.artBoundsPixelsOverride.x > 0)
+            {
+                // The three checkpoint layers share a padded 130x229 FullRect canvas. Sizing this
+                // cursor target off the sprite would make it 1.3 x 2.29 world units, most of it
+                // empty air above and below the machine. A tight-trimmed import used to hand this
+                // method the drawn 82x122 art, so pin the box to the measured 80x120 instead.
+                // The manager lowers the transform by artBottomInsetPixels, putting the art's
+                // centre (inset + half the art height) above it.
+                Vector2Int art = _visual.artBoundsPixelsOverride;
+                float ppu = Mathf.Max(1, _visual.pixelsPerUnit);
+                _triggerCollider.size = new Vector2(art.x / ppu, art.y / ppu);
+                _triggerCollider.offset = new Vector2(
+                    0f, (_visual.artBottomInsetPixels + art.y * 0.5f) / ppu);
+                return;
+            }
+
             GetDoorBounds(out Vector2 size, out Vector2 offset);
             _triggerCollider.size = size;
             _triggerCollider.offset = offset;
@@ -922,9 +1145,14 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Turns <see cref="_solidCollider"/> on or off to match the door's current state: a closed,
-        /// living door box is solid; an open one, a wrecked one, and anything that is not a door box
-        /// at all are not.
+        /// Turns <see cref="_solidCollider"/> on or off to match the object's current state: a closed,
+        /// living door box is solid, and so is a living <b>bullet-button</b> in either state; an open
+        /// door, a wrecked object, and anything that is neither are not.
+        ///
+        /// <para><b>The button case is what made shoot-to-press unreachable.</b> The collider used to be
+        /// gated on <see cref="IsDoorBox"/> alone, and a <c>knop2</c> is not a door box — it stamps no
+        /// tiles and has no open/close state. Without a surface, every round aimed at one passed through
+        /// and hit the wall behind it, so the proxy could have been perfect and never consulted.</para>
         ///
         /// <para>Size and offset come from <see cref="GetDoorBounds"/> — the same source
         /// <see cref="ConfigureCollider"/> uses for the targeting trigger — so the surface a weapon
@@ -932,7 +1160,11 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         private void RefreshSolidCollider()
         {
-            bool wantsSolid = IsDoorBox && !IsOpen && !IsDestroyed;
+            // A bullet-button keeps its surface in both states. AS3's `VirtualUnit` is pushed into
+            // `loc.units` and stays there until the box dies — pressing the button does not remove it,
+            // which is how a second shot releases it. A door, by contrast, has no surface while open:
+            // `setDoor` zeroes `phis` on its cells (`Box.as:684`).
+            bool wantsSolid = !IsDestroyed && ((IsDoorBox && !IsOpen) || HasBulletDamageProxy);
 
             if (!wantsSolid)
             {
@@ -1132,6 +1364,22 @@ namespace PFE.Systems.Map.Rendering
         public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType,
                                      DecalType decal)
         {
+            // ── The bullet-button branch, and why it is first ────────────────────────────────────
+            //
+            // In AS3 the round never reaches the Box at all: the `VirtualUnit` bound to it is in
+            // `loc.units` (`Location.as:2007-2009`), so `Bullet.step` hits the proxy and calls
+            // `owner.command("dam")` (`VirtualUnit.as:40-48`). The port's equivalent surface is this
+            // component's solid collider, and this is the one call the projectile makes on it — so
+            // "pressed" and "damaged" are the same entry point, and the press has to come first.
+            //
+            // `DamageDoor` already refuses a non-door box, so a knop2 was never at risk of being
+            // destroyed; what was missing is the press. Returning here also keeps a button from ever
+            // reaching the destruction path if a future definition authors both.
+            if (PressByDamage(damageType))
+            {
+                return;
+            }
+
             DamageDoor(destroyAmount, damageType);
         }
 
@@ -1140,10 +1388,21 @@ namespace PFE.Systems.Map.Rendering
         /// enumerates every collider inside the blast and calls this once per collider, so applying an
         /// area here would multiply the damage by the number of overlaps. Same contract as
         /// <c>TileCollider.ApplyDestructionRadius</c>.
+        ///
+        /// <para><b>An explosion presses a button too, and that is the oracle's behaviour.</b>
+        /// <c>VirtualUnit.damage</c> (<c>VirtualUnit.as:30-38</c>) is the non-bullet twin of
+        /// <c>udarBullet</c> and applies the identical <c>tipdam</c> filter — the proxy is a unit, so a
+        /// blast damages it like any other unit. The damage type handed here is the weapon's, which is
+        /// what the filter compares against.</para>
         /// </summary>
         public void ApplyDestructionRadius(Vector3 worldPosition, float radius,
                                            float destroyAmount, DamageType damageType, DecalType decal)
         {
+            if (PressByDamage(damageType))
+            {
+                return;
+            }
+
             DamageDoor(destroyAmount, damageType);
         }
 
@@ -1197,7 +1456,14 @@ namespace PFE.Systems.Map.Rendering
         {
             if (_visual == null || !_visual.HasFrames) return;
 
-            _currentFrameIndex = ResolveStateFrameIndex();
+            // A checkpoint's frames[] is `vis.osn`, not a close/open/die sheet. Its pose was
+            // resolved by InitializeCheckpointVisual from `active`/`main`; running
+            // ResolveStateFrameIndex here would snap an already-open checkpoint back to frame 1.
+            if (!IsCheckpointVisual)
+            {
+                _currentFrameIndex = ResolveStateFrameIndex();
+            }
+
             _targetFrameIndex = _currentFrameIndex;
             _frameTimer = 0f;
             _comeInFrameIndex = -1;
@@ -1232,6 +1498,11 @@ namespace PFE.Systems.Map.Rendering
         {
             if (_visual == null || !_visual.HasFrames) return;
             if (IsPlayingComeIn) return;
+
+            // The checkpoint body is a played clip with its own state, not a door sheet. The
+            // per-frame layer sync (sorting / active flag) is done by Update() instead, which also
+            // runs while this poll is deliberately skipped.
+            if (IsCheckpointVisual) return;
 
             // A sheet that cannot express "open" or "die" has nothing for this poll to keep in sync,
             // and re-seeking it would actively do harm: a Z door's `comein` clip ENDS on its last
@@ -1327,6 +1598,255 @@ namespace PFE.Systems.Map.Rendering
             if (_renderer == null || _visual == null || !_visual.HasFrames) return;
             int clamped = Mathf.Clamp(_currentFrameIndex, 0, _visual.frames.Length - 1);
             _renderer.sprite = _visual.frames[clamped];
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        //  vischeckpoint — the three child MovieClips (fe/loc/CheckPoint.as)
+        // ═══════════════════════════════════════════════════════════════════════════════
+        //
+        // The oracle addresses its art by CHILD and by LABEL, never by a frame index on the
+        // parent:
+        //
+        //   ctor        vis.gotoAndStop(1);  vis.lock.gotoAndStop(int(id.charAt(10)))
+        //               — or vis.lock.visible = false for the plain ten-character id   (:61-76)
+        //   load        active 1 -> osn.gotoAndStop("reopen"@26)                     (:112-119)
+        //               active 2 -> osn.gotoAndStop("open"@45)
+        //   main        area = null; active = 2; osn.gotoAndStop("open");
+        //               fiol.gotoAndStop(25)                                        (:125-137)
+        //   activate    osn.play(); mReturn && teleOn && !used -> fiol.gotoAndPlay(1)
+        //               used -> fiol.gotoAndStop(1)                                  (:214-233)
+        //   deactivate  osn.gotoAndStop("reopen"); fiol.gotoAndStop(1)               (:277-291)
+        //   step        locked && inter.lock == 0 && inter.mine == 0
+        //               -> vis.lock.visible = false                                 (:312-316)
+        //
+        // The port had imported ONE flattened PNG — Flash frame 1, WITH the `lock` child baked
+        // in — so every plain checkpoint drew a frozen padlock / mine screen and never animated.
+        // `generate_checkpoint_layers.py` rebuilds the three clips on a shared canvas; this block
+        // is the display-list and playback half.
+
+        /// <summary>
+        /// Creates the <c>vis.lock</c> and <c>vis.fiol</c> renderers as children of this GameObject.
+        ///
+        /// <para><b>Local position zero is load-bearing.</b> All 75 generated sprites are pinned to
+        /// the same 130x229 FullRect canvas with a (0.5, 0) pivot, so their texture origins coincide
+        /// with the body's. A Tight mesh would let Unity re-trim each frame to its own alpha bbox —
+        /// the glow's frame 1 is entirely empty and frame 25 fills 74x229 — and the layers would
+        /// slide apart as the clip played.</para>
+        ///
+        /// <para>The SWF places the children at depths 1 / 13 / 15. Unity has no display list, so
+        /// the equivalent is sortingOrder +0 / +1 / +2 on the parent's sorting layer, kept in sync
+        /// by <see cref="SyncCheckpointLayers"/> because the manager rewrites the parent's order
+        /// every frame for depth sorting.</para>
+        /// </summary>
+        private void EnsureCheckpointLayers()
+        {
+            if (_checkpointLayersBuilt || !IsCheckpointVisual || _renderer == null) return;
+            _checkpointLayersBuilt = true;
+
+            _checkpointLockRenderer = CreateCheckpointLayer("__CheckpointLock", 1);
+            _checkpointGlowRenderer = CreateCheckpointLayer("__CheckpointGlow", 2);
+        }
+
+        private SpriteRenderer CreateCheckpointLayer(string name, int orderOffset)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+
+            SpriteRenderer layer = go.AddComponent<SpriteRenderer>();
+            layer.color = Color.white;
+            // A lit sprite outside the Global Light 2D renders black. The manager gives every
+            // presenter its unlit material; children must inherit it or they draw as silhouettes.
+            layer.sharedMaterial = _renderer.sharedMaterial;
+            layer.sortingLayerID = _renderer.sortingLayerID;
+            layer.sortingOrder = _renderer.sortingOrder + orderOffset;
+            layer.enabled = false;
+            return layer;
+        }
+
+        /// <summary>
+        /// Seek all three clips to the pose AS3's constructor would have left them at.
+        ///
+        /// <para><b>The port's <c>active</c> is derived, not stored.</b> <c>CampaignManager</c> holds
+        /// one <c>CurrentCheckpoint</c> record for the land, which is what
+        /// <c>Location.as:2065-2067</c> re-finds a rebuilt checkpoint by. A <c>main</c> checkpoint is
+        /// forced to <c>active == 2</c> by the constructor (<c>:128</c>) before any player touches it.
+        /// <c>active == 1</c> (<c>deactivate()</c>) is not modelled by the port's single record, so a
+        /// restored non-current checkpoint reads as fresh — recorded here rather than invented.</para>
+        /// </summary>
+        private void InitializeCheckpointVisual()
+        {
+            if (!IsCheckpointVisual) return;
+
+            PFE.Systems.Campaign.CampaignManager campaign =
+                PFE.Systems.Campaign.CampaignManager.Current;
+            string landId = campaign != null ? campaign.CurrentLandId.CurrentValue : null;
+            Vector3Int room = _room != null ? _room.landPosition : Vector3Int.zero;
+            string code = _objectInstance != null ? _objectInstance.code : null;
+
+            int active = IsMainCheckpoint ||
+                         (campaign != null && campaign.IsCurrentCheckpoint(landId, room, code))
+                ? CheckpointRules.Activated
+                : CheckpointRules.Fresh;
+
+            _currentFrameIndex = CheckpointVisualRules.ResolveBodyStartFrame(active, IsMainCheckpoint);
+            _targetFrameIndex = _currentFrameIndex;
+            _checkpointBodyPlaying = false;
+
+            // AS3's constructor only arms the full glow for `main`; every other checkpoint gets it
+            // from an activation that offered the return (:219 / :227). A restored `active == 2`
+            // checkpoint has a DEAD button (:243) and therefore no glow — OffersReturn is the
+            // campaign's record of that re-pointing, not a derivation from active.
+            bool offersReturn = IsMainCheckpoint ||
+                                (campaign != null && campaign.OffersReturn(landId, room, code));
+            _checkpointGlowFrame = offersReturn
+                ? CheckpointVisualRules.GlowFullFrame
+                : CheckpointVisualRules.GlowHiddenFrame;
+            _checkpointGlowPlaying = false;
+
+            _checkpointLockFrame = ResolveCheckpointLockFrame();
+            ApplyCheckpointLockSprite();
+            ApplyCheckpointGlowSprite();
+            UpdateRendererSprite();
+        }
+
+        /// <summary>
+        /// AS3 <c>int(this.id.charAt(10))</c> (<c>CheckPoint.as:64-68</c>). The port's
+        /// <c>objectType</c> is the generic <c>"checkpoint"</c> for all six variants, so the variant
+        /// digit lives on <c>definitionId</c> — AS3's <c>id</c> is the AllData row id (<c>:45</c>).
+        /// </summary>
+        private int ResolveCheckpointLockFrame()
+        {
+            ObjectInstance obj = _objectInstance;
+            if (obj == null) return -1;
+
+            string id = !string.IsNullOrEmpty(obj.definitionId) ? obj.definitionId
+                      : !string.IsNullOrEmpty(obj.objectId) ? obj.objectId
+                      : obj.definition != null ? obj.definition.objectId : null;
+
+            // `step()` (:312-316) hides the graphic once the lock/mine gate OPENS. An unresolved
+            // security profile is NOT an open gate: the authored definition still carries lock /
+            // mine, so the padlock must stay until something (a script, a picked lock) clears it.
+            bool cleared = obj.runtimeState != null && obj.runtimeState.hasSecurityState &&
+                           obj.runtimeState.securityLock == 0 && obj.runtimeState.securityMine == 0;
+
+            return CheckpointVisualRules.ResolveLockFrame(id, cleared);
+        }
+
+        /// <summary>
+        /// AS3 <c>activate()</c>'s visual tail (<c>CheckPoint.as:222-233</c>): <c>vis.osn.play()</c>
+        /// from wherever the clip currently sits, and <c>vis.fiol.gotoAndPlay(1)</c> only when a
+        /// return is armed. Called ONLY after the campaign reported a successful activation, so a
+        /// refused press or a repeated walk-in cannot restart the clip.
+        /// </summary>
+        private void PlayCheckpointActivation(bool offersTeleport, bool used)
+        {
+            if (!IsCheckpointVisual) return;
+
+            _checkpointFrameTimer = 0f;
+            _checkpointBodyPlaying = _currentFrameIndex < CheckpointVisualRules.OpenBodyFrame;
+
+            bool playGlow = CheckpointVisualRules.GlowPlays(offersTeleport, used);
+            _checkpointGlowFrame = CheckpointVisualRules.GlowHiddenFrame;
+            _checkpointGlowPlaying = playGlow;
+            ApplyCheckpointGlowSprite();
+
+            // The activation also opens the gate: re-read the padlock so a variant whose lock was
+            // picked between construction and activation drops its graphic on the same frame.
+            _checkpointLockFrame = ResolveCheckpointLockFrame();
+            ApplyCheckpointLockSprite();
+        }
+
+        /// <summary>Advances <c>vis.osn</c> and <c>vis.fiol</c> once at the SWF's 24 fps, stopping
+        /// on "open"@45 and frame 25 respectively. A door's <c>comein</c> clip is untouched.</summary>
+        private void TickCheckpointAnimation(float deltaTime)
+        {
+            if (!IsCheckpointVisual) return;
+            if (!_checkpointBodyPlaying && !_checkpointGlowPlaying) return;
+
+            _checkpointFrameTimer += deltaTime;
+            // A long frame (a hitch, a tab restore) must not spin the whole clip in one Update.
+            int steps = 0;
+            while (_checkpointFrameTimer >= CheckpointVisualRules.FrameDuration && steps < 8)
+            {
+                _checkpointFrameTimer -= CheckpointVisualRules.FrameDuration;
+                steps++;
+
+                if (_checkpointBodyPlaying)
+                {
+                    _currentFrameIndex++;
+                    if (_currentFrameIndex >= CheckpointVisualRules.OpenBodyFrame)
+                    {
+                        _currentFrameIndex = CheckpointVisualRules.OpenBodyFrame;
+                        _checkpointBodyPlaying = false;
+                    }
+                    _targetFrameIndex = _currentFrameIndex;
+                    UpdateRendererSprite();
+                }
+
+                if (_checkpointGlowPlaying)
+                {
+                    _checkpointGlowFrame++;
+                    if (_checkpointGlowFrame >= CheckpointVisualRules.GlowFullFrame)
+                    {
+                        _checkpointGlowFrame = CheckpointVisualRules.GlowFullFrame;
+                        _checkpointGlowPlaying = false;
+                    }
+                    ApplyCheckpointGlowSprite();
+                }
+            }
+        }
+
+        private void ApplyCheckpointLockSprite()
+        {
+            if (_checkpointLockRenderer == null || _visual == null) return;
+            _checkpointLockRenderer.sprite = _checkpointLockFrame >= 0
+                ? _visual.GetLockFrame(_checkpointLockFrame)
+                : null;
+        }
+
+        private void ApplyCheckpointGlowSprite()
+        {
+            if (_checkpointGlowRenderer == null || _visual == null) return;
+            _checkpointGlowRenderer.sprite = _visual.GetGlowFrame(_checkpointGlowFrame);
+        }
+
+        /// <summary>
+        /// Keeps the children on the parent's sorting layer / material / active state.
+        /// <c>RoomObjectVisualManager.UpdatePresenter</c> rewrites the parent's
+        /// <c>sortingOrder</c> every frame for depth sorting and disables it when the object is
+        /// inactive, so a one-time copy in <see cref="EnsureCheckpointLayers"/> would leave the
+        /// padlock and glow hanging in a deactivated room.
+        /// </summary>
+        private void SyncCheckpointLayers()
+        {
+            if (!_checkpointLayersBuilt || _renderer == null) return;
+
+            bool parentVisible = _renderer.enabled &&
+                                 (_objectInstance == null || _objectInstance.isActive);
+            SyncCheckpointLayer(_checkpointLockRenderer, 1, parentVisible);
+            SyncCheckpointLayer(_checkpointGlowRenderer, 2, parentVisible);
+        }
+
+        private void SyncCheckpointLayer(SpriteRenderer layer, int orderOffset, bool parentVisible)
+        {
+            if (layer == null) return;
+            if (layer.sortingLayerID != _renderer.sortingLayerID)
+            {
+                layer.sortingLayerID = _renderer.sortingLayerID;
+            }
+
+            int wanted = _renderer.sortingOrder + orderOffset;
+            if (layer.sortingOrder != wanted) layer.sortingOrder = wanted;
+
+            if (layer.sharedMaterial != _renderer.sharedMaterial)
+            {
+                layer.sharedMaterial = _renderer.sharedMaterial;
+            }
+
+            layer.enabled = parentVisible && layer.sprite != null;
         }
 
         /// <summary>
@@ -1743,11 +2263,20 @@ namespace PFE.Systems.Map.Rendering
                 ReadDefinitionAttribute(obj, "lock"),
                 ReadDefinitionAttribute(obj, "mine"));
 
-            if (!campaign.ActivateCheckpoint(campaign.CurrentLandId.CurrentValue, room, obj.code,
+            string landId = campaign.CurrentLandId.CurrentValue;
+            if (!campaign.ActivateCheckpoint(landId, room, obj.code,
                     isBegin, teleOn, main, locked, entry))
             {
                 return;
             }
+
+            // AS3 :224-229 — `vis.osn.play()` and, when the activation armed a return,
+            // `vis.fiol.gotoAndPlay(1)`. `OffersReturn` is the campaign's own record of that
+            // `inter.actFun = teleport` re-pointing, so the picture cannot disagree with the button.
+            // `used` is AS3's hardcore one-shot teleport (:251-256), which the port does not model;
+            // it is read off the placement if a future writer adds one, rather than invented here.
+            bool used = !string.IsNullOrEmpty(obj.GetAttribute("used", string.Empty));
+            PlayCheckpointActivation(campaign.OffersReturn(landId, room, obj.code), used);
 
             // AS3 CheckPoint.as:247 — `World.w.saveGame()`, the last line of activate().
             SaveManager.Instance?.RequestCheckpointSave();
@@ -1841,6 +2370,28 @@ namespace PFE.Systems.Map.Rendering
             // object's own action — AS3's `successUnlock`/`actOsn` chain. `NotLocked` does the same,
             // which is why the two are not separated here.
 
+            RunActOsn(user);
+        }
+
+        /// <summary>
+        /// AS3 <c>Interact.actOsn()</c> (<c>Interact.as:1265-1327</c>) — everything a press does once the
+        /// mine/lock gate has let it through.
+        ///
+        /// <para><b>Extracted because a bullet press is the same function.</b> AS3 reaches this body from
+        /// two places: <c>Interact.act()</c> after the lock, and <c>Interact.command("dam")</c>'s
+        /// <c>else</c> arm — which is what a <c>VirtualUnit</c> calls when a round hits it
+        /// (<c>Interact.as:1744-1758</c>). Keeping one body is the point: a second copy for the bullet
+        /// would drift the first time either side changed, and the divergence would present as "the
+        /// button behaves differently when shot".</para>
+        ///
+        /// <para><b>What is deliberately <i>not</i> here.</b> The checkpoint branch, the
+        /// <c>IsInteractableDoor</c> test, the per-frame dedupe and the lock are all input-path gates.
+        /// AS3's <c>command("dam")</c> consults none of them, so a locked door is still shootable and a
+        /// button shot twice in one frame presses twice. <paramref name="user"/> is null for a bullet,
+        /// which the dispatcher tolerates — a script that needs a user reports it.</para>
+        /// </summary>
+        private void RunActOsn(GameObject user)
+        {
             // ── The object's own state, before its script ────────────────────────────────────────
             //
             // AS3 `Interact.actOsn` (Interact.as:1291-1297) toggles the object's own `open` before it
@@ -1874,6 +2425,13 @@ namespace PFE.Systems.Map.Rendering
             // every other branch arms t_action first.
             var context = new ObjectActionContext(_room, _objectInstance, user, transform.position);
             ObjectActionOutcome outcome = ObjectActions.Dispatch(in context);
+
+            // AS3 `if(this.loc.prob) this.loc.prob.check()` (Interact.as:1319-1321) — after `allAct`
+            // and before `scrAct`, and <b>not</b> conditional on the script having done anything. For an
+            // object with no `allact` this is the only thing that advances a prob room, and the seven
+            // `buttons3` buttons are exactly that shape (a `tipdam="4"` filter, no script, no allact):
+            // without this call a shot button lights up and the passage stays shut.
+            PFE.Systems.Map.Scripting.AreaTriggerSystem.CheckProbRoomFor(_room);
 
             // Handled AND Refused both stop here. AS3 refuses a `comein` by returning null from
             // Land.gotoLoc and nothing happens; falling through to ToggleOpen() would instead open a
@@ -1929,6 +2487,8 @@ namespace PFE.Systems.Map.Rendering
         private void Update()
         {
             TickAnimation(Time.deltaTime);
+            TickCheckpointAnimation(Time.deltaTime);
+            SyncCheckpointLayers();
 
             // F9 toggles the door-collider debug overlay. This is the only key this component
             // reads, and it is editor/debug scaffolding rather than gameplay.

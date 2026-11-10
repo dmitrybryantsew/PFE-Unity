@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using MessagePipe;
 using NUnit.Framework;
 using PFE.Core.Messages;
+using PFE.Sim.Campaign;
 using PFE.Systems.Campaign;
 using UnityEngine;
 
@@ -266,6 +267,167 @@ namespace PFE.Tests.Editor.Campaign
                 "the rebuilt land's entry checkpoint is fresh and activates");
             Assert.IsTrue(manager.OffersReturn("surf", Room, string.Empty),
                 "so its return-to-base is armed again — the whole point");
+        }
+
+        // ---- the fresh-activation payout (CheckPoint.as:191-201) ----
+        //
+        // The RULE is pinned in CheckpointRulesTests; these pin its LIFETIME — which activation
+        // actually delivers it. A perfect rule called from the wrong branch heals nothing, and a
+        // perfect rule called twice is an XP farm. Both are invisible from the rule's own tests.
+
+        /// <summary>Records how many times the campaign delivered a payout, and with what amounts.</summary>
+        private sealed class BonusRecorder
+        {
+            public int Calls;
+            public readonly List<CheckpointRestoreBonus> Payloads = new List<CheckpointRestoreBonus>();
+
+            public void Attach(CampaignManager manager)
+            {
+                manager.CheckpointRestoreBonusApplier = bonus =>
+                {
+                    Calls++;
+                    Payloads.Add(bonus);
+                };
+            }
+        }
+
+        /// <summary>
+        /// <b>The positive control.</b> AS3's fresh branch heals <c>pers.manaCPres</c> (50,
+        /// <c>Pers.as:149</c>) and grants <c>loc.unXp * 3</c> (<c>CheckPoint.as:202</c>). With no
+        /// catalogue the land's <c>options/@xp</c> is unauthored and the oracle's field initialiser
+        /// 100 applies (<c>LandAct.as:58</c>), so the payout is 300 xp. An applier that is never
+        /// called, or a payout that mistakes the <c>xpCPadd = 300</c> GATE for the amount, both fail
+        /// here — the two happen to be the same number, which is exactly why this is asserted.
+        /// </summary>
+        [Test]
+        public void FreshActivation_PaysManaAndThreeTimesTheLandsXp()
+        {
+            CampaignManager manager = EnterSurf();
+            var recorder = new BonusRecorder();
+            recorder.Attach(manager);
+
+            Assert.IsTrue(Activate(manager, Code, teleOn: true), "precondition: a fresh checkpoint activates");
+
+            Assert.AreEqual(1, recorder.Calls, "the payout runs once per fresh activation");
+            Assert.AreEqual(50f, recorder.Payloads[0].manaHeal, "Pers.as:149 — manaCPres is the heal AMOUNT");
+            Assert.AreEqual(300, recorder.Payloads[0].xp,
+                "LandAct.as:58 xp=100, CheckPoint.as:202 expa(loc.unXp * 3)");
+        }
+
+        /// <summary>
+        /// A headless host (this harness) has no player. A null applier must not stop the activation —
+        /// the save and the return offer are not conditional on a payout. This is the failure shape a
+        /// <c>Func</c> seam hides: it throws nothing and changes nothing.
+        /// </summary>
+        [Test]
+        public void FreshActivation_WithNoApplier_StillActivatesAndWritesState()
+        {
+            CampaignManager manager = EnterSurf();
+            Assert.IsNull(manager.CheckpointRestoreBonusApplier, "precondition: headless host");
+
+            Assert.IsTrue(Activate(manager, Code, teleOn: true),
+                "a missing payout seam must not refuse the checkpoint");
+            Assert.IsTrue(manager.IsCurrentCheckpoint("surf", Room, Code),
+                "the activation still wrote its state");
+        }
+
+        /// <summary>
+        /// AS3's guard is <c>if(active == 0 &amp;&amp; !param1)</c>. A second walk-in on the same
+        /// checkpoint is refused at <c>:190</c>, so no second heal or "+Nxp" text.
+        /// </summary>
+        [Test]
+        public void RepeatedActivation_DoesNotPayTwice()
+        {
+            CampaignManager manager = EnterSurf();
+            var recorder = new BonusRecorder();
+            recorder.Attach(manager);
+
+            Assert.IsTrue(Activate(manager, Code, teleOn: true), "first activation");
+            Assert.IsFalse(Activate(manager, Code, teleOn: true), "second is refused");
+
+            Assert.AreEqual(1, recorder.Calls, "XP is not a per-walk-in farm");
+        }
+
+        /// <summary>
+        /// <c>createCheck(true)</c> calls <c>activate(true)</c> on land entry, which skips the payout:
+        /// the player did not walk up to a fresh checkpoint, the land was built.
+        /// </summary>
+        [Test]
+        public void LoadTimeActivation_DoesNotPay()
+        {
+            CampaignManager manager = EnterSurf();
+            var recorder = new BonusRecorder();
+            recorder.Attach(manager);
+
+            Assert.IsTrue(manager.ActivateCheckpoint("surf", Room, Code,
+                isBegin: true, teleOn: true, main: false, locked: false),
+                "the entry checkpoint still activates and arms the return");
+            Assert.AreEqual(0, recorder.Calls, "CheckPoint.as:191 — param1 == true suppresses the bonus");
+        }
+
+        [Test]
+        public void MainCheckpoint_DoesNotPay()
+        {
+            CampaignManager manager = EnterSurf();
+            var recorder = new BonusRecorder();
+            recorder.Attach(manager);
+
+            Assert.IsFalse(manager.ActivateCheckpoint("surf", Room, Code,
+                isBegin: false, teleOn: true, main: true, locked: false),
+                "a main checkpoint is forced to active == 2 by the constructor and cannot activate");
+            Assert.AreEqual(0, recorder.Calls);
+        }
+
+        [Test]
+        public void LockedCheckpoint_DoesNotPay()
+        {
+            CampaignManager manager = EnterSurf();
+            var recorder = new BonusRecorder();
+            recorder.Attach(manager);
+
+            Assert.IsFalse(manager.ActivateCheckpoint("surf", Room, Code,
+                isBegin: false, teleOn: true, main: false, locked: true),
+                "CheckPoint.as:186-189 — a locked or mined checkpoint refuses outright");
+            Assert.AreEqual(0, recorder.Calls);
+        }
+
+        /// <summary>
+        /// <b>The re-entry control.</b> <c>IsCurrentCheckpoint</c> is exactly what stops a rebuilt land
+        /// re-healing at the same checkpoint; the payout must follow that refusal.
+        /// </summary>
+        [Test]
+        public void ReEnteringALand_DoesNotPayAgain()
+        {
+            CampaignManager manager = EnterSurf();
+            var recorder = new BonusRecorder();
+            recorder.Attach(manager);
+            Activate(manager, Code, teleOn: true);
+            Assert.AreEqual(1, recorder.Calls, "precondition");
+
+            manager.TransitionToLand("surf");
+
+            Assert.IsFalse(Activate(manager, Code, teleOn: true), "already current — activation refused");
+            Assert.AreEqual(1, recorder.Calls, "no second payout on a plain re-entry");
+        }
+
+        /// <summary>
+        /// Regenerating a procedural land makes every checkpoint fresh again (<c>Land.saveObjs</c>
+        /// returns early for a random land), so the payout returns with it. The opposite direction of
+        /// the previous test: a "just never pay twice" simplification would break a descent.
+        /// </summary>
+        [Test]
+        public void RegeneratingALand_PaysAgain()
+        {
+            CampaignManager manager = EnterSurf();
+            var recorder = new BonusRecorder();
+            recorder.Attach(manager);
+            Activate(manager, Code, teleOn: true);
+            Assert.AreEqual(1, recorder.Calls, "precondition");
+
+            manager.ClearCheckpointForRebuild();
+
+            Assert.IsTrue(Activate(manager, Code, teleOn: true), "the rebuilt checkpoint is fresh");
+            Assert.AreEqual(2, recorder.Calls, "and pays out again, as AS3's new object would");
         }
     }
 }
