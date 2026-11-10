@@ -9,6 +9,7 @@ using PFE.Entities.Units;
 using PFE.Entities.Weapons;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
+using EntityId = PFE.Core.Ids.EntityId;
 
 namespace PFE.Systems.Weapons
 {
@@ -441,6 +442,18 @@ namespace PFE.Systems.Weapons
 
             _resolver?.Inject(obj);
 
+            // Phase 3.3 (F-05 closure): a thrown object is a live entity, and the spawner is where it
+            // enters the world. Minted before Initialize for the same reason the unit spawner stamps
+            // its controller before Initialize — the object's first tick must not project an
+            // anonymous id, and `Initialize` is where the throw starts moving.
+            EntityId thrownEntityId = RuntimeEntityIdContext.AllocateRuntimeId();
+            obj.AssignEntityId(thrownEntityId);
+
+            // The interned weapon id, so the record says which grenade this is. A thrown object's art
+            // is the weapon's own (`WThrow.as:38 vBullet = vWeapon`), so it resolves against the weapon
+            // table — the same table `ProjectileFactory` stamps a fired round from.
+            obj.SetDefinitionId(ContentInternContext.Weapons.GetKeyOrDefault(_currentDef.weaponId));
+
             obj.Initialize(
                 initialVelocity: plan.ThrowVelocity,
                 fuseFrames:      plan.FuseFrames,
@@ -515,6 +528,15 @@ namespace PFE.Systems.Weapons
             MineObject mine  = Instantiate(prefab, spawnPos, Quaternion.identity);
 
             _resolver?.Inject(mine);
+
+            // Same reasoning as the throwable above: a placed mine is a live entity and the placement
+            // is its spawn. Radio detonation (`DetonateAll`) needs no id of its own — it addresses
+            // mines by weapon id, not by entity.
+            EntityId mineEntityId = RuntimeEntityIdContext.AllocateRuntimeId();
+            mine.AssignEntityId(mineEntityId);
+
+            // Same stamp, same table, same reason as the throwable above.
+            mine.SetDefinitionId(ContentInternContext.Weapons.GetKeyOrDefault(_currentDef.weaponId));
 
             mine.Initialize(
                 weaponId:     _currentDef.weaponId,

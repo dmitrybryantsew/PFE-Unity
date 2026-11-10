@@ -80,6 +80,15 @@ namespace PFE.Systems.Combat
             var proj = Spawn(template, position, Quaternion.identity);
             if (proj == null) return null;
 
+            // Phase 3.3 follow-up: the interned weapon id the wire record carries. Resolved here
+            // because the factory is the only place that has the definition — `Projectile` is told
+            // damage and speed, never which weapon fired it, so it cannot answer for itself.
+            //
+            // `GetKeyOrDefault` returns Uninterned (0) when the table has no such weapon, which is a
+            // visible "not interned" rather than a plausible-looking wrong key. A session that reports
+            // non-zero unresolved counts means the table was built from the wrong content set.
+            proj.SetDefinitionId(PFE.Core.ContentInternContext.Weapons.GetKeyOrDefault(weapon.weaponId));
+
             proj.Initialize(
                 weapon.baseDamage,
                 unitySpeed,
@@ -205,6 +214,16 @@ namespace PFE.Systems.Combat
                 _resolver.Inject(p);
                 p.PrepareForSpawn(position, rotation);
             });
+
+            // Phase 3.3 (F-05 closure): every projectile is created here — both Create overloads and
+            // every caller — so this is the one place an id has to be minted. Doing it in
+            // ProjectileSpawner instead would leave the low-level `Create(prefab, …)` overload (used by
+            // tests, tools and the spell path) producing anonymous projectiles.
+            //
+            // Minted after the pool fetch, because the pooled instance is the entity: the id belongs to
+            // the *shot*, and TryReassign inside AssignEntityId drops the previous shot's box. Minting
+            // before the fetch would stamp an id onto an instance that might be a different one.
+            proj.AssignEntityId(PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId());
 
             if (_debugSettings?.LogProjectileSpawning == true)
             {

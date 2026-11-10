@@ -336,6 +336,10 @@ namespace PFE.Systems.Map.Serialization
             // Restore floor loot. The list is rebuilt wholesale rather than merged: a room restored from
             // a file is the authority on what is lying in it, and any live view for the old list is torn
             // down by `RoomVisualController.ClearVisuals` before `Initialize` rebuilds from these records.
+            //
+            // Every record goes through `AddDroppedItem` rather than straight onto the list, because that
+            // is the one place a stack is given its replication id — a loader that added to the list
+            // directly would produce loot with no identity, and the projector could not express it.
             room.droppedItems ??= new List<DroppedItemInstance>();
             room.droppedItems.Clear();
             if (droppedItems != null)
@@ -345,7 +349,7 @@ namespace PFE.Systems.Map.Serialization
                     DroppedItemInstance item = droppedItems[i]?.ToDroppedItemInstance();
                     if (item != null)
                     {
-                        room.droppedItems.Add(item);
+                        room.AddDroppedItem(item);
                     }
                 }
             }

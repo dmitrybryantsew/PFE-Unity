@@ -5,12 +5,14 @@ using PFE.Data.Definitions;
 using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
+using PFE.Sim.State;
 using PFE.Core.Messages;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
 using MessagePipe;
 using System;
 using System.Collections.Generic;
+using EntityId = PFE.Core.Ids.EntityId;
 
 namespace PFE.Entities.Weapons
 {
@@ -66,7 +68,7 @@ namespace PFE.Entities.Weapons
     /// off. Whether to flip that default is the owner's call, not a silent change.</para>
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
-    public sealed class ThrownObject : MonoBehaviour, ISimTickable
+    public sealed class ThrownObject : MonoBehaviour, ISimTickable, PFE.Systems.Replication.ISimTransientStateSource
     {
         /// <summary>
         /// Gravity as a per-second acceleration, in Unity units/s² — the <b>legacy</b> path's form.
@@ -353,6 +355,121 @@ namespace PFE.Entities.Weapons
 #pragma warning restore CS0649
 
         public Action<ThrownObject> OnReturnToPool { get; set; }
+
+        // ── Identity (Phase 3.3, F-05 closure) ───────────────────────────────────────────────
+        //
+        // A thrown object is a live entity with no room record behind it, so — like Projectile — it
+        // registers itself. The spawner mints the id; `OnDestroy` is the unregister point, because
+        // this class is instantiated per throw rather than pooled.
+
+        /// <summary>Host-assigned id of this throw. Empty before the spawner stamps it.</summary>
+        [LocalOnly(Note = "Mirror of the registry entry for this object; never replicated as a value")]
+        public EntityId EntityId { get; private set; }
+
+        /// <summary>The lifetime generation this throw belongs to.</summary>
+        public int EntityGeneration { get; private set; }
+
+        /// <summary>How many times this throw has been sampled for a snapshot.</summary>
+        public uint ProgressSequence { get; private set; }
+
+        /// <summary>Stamp a freshly minted id and register this object as a live entity.</summary>
+        public void AssignEntityId(EntityId id)
+        {
+            EntityId = id;
+            ProgressSequence = 0;
+            EntityGeneration = 0;
+
+            if (!id.IsValid) return;
+
+            PFE.Core.RuntimeEntityIdContext.TryReassign(this, id);
+            PFE.Core.RuntimeEntityIdContext.TryGetLifetime(this, out int generation, out _);
+            EntityGeneration = generation;
+        }
+
+        /// <summary><see cref="PFE.Systems.Replication.ISimTransientStateSource.SimEntityHash"/> — the
+        /// id hash the projector sorts and identifies by.</summary>
+        public ulong SimEntityHash => EntityId.Hash;
+
+        /// <summary>Take the next progress sample number for a snapshot projection.</summary>
+        public uint NextProgressSequence()
+        {
+            ProgressSequence = unchecked(ProgressSequence + 1);
+            return ProgressSequence;
+        }
+
+        /// <summary>
+        /// The thrown weapon as an interned, content-versioned id — what a client resolves to art.
+        ///
+        /// <para>A throwable's art is the <b>weapon's</b> (<c>vis&lt;weaponId&gt;</c>), not a bullet's:
+        /// <c>WThrow.as:38</c> overwrites the bullet class with the weapon class, which is why the
+        /// grenade in flight is the grenade in hand. So the definition stamped here is the weapon, from
+        /// the weapon intern table — not a projectile archetype.</para>
+        /// </summary>
+        public ushort DefinitionId { get; private set; }
+
+        /// <summary>Stamp the interned weapon id. Called by the spawner, which owns the definition.</summary>
+        public void SetDefinitionId(ushort definitionId) => DefinitionId = definitionId;
+
+        /// <summary>
+        /// One tick of this throw as a replicated record — the half of the contract that was missing
+        /// until 3.3: the object had an <c>EntityId</c> and no wire record at all.
+        ///
+        /// <para><b>Two integration paths, one record.</b> With the Stage C flip running the authoritative
+        /// state is <see cref="_simState"/> in AS3 units (world pixels, px/frame); on the legacy path it
+        /// is the Transform in Unity units and <see cref="_velocity"/> in units/s. Both convert to the
+        /// record's one space — <b>world pixels and pixels per second</b> — by the same factors
+        /// <see cref="RegisterOnSimLoop"/> already uses, so a host running either path emits a record a
+        /// client can read identically. The px/frame → px/s step is
+        /// <c>VelocityScale * UnitToPixel</c>, the exact inverse of the division two lines above it,
+        /// rather than a second guess at the frame rate.</para>
+        ///
+        /// <para><b>Reads no <c>Transform</c> when the flip is active.</b> <c>ISimTickable</c> forbids a
+        /// tick from reading it, and the projector runs inside a tick; the sim state is the position
+        /// there, which is also the only one that is authoritative.</para>
+        /// </summary>
+        public SimProjectileState CaptureSimState(uint sequence)
+        {
+            const float toPixels = TileQueryConstants.UnitToPixel;
+
+            Vector2 positionPx;
+            Vector2 velocityPxPerSecond;
+            float   fuseSeconds;
+
+            if (FlipActive)
+            {
+                positionPx           = _simState.PositionPx;
+                velocityPxPerSecond  = _simState.VelocityPxPerFrame
+                                       * ProjectilePhysicsMath.VelocityScale * toPixels;
+                fuseSeconds          = _fuseTicks / SimClock.FramesPerSecond;
+            }
+            else
+            {
+                positionPx           = (Vector2)transform.position * toPixels;
+                velocityPxPerSecond  = _velocity * toPixels;
+                fuseSeconds          = _fuseTimer;
+            }
+
+            return new SimProjectileState
+            {
+                Kind         = SimTransientKind.ThrownObject,
+                EntityHash   = EntityId.Hash,
+                LauncherHash = _hasDamageContext ? _damageContext.OwnerId.Hash : 0UL,
+                Generation   = EntityGeneration,
+                Sequence     = sequence,
+                DefinitionId = DefinitionId,
+
+                Px = positionPx.x,          Py = positionPx.y,
+                Vx = velocityPxPerSecond.x, Vy = velocityPxPerSecond.y,
+
+                // Gravity is the legacy path's own constant and the flipped path's World.ddy; both are
+                // already expressed as the record's per-second acceleration by the two paths, so the
+                // field carries the value the flight is actually integrated with.
+                AccelerationY = -GravityPerSec * toPixels,
+
+                LifetimeRemaining = fuseSeconds,
+                HasDetonated      = _detonated,
+            };
+        }
 
         // ── Stage C: registration and tick ───────────────────────────────────────────────────
 
@@ -895,6 +1012,13 @@ namespace PFE.Entities.Weapons
         private void OnDestroy()
         {
             UnregisterFromSimLoop();
+
+            // A destroyed throwable must leave the identity registry too. Without this the registry
+            // would hand a snapshot a destroyed component, and `IEntityRegistry.GetAll()` would grow
+            // by one entry per grenade for the rest of the session.
+            if (EntityId.IsValid) PFE.Core.RuntimeEntityIdContext.Unregister(this);
+            EntityId = PFE.Core.Ids.EntityId.Empty;
+            ProgressSequence = 0;
         }
 
         private void OnTriggerEnter2D(Collider2D other)

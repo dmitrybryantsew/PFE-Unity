@@ -11,6 +11,8 @@ using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
+using PFE.Sim.State;
+using EntityId = PFE.Core.Ids.EntityId;
 
 namespace PFE.Entities.Weapons
 {
@@ -68,7 +70,7 @@ namespace PFE.Entities.Weapons
     /// have.</para>
     /// </summary>
     [RequireComponent(typeof(Collider2D))]
-    public sealed class MineObject : MonoBehaviour, IDamageable
+    public sealed class MineObject : MonoBehaviour, IDamageable, PFE.Systems.Replication.ISimTransientStateSource
     {
         // ── Static registry for radio detonation ─────────────────────────────
 
@@ -353,6 +355,114 @@ namespace PFE.Entities.Weapons
 #pragma warning restore CS0649
 
         public Action<MineObject> OnReturnToPool { get; set; }
+
+        // ── Identity (Phase 3.3, F-05 closure) ────────────────────────────────
+        //
+        // A placed mine is a live entity with no room record, so it registers itself like a
+        // projectile. `OnDestroy`, not `OnDisable`: a mine can be disabled and re-enabled without
+        // dying, and unregistering on the disable half would leave the re-enabled mine anonymous while
+        // it still sat in `_allMines` and still detonated.
+
+        /// <summary>Host-assigned id of this mine. Empty before the spawner stamps it.</summary>
+        [LocalOnly(Note = "Mirror of the registry entry for this object; never replicated as a value")]
+        public EntityId EntityId { get; private set; }
+
+        /// <summary>The lifetime generation this mine belongs to.</summary>
+        public int EntityGeneration { get; private set; }
+
+        /// <summary>How many times this mine has been sampled for a snapshot.</summary>
+        public uint ProgressSequence { get; private set; }
+
+        /// <summary>Stamp a freshly minted id and register this mine as a live entity.</summary>
+        public void AssignEntityId(EntityId id)
+        {
+            EntityId = id;
+            ProgressSequence = 0;
+            EntityGeneration = 0;
+
+            if (!id.IsValid) return;
+
+            PFE.Core.RuntimeEntityIdContext.TryReassign(this, id);
+            PFE.Core.RuntimeEntityIdContext.TryGetLifetime(this, out int generation, out _);
+            EntityGeneration = generation;
+        }
+
+        /// <summary><see cref="PFE.Systems.Replication.ISimTransientStateSource.SimEntityHash"/> — the
+        /// id hash the projector sorts and identifies by.</summary>
+        public ulong SimEntityHash => EntityId.Hash;
+
+        /// <summary>Take the next progress sample number for a snapshot projection.</summary>
+        public uint NextProgressSequence()
+        {
+            ProgressSequence = unchecked(ProgressSequence + 1);
+            return ProgressSequence;
+        }
+
+        /// <summary>
+        /// The mine's weapon as an interned, content-versioned id — what a client resolves to art and to
+        /// the blast the mine will make. A mine is placed by a weapon, so the definition is the weapon,
+        /// from the weapon intern table.
+        /// </summary>
+        public ushort DefinitionId { get; private set; }
+
+        /// <summary>Stamp the interned weapon id. Called by the spawner, which owns the definition.</summary>
+        public void SetDefinitionId(ushort definitionId) => DefinitionId = definitionId;
+
+        /// <summary>
+        /// One tick of this mine as a replicated record. Until 3.3 a placed mine had an
+        /// <c>EntityId</c> and <b>no wire record at all</b>, so a client could not draw one.
+        ///
+        /// <para><b>Position is <see cref="OriginPixels"/>, not the collider.</b> That is the oracle's
+        /// own origin (<c>Unit.setVisPos</c> puts the sprite pivot on it), and it is the point every
+        /// other mine calculation already uses, so the record cannot disagree with the physics about
+        /// where the mine is.</para>
+        ///
+        /// <para><b>What the latches mean for a mine.</b> <see cref="SimProjectileState.HasDetonated"/>
+        /// is the mine's own detonation latch. <c>LifetimeRemaining</c> is the <i>detonation</i>
+        /// countdown, so it is 0 while the mine is merely armed and waiting — armed-ness needs no field
+        /// of its own, because it is exactly "a mine record that has not detonated".
+        /// <c>IsImpacting</c> is left false: a mine has no impact frames, and borrowing the round's
+        /// latch would tell a receiver to play an animation this entity does not have.</para>
+        /// </summary>
+        public SimProjectileState CaptureSimState(uint sequence)
+        {
+            const float toPixels = TileQueryConstants.UnitToPixel;
+
+            Vector2 originPx = OriginPixels();
+
+            return new SimProjectileState
+            {
+                Kind         = SimTransientKind.Mine,
+                EntityHash   = EntityId.Hash,
+                LauncherHash = _hasDamageContext ? _damageContext.OwnerId.Hash : 0UL,
+                Generation   = EntityGeneration,
+                Sequence     = sequence,
+                DefinitionId = DefinitionId,
+
+                Px = originPx.x, Py = originPx.y,
+                Vx = _velocity.x * toPixels,
+                Vy = _velocity.y * toPixels,
+
+                // AS3's non-flying branch is a gravity body: `Unit.forces()` adds World.ddy while it is
+                // not standing on anything (MineBodyMath.StepVelocity). Report the acceleration the step
+                // is actually using, so a client interpolating a falling mine bends the same way.
+                AccelerationY = _grounded ? 0f : -TileQueryConstants.GravityUnitsPerSecondSquared * toPixels,
+
+                LifetimeRemaining = _explTimer,
+                HasDetonated      = _detonated,
+            };
+        }
+
+        /// <summary>
+        /// Leave the identity registry when the mine is destroyed. Placed here rather than in
+        /// <see cref="OnDisable"/> for the reason in the block above.
+        /// </summary>
+        private void OnDestroy()
+        {
+            if (EntityId.IsValid) PFE.Core.RuntimeEntityIdContext.Unregister(this);
+            EntityId = PFE.Core.Ids.EntityId.Empty;
+            ProgressSequence = 0;
+        }
 
         // ── Registry lifecycle ────────────────────────────────────────────────
 

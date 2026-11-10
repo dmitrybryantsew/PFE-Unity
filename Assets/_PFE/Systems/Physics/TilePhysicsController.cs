@@ -1,5 +1,6 @@
 using UnityEngine;
 using PFE.Core;
+using PFE.Sim.State;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Entities.Units;
@@ -148,25 +149,32 @@ namespace PFE.Systems.Physics
 
         [Header("Unit Dimensions (pixels, matching AS3)")]
         [Tooltip("Width of collision box in pixels (scX in AS3)")]
+        [LocalOnly(Note = "Content constant (§10 body dims); never replicated per tick")]
         [SerializeField] internal float collisionWidth = 30f;
 
         [Tooltip("Height of collision box in pixels (scY in AS3)")]
+        [LocalOnly(Note = "Content constant (§10 body dims); never replicated per tick")]
         [SerializeField] internal float collisionHeight = 50f;
 
         [Tooltip("Crouched collision height in pixels. If <= 0, it is derived from UnitDefinition.sitHeight or a standing-height multiplier.")]
+        [LocalOnly(Note = "Content constant (§10 body dims); never replicated per tick")]
         [SerializeField] internal float crouchedCollisionHeight = 0f;
 
         [Tooltip("Offset from this transform to the collider feet position, in pixels. Negative Y moves the collider down.")]
+        [LocalOnly(Note = "Content constant; prefab wiring, never replicated")]
         [SerializeField] internal Vector2 colliderOffsetPixels = Vector2.zero;
 
         [Header("Movement (matching AS3 Unit properties)")]
         [Tooltip("Horizontal acceleration (accel in AS3)")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float acceleration = 2.0f;
 
         [Tooltip("Maximum horizontal speed (pixels/frame, maxdx in AS3)")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float maxSpeedX = 8f;
 
         [Tooltip("Maximum vertical speed (pixels/frame, maxdy in AS3)")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float maxSpeedY = 20f;
 
         // Jump force is deliberately NOT owned by this motor. The live constant is
@@ -178,45 +186,58 @@ namespace PFE.Systems.Physics
         // that is a design decision for the physics rewrite, not a warning cleanup.
 
         [Tooltip("Ground friction (brake in AS3, 0-1)")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float groundFriction = 0.7f;
 
         [Tooltip("Air friction")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float airFriction = 0.95f;
 
         [Tooltip("Gravity multiplier (grav in AS3)")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float gravityMult = 1.0f;
 
         [Header("Physics Constants")]
         [Tooltip("Global gravity (World.ddy in AS3)")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float globalGravity = 1.0f;
 
         [Tooltip("Platform pass-through threshold (porog in AS3)")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float platformThreshold = TileQueryConstants.PorogGrounded;
 
         [Tooltip("Maximum distance a single collision sub-step is allowed to move before movement is subdivided.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float maxSubStepDistance = 9f;
 
         [Tooltip("Maximum vertical step-up height in pixels when grounded and walking into a low obstacle.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float stepUpThreshold = 10f;
 
         [Tooltip("Step-up height while grounded and holding a walk key — AS3 UnitPlayer porog = 20, i.e. half a tile. " +
                  "The player's standing value is 0, so a stationary player is stopped by any ledge at all.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float stepUpThresholdWalking = TileQueryConstants.PlayerPorogWalk;
 
         [Tooltip("Step-up height while grounded and not walking — AS3 UnitPlayer porog = 0.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float stepUpThresholdIdle = TileQueryConstants.PlayerPorogGrounded;
 
         [Tooltip("Reduced step-up threshold while airborne or rising.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float stepUpThresholdWhileAirborne = 4f;
 
         [Tooltip("How long platform collisions stay disabled after a drop-through request.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float platformDropDurationSeconds = 0.18f;
 
         [Header("Ladder Movement")]
         [Tooltip("Vertical climb speed in pixels/frame while attached to a ladder.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float ladderClimbSpeed = 5f;
 
         [Tooltip("Horizontal half-width in pixels used for ladder-specific collision probes.")]
+        [LocalOnly(Note = "Content constant; never replicated")]
         [SerializeField] internal float ladderProbeHalfWidth = 6f;
 
         /// <summary>
@@ -251,24 +272,69 @@ namespace PFE.Systems.Physics
         /// </summary>
         private const float LadderSideProbePixels = 20f;
 
-        [Header("State (read-only)")]
-        [SerializeField] private bool isGrounded;
-        [SerializeField] private bool isOnPlatform;
-        [SerializeField] private bool isInWater;
-        [SerializeField] private bool isFullySubmerged;
-        [SerializeField] private bool isOnLadder;
-        [SerializeField] private bool isCrouching;
-        [SerializeField] private bool hitCeiling;
-        [SerializeField] private bool wallLeft;
-        [SerializeField] private bool wallRight;
-        [SerializeField] private int facingDirection = 1;
+        /// <summary>
+        /// Phase 1.5 (F-02): <b>the live truth of this motor's tick state.</b>
+        ///
+        /// <para>The 22 members below are forwarding properties onto this record. <c>StepMotor()</c>
+        /// and the entire movement / tile-collision / water / ladder / dash / boundary / prop-sweep
+        /// arithmetic still reads and writes exactly the same names — no expression was rewritten —
+        /// but the storage is now a pure <c>PFE.Sim.State</c> value type rather than 22 private
+        /// MonoBehaviour fields. The controller is a projector: <see cref="SyncUnityPosition"/>
+        /// applies <c>Px/Py</c> to the Transform, and <see cref="MotorState"/> exposes the record to
+        /// a snapshot or a host correction.</para>
+        ///
+        /// <para>Deliberately not <c>[SerializeField]</c>: Unity's serializer cannot represent the
+        /// record's <c>ulong EntityHash</c>, and a plain C# field initializer is the only way to
+        /// guarantee the two non-zero defaults survive construction. Every shipped prefab held the
+        /// default values for the ten former <c>[SerializeField]</c> state fields, so dropping their
+        /// serialization changes no authored data. The two defaults are exactly the old
+        /// <c>facingDirection = 1</c> and <c>gravityScale = 1f</c> initializers.</para>
+        /// </summary>
+        [ClientPredicted(Note = "The Sim state record StepMotor mutates; live motor truth (F-02, Phase 1.5)")]
+        private SimMotorState _motor = new SimMotorState { FacingDirection = 1, GravityScale = 1f };
+
+        /// <summary>The live Sim record. Read-only projection of the truth; a host correction writes
+        /// through <see cref="ApplyMotorState"/>.</summary>
+        public SimMotorState MotorState => _motor;
+
+        /// <summary>Replace the live record (host correction / snapshot restore) and re-project it.</summary>
+        public void ApplyMotorState(in SimMotorState state)
+        {
+            HostWriteGuard.CheckRestore();
+            _motor = state;
+            SyncUnityPosition();
+        }
+
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool isGrounded { get => _motor.IsGrounded; set => _motor.IsGrounded = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool isOnPlatform { get => _motor.IsOnPlatform; set => _motor.IsOnPlatform = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool isInWater { get => _motor.IsInWater; set => _motor.IsInWater = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool isFullySubmerged { get => _motor.IsFullySubmerged; set => _motor.IsFullySubmerged = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool isOnLadder { get => _motor.IsOnLadder; set => _motor.IsOnLadder = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool isCrouching { get => _motor.IsCrouching; set => _motor.IsCrouching = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool hitCeiling { get => _motor.HitCeiling; set => _motor.HitCeiling = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool wallLeft { get => _motor.WallLeft; set => _motor.WallLeft = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private bool wallRight { get => _motor.WallRight; set => _motor.WallRight = value; }
+        [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
+        private int facingDirection { get => _motor.FacingDirection; set => _motor.FacingDirection = value; }
 
         // Velocity in pixel space (matching AS3 dx/dy)
-        private float dx;
-        private float dy;
+        [ClientPredicted(Note = "Live motor velocity; own entity predicted, host-corrected (F-02)")]
+        private float dx { get => _motor.Vx; set => _motor.Vx = value; }
+        [ClientPredicted(Note = "Live motor velocity; own entity predicted, host-corrected (F-02)")]
+        private float dy { get => _motor.Vy; set => _motor.Vy = value; }
 
         // Vertical impulse waiting for the next step, in pixels per canonical 30 Hz frame.
-        private float pendingVerticalImpulse;
+        [ClientPredicted(Note = "Tick-relevant pending impulse; part of SimMotorState (F-02)")]
+        private float pendingVerticalImpulse { get => _motor.PendingVerticalImpulse; set => _motor.PendingVerticalImpulse = value; }
 
         /// <summary>
         /// This unit's velocity in AS3's own units — <b>pixels per 30 Hz frame</b>, i.e. exactly
@@ -297,15 +363,21 @@ namespace PFE.Systems.Physics
         }
 
         // Collider feet position in world pixel space.
-        private float posX;
-        private float posY;
+        [ClientPredicted(Note = "Live motor position; own entity predicted, host-corrected (F-02)")]
+        private float posX { get => _motor.Px; set => _motor.Px = value; }
+        [ClientPredicted(Note = "Live motor position; own entity predicted, host-corrected (F-02)")]
+        private float posY { get => _motor.Py; set => _motor.Py = value; }
 
         // Room reference
+        [LocalOnly(Note = "Wiring reference; a Unity-side object, never replicated")]
         private RoomInstance currentRoom;
+        [LocalOnly(Note = "Wiring reference; derived from currentRoom, never replicated")]
         private ITileQueryService tileQueryService;
 
         // Room's world pixel position (for converting between world and room-local coordinates)
+        [LocalOnly(Note = "Derived from currentRoom placement; recomputed on SetRoom, never replicated")]
         private float roomWorldPixelX;
+        [LocalOnly(Note = "Derived from currentRoom placement; recomputed on SetRoom, never replicated")]
         private float roomWorldPixelY;
 
         // ── Prop support (AS3 Unit.checkShelf / stayOsn / osndx / osndy) ─────────────────────────
@@ -326,7 +398,12 @@ namespace PFE.Systems.Physics
         /// from this vector, and the landing push is applied at the moment of landing. A field written
         /// and never read is a decoy, and this port already has four.</para>
         /// </summary>
-        private Vector2 supportCarryPixels;
+        [ClientPredicted(Note = "Tick-relevant support carry (AS3 osndx/osndy); part of SimMotorState (F-02)")]
+        private Vector2 supportCarryPixels
+        {
+            get => new Vector2(_motor.SupportCarryX, _motor.SupportCarryY);
+            set { _motor.SupportCarryX = value.x; _motor.SupportCarryY = value.y; }
+        }
 
         /// <summary>
         /// The <see cref="UnitController"/> on the same object, resolved on first use. The motor is a
@@ -334,7 +411,9 @@ namespace PFE.Systems.Physics
         /// lazy rather than cached in <c>Awake</c>. Used for the unit's AS3-scale mass in the landing
         /// momentum split (<c>Unit.as:2736</c>), and by <c>ResolveCrouchedCollisionHeight</c>.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; lazily resolved component, never replicated")]
         private UnitController unitController;
+        [LocalOnly(Note = "Derived cache; guards lazy resolution, never replicated")]
         private bool resolvedUnitController;
 
         private UnitController Unit
@@ -367,16 +446,25 @@ namespace PFE.Systems.Physics
         private bool IsFixed => Unit != null && Unit.IsFixed;
 
         // Legacy input state
+        [ClientPredicted(Note = "Per-tick intent cache fed from PlayerCommand; predicted (F-03)")]
         private float inputX;
-        private bool inputDown; // For falling through platforms
+        [ClientPredicted(Note = "Per-tick intent cache fed from PlayerCommand; predicted (F-03)")] // For falling through platforms
+        private bool inputDown;
 
         // Motor command state
+        [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private float desiredHorizontalSpeed;
+        [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private float desiredVerticalSpeed;
+        [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private bool hasDesiredVerticalSpeed;
+        [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private float ladderInputY;
-        private float gravityScale = 1f;
+        [ClientPredicted(Note = "Tick-relevant gravity scale; part of SimMotorState (F-02)")]
+        private float gravityScale { get => _motor.GravityScale; set => _motor.GravityScale = value; }
+        [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private bool wantsToCrouch;
+        [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private bool wantsToUseLadder;
 
         /// <summary>
@@ -384,11 +472,16 @@ namespace PFE.Systems.Physics
         /// (<c>TrySqueezeUp</c>); it is a level and not an edge, because the oracle's
         /// <c>isUp</c> is re-assigned every frame (<c>UnitPlayer.as:2944</c>).
         /// </summary>
+        [ClientPredicted(Note = "Per-tick intent level (AS3 keyBeUp); predicted (F-03)")]
         private bool upHeld;
-        private int activeLadderDirection;
-        private float activeLadderSnapX;
-        private float dashTimer;
-        private float platformDropTimer;
+        [ClientPredicted(Note = "Tick-relevant ladder latch; part of SimMotorState (F-02)")]
+        private int activeLadderDirection { get => _motor.ActiveLadderDirection; set => _motor.ActiveLadderDirection = value; }
+        [ClientPredicted(Note = "Tick-relevant ladder latch; part of SimMotorState (F-02)")]
+        private float activeLadderSnapX { get => _motor.ActiveLadderSnapX; set => _motor.ActiveLadderSnapX = value; }
+        [ClientPredicted(Note = "Tick-relevant dash timer; part of SimMotorState (F-02)")]
+        private float dashTimer { get => _motor.DashTimer; set => _motor.DashTimer = value; }
+        [ClientPredicted(Note = "Tick-relevant platform-drop timer; part of SimMotorState (F-02)")]
+        private float platformDropTimer { get => _motor.PlatformDropTimer; set => _motor.PlatformDropTimer = value; }
 
         /// <summary>
         /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) as a <b>level</b> the owning brain holds — the
@@ -402,10 +495,18 @@ namespace PFE.Systems.Physics
         /// accident while making the flag's lifetime a tuning value. The oracle's <c>throu</c> is a level,
         /// so the enemy path gets a level.</para>
         /// </summary>
+        [ClientPredicted(Note = "Per-tick intent level (AS3 throu); predicted (F-03)")]
         private bool dropThroughPlatforms;
 
-        private Vector2 dashVelocity;
+        [ClientPredicted(Note = "Tick-relevant dash velocity; part of SimMotorState (F-02)")]
+        private Vector2 dashVelocity
+        {
+            get => new Vector2(_motor.DashVelocityX, _motor.DashVelocityY);
+            set { _motor.DashVelocityX = value.x; _motor.DashVelocityY = value.y; }
+        }
+        [LocalOnly(Note = "Derived content constant; cached from collisionHeight, never replicated")]
         private float standingCollisionHeight;
+        [LocalOnly(Note = "Derived content constant; resolved from definition, never replicated")]
         private float resolvedCrouchedCollisionHeight;
 
         // ── Simulation driving (P1) ──────────────────────────────────────────
@@ -413,14 +514,18 @@ namespace PFE.Systems.Physics
         // Unity's FixedUpdate ("legacy"). Legacy stays the default so the migration can be A/B'd on
         // one flag — see PfeDebugSettings.SimTickMotor. With the flag off, every expression below
         // evaluates to exactly what it did before, so the legacy path is unchanged by construction.
+        [LocalOnly(Note = "Wiring reference; injected via AttachSimulation, never replicated")]
         private PFE.Core.SimClock simClock;
+        [LocalOnly(Note = "Wiring reference; injected via AttachSimulation, never replicated")]
         private PFE.Core.SimLoop simLoop;
+        [LocalOnly(Note = "Derived cache; whether AttachSimulation ran, never replicated")]
         private bool simAttached;
 
         /// <summary>
         /// True when this motor owns a spawned unit's step rather than the player's. Only affects
         /// <see cref="TickOrder"/>; see <see cref="MarkUnitOwned"/>.
         /// </summary>
+        [LocalOnly(Note = "Wiring flag; set by RoomUnitSpawner before first tick, never replicated")]
         private bool unitOwned;
 
         /// <summary>True when SimLoop owns the step and FixedUpdate must stand down.</summary>
@@ -488,10 +593,16 @@ namespace PFE.Systems.Physics
         private const float PIX_TO_UNIT = 0.01f;
         private const float UNIT_TO_PIX = 100f;
 
+        // A transient probe result, not Sim state: a LadderContact is computed fresh inside a step and
+        // discarded, so it is never replicated. Marked [LocalOnly] per-field so the Phase 1.1 lint
+        // (which scans every field declaration in this file) sees the classification explicitly.
         private readonly struct LadderContact
         {
+            [LocalOnly(Note = "Transient probe result, not Sim state")]
             public readonly Vector2Int TileCoord;
+            [LocalOnly(Note = "Transient probe result, not Sim state")]
             public readonly int Direction;
+            [LocalOnly(Note = "Transient probe result, not Sim state")]
             public readonly float SnapX;
 
             public LadderContact(Vector2Int tileCoord, int direction, float snapX)
@@ -527,7 +638,7 @@ namespace PFE.Systems.Physics
         public int FacingDirection => facingDirection;
         public float VelocityX => dx;
         public float VelocityY => dy;
-        public Vector2 PixelPosition => new Vector2(posX, posY);
+        public Vector2 PixelPosition => new Vector2(_motor.Px, _motor.Py);
         public RoomInstance CurrentRoom => currentRoom;
         public ITileQueryService TileQuery => tileQueryService;
         public Vector2 ColliderOffsetPixels => colliderOffsetPixels;
@@ -2446,10 +2557,17 @@ namespace PFE.Systems.Physics
         private void CheckWater()
         {
             float height = isCrouching ? resolvedCrouchedCollisionHeight : collisionHeight;
+            // Phase 1.5: these two flags are forwarding properties onto SimMotorState, and a
+            // property cannot be passed as `out`. Local + write-back; the values stored are the
+            // same two the oracle's checkWater() produced.
+            bool inWater;
+            bool fullySubmerged;
             TileCollisionMath.CheckWater(
                 currentRoom, posX, posY, height,
                 roomWorldPixelX, roomWorldPixelY,
-                out isInWater, out isFullySubmerged);
+                out inWater, out fullySubmerged);
+            isInWater = inWater;
+            isFullySubmerged = fullySubmerged;
         }
 
         /// <summary>
@@ -2457,7 +2575,9 @@ namespace PFE.Systems.Physics
         /// </summary>
         private void SyncUnityPosition()
         {
-            Vector2 transformPixelPos = ColliderPixelToTransformPixel(new Vector2(posX, posY));
+            // Phase 1.5 (F-02): the projection boundary. The Sim record's Px/Py are the truth and
+            // the Transform is rebuilt from them; posX/posY are now aliases for the same values.
+            Vector2 transformPixelPos = ColliderPixelToTransformPixel(new Vector2(_motor.Px, _motor.Py));
             transform.position = new Vector3(
                 transformPixelPos.x * PIX_TO_UNIT,
                 transformPixelPos.y * PIX_TO_UNIT,

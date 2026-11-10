@@ -385,6 +385,11 @@ namespace PFE.Systems.Map
         /// prop. AS3's <c>Loot</c> derives from <c>Obj</c> but never takes part in <c>Box.forces()</c> or
         /// <c>checkShelf</c>, and the port's pickup is a trigger collider that nothing can stand on. A
         /// record here is a <i>fact about the room</i>, not a body in it.
+        ///
+        /// <para><b>This is where a stack gets its identity.</b> Minting here rather than at the drop
+        /// site means every path that files a record — the pickup's own spawn, the save loader, a
+        /// restored room — gets an id without having to remember. A caller that already has one keeps
+        /// it, so re-adding a record is not a re-identity.</para>
         /// </remarks>
         public void AddDroppedItem(DroppedItemInstance item)
         {
@@ -392,6 +397,9 @@ namespace PFE.Systems.Map
             {
                 return;
             }
+
+            item.entityHash = PFE.Core.Ids.DroppedItemIdentityRules.Resolve(
+                item.entityHash, PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId);
 
             droppedItems ??= new List<DroppedItemInstance>();
             droppedItems.Add(item);
@@ -2047,5 +2055,23 @@ namespace PFE.Systems.Map
 
         /// <summary>Room-local pixels — see <see cref="RoomInstance.droppedItems"/>.</summary>
         public Vector2 position;
+
+        /// <summary>
+        /// The host-assigned replication id for this stack — §10.2 gap 2.
+        ///
+        /// <para><b>Assigned once, by <see cref="RoomInstance.AddDroppedItem"/>.</b> It is what lets
+        /// two identical stacks on one pixel be two stacks, and what lets a stack that moves keep its
+        /// identity. <see cref="PFE.Core.Ids.DroppedItemIdentityRules.Unassigned"/> means "not assigned
+        /// yet"; a record in that state must not reach a snapshot, because the receiver rejects a zero
+        /// id as the <c>(content id, position)</c> conflation the payload exists to remove.</para>
+        ///
+        /// <para><b>Deliberately not in <c>DroppedItemSnapshot</c>.</b> A saved serial was minted by a
+        /// previous run's allocator, and the next run starts counting from zero — so honouring it could
+        /// hand a fresh drop the same id as a restored one, and a duplicate id inside one room makes the
+        /// receiver reject the whole loot set. A save/load is a new replication lifetime with a new
+        /// <c>WorldRevision</c> anyway, so identity only has to survive a room rebuild, which it does by
+        /// the record object being re-added rather than recreated.</para>
+        /// </summary>
+        public ulong entityHash;
     }
 }

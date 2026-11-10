@@ -16,7 +16,13 @@ using PFE.Systems.Particles;
 using PFE.Systems.Particles.Adapters;
 using PFE.Systems.Weapons;
 using PFE.Sim.Units;
+using PFE.Sim.State;
 using PFE.Core.Rng;
+using PFE.Core;
+// Unity 6000 declares `UnityEngine.EntityId`, so the unqualified name is ambiguous (CS0104) in every
+// file that imports UnityEngine. The alias is the project's standard fix.
+using EntityId = PFE.Core.Ids.EntityId;
+using PFE.Core.Ids;
 namespace PFE.Entities.Units
 {
     /// <summary>
@@ -40,15 +46,160 @@ namespace PFE.Entities.Units
     {
         [Header("Configuration")]
         [SerializeField]
+        [LocalOnly(Note = "Content reference (UnitDefinition asset); interned id on the wire (§10)")]
         protected UnitDefinition _stats;
 
         [Header("Debug")]
         [SerializeField]
+        [LocalOnly(Note = "Debug/cosmetic; never replicated")]
         protected bool _showDebugInfo = false;
 
         // State
-        protected Vector2 _velocity;
-        protected bool _isGrounded;
+        /// <summary>
+        /// Phase 1.5 (F-02): the <b>live</b> Sim record for this unit. The seven motion/gait members
+        /// below are forwarding properties onto it — the MonoBehaviour no longer owns their storage.
+        /// A motored unit's motion truth stays in <c>SimMotorState</c> (different cadence, §10);
+        /// these are the motor-less path only. Field initialisers preserve the exact defaults the old
+        /// fields carried (<c>_facingDirection = 1</c>, overhang = <c>NoSupportOverhang</c>).
+        /// </summary>
+        [Authoritative(Note = "The Sim state record UnitController's step mutates; live unit truth (F-02, Phase 1.5)")]
+        private SimUnitState _sim = new SimUnitState
+        {
+            FacingDirection = 1,
+            OverhangLeft = UnitOverhangMath.NoSupportOverhang,
+            OverhangRight = UnitOverhangMath.NoSupportOverhang,
+
+            // A default-constructed record would say slot 0, i.e. "player 0 drives me" — for every AI
+            // unit in the game. The record's own doc defines −1 as host AI; the initialiser is where
+            // that has to be true, not just documented.
+            ControllerSlot = SimUnitState.HostAiControllerSlot,
+        };
+
+        /// <summary>Read-only projection of the live record (snapshot capture / host comparison).</summary>
+        public SimUnitState UnitState => _sim;
+
+        /// <summary>
+        /// Phase 3.3 (F-05 closure): the id of the <b>record</b> this view was built for, plus the
+        /// lifetime it belongs to. Empty until <c>RoomUnitSpawner.Spawn</c> hands it over.
+        ///
+        /// <para><b>The controller does not register itself.</b> <see cref="PFE.Core.RuntimeEntityIdContext"/>
+        /// is keyed on the record (<c>UnitInstance</c>) because <c>RefreshAll</c> destroys and rebuilds
+        /// this component on every room entry — registering the component would collide with the record
+        /// that already holds the id and trip <c>CollisionCount</c> on the first room entry. So this
+        /// field is a <i>mirror</i> of the record's identity, stamped here for the code that only has a
+        /// controller in hand: damage attribution, the snapshot projector and the debug overlay.</para>
+        ///
+        /// <para><b>Why a field and not a lookup.</b> <c>SimUnitState.EntityHash</c> is already the
+        /// wire-side identity, and <see cref="UnitState"/> is what a projector reads. Keeping the pair in
+        /// sync here means the projection never has to walk back from a component to a record — a walk
+        /// that <c>RoomUnitSpawner</c>'s private <c>_spawned</c> map does not expose and that would have
+        /// to be rebuilt per tick.</para>
+        /// </summary>
+        [LocalOnly(Note = "Mirror of the record's id + lifetime; the record and registry own the truth")]
+        public EntityId EntityId { get; private set; }
+
+        /// <summary>Whether a spawn path has stamped an id yet.</summary>
+        public bool HasEntityId => EntityId.IsValid;
+
+        /// <summary>
+        /// The interned unit-definition id (<see cref="PFE.Sim.Content.ContentInternTable"/>) this view
+        /// was built for. <c>Uninterned</c> (0) until <c>RoomUnitSpawner.Spawn</c> stamps it.
+        /// </summary>
+        [LocalOnly(Note = "Mirror of the record's interned definition id; the content table owns the mapping")]
+        public ushort DefinitionId { get; private set; }
+
+        /// <summary>
+        /// Stamp the record's interned definition id onto this view and its live record. Called by the
+        /// spawner, which is the only code that resolves the <c>UnitDefinition</c>.
+        /// </summary>
+        public void AssignDefinitionId(ushort definitionId)
+        {
+            DefinitionId = definitionId;
+            _sim.DefinitionId = definitionId;
+        }
+
+        /// <summary>
+        /// Project this unit's tick state into the wire record — the host-side half of unit
+        /// replication, mirroring <c>Projectile.CaptureSimState</c>.
+        ///
+        /// <para><b>Most of the record is already live here.</b> <see cref="_sim"/> is the record
+        /// <c>UnitController</c>'s own step mutates, so health, gait, status and pose need no
+        /// translation. Only three things are stamped at capture time: the identity (owned by the
+        /// record + registry, not by this component), the interned definition id, and the position.</para>
+        ///
+        /// <para><b>Position: <c>transform.localPosition</c> scaled by 100, which is exact for every
+        /// unit <c>RoomUnitSpawner</c> builds.</b> The spawner parents the unit to the room root and
+        /// sets <c>localPosition = PixelToUnity(unit.position)</c>, so the inverse recovers
+        /// <c>unit.position</c>'s space — AS3 room-local pixels, the same space
+        /// <c>SimRoomDelta</c> and <c>UnitInstance.position</c> use. <b>This is not yet verified for
+        /// the player</b>, whose prefab is not parented to a room root; that is the first thing the
+        /// next play-test should check, and <see cref="PFE.Systems.Replication.SimProjectileSnapshotProjector.ProjectedPlayerUnitCount"/>
+        /// exists so it can be seen rather than guessed. The alternative — an origin-subtracting
+        /// conversion that nobody has executed — would put a plausible-looking wrong number in a
+        /// replicated field.</para>
+        /// </summary>
+        public SimUnitState CaptureSimState()
+        {
+            SimUnitState state = _sim;
+
+            state.EntityHash = EntityId.Hash;
+            state.DefinitionId = DefinitionId;
+
+            Vector2 roomLocalPixels = WorldCoordinates.UnityToPixel(transform.localPosition);
+            state.Px = roomLocalPixels.x;
+            state.Py = roomLocalPixels.y;
+
+            return state;
+        }
+
+        /// <summary>
+        /// Stamp the record's identity onto this view. Called by the spawner, after the record has been
+        /// registered — never by the controller itself.
+        /// </summary>
+        public void AssignEntityId(EntityId id, EntityLifetime lifetime)
+        {
+            EntityId = id;
+
+            if (!id.IsValid) return;
+
+            _sim.EntityHash = id.Hash;
+            _sim.Generation = lifetime.Generation;
+            _sim.LifecycleSequence = lifetime.LifecycleSequence;
+        }
+
+        /// <summary>Replace the live record (host correction / snapshot restore). The unit's existing
+        /// step path re-projects it on the next tick: every motion/gait read now routes through
+        /// <see cref="_sim"/>. <c>Px/Py</c> are still driven by the authored room instance, so this
+        /// deliberately does not write <c>Transform</c> — that projection lands with Phase 2.</summary>
+        public void ApplyUnitState(in SimUnitState state)
+        {
+            HostWriteGuard.CheckRestore();
+            _sim = state;
+
+            // Identity is not part of the state being restored. A snapshot from before this unit had an
+            // id — or a hand-built <c>SimUnitState</c> in a fixture — carries EntityHash 0, and letting
+            // that through would make the unit anonymous to the next projection while its EntityId
+            // property still said otherwise: two answers to the same question, one of them stale.
+            if (EntityId.IsValid) _sim.EntityHash = EntityId.Hash;
+
+            // Same argument for the interned definition id: content identity is not part of the state
+            // being restored. A snapshot from a peer that has not stamped it yet — or a hand-built
+            // record in a fixture — carries 0, and letting that through would make the unit look like
+            // "definition 0" to the next projection instead of the definition it is.
+            if (DefinitionId != PFE.Sim.Content.ContentInternTable.Uninterned)
+            {
+                _sim.DefinitionId = DefinitionId;
+            }
+        }
+
+        [Authoritative(Note = "Motor-less unit velocity; host-owned Sim truth (F-02)")]
+        protected Vector2 _velocity
+        {
+            get => new Vector2(_sim.Vx, _sim.Vy);
+            set { _sim.Vx = value.x; _sim.Vy = value.y; }
+        }
+        [Authoritative(Note = "Motor-less unit groundedness; host-owned Sim truth (F-02)")]
+        protected bool _isGrounded { get => _sim.IsGrounded; set => _sim.IsGrounded = value; }
 
         /// <summary>
         /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) — "ignore one-way surfaces when asking what I am
@@ -66,9 +217,12 @@ namespace PFE.Entities.Units
         /// standing on anything. A self-clearing timer would be a second rule about when the flag expires
         /// and would not be the oracle's.</para>
         /// </summary>
-        protected bool _dropThroughPlatforms;
+        [Authoritative(Note = "AS3 throu; host-owned Sim truth (F-02)")]
+        protected bool _dropThroughPlatforms { get => _sim.DropThroughPlatforms; set => _sim.DropThroughPlatforms = value; }
 
-        protected int _facingDirection = 1; // 1 = Right, -1 = Left
+        // 1 = Right, -1 = Left. The default now lives in the _sim initialiser above.
+        [Authoritative(Note = "AS3 storona; host-owned Sim truth (F-02)")]
+        protected int _facingDirection { get => _sim.FacingDirection; set => _sim.FacingDirection = value; }
 
         /// <summary>
         /// AS3 <c>Unit.shX1</c>/<c>shX2</c> — how much of this unit's body width hangs past the edge of
@@ -84,16 +238,22 @@ namespace PFE.Entities.Units
         /// value the oracle's first write produces — rather than a stale fraction from a platform it
         /// left ten ticks ago.</para>
         /// </summary>
-        protected float _overhangLeft = UnitOverhangMath.NoSupportOverhang;
+        [Authoritative(Note = "AS3 shX1; host-owned Sim truth (F-02)")]
+        protected float _overhangLeft { get => _sim.OverhangLeft; set => _sim.OverhangLeft = value; }
 
         /// <inheritdoc cref="_overhangLeft"/>
-        protected float _overhangRight = UnitOverhangMath.NoSupportOverhang;
+        [Authoritative(Note = "AS3 shX2; host-owned Sim truth (F-02)")]
+        protected float _overhangRight { get => _sim.OverhangRight; set => _sim.OverhangRight = value; }
 
 
         // Components
+        [LocalOnly(Note = "Wiring reference; Unity component, never replicated")]
         protected Rigidbody2D _rb;
+        [LocalOnly(Note = "Wiring reference; Unity component, never replicated")]
         protected Collider2D _collider;
+        [LocalOnly(Note = "Wiring reference; Unity component, never replicated")]
         private TilePhysicsController _cachedTilePhysics;
+        [LocalOnly(Note = "Derived cache of _cachedTilePhysics != null; never replicated")]
         private bool _hasTilePhysics;
 
         /// <summary>
@@ -113,6 +273,7 @@ namespace PFE.Entities.Units
         /// <para>Null is legal. A bare test spawn has no renderer, and a unit that never hides itself
         /// never reads this field.</para>
         /// </summary>
+        [LocalOnly(Note = "View reference; the body sprite, never replicated")]
         protected SpriteRenderer _visualRenderer;
 
         /// <summary>
@@ -125,6 +286,7 @@ namespace PFE.Entities.Units
         /// renderer read as permanently invisible, which is the opposite of true for a headless
         /// fixture.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 isVis, read back by behaviour; host-owned Sim truth (F-02)")]
         protected bool _isVis = true;
 
         /// <summary>
@@ -141,6 +303,7 @@ namespace PFE.Entities.Units
         /// That is why the alicorn's <c>tr1</c> cloak was invisible in the log sense — it hid a sprite
         /// nobody was told about.</para>
         /// </summary>
+        [LocalOnly(Note = "View reference; resolved for the visibility write, never replicated")]
         UnitAnimator _animatorForVisibility;
 
         // ── Which clock owns this unit's step ────────────────────────────────
@@ -154,8 +317,11 @@ namespace PFE.Entities.Units
         //
         // Two drivers running at once is the classic double-step bug, so both entry points read
         // the SAME predicate rather than each keeping its own copy of the rule.
+        [LocalOnly(Note = "Wiring reference; injected via AttachSimulation, never replicated")]
         private PFE.Core.SimClock _simClock;
+        [LocalOnly(Note = "Wiring reference; injected via AttachSimulation, never replicated")]
         private PFE.Core.SimLoop _simLoop;
+        [LocalOnly(Note = "Derived cache; whether AttachSimulation ran, never replicated")]
         private bool _simAttached;
 
         /// <summary>
@@ -199,6 +365,7 @@ namespace PFE.Entities.Units
         /// Null for a unit built without one (a bare test spawn), in which case the collision callbacks
         /// below remain the only source of groundedness.
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; AS3 loc, assigned by spawner, never replicated")]
         protected ITileQueryService _tileQuery;
 
         /// <summary>
@@ -212,6 +379,7 @@ namespace PFE.Entities.Units
         /// applies, and it sinks through the crate — the same failure shape as the floor bug
         /// <see cref="UnitGroundProbe"/> fixed, one layer out.</para>
         /// </summary>
+        [LocalOnly(Note = "Wiring reference; AS3 loc.objs, assigned by spawner, never replicated")]
         protected RoomObjectPhysicsLayer _objectPhysicsLayer;
 
         /// <summary>
@@ -219,7 +387,9 @@ namespace PFE.Entities.Units
         /// resolved answer from <see cref="ResolveGroundState"/>. Null when the unit is on a tile, in
         /// the air, or has no room.
         /// </summary>
+        [Authoritative(Note = "AS3 stayOsn support prop; host-owned Sim truth (F-02)")]
         protected ObjectInstance _groundProp;
+        [Authoritative(Note = "Support surface height; host-owned Sim truth (F-02)")]
         protected float? _groundPropSurfaceRoomLocalY;
 
         /// <summary>
@@ -230,16 +400,23 @@ namespace PFE.Entities.Units
         /// <see cref="UnitCheckShelfMath.SupportFollowMaxDeltaPixels"/> in one tick (the oracle's
         /// detach, <c>:2016</c>).
         /// </summary>
-        protected Vector2 _groundPropCarryPixels;
+        [Authoritative(Note = "AS3 osndx/osndy carry; host-owned Sim truth (F-02)")]
+        protected Vector2 _groundPropCarryPixels
+        {
+            get => new Vector2(_sim.SupportCarryX, _sim.SupportCarryY);
+            set { _sim.SupportCarryX = value.x; _sim.SupportCarryY = value.y; }
+        }
 
         /// <summary>
         /// Colliders currently providing upward support, keyed by the <i>other</i> collider. Only used
         /// on the callback fallback path — see <see cref="OnCollisionExit2D"/> for why a set rather than
         /// a bool.
         /// </summary>
+        [LocalOnly(Note = "Derived cache; collision-callback fallback accumulator, never replicated")]
         readonly HashSet<Collider2D> _supportingColliders = new HashSet<Collider2D>();
 
         // Stats (optional - subclasses like PlayerController will provide their own)
+        [Authoritative(Note = "Mutable stats object (hp/vulnerabilities); host-owned Sim truth (F-02)")]
         protected UnitStats _unitStats;
 
         /// <summary>
@@ -250,6 +427,7 @@ namespace PFE.Entities.Units
         /// (<c>UnitZombie</c>) or a re-entered death branch would otherwise roll the table twice and
         /// double the loot. AS3 gates on this flag and so does the port.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 lootIsDrop once-only guard; host-owned Sim truth (F-02)")]
         protected bool _lootDropped;
 
         /// <summary>
@@ -261,6 +439,7 @@ namespace PFE.Entities.Units
         /// reaction (<see cref="OnDeath"/>) covering loot <i>and</i> XP, and only the loot half was
         /// guarded, so this flag is the missing half. See <see cref="RaiseDeath"/>.</para>
         /// </summary>
+        [Authoritative(Note = "Once-only death reaction guard; host-owned Sim truth (F-02)")]
         protected bool _deathRaised;
 
         /// <summary>
@@ -287,6 +466,7 @@ namespace PFE.Entities.Units
         /// assets under <c>Resources/Rooms</c> author it (24 × <c>hero="1"</c>, 6 × <c>"2"</c>,
         /// 6 × <c>"3"</c>, 5 × <c>"4"</c>).</para>
         /// </summary>
+        [Authoritative(Note = "AS3 hero placement tier; host-owned Sim truth (F-02)")]
         protected int _heroTier;
 
         // ── The elite ("starred") block ──────────────────────────────────────────
@@ -300,13 +480,16 @@ namespace PFE.Entities.Units
         // split UnitController.SkinResistance documents for `skin`.
 
         /// <summary>AS3 <c>this.dam *= …</c> — scales <see cref="MeleeDamage"/> only.</summary>
+        [Authoritative(Note = "AS3 dam *=; host-owned Sim truth (F-02)")]
         private float _eliteDamageMultiplier = 1f;
 
         /// <summary>AS3 <c>this.observ += 8</c> — a flat add on top of the row's <c>observ</c>.</summary>
+        [Authoritative(Note = "AS3 observ += 8; host-owned Sim truth (F-02)")]
         private float _eliteObservationBonus;
 
         /// <summary>AS3 <c>this.xp *= 5</c> — a multiplier rather than a rewritten reward, so the
         /// definition's authored XP stays the single source for the base value.</summary>
+        [Authoritative(Note = "AS3 xp *= 5; host-owned Sim truth (F-02)")]
         private float _eliteXpMultiplier = 1f;
 
         /// <summary>
@@ -318,6 +501,7 @@ namespace PFE.Entities.Units
         /// nothing. A unit whose species list has run out keeps its species name and still gets the
         /// star and the stats.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 nazv; host-owned Sim truth (F-02)")]
         private string _eliteName;
 
         /// <summary>
@@ -327,6 +511,7 @@ namespace PFE.Entities.Units
         /// <see cref="HeroTier"/>, so a <c>hero="1"</c> placement on a row the oracle refuses to promote
         /// does not get a star the original would not have drawn.
         /// </summary>
+        [Authoritative(Note = "Promoted-to-starred flag; host-owned Sim truth (F-02)")]
         private bool _isElite;
 
         /// <summary>
@@ -405,6 +590,7 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>Guards <see cref="ApplyHeroTier"/> against a second <see cref="ApplyPlacement"/>.</summary>
+        [Authoritative(Note = "Once-only ApplyHeroTier guard; host-owned Sim truth (F-02)")]
         private bool _heroApplied;
 
         /// <summary>
@@ -486,6 +672,7 @@ namespace PFE.Entities.Units
         /// </summary>
         protected virtual void ApplyHeroTier()
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (_heroApplied) return;
             _heroApplied = true;
 
@@ -626,6 +813,7 @@ namespace PFE.Entities.Units
         /// The faction this <b>placement</b> overrode, or <c>null</c> to fall back to the unit
         /// definition. Written by <see cref="ApplyPlacement"/>; see <see cref="Faction"/>.
         /// </summary>
+        [Authoritative(Note = "Placement faction override; host-owned Sim truth (F-02)")]
         private FactionType? _instanceFaction;
 
         /// <summary>
@@ -640,10 +828,13 @@ namespace PFE.Entities.Units
         /// second path every spawned enemy would silently fall back to the unarmoured branch below.</para>
         /// </remarks>
 #pragma warning disable CS0649 // assigned by VContainer, or by SetDamageSystem
-        [Inject] private DamageSystem _damageSystem;
+        [Inject]
+        [LocalOnly(Note = "Wiring reference; damage authority service, never replicated")]
+        private DamageSystem _damageSystem;
 #pragma warning restore CS0649
 
         /// <summary>One-shot guard for the missing-<see cref="DamageSystem"/> warning.</summary>
+        [LocalOnly(Note = "Derived cache; guards a log, never replicated")]
         private bool _warnedMissingDamageSystem;
 
         // PFE physics constants (from Unit.as in AS3).
@@ -716,6 +907,11 @@ namespace PFE.Entities.Units
             {
                 _simLoop.Register(this);
             }
+
+            // The snapshot projector's flat list of live views. Registered here rather than in the
+            // spawner for the same reason as the SimLoop line above: a pooled or re-enabled unit must
+            // come back, and OnEnable is the one hook that fires on every path.
+            UnitViewRegistry.Register(this);
         }
 
         /// <summary>
@@ -740,6 +936,10 @@ namespace PFE.Entities.Units
             // label onto a destroyed transform (a fake-null entry, exactly the shape this method's own
             // remarks describe for SimLoop). Harmless for a unit that was never promoted.
             EliteEnemyRegistry.Unregister(this);
+
+            // ...and the projector's list, for exactly the reason above: a destroyed unit left in it
+            // is a fake-null the projector would project every tick.
+            UnitViewRegistry.Unregister(this);
 
             if (SimDriven)
             {
@@ -788,10 +988,27 @@ namespace PFE.Entities.Units
                 : GetComponent<TilePhysicsController>();
             if (motor != null)
             {
+                float stayWidthPx = UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.Width);
+                float stayHeightPx = UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.Height);
+                float sitHeightPx = UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.sitHeight);
+
+                // Row 0.3: the body box is a function of content resolved by ONE shared rule, so two
+                // peers cannot disagree about the crouch because one of them read a different
+                // serialized number. The motor is fed the RESOLVED box's fields, not the raw
+                // conversions: computing a UnitBodyBox and then ignoring it would leave the rule
+                // decorative while every lint still saw its name.
+                //
+                // Resolve throws on a non-positive standing size; those values are the "no authored
+                // size, keep the motor's serialized default" sentinel. For that path build the
+                // untouched pass-through box instead of turning missing content into a runtime throw —
+                // ConfigureCollisionSize ignores non-positive values, which is the existing contract
+                // pinned by UnitCollisionBoxMathTests.NonPositiveStaysTheSentinelRatherThanGoingNegative.
+                UnitBodyBox bodyBox = stayWidthPx > 0f && stayHeightPx > 0f
+                    ? UnitBodyBoxRules.Resolve(stayWidthPx, stayHeightPx, 0f, sitHeightPx)
+                    : new UnitBodyBox(stayWidthPx, stayHeightPx, stayWidthPx, sitHeightPx);
+
                 motor.ConfigureCollisionSize(
-                    UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.Width),
-                    UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.Height),
-                    UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.sitHeight));
+                    bodyBox.WidthPx, bodyBox.HeightPx, bodyBox.SitHeightPx);
             }
         }
 
@@ -1031,6 +1248,7 @@ namespace PFE.Entities.Units
         /// </remarks>
         public virtual void SetVisible(bool visible)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             _isVis = visible;
             ApplyVisualVisibility();
         }
@@ -1583,6 +1801,7 @@ namespace PFE.Entities.Units
         /// the listener's own <c>ear</c> is applied. Raised by <see cref="MakeNoise"/>, decays 20 per
         /// tick, and is <b>0 whenever the unit is not doing anything loud</b>.
         /// </summary>
+        [Authoritative(Note = "AS3 noise; host-owned Sim truth (F-02)")]
         private int _noise;
 
         /// <summary>
@@ -1590,6 +1809,7 @@ namespace PFE.Entities.Units
         /// ripple. Kept because it is the only stateful half of <c>makeNoise</c>, and read by the F3
         /// overlay so the mechanic is visible during a play-test.
         /// </summary>
+        [Authoritative(Note = "AS3 noise_t ripple cooldown; host-owned Sim truth (F-02)")]
         private int _noiseRippleTicks;
 
         /// <summary>
@@ -1597,6 +1817,7 @@ namespace PFE.Entities.Units
         /// directly because its <c>run()</c> sets it; the port resolves groundedness in two different
         /// places depending on the driver, so the edge is tracked here instead.
         /// </summary>
+        [Authoritative(Note = "Landing-edge detector state; host-owned Sim truth (F-02)")]
         private bool _noiseWasGrounded = true;
 
         /// <summary>
@@ -1604,6 +1825,7 @@ namespace PFE.Entities.Units
         /// <c>checkShelf</c> fires. AS3 reads it inline inside <c>run()</c>; the port resolves the
         /// landing a step later (see <see cref="TickNoise"/>), so the value has to be carried.
         /// </summary>
+        [Authoritative(Note = "Landing-noise fall speed; host-owned Sim truth (F-02)")]
         private float _noiseFallSpeedPixelsPerFrame;
 
         /// <summary>
@@ -1619,6 +1841,7 @@ namespace PFE.Entities.Units
         /// accumulate any, because nothing calls <see cref="AddSuspicion"/> for them — which is the same
         /// statement AS3 makes by declaring the field lower down the hierarchy.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 obs/isObs suspicion meter; host-owned Sim truth (F-02)")]
         private NoiseMath.Observation _suspicion;
 
         /// <summary>How loud this unit currently is — AS3 <c>Unit.noise</c>.</summary>
@@ -1813,6 +2036,7 @@ namespace PFE.Entities.Units
         /// <c>demask</c>, <c>detecting</c>, <c>lurked</c>, <c>isSit</c>. Advanced by
         /// <see cref="TickStealth"/>; read by <c>EnemySensors</c>.
         /// </summary>
+        [Authoritative(Note = "AS3 visibility/stealthMult/demask/detecting; host-owned Sim truth (F-02)")]
         private StealthMath.StealthState _stealth = StealthMath.StealthState.Default;
 
         /// <summary>
@@ -2035,6 +2259,31 @@ namespace PFE.Entities.Units
                 transform.position.z);
 
             return _particleEmitter.Emit(particleId, worldUnits);
+        }
+
+        /// <summary>
+        /// The same seam with a <see cref="PFE.Systems.Particles.ParticleSpec"/> — the oracle's fourth
+        /// argument to <c>Emitter.emit(id, loc, X, Y, {kol:…})</c>.
+        ///
+        /// <para><b>Why a second overload and not a widened one.</b> Every existing caller passes three
+        /// arguments and means "the particle's own defaults"; only a blast needs to say
+        /// <c>{kol:16}</c> for its sparks. A defaulted parameter would have changed the signature of a
+        /// method 40 call sites depend on, for one caller's benefit.</para>
+        /// </summary>
+        public bool EmitParticle(string particleId, Vector2 worldPositionPixels,
+                                 PFE.Systems.Particles.ParticleSpec overrides)
+        {
+            if (_particleEmitter == null || string.IsNullOrEmpty(particleId))
+            {
+                return false;
+            }
+
+            var worldUnits = new Vector3(
+                worldPositionPixels.x * TileQueryConstants.PixelToUnit,
+                worldPositionPixels.y * TileQueryConstants.PixelToUnit,
+                transform.position.z);
+
+            return _particleEmitter.Emit(particleId, worldUnits, overrides);
         }
 
         /// <summary>
@@ -2440,7 +2689,7 @@ namespace PFE.Entities.Units
             // for as long as it takes to leave the tile it stands on.
             if (tileGravity < 0f)
             {
-                _velocity.y = UnitFallPhysics.LiftSpeed(_velocity.y, StepSeconds, tileGravity);
+                SetVelocityY(UnitFallPhysics.LiftSpeed(_velocity.y, StepSeconds, tileGravity));
                 return;
             }
 
@@ -2454,13 +2703,13 @@ namespace PFE.Entities.Units
                 if (_velocity.y < 0f)
                 {
                     PushSupportDownIfUnsettled();
-                    _velocity.y = 0f;
+                    SetVelocityY(0f);
                 }
 
                 return;
             }
 
-            _velocity.y = UnitFallPhysics.FallSpeed(_velocity.y, StepSeconds, tileGravity);
+            SetVelocityY(UnitFallPhysics.FallSpeed(_velocity.y, StepSeconds, tileGravity));
         }
 
         /// <summary>
@@ -2581,6 +2830,7 @@ namespace PFE.Entities.Units
             _flySpeedCapPixelsPerFrame = maxSpeedPixelsPerFrame;
         }
 
+        [Authoritative(Note = "AS3 maxSpeed flyer override; host-owned Sim truth (F-02)")]
         float? _flySpeedCapPixelsPerFrame;
 
         /// <summary>
@@ -2660,7 +2910,7 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            _velocity.x = UnitFallPhysics.GroundBrake(_velocity.x, StepSeconds);
+            SetVelocityX(UnitFallPhysics.GroundBrake(_velocity.x, StepSeconds));
         }
 
         /// <summary>
@@ -2803,7 +3053,7 @@ namespace PFE.Entities.Units
 
             if (resolution.Blocked)
             {
-                _velocity.x = 0f;
+                SetVelocityX(0f);
             }
 
             return resolution;
@@ -2826,6 +3076,7 @@ namespace PFE.Entities.Units
         /// </summary>
         public virtual void SetFacing(int direction)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             _facingDirection = direction >= 0 ? 1 : -1;
             ApplyFacingToTransform();
         }
@@ -2843,6 +3094,7 @@ namespace PFE.Entities.Units
         /// between <c>ai</c> absent and <c>Rooms.as:1936</c>'s <c>ai="quet"</c> typo, which the oracle
         /// treats as absent and which any normalising match would silently repair.</para>
         /// </remarks>
+        [Authoritative(Note = "AS3 aiTip placement attribute; host-owned Sim truth (F-02)")]
         public string PlacementAiTip { get; private set; } = string.Empty;
 
         /// <summary>
@@ -2866,10 +3118,13 @@ namespace PFE.Entities.Units
         /// correct answer for a unit that was never given a placement (a test spawn) and for every
         /// <see cref="UnitAiFamily.Generic"/> family.
         /// </summary>
+        [Authoritative(Note = "Interpreted placement ai flags; host-owned Sim truth (F-02)")]
         PlacementAiEffect _placementAi;
 
         // The placement `weap` pair — see ApplyPlacement for why presence and value are separate.
+        [Authoritative(Note = "AS3 param3.@weap presence; host-owned Sim truth (F-02)")]
         bool _placementWeapPresent;
+        [Authoritative(Note = "AS3 param3.@weap value; host-owned Sim truth (F-02)")]
         string _placementWeapText = string.Empty;
 
         /// <summary>
@@ -2931,12 +3186,15 @@ namespace PFE.Entities.Units
         /// AS3 <c>Unit.t_replic</c> (<c>Unit.as:498</c>) — the speech cooldown, in ticks. Positive means
         /// "not yet", zero or negative means "may speak".
         /// </summary>
+        [Authoritative(Note = "AS3 t_replic speech cooldown; host-owned Sim truth (F-02)")]
         protected int _replicCooldown;
 
         /// <summary>Whether <see cref="_replicCooldown"/> has been seeded with the oracle's random start.</summary>
+        [Authoritative(Note = "Speech cooldown seed guard; host-owned Sim truth (F-02)")]
         private bool _replicCooldownSeeded;
 
         /// <summary>A per-unit voice-set override — the NPC persona's <c>replic</c>, or <c>"pip"</c>.</summary>
+        [LocalOnly(Note = "View/cosmetic; selects the voice set, never replicated")]
         private string _replicaIdOverride;
 
         /// <summary>
@@ -3196,6 +3454,7 @@ namespace PFE.Entities.Units
         /// </summary>
         public virtual void ApplyPlacement(UnitInstance placement)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (placement == null)
             {
                 return;
@@ -3285,6 +3544,7 @@ namespace PFE.Entities.Units
         /// <summary>The placement's own <c>&lt;item&gt;</c> children, or <c>null</c>.</summary>
         public List<MapObjectItemData> PlacementItems => _placementItems;
 
+        [Authoritative(Note = "Placement item children (drop loot); host-owned Sim truth (F-02)")]
         private List<MapObjectItemData> _placementItems;
 
         /// <summary>
@@ -3335,6 +3595,7 @@ namespace PFE.Entities.Units
         /// </returns>
         public virtual bool Command(string verb, string value)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (string.IsNullOrEmpty(verb))
             {
                 return false;
@@ -3410,6 +3671,7 @@ namespace PFE.Entities.Units
         /// </summary>
         public void AddForce(Vector2 force)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             _velocity += force;
         }
 
@@ -3418,7 +3680,11 @@ namespace PFE.Entities.Units
         /// </summary>
         public void SetVelocityX(float velocityX)
         {
-            _velocity.x = velocityX;
+            HostWriteGuard.Check(SimAuthority.Authoritative);
+            // Phase 1.5: _velocity is a forwarding property onto _sim now, and a property cannot be
+            // assigned through (`_velocity.x = ...` would write into a temporary copy). This setter
+            // is the single legal write path for the X half, and every in-class site routes through it.
+            _sim.Vx = velocityX;
         }
 
         /// <summary>
@@ -3426,7 +3692,8 @@ namespace PFE.Entities.Units
         /// </summary>
         public void SetVelocityY(float velocityY)
         {
-            _velocity.y = velocityY;
+            HostWriteGuard.Check(SimAuthority.Authoritative);
+            _sim.Vy = velocityY;
         }
 
         /// <summary>
@@ -3448,6 +3715,7 @@ namespace PFE.Entities.Units
         /// <c>isFly</c>. Injecting velocity alone would leave gravity adding 1 px/frame² downward every
         /// tick, so a levitated player would sink through the pull that is supposed to lift them.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 levit == 2; host-owned Sim truth (F-02)")]
         public bool IsLevitated { get; private set; }
 
         /// <summary>
@@ -3457,6 +3725,7 @@ namespace PFE.Entities.Units
         /// </summary>
         public void SetLevitated(bool levitated)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             IsLevitated = levitated;
         }
 
@@ -3503,6 +3772,7 @@ namespace PFE.Entities.Units
         /// </summary>
         public virtual void SetDropThroughPlatforms(bool shouldDropThrough)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             _dropThroughPlatforms = shouldDropThrough;
         }
 
@@ -3517,7 +3787,7 @@ namespace PFE.Entities.Units
             {
                 _supportingColliders.Add(collision.collider);
                 _isGrounded = true;
-                _velocity.y = 0; // Stop falling
+                SetVelocityY(0); // Stop falling
             }
         }
 
@@ -3527,7 +3797,7 @@ namespace PFE.Entities.Units
             {
                 _supportingColliders.Add(collision.collider);
                 _isGrounded = true;
-                _velocity.y = Mathf.Min(_velocity.y, 0); // Don't fall through floor
+                SetVelocityY(Mathf.Min(_velocity.y, 0)); // Don't fall through floor
             }
             else
             {
@@ -3581,9 +3851,42 @@ namespace PFE.Entities.Units
         // Public getters
 
         public bool IsGrounded => _isGrounded;
-        public void SetGrounded(bool grounded) => _isGrounded = grounded;
+        public void SetGrounded(bool grounded)
+        {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
+            _isGrounded = grounded;
+        }
         public Vector2 Velocity => _velocity;
         public int FacingDirection => _facingDirection;
+
+        /// <summary>
+        /// AS3 <c>Unit.areaTestTip</c> (<c>Unit.as:442</c>) — the key an <c>Area</c> matches to decide
+        /// whether this unit is its activator (<c>Area.as:316-331</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Two classes write it in the oracle, and only one of them matters for a fight.</b>
+        /// <c>UnitBossNecr.as:82</c> sets <c>"en"</c> in the constructor, which is what makes the eight
+        /// <c>port</c> areas of <c>bossnecr1</c> teleport <i>her</i>; her summons inherit it
+        /// (<c>:668</c>). <c>UnitRaider.as:494,709,737</c> writes <c>"raider"</c> for a script-driven
+        /// interaction. Empty is the AS3 default and matches no area, so an unset tip is inert.</para>
+        ///
+        /// <para><b>Why it lives on the controller and not the definition.</b> It is set in code by the
+        /// class constructor, not authored in <c>AllData.as</c> — an importer cannot see it, exactly like
+        /// the zebra's <c>tupizna</c>/<c>dash</c> constants.</para>
+        /// </remarks>
+        public string AreaTestTip { get; set; } = string.Empty;
+
+        /// <summary>
+        /// This unit's collision rectangle in room-local pixels, y-up — the port's answer to AS3
+        /// <c>Obj.areaTest</c>'s <c>X1/X2/Y1/Y2</c> (<c>Obj.as:287-294</c>).
+        /// </summary>
+        /// <remarks>
+        /// A public wrapper around <see cref="RoomLocalFeetBoundsPixels"/> because the area poll lives in
+        /// <see cref="PFE.Systems.Map.Rendering.RoomUnitSpawner"/>, which is not a subclass. The
+        /// protected method stays the single implementation so the room-origin subtraction cannot drift
+        /// between the two callers.
+        /// </remarks>
+        public Rect RoomLocalBoundsPixels() => RoomLocalFeetBoundsPixels();
 
         /// <summary>
         /// AS3 <c>Unit.shX1</c> — how much of this unit's body width hangs past the <b>left</b> edge of
@@ -3694,6 +3997,7 @@ namespace PFE.Entities.Units
         /// </summary>
         public void SetRuntimeFaction(FactionType faction)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             _instanceFaction = faction;
         }
 
@@ -3735,6 +4039,7 @@ namespace PFE.Entities.Units
         /// </remarks>
         public virtual void TakeDamage(float damage)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (_unitStats == null)
             {
                 Debug.LogWarning($"[{GetType().Name}] TakeDamage called but no UnitStats assigned!");
@@ -3769,6 +4074,7 @@ namespace PFE.Entities.Units
         /// <returns><c>true</c> if this hit broke the armour.</returns>
         public virtual bool ApplyDamage(in DamageOutcome outcome)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (_unitStats == null)
             {
                 Debug.LogWarning($"[{GetType().Name}] ApplyDamage called but no UnitStats assigned!");
@@ -4066,12 +4372,14 @@ namespace PFE.Entities.Units
         /// The room's emitter, handed over by <see cref="SetParticleEmitter"/>. Null means "show
         /// nothing" and is legal — see that method.
         /// </summary>
+        [LocalOnly(Note = "View reference; room particle emitter, never replicated")]
         private RoomParticleEmitter _particleEmitter;
 
         /// <summary>
         /// Reused between emits so a burning unit does not allocate a list on every tick. Safe because
         /// the rules clear it on entry and the emit loop is synchronous.
         /// </summary>
+        [LocalOnly(Note = "View/cosmetic; reused emit list, never replicated")]
         private readonly List<ParticleEmit> _effectVisualEmits = new List<ParticleEmit>();
 
         /// <summary>
@@ -4131,15 +4439,18 @@ namespace PFE.Entities.Units
             Removed = 3,
         }
 
+        [Authoritative(Note = "AS3 sost corpse lifecycle; host-owned Sim truth (F-02)")]
         private CorpseState _corpseState = CorpseState.None;
 
         /// <summary>Canonical frames of dissolve elapsed, accumulated by <see cref="TickCorpse"/>.</summary>
+        [Authoritative(Note = "Dissolve frames elapsed; host-owned Sim truth (F-02)")]
         private float _corpseDissolveFrames;
 
         /// <summary>
         /// Which of the seven <c>Desintegr</c> presets this body is dissolving with — <c>initBurn</c>'s
         /// argument, kept because every frame of the effect reads it.
         /// </summary>
+        [Authoritative(Note = "Dissolve preset selector; host-owned Sim truth (F-02)")]
         private DesintegrTip _desintegrTip = DesintegrTip.None;
 
         /// <summary>
@@ -4165,6 +4476,7 @@ namespace PFE.Entities.Units
         /// <c>OnDeath</c> directly — dies exactly as a rifle shot would, which is the least surprising
         /// answer available.</para>
         /// </remarks>
+        [Authoritative(Note = "AS3 param2 last-hit damage type; host-owned Sim truth (F-02)")]
         private DamageType _lastDamageType = DamageType.PhysicalBullet;
 
         /// <summary>
@@ -4180,12 +4492,14 @@ namespace PFE.Entities.Units
         /// headless test host) means the dissolve falls back to the alpha fade, which is what the port
         /// did before this landed.</para>
         /// </remarks>
+        [LocalOnly(Note = "View reference; per-body dissolve material, never replicated")]
         private Material _desintegrMaterial;
 
         /// <summary>
         /// The renderer tint captured when the dissolve started, so the fallback fade multiplies the
         /// sprite's own colour instead of forcing it to white.
         /// </summary>
+        [LocalOnly(Note = "View/cosmetic; dissolve fade tint, never replicated")]
         private Color _corpseBaseColor = Color.white;
 
         /// <summary>
@@ -4211,8 +4525,13 @@ namespace PFE.Entities.Units
         /// the 75%-height sample). Read only by the <c>namok</c> droplet, which is suppressed when it is
         /// true.
         /// </summary>
+        [Authoritative(Note = "AS3 isPlav override; host-owned Sim truth (F-02)")]
         protected bool _isSubmergedOverride;
-        public void SetSubmergedOverride(bool submerged) => _isSubmergedOverride = submerged;
+        public void SetSubmergedOverride(bool submerged)
+        {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
+            _isSubmergedOverride = submerged;
+        }
         public virtual bool IsFullySubmerged => _cachedTilePhysics != null ? _cachedTilePhysics.IsFullySubmerged : _isSubmergedOverride;
         public virtual bool IsInWater => _cachedTilePhysics != null ? _cachedTilePhysics.IsInWater : _isSubmergedOverride;
 
@@ -4235,6 +4554,7 @@ namespace PFE.Entities.Units
         /// damage. What this field does carry today is the alicorn shield. See
         /// <c>BloodSprayRules.cs:46</c> for the original note.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 allVulnerMult; host-owned Sim truth (F-02)")]
         public float AllVulnerabilityMultiplier { get; set; } = 1f;
 
         /// <summary>
@@ -4364,6 +4684,7 @@ namespace PFE.Entities.Units
         /// switch no data could ever set. The only writer is the script lock —
         /// <c>PlayerScriptControlLock</c>, which is the port's <c>gg.controlOff()/controlOn()</c>.
         /// </remarks>
+        [Authoritative(Note = "AS3 invulner runtime half; host-owned Sim truth (F-02)")]
         public bool RuntimeInvulnerable { get; set; }
 
         /// <summary>
@@ -4443,6 +4764,7 @@ namespace PFE.Entities.Units
         /// </remarks>
         public virtual void ApplyKnockback(Vector2 impulse)
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             AddVelocityPixelsPerFrame(impulse / TileQueryConstants.PerFrameVelocityToUnitsPerSecond);
         }
 
@@ -4490,6 +4812,7 @@ namespace PFE.Entities.Units
         /// duration therefore depends on the step rate, exactly as every other counter in this class
         /// does.</para>
         /// </summary>
+        [Authoritative(Note = "AS3 neujaz contact invulnerability; host-owned Sim truth (F-02)")]
         protected int _contactInvulnerabilityTicks;
 
         /// <summary>
@@ -4957,6 +5280,50 @@ namespace PFE.Entities.Units
         public virtual bool IsAlive => _unitStats?.IsAlive ?? false;
 
         /// <summary>
+        /// The unit's difficulty-bonus level — AS3 <c>Unit.level</c>, shown in the S.A.T.S. hover panel
+        /// as <c>level + 1</c> (<c>Sats.as:505</c>).
+        ///
+        /// <para><b>Always 0 today, and that is a recorded gap, not a default.</b> The writer is
+        /// <c>Unit.setLevel</c> (<c>Unit.as:1598-1626</c>), the difficulty-bonus pass that scales a
+        /// spawned unit's HP/damage/Xp by the land's <c>dif</c> — and that whole pass is unported. So
+        /// every unit reads level 0 and the panel shows "1" for everything. When <c>setLevel</c> lands,
+        /// this field is where its result lives.</para>
+        /// </summary>
+        [Authoritative(Note = "AS3 Unit.level difficulty bonus; host-owned Sim truth (F-02)")]
+        public int UnitLevel { get; set; } = 0;
+
+        /// <summary>
+        /// Whether S.A.T.S. may place this unit in its target set — the port's composition of the four
+        /// filters <c>Sats.getUnits</c> applies before the line-of-sight and fog tests
+        /// (<c>Sats.as:464</c>):
+        ///
+        /// <list type="bullet">
+        /// <item><description><c>isSats</c> — the definition flag (<see cref="UnitDefinition.satsTargetable"/>),
+        ///   false on the five friendly NPC rows. The class-level bans (<c>UnitDamager</c>,
+        ///   <c>UnitPet</c>, <c>UnitTrigger</c>, a cloaked <c>UnitTurret</c>) are not spawned through a
+        ///   <see cref="UnitDefinition"/> in the port, so the definition flag is the whole answer here.</description></item>
+        /// <item><description><c>sost &lt; 3</c> — alive, which the port reads as <see cref="IsAlive"/>.</description></item>
+        /// <item><description><c>!invis</c> — not hard-invisible, which the port reads as <see cref="IsVisible"/>.</description></item>
+        /// <item><description>not the player — the caller passes <paramref name="player"/> and this is a
+        ///   reference comparison, the port of <c>gg.isMeet(u)</c>'s self-exclusion.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Virtual, and deliberately so.</b> A cloaked turret (AS3 <c>UnitTurret.as:700</c>)
+        /// reports <c>isSats = false</c> only while its cloak is up — a per-instance state, not a row
+        /// flag — so that subclass overrides this to fold its own condition in rather than being
+        /// special-cased at the call site.</para>
+        /// </summary>
+        /// <param name="player">The player's own controller; the unit is excluded when it IS the player.</param>
+        public virtual bool IsSatsTargetable(UnitController player)
+        {
+            if (ReferenceEquals(this, player)) return false;
+            if (_stats != null && !_stats.satsTargetable) return false;
+            if (!IsAlive) return false;
+            if (!IsVisible) return false;
+            return true;
+        }
+
+        /// <summary>
         /// Whether this instance is allowed to act on a death it has just observed.
         ///
         /// <para><b>This is the multiplayer authority seam, and it is unconditionally <c>true</c>
@@ -5046,6 +5413,9 @@ namespace PFE.Entities.Units
         /// <para><b>Not raised</b> when a subclass leaves the unit alive (<see cref="TrainingDummyController"/>
         /// restores full HP in its <c>OnDeath</c>) — that is a latch release, not a death.</para>
         /// </summary>
+        // Authority: host-owned (the death script is authoritative). Not marked with an attribute
+        // because SimAuthorityAttribute does not target events; the lint keys on fields, and the
+        // compiler-generated backing delegate is an implementation detail of this declaration.
         public event System.Action<UnitController> Died;
 
         /// <summary>
@@ -5092,7 +5462,7 @@ namespace PFE.Entities.Units
             // (Unit.as:1646).
             if (XpReward > 0)
             {
-                var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+                var player = PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
                 if (player != null && player.CharacterStats != null)
                 {
                     player.CharacterStats.AddXp(XpReward, transform.position.x, transform.position.y);
@@ -5622,6 +5992,7 @@ namespace PFE.Entities.Units
         /// </remarks>
         public void ReviveFromCorpse()
         {
+            HostWriteGuard.Check(SimAuthority.Authoritative);
             if (_corpseState == CorpseState.None)
             {
                 return;
@@ -5705,7 +6076,7 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            PFE.Entities.Player.PlayerController player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+            PFE.Entities.Player.PlayerController player = PFE.Core.SinglePlayerSlotContext.Current.GetPlayer(0);
 
             ctx.Hero = _heroTier;
             RoomInstance room = _tileQuery?.Room;

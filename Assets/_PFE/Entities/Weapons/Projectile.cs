@@ -13,6 +13,8 @@ using System.Text;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
+using PFE.Sim.State;
+using EntityId = PFE.Core.Ids.EntityId;
 namespace PFE.Entities.Weapons
 {
     /// <summary>
@@ -62,7 +64,7 @@ namespace PFE.Entities.Weapons
     /// Stage C's job, and doing it here would have coupled the flip to every entity type at once.</para>
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
-    public class Projectile : MonoBehaviour, ISimTickable
+    public class Projectile : MonoBehaviour, ISimTickable, PFE.Systems.Replication.ISimTransientStateSource
     {
         [Header("Visual")]
         [SerializeField] private SpriteRenderer _visualRenderer;
@@ -340,6 +342,130 @@ namespace PFE.Entities.Weapons
 
         /// <summary>Called by GameObjectPool to return the instance after use.</summary>
         public Action<Projectile> OnReturnToPool { get; set; }
+
+        // ── Identity (Phase 3.3, F-05 closure) ───────────────────────────────
+        //
+        // A projectile has no room record behind it — it is created by the factory, lives in the
+        // scene and is pooled — so unlike a unit it IS the registered entity. The id is minted by the
+        // factory at spawn (one place, so the low-level Create overload cannot forget) and dropped in
+        // ResetProjectile, which is the pool's release hook.
+        //
+        // The pair (EntityId, EntityGeneration) is exactly what SimStalenessRules.AcceptProjectileProgress
+        // orders on: the generation separates two shots that reused this pooled instance, and
+        // ProgressSequence orders samples within one shot.
+
+        /// <summary>Host-assigned id of this shot. Empty while parked in the pool.</summary>
+        [LocalOnly(Note = "Mirror of the registry entry for this pooled object; never replicated as a value")]
+        public EntityId EntityId { get; private set; }
+
+        /// <summary>The lifetime generation this shot belongs to.</summary>
+        public int EntityGeneration { get; private set; }
+
+        /// <summary>
+        /// How many times this shot has been sampled for a snapshot. Reset with the id, so a recycled
+        /// instance never continues the previous shot's numbering — a wrap-safe compare against a
+        /// higher inherited sequence would reject every sample of the new shot.
+        /// </summary>
+        public uint ProgressSequence { get; private set; }
+
+        /// <summary>
+        /// The interned weapon id (<see cref="PFE.Sim.Content.ContentInternTable"/>) this shot's wire
+        /// record carries. <c>Uninterned</c> (0) until the factory stamps it, and 0 again after the
+        /// round is released — a parked instance has no weapon.
+        /// </summary>
+        public ushort DefinitionId { get; private set; }
+
+        /// <summary>
+        /// Stamp the interned weapon id. Called by <c>ProjectileFactory.Create</c>, which is the only
+        /// code that holds the <c>WeaponDefinition</c>.
+        /// </summary>
+        public void SetDefinitionId(ushort definitionId)
+        {
+            DefinitionId = definitionId;
+        }
+
+        /// <summary>
+        /// Stamp this pooled instance with a freshly minted id and register it as a live entity.
+        /// Called by <c>ProjectileFactory.Spawn</c>; re-assignment is the normal case here, not an error.
+        /// </summary>
+        public void AssignEntityId(EntityId id)
+        {
+            EntityId = id;
+            ProgressSequence = 0;
+            EntityGeneration = 0;
+
+            if (!id.IsValid) return;
+
+            PFE.Core.RuntimeEntityIdContext.TryReassign(this, id);
+            PFE.Core.RuntimeEntityIdContext.TryGetLifetime(this, out int generation, out _);
+            EntityGeneration = generation;
+        }
+
+        /// <summary>
+        /// Take the next progress sample number. Called by the snapshot projector, which is the only
+        /// thing that needs it — the sequence orders projections, not physics.
+        /// </summary>
+        /// <summary><see cref="PFE.Systems.Replication.ISimTransientStateSource.SimEntityHash"/> — the
+        /// id hash the projector sorts and identifies by.</summary>
+        public ulong SimEntityHash => EntityId.Hash;
+
+        public uint NextProgressSequence()
+        {
+            ProgressSequence = unchecked(ProgressSequence + 1);
+            return ProgressSequence;
+        }
+
+        /// <summary>
+        /// Project this round's tick-mutated state into the wire record. The host-side half of F-05:
+        /// the projector has a <c>Projectile</c> in hand and nothing else that knows these values.
+        ///
+        /// <para><b>Unit conversion is the point of this method.</b> <c>Projectile</c> stores Unity
+        /// units (position, velocity, acceleration) because that is what the physics path integrates;
+        /// <see cref="SimProjectileState"/> is in world pixels and pixels/second because that is PFE's
+        /// canonical Sim space (<c>TileQueryConstants</c>). Converting at the projection boundary rather
+        /// than at each field read is what keeps one conversion constant in one place.</para>
+        ///
+        /// <para><b><paramref name="sequence"/> is passed in, not read from the instance.</b> The sample
+        /// number belongs to the projection, so the projector owns the counter; a capture that
+        /// incremented it as a side effect would make two calls for the same tick produce two different
+        /// sequences and a receiver would drop the second as out of order.</para>
+        ///
+        /// <para><b><c>DefinitionId</c> is the interned weapon id</b> stamped by
+        /// <c>ProjectileFactory.Create</c> through <see cref="SetDefinitionId"/>. It is
+        /// <c>ContentInternTable.Uninterned</c> (0) for a round built through the low-level
+        /// <c>Create(prefab, …)</c> overload, which has no definition — 0 means "not interned", and the
+        /// projector counts those rather than pretending they are the first weapon.</para>
+        /// </summary>
+        public SimProjectileState CaptureSimState(uint sequence)
+        {
+            const float toPixels = TileQueryConstants.UnitToPixel;
+
+            return new SimProjectileState
+            {
+                EntityHash   = EntityId.Hash,
+                LauncherHash = _hasDamageContext ? _damageContext.OwnerId.Hash : 0UL,
+                Generation   = EntityGeneration,
+                Sequence     = sequence,
+                DefinitionId = DefinitionId,
+                Kind         = SimTransientKind.Projectile,
+
+                Px = _simPosition.x * toPixels,
+                Py = _simPosition.y * toPixels,
+                Vx = _velocity.x * toPixels,
+                Vy = _velocity.y * toPixels,
+
+                AccelerationX  = _ddx * toPixels,
+                AccelerationY  = _ddy * toPixels,
+                HomingStrength = _navod,
+
+                TraveledPixels    = _traveledDistancePixels,
+                LifetimeRemaining = _lifetimeTimer,
+                RemainingDamage   = _remainingDamage,
+
+                HasDetonated = _hasDetonated,
+                IsImpacting  = _isImpacting,
+            };
+        }
 
         // ── Initialization ───────────────────────────────────────────────────
 
@@ -2194,6 +2320,20 @@ namespace PFE.Entities.Weapons
             // released instance ticked, which is worse: a parked projectile at the pool position
             // would still integrate and could report tile contacts from inside the parking corner.
             UnregisterFromSimLoop();
+
+            // Same rule for the identity registry: a parked instance is not a live entity. Leaving it
+            // registered would let a snapshot project the previous shot from the pool's parking corner,
+            // and — worse — would make the *next* shot's TryReassign a no-op that kept the old id.
+            // The id itself is cleared so `HasLiveId` cannot answer true for a parked round.
+            if (EntityId.IsValid) PFE.Core.RuntimeEntityIdContext.Unregister(this);
+            // Fully qualified: inside this class the unqualified `EntityId` is the property, so
+            // `EntityId.Empty` would be a static member read off an instance (CS0176).
+            EntityId = PFE.Core.Ids.EntityId.Empty;
+            ProgressSequence = 0;
+
+            // A parked round has no weapon. Leaving the last shot's key here would make the next
+            // low-level `Create(prefab, …)` round — which never stamps one — inherit a plasma id.
+            DefinitionId = PFE.Sim.Content.ContentInternTable.Uninterned;
             _viewDirty           = false;
             _pendingReturnToPool = false;
             _tileContactActive   = false;
