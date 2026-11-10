@@ -12,6 +12,40 @@ using UnityEngine;
 namespace PFE.Systems.Map.Scripting
 {
     /// <summary>
+    /// The live-unit half of an <c>Area</c> that activates on an <b>enemy</b> rather than the player.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why this is a separate interface and not part of <see cref="IUnitCommandHost"/>.</b> The
+    /// command host is implemented by script hosts that own no room units at all
+    /// (<c>UnitNPCController</c>), and a "<c>false</c>" from those would be indistinguishable from "no
+    /// unit is standing in the area". This one question — <i>is one of the room's live bodies inside
+    /// this rectangle, and can it be moved</i> — can only be answered by
+    /// <see cref="PFE.Systems.Map.Rendering.RoomUnitSpawner"/>, which owns the record-to-GameObject
+    /// table.</para>
+    ///
+    /// <para><b>Why two methods and not one.</b> AS3 decides <c>active</c> first and only then calls
+    /// <c>teleport(activator)</c> (<c>Area.as:316-344</c>). Collapsing the two would move the boss on
+    /// every frame it stands in a portal — the port has no <c>preactive</c> inside the host, so the
+    /// caller's rising edge is the only thing that makes this fire once.</para>
+    /// </remarks>
+    public interface IAreaUnitHost
+    {
+        /// <summary>Is there a live unit with this <c>areaTestTip</c> inside the rectangle?</summary>
+        bool HasUnitInArea(
+            RoomInstance room, string activatorTip,
+            float minX, float maxX, float minY, float maxY);
+
+        /// <summary>
+        /// Move the first such unit to the destination, in room-local pixels. Returns <c>false</c> when
+        /// the body cannot be resolved — a dead record, or a unit whose view has already been torn down.
+        /// </summary>
+        bool TryTeleportFirstUnitInArea(
+            RoomInstance room, string activatorTip,
+            float minX, float maxX, float minY, float maxY,
+            float destinationX, float destinationY, out string unitUid);
+    }
+
+    /// <summary>
     /// Evaluates area trigger overlaps, dispatches tutorial messages, and executes map object scripts.
     /// Bridges ActionScript 3 Area.as and Script.as functionality into Unity.
     /// </summary>
@@ -38,6 +72,13 @@ namespace PFE.Systems.Map.Scripting
         /// happened before <see cref="IUnitCommandHost"/> existed, so no fixture changes meaning.</para>
         /// </summary>
         private IUnitCommandHost _unitHost;
+
+        /// <summary>
+        /// The live-unit half of an enemy-activated <c>Area</c> — <c>port</c> teleports
+        /// (<see cref="TryTickAreaPort"/>). Pushed by <c>RoomVisualController</c> beside
+        /// <see cref="_unitHost"/>; null is legal and means "no port areas in this room can fire".
+        /// </summary>
+        private IAreaUnitHost _areaUnitHost;
 
         /// <summary>
         /// The room-scoped particle emitter, pushed by <c>RoomVisualController</c> — the same push, for
@@ -831,6 +872,104 @@ namespace PFE.Systems.Map.Scripting
         }
 
         /// <summary>
+        /// Hands over the host that can answer "is one of this room's live units inside this rectangle".
+        /// Called by <c>RoomVisualController</c> beside <see cref="SetUnitHost"/>, for the same reason:
+        /// this type is built before the spawner exists.
+        /// </summary>
+        public void SetAreaUnitHost(IAreaUnitHost areaUnitHost)
+        {
+            _areaUnitHost = areaUnitHost;
+        }
+
+        /// <summary>
+        /// One poll of an area's <c>@port</c> — AS3 <c>Area.step()</c>'s activation block
+        /// (<c>Area.as:289-344</c>) and <c>Area.teleport</c> (<c>:420-428</c>).
+        /// </summary>
+        /// <param name="wasActive">
+        /// The previous poll's answer for this area — AS3 <c>preactive</c>. Owned by the caller
+        /// (<see cref="PFE.Systems.Map.Rendering.AreaTriggerPresenter"/>) because there is exactly one
+        /// presenter per area and the latch must not be shared between rooms.
+        /// </param>
+        /// <param name="isActive">This poll's answer, to be fed back as <paramref name="wasActive"/>.</param>
+        /// <returns>
+        /// <c>true</c> when the area authored a usable <c>@port</c> — i.e. when the caller should keep
+        /// polling it. A <c>false</c> answer lets the presenter stop asking after the first frame.
+        /// </returns>
+        /// <remarks>
+        /// <para><b>Only the enemy half is ported, and that is stated rather than implied.</b>
+        /// <c>tip == "gg"</c> — the player — returns <c>false</c> here and is left to the existing
+        /// physics trigger path, which today runs the area's scripts but does not move the player.
+        /// 28 authored areas in <c>RoomsProb</c> teleport the <i>player</i> and none of them moved him
+        /// before this change either, so this is an unchanged gap, not a new one. The necromancer's
+        /// eight areas are all <c>tip="en"</c>, which is what the reported fight needed.</para>
+        ///
+        /// <para><b>Destination occupancy is not tested, and that is the oracle's own omission.</b>
+        /// <c>Area.teleport</c> <i>does</i> guard with <c>loc.collisionUnit(...)</c> (<c>:421-424</c>),
+        /// so a blocked destination silently does nothing. Reproducing the guard needs the room's
+        /// collision query, which lives on the tile query service rather than here; until it is wired,
+        /// the destination is applied unconditionally. The destinations in <c>bossnecr1</c> are the far
+        /// side of an open arena, so this is the difference between "always works" and "works unless
+        /// something is standing on the landing spot".</para>
+        /// </remarks>
+        public bool TryTickAreaPort(RoomInstance room, ObjectInstance trigger, bool wasActive, out bool isActive)
+        {
+            isActive = false;
+
+            if (room == null || trigger == null || !trigger.isActive)
+            {
+                return false;
+            }
+
+            if (!AreaPortRules.TryParsePort(trigger.GetAttribute("port", string.Empty), out int portTileX, out int portTileY))
+            {
+                return false;
+            }
+
+            string areaTip = trigger.GetAttribute("tip", string.Empty);
+            if (string.IsNullOrEmpty(areaTip))
+            {
+                areaTip = AreaPortRules.PlayerTip;
+            }
+
+            int tileSize = (int)WorldConstants.TILE_SIZE;
+
+            // The same rect the trigger path draws and tests. `position` was imported already flipped
+            // into the port's up-positive space (`RoomPopulator.CreateArea`), so there is no mirror
+            // here — unlike the destination below, which is an authored AS3 row.
+            Rect areaRect = GetTriggerPixelRect(trigger);
+
+            if (string.Equals(areaTip, AreaPortRules.PlayerTip, System.StringComparison.Ordinal))
+            {
+                // Not ported — see the remarks. Answering `true` would make the presenter poll forever
+                // for an answer this type cannot give.
+                return false;
+            }
+
+            if (_areaUnitHost == null)
+            {
+                return false;
+            }
+
+            isActive = _areaUnitHost.HasUnitInArea(
+                room, areaTip, areaRect.xMin, areaRect.xMax, areaRect.yMin, areaRect.yMax);
+
+            if (!AreaPortRules.ShouldTeleport(wasActive, isActive))
+            {
+                return true;
+            }
+
+            AreaPortRules.PortDestinationPixels(
+                portTileX, portTileY, tileSize, room.height, room.borderOffset, out float destX, out float destY);
+            _areaUnitHost.TryTeleportFirstUnitInArea(
+                room, areaTip, areaRect.xMin, areaRect.xMax, areaRect.yMin, areaRect.yMax,
+                destX, destY, out _);
+
+            // AS3 clears `preactive` by re-reading `active` next tick; the unit is now outside this
+            // rectangle, so the next poll answers false and the edge is armed again.
+            return true;
+        }
+
+        /// <summary>
         /// Hands this room's particle emitter over, for AS3 <c>Interact.shine()</c>. Called by
         /// <c>RoomVisualController</c> from both places it can learn the adapter exists — the adapter
         /// can arrive after the first room is built, and a shine that silently skipped the opening
@@ -1034,6 +1173,13 @@ namespace PFE.Systems.Map.Scripting
                     // sparkle the `hack` and `unlock` verbs both end with (:1709, :1717). This delegate
                     // had no binder at all, so both verbs ran their state changes and flashed nothing.
                     Shine = (room, obj) => ObjectShineEmitter.Emit(_particles, room, obj),
+                    // AS3 `if(this.scrAct) this.scrAct.start()` (Interact.as:1323-1325) — the object's
+                    // own inline `<scr>`, the tail of actOsn. This is the slot a shoot-to-press button
+                    // needs: the tutorial `knop2` carries only `<scr act="unlock" targ="trMDoor"/>` and
+                    // `<s act="off" targ="trWeaponUp"/>`, so without it a bullet lights the lamp and the
+                    // door stays locked. Bound here because the runner is per-room state that this
+                    // system owns, not something the scene dispatcher can reach.
+                    RunInlineScript = OnObjectInteracted,
                 });
         }
 
@@ -1046,8 +1192,16 @@ namespace PFE.Systems.Map.Scripting
         /// dictionary miss; a prob whose registry has not been built yet returns without touching the
         /// state machine, which is the same "no prob host" refusal AS3 takes for a land with no
         /// probs.</para>
+        ///
+        /// <para><b>Static because the scene dispatcher needs the same rule.</b>
+        /// <c>DoorPropPresenter.CreateSceneDispatcher</c> is static and has no instance of this type,
+        /// yet the <c>dam</c> verb's one-shot arm is exactly <c>setAct("open",1); loc.prob.check()</c>
+        /// (<c>Interact.as:1749-1753</c>) — the arm a <c>buttons4</c> button takes. Leaving it
+        /// unbound there would light the button and never tell the prob room, so the passage would stay
+        /// shut. The body touches only the scene singleton and the room, so a static is honest here;
+        /// a second copy of the body in the presenter is not.</para>
         /// </summary>
-        private void CheckProbRoomFor(RoomInstance room)
+        public static void CheckProbRoomFor(RoomInstance room)
         {
             PFE.Systems.Map.Generation.ProbRoomSessions sessions =
                 RoomTransitionManager.Instance?.ProbSessions;

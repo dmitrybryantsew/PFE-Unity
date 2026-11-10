@@ -17,6 +17,8 @@ using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
 using UnityEngine;
 using VContainer;
+using EntityId = PFE.Core.Ids.EntityId;
+using PFE.Core.Ids;
 
 namespace PFE.Systems.Map.Rendering
 {
@@ -34,7 +36,7 @@ namespace PFE.Systems.Map.Rendering
     /// <para>It follows <see cref="RoomObjectVisualManager"/>: one presenter GameObject per record,
     /// parented under the room, positioned in room-local pixel space, destroyed with the room.</para>
     /// </summary>
-    public sealed class RoomUnitSpawner : IUnitCommandHost
+    public sealed class RoomUnitSpawner : IUnitCommandHost, IAreaUnitHost
     {
         /// <summary>
         /// The AS3 controller class → port type map. Keyed on the <c>cl=</c> attribute of the
@@ -724,6 +726,129 @@ namespace PFE.Systems.Map.Rendering
                    string.Equals(unit.code, uidOrCode, StringComparison.Ordinal);
         }
 
+        // ── area activators (Area.as:316-344) ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>Area.step()</c>'s unit scan: is there a live unit with this <c>areaTestTip</c> inside the
+        /// rectangle? (<c>Area.as:316-331</c>)
+        /// </summary>
+        public bool HasUnitInArea(
+            RoomInstance room, string activatorTip,
+            float minX, float maxX, float minY, float maxY)
+        {
+            return TryFindUnitInArea(room, activatorTip, minX, maxX, minY, maxY, out _, out _);
+        }
+
+        /// <summary>
+        /// <c>Area.teleport(this.activator)</c> (<c>Area.as:420-428</c>) — move the first matching unit to
+        /// the destination, in room-local pixels.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Two writes, and both are needed.</b> The live controller is what the player sees and
+        /// what physics steps; the <see cref="UnitInstance"/> record is what the room's save, its
+        /// re-entry rebuild and every script that addresses the unit read. Moving only the first puts a
+        /// boss on the far wall until the room is re-entered, and then back where she started — the same
+        /// split that made corpses respawn before <c>RoomStateRules</c>.</para>
+        ///
+        /// <para><b>The motor is the only thing that can move a body safely.</b>
+        /// <c>TilePhysicsController.TeleportTo</c> sets the collider's pixel position and clears
+        /// <c>dx</c>/<c>dy</c>, so the next step does not collide against the old position and slide her
+        /// back. Setting <c>transform.position</c> directly on a motor-driven unit would leave the motor's
+        /// own <c>posX/posY</c> behind, which is why the motor-less branch is a separate arm and not a
+        /// fallback that runs first.</para>
+        /// </remarks>
+        public bool TryTeleportFirstUnitInArea(
+            RoomInstance room, string activatorTip,
+            float minX, float maxX, float minY, float maxY,
+            float destinationX, float destinationY, out string unitUid)
+        {
+            unitUid = string.Empty;
+
+            if (!TryFindUnitInArea(room, activatorTip, minX, maxX, minY, maxY, out UnitInstance record, out UnitController controller))
+            {
+                return false;
+            }
+
+            Vector2 origin = WorldCoordinates.RoomOriginPixel(room);
+            Vector2 worldPixels = new Vector2(destinationX + origin.x, destinationY + origin.y);
+
+            TilePhysicsController motor = controller.GetComponent<TilePhysicsController>();
+            if (motor != null)
+            {
+                motor.TeleportTo(worldPixels.x, worldPixels.y);
+            }
+            else
+            {
+                controller.transform.position = worldPixels * TileQueryConstants.PixelToUnit;
+                controller.SetVelocityPixelsPerFrame(Vector2.zero);
+            }
+
+            record.position = new Vector2(destinationX, destinationY);
+            unitUid = string.IsNullOrEmpty(record.uid) ? record.code ?? string.Empty : record.uid;
+            return true;
+        }
+
+        /// <summary>
+        /// The scan behind both public methods: first live unit whose <c>areaTestTip</c> matches and whose
+        /// body overlaps the rectangle.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Dead records are skipped, not pruned.</b> AS3 tests <c>sost &lt; 3</c>
+        /// (<c>Area.as:322</c>) and leaves the corpse in <c>loc.units</c> until
+        /// <c>resetUnits()</c>; <see cref="UnitInstance.IsDead"/> is the port's equivalent, and the room
+        /// owns the pruning decision (<see cref="RoomStateRules.PruneDeadUnits"/>). Pruning here would
+        /// make a room's wave counters complete a beat early.</para>
+        /// </remarks>
+        bool TryFindUnitInArea(
+            RoomInstance room, string activatorTip,
+            float minX, float maxX, float minY, float maxY,
+            out UnitInstance foundRecord, out UnitController foundController)
+        {
+            foundRecord = null;
+            foundController = null;
+
+            if (room == null || room.units == null || string.IsNullOrEmpty(activatorTip))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < room.units.Count; i++)
+            {
+                UnitInstance record = room.units[i];
+                if (record == null || record.IsDead)
+                {
+                    continue;
+                }
+
+                if (!_spawned.TryGetValue(record, out GameObject unitObject) || unitObject == null)
+                {
+                    continue;
+                }
+
+                if (!unitObject.TryGetComponent(out UnitController controller))
+                {
+                    continue;
+                }
+
+                if (!string.Equals(controller.AreaTestTip, activatorTip, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                Rect bounds = controller.RoomLocalBoundsPixels();
+                if (!AreaPortRules.Overlaps(minX, maxX, minY, maxY, bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax))
+                {
+                    continue;
+                }
+
+                foundRecord = record;
+                foundController = controller;
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Resolve the enemy combat services once, from the container.
         ///
@@ -1037,6 +1162,13 @@ namespace PFE.Systems.Map.Rendering
                 if (!_spawned.ContainsKey(unit))
                 {
                     _spawned[unit] = Spawn(unit);
+
+                    // Phase 3.2 (F-05): register the RECORD, not the controller. RefreshAll destroys
+                    // and rebuilds the view on every room entry, so controller-scoped registration
+                    // would leave a stale entry after a transition. An empty `entityId` is answered
+                    // inside the context with a host-assigned runtime id, so no live unit is
+                    // anonymous to the replication layer.
+                    RuntimeEntityIdContext.TryRegister(unit, unit.entityId);
                 }
             }
 
@@ -1070,6 +1202,7 @@ namespace PFE.Systems.Map.Rendering
                 // Before the GameObject goes — this is the room-teardown path, so every damaged unit in
                 // the room is about to lose the only place its health exists. See WriteBackUnitState.
                 WriteBackUnitState(pair.Key, pair.Value);
+                RuntimeEntityIdContext.Unregister(pair.Key);
                 DestroyObject(pair.Value);
             }
 
@@ -1220,6 +1353,31 @@ namespace PFE.Systems.Map.Rendering
             // persona is resolved in `SetPlacement`, and the visibility that call pushes has to land on a
             // renderer that is already there. Re-pushing afterwards costs one property write.
             controller.SetVisualRenderer(renderer);
+
+            // ── Phase 3.3 (F-05 closure): the record's identity, stamped onto the view ─────────────
+            //
+            // RefreshAll registers the record on the line after this method returns, so registering
+            // here is not a second registration: TryRegister is idempotent per record object and
+            // returns the same id, box and lifetime. What it buys is availability *at construction* —
+            // the controller has no way back to its record (`_spawned` is private and keyed the other
+            // way round), so this is the only moment the pair can be handed over.
+            //
+            // Before `Initialize` on purpose. A subclass that starts simulating inside Initialize would
+            // otherwise project EntityHash 0 for its first tick, and the snapshot projector would file
+            // it under "anonymous" for exactly the tick a spawn is most likely to be captured.
+            if (RuntimeEntityIdContext.TryRegister(unit, unit.entityId)
+                && RuntimeEntityIdContext.TryDescribe(unit, out EntityId unitEntityId, out EntityLifetime unitLifetime))
+            {
+                controller.AssignEntityId(unitEntityId, unitLifetime);
+            }
+
+            // The interned definition id, from the same content id the definition lookup used. `unitType`
+            // is `RoomPopulator`'s resolved content id (RoomPopulator.cs:511) and is what SimUnitState's
+            // field documents; the runtime spawners (Flyer/Pet/BossSummon/Scythe) set `unitType = unitId`,
+            // so the fallback is only for a record built without either — and it lands on 0, which the
+            // projector counts rather than hiding.
+            string definitionContentId = !string.IsNullOrEmpty(unit.unitType) ? unit.unitType : unit.unitId;
+            controller.AssignDefinitionId(ContentInternContext.Units.GetKeyOrDefault(definitionContentId));
 
             // ...and the seam that turns an `npc` placement into a PERSONA. It has to run before the
             // weapon handover below, because the persona is what carries the weapon id
@@ -1646,6 +1804,7 @@ namespace PFE.Systems.Map.Rendering
 
             UnsubscribeDeath(unit);
             WriteBackUnitState(unit, unitObject);
+            RuntimeEntityIdContext.Unregister(unit);
             _spawned.Remove(unit);
             DestroyObject(unitObject);
         }

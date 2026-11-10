@@ -64,7 +64,7 @@ namespace PFE.Tests.Editor.Map
                 "silently dropped, which is the state this project shipped.");
 
             // ── Link 2: the slot's target actually consults the session. ────────────────────────
-            string body = SourceLint.MethodBody(trigger, "private void CheckProbRoomFor(RoomInstance room)");
+            string body = SourceLint.MethodBody(trigger, "public static void CheckProbRoomFor(RoomInstance room)");
 
             Assert.That(body, Does.Contain("sessions.Check(room)"),
                 "CheckProbRoomFor resolves a ProbRoomSessions and then never calls Check on it — the " +

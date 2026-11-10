@@ -209,6 +209,11 @@ namespace PFE.Systems.Map.Rendering
             // `off="1"` left it disabled, i.e. the button appeared to do nothing to the area itself.
             SyncActiveState();
 
+            // `@port` is not a physics event: AS3's Area.step() polls its own rectangle against the
+            // room's unit list every tick (`Area.as:289-344`), and the activator may be an enemy, which
+            // the trigger collider below deliberately ignores. See `TryTickAreaPort`.
+            TickAreaPort();
+
             // Hotkey F8 to toggle area trigger debug visuals at runtime
             bool f8Pressed = Input.GetKeyDown(KeyCode.F8) ||
                 (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.f8Key.wasPressedThisFrame);
@@ -237,6 +242,37 @@ namespace PFE.Systems.Map.Rendering
 
         private bool _lastActiveState;
 
+        /// <summary>
+        /// Whether this area authored a usable <c>@port</c>, resolved once in <see cref="Initialize"/>.
+        /// </summary>
+        private bool _hasPort;
+
+        /// <summary>
+        /// The previous poll's answer — AS3 <c>preactive</c> (<c>Area.as:22</c>), which is what makes a
+        /// teleport fire on the rising edge only.
+        /// </summary>
+        private bool _portActiveLast;
+
+        /// <summary>
+        /// One poll of this area's <c>@port</c>. Stops asking after the first frame when the area has no
+        /// port, or when the port belongs to the player (the half this system does not handle).
+        /// </summary>
+        private void TickAreaPort()
+        {
+            if (!_hasPort || TriggerObject == null || TriggerSystem == null)
+            {
+                return;
+            }
+
+            bool stillPortable = TriggerSystem.TryTickAreaPort(Room, TriggerObject, _portActiveLast, out bool active);
+            _portActiveLast = active;
+
+            if (!stillPortable)
+            {
+                _hasPort = false;
+            }
+        }
+
         public void Initialize(RoomInstance room, ObjectInstance trigger, AreaTriggerSystem triggerSystem = null)
         {
             Room = room;
@@ -246,6 +282,9 @@ namespace PFE.Systems.Map.Rendering
 
             EnsureCollider();
             _lastActiveState = trigger != null && trigger.isActive;
+            _hasPort = trigger != null &&
+                       AreaPortRules.TryParsePort(trigger.GetAttribute("port", string.Empty), out _, out _);
+            _portActiveLast = false;
             UpdateActiveState();
             UpdateDebugVisual();
         }

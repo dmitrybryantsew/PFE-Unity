@@ -827,6 +827,13 @@ namespace PFE.Systems.Map.Rendering
             // before the units exist would resolve `surfCalam` to a record with no controller behind it.
             areaTriggerSystem.SetUnitHost(roomUnitSpawner);
 
+            // ...and the same spawner for the OTHER question an Area asks of the unit list: "is one of
+            // my bodies inside this rectangle" (`Area.as:316-331`). That is what moves the necromancer
+            // between the eight `port` areas of `bossnecr1` — an activator the player-only trigger
+            // collider can never see. Same ordering requirement as above: the host answers against
+            // spawned GameObjects, so it must be handed over after RefreshAll.
+            areaTriggerSystem.SetAreaUnitHost(roomUnitSpawner);
+
             // ...and the particle adapter, for the `shine()` that ends a scripted unlock
             // (Interact.as:1678-1686). Pushed here as well as in SetParticleAdapters because the two
             // orderings are both real: the adapter may arrive first (this path) or the room may be

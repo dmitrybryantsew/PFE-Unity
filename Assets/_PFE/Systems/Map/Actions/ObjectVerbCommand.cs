@@ -42,10 +42,18 @@ namespace PFE.Systems.Map.Actions
         public Action<RoomInstance> CheckProbRoom;
 
         /// <summary>
-        /// AS3 <c>Interact.actOsn()</c> — the "object activates something in the world" hook a
-        /// <c>dam</c> falls through to.
+        /// AS3 <c>if(this.scrAct) this.scrAct.start()</c> (<c>Interact.as:1323-1325</c>) — the object's
+        /// own inline <c>&lt;scr&gt;</c>, run at the end of <c>actOsn()</c>.
+        ///
+        /// <para><b>This is the tutorial button's entire effect.</b> <c>rooms_begin/room_2_1</c> places
+        /// <c>knop2</c> at (8,17) with <c>&lt;s act="unlock" targ="trMDoor"/&gt;</c> and
+        /// <c>&lt;s act="off" targ="trWeaponUp"/&gt;</c> (<c>Rooms.as</c>). It carries no <c>allact</c>
+        /// and no <c>prob</c>, so without this slot a bullet that hits it changes the lamp and nothing
+        /// else — the door stays locked and the room is a dead end. In the port that is
+        /// <c>AreaTriggerSystem.OnObjectInteracted</c>, bound at each <c>CreateFull</c> composition site
+        /// because it is a per-room capability rather than a global one.</para>
         /// </summary>
-        public Action<RoomInstance, ObjectInstance> ActivateObject;
+        public Action<RoomInstance, ObjectInstance> RunInlineScript;
 
         /// <summary>AS3 <c>Interact.shine()</c> — the unlock sparkle.</summary>
         public Action<RoomInstance, ObjectInstance> Shine;
@@ -181,14 +189,39 @@ namespace PFE.Systems.Map.Actions
                         return true;
                     }
 
-                    if (IsKnob(obj) && GetInteractionMode(obj) == 0)
+                    bool knob = IsKnob(obj);
+                    int interactionMode = GetInteractionMode(obj);
+
+                    if (ShootButtonRules.PressesOnce(knob, interactionMode))
                     {
+                        // `this.setAct("open",1); if(this.loc.prob) this.loc.prob.check();` — the
+                        // one-shot arm. SetOpen already pokes the prob room (Interact.as:880 is inside
+                        // setAct), and the oracle checks it a second time right after, so both calls
+                        // are kept: a prob check is a query, not a latch.
                         SetOpen(room, obj, true);
                         _host.CheckProbRoom?.Invoke(room);
                         return true;
                     }
 
-                    _host.ActivateObject?.Invoke(room, obj);
+                    // ── `else this.actOsn()` ────────────────────────────────────────────────────
+                    //
+                    // actOsn's own order (Interact.as:1291-1325), with each step on the delegate that
+                    // already owns it: toggle the object's state if it has one, re-enter its allAct,
+                    // then run its inline <scr>.
+                    //
+                    // The toggle is gated on `(door > 0 || knop > 0) && action > 0` in the oracle, and
+                    // that gate is load-bearing here rather than cosmetic: six `buttons4` placements
+                    // author `inter="0"` and take the one-shot arm above, while every other knop2 is
+                    // `inter='4'` and toggles. A blanket toggle would light a lamp that AS3 leaves
+                    // alone and, worse, would run the toggle twice for a door — SetOpen below and
+                    // ToggleOpen in the presenter.
+                    if (ShootButtonRules.TogglesOwnState(knob, IsDoorBox(obj), interactionMode))
+                    {
+                        SetOpen(room, obj, !IsOpen(obj));
+                    }
+
+                    ReenterIfScripted(room, obj, fromBroadcast);
+                    _host.RunInlineScript?.Invoke(room, obj);
                     return true;
 
                 case "swap":
@@ -371,11 +404,28 @@ namespace PFE.Systems.Map.Actions
                    || ReadDefinitionInt(obj, "expl") > 0;
         }
 
-        /// <summary>AS3 <c>Interact.knop</c>, set from the placement's <c>knop</c> attribute (<c>Interact.as:408-411</c>).</summary>
+        /// <summary>
+        /// AS3 <c>Interact.knop</c> — the definition's <c>knop</c> (<c>Interact.as:304-306</c>), then
+        /// the placement's overriding it (<c>:403-405</c>).
+        ///
+        /// <para><b>The definition fallback was missing and it is not a detail.</b> <c>knop2</c> authors
+        /// <c>knop='1'</c> on the <i>definition</i> and none of the 41 shipped placements repeat it, so
+        /// reading only the placement made every bullet-button look like a non-knob and take the wrong
+        /// <c>dam</c> arm. The rule itself lives in <see cref="ShootButtonRules.IsKnob"/> so the
+        /// presenter and this command cannot disagree about it.</para>
+        /// </summary>
         private static bool IsKnob(ObjectInstance obj)
         {
             obj.EnsureStructuredData();
-            return !string.IsNullOrEmpty(MapObjectDataUtility.GetAttribute(obj.attributes, "knop", string.Empty));
+            return ShootButtonRules.IsKnob(
+                obj.GetAttribute("knop", string.Empty),
+                DefinitionAttribute(obj, "knop"));
+        }
+
+        /// <summary>AS3 <c>Box.door</c> — whether this object has a solid open/close state (<c>Box.as:290-297</c>).</summary>
+        private static bool IsDoorBox(ObjectInstance obj)
+        {
+            return obj.IsDoorBox();
         }
 
         /// <summary>AS3 <c>Interact.autoClose</c>, from <c>@autoclose</c> on the definition then the placement (<c>Interact.as:318</c>, <c>:377</c>).</summary>
@@ -401,24 +451,20 @@ namespace PFE.Systems.Map.Actions
         /// <summary>AS3 <c>Interact.action</c> — the <c>inter</c> value, placement first then definition (<c>Interact.as:292</c>, <c>:397-400</c>).</summary>
         private static int GetInteractionMode(ObjectInstance obj)
         {
-            string placed = obj.GetAttribute("inter", string.Empty);
-            if (int.TryParse(placed, out int placedValue))
-            {
-                return placedValue;
-            }
+            return ShootButtonRules.ResolveInteractionMode(
+                obj.GetAttribute("inter", string.Empty),
+                DefinitionAttribute(obj, "inter"));
+        }
 
-            return ReadDefinitionInt(obj, "inter");
+        private static string DefinitionAttribute(ObjectInstance obj, string key)
+        {
+            return obj.definition != null ? obj.definition.GetAttribute(key, string.Empty) : string.Empty;
         }
 
         private static int ReadDefinitionInt(ObjectInstance obj, string key)
         {
-            if (obj.definition == null)
-            {
-                return 0;
-            }
-
             return int.TryParse(
-                obj.definition.GetAttribute(key, string.Empty),
+                DefinitionAttribute(obj, key),
                 System.Globalization.NumberStyles.Integer,
                 System.Globalization.CultureInfo.InvariantCulture,
                 out int value)

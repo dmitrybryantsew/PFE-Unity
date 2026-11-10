@@ -30,6 +30,13 @@ namespace PFE.Systems.Map.Rendering
         readonly HashSet<ObjectInstance> _seenObjects = new HashSet<ObjectInstance>();
         readonly List<ObjectInstance> _staleObjects = new List<ObjectInstance>();
 
+        // Phase 3.2 (F-05): room MEMBERSHIP is the live-entity boundary for objects, not whether a
+        // presenter could be built. `RoomPopulator.CreateHiddenObject` creates boxes with an empty
+        // entityId and no authored visual; they still need a stable id. Tracking the set separately
+        // from `_presenters` keeps the registry symmetric with the spawn/despawn diff below and lets
+        // `TryRegister` stay a cheap no-op on the per-frame SyncPresenters pass.
+        readonly HashSet<ObjectInstance> _registeredObjects = new HashSet<ObjectInstance>();
+
         public AreaTriggerSystem TriggerSystem { get; set; }
 
         ObjectActionDispatcher _objectActions;
@@ -108,7 +115,8 @@ namespace PFE.Systems.Map.Rendering
             string visualObjectId,
             string allAct,
             Func<string, bool> dispatcherHandles,
-            bool hasInteractScript = false)
+            bool hasInteractScript = false,
+            bool hasBulletDamageProxy = false)
         {
             if (string.Equals(objectType, "door", StringComparison.OrdinalIgnoreCase)) return true;
             if (definitionIsInteractiveFamily) return true;
@@ -135,6 +143,16 @@ namespace PFE.Systems.Map.Rendering
             // i.e. physically unreachable. That is the reported "buttons do nothing".
             if (hasInteractScript) return true;
 
+            // AS3 `Box.as:410` — a definition carrying `actdam` binds a `VirtualUnit` to the box and
+            // `Location.as:2007-2009` pushes it into `loc.units`, so the object is a bullet target
+            // whether or not it is interactive at all. `knop2` is the only such row, and 27 of its 41
+            // placements author neither an `allact` nor a `<scr>` (all six in `buttons4`, the seven in
+            // `buttons3`, and the bare ones in `buttons1`/`buttons5..7`) — so every clause above answers
+            // false and the button fell to `ObjectColliderDebugPresenter`: drawn, with no collider and
+            // no hit surface. That is why shooting one did nothing even though the data and the verb
+            // were both present.
+            if (hasBulletDamageProxy) return true;
+
             // The last clause is "this object carries a script the dispatcher can actually run", which no
             // shape test can answer. Deliberately not "has an allact": an unported id would then get a
             // presenter, Dispatch would report it unhandled, and Interact would fall through to
@@ -148,6 +166,27 @@ namespace PFE.Systems.Map.Rendering
             // would be unreachable code that reads like a safeguard, and the next person to move a prob id
             // out of that set would trust it.
             return !string.IsNullOrEmpty(allAct) && dispatcherHandles != null && dispatcherHandles(allAct);
+        }
+
+        /// <summary>
+        /// Whether a prop's <b>definition</b> authors <c>actdam</c> — AS3's "this box is pressed by
+        /// bullets" (<c>Box.as:410</c>, <c>node.@actdam.length()</c>).
+        ///
+        /// <para><b>Definition, not placement.</b> The attribute is on the <c>AllData</c> row
+        /// (<c>knop2</c> is the only one, <c>actdam='1'</c>); a placement-level <c>actdam</c> does
+        /// nothing in AS3, and none of the 41 shipped placements authors one.</para>
+        ///
+        /// <para>Kept as a named test rather than inlined at the call site because the same question is
+        /// asked by <c>DoorPropPresenter</c> when it decides whether a solid collider exists — the two
+        /// must answer identically or a button is admitted to a presenter that never builds a surface
+        /// for it.</para>
+        /// </summary>
+        public static bool HasBulletDamageProxy(ObjectInstance obj)
+        {
+            return obj != null &&
+                   obj.definition != null &&
+                   ShootButtonRules.HasBulletDamageProxy(
+                       obj.definition.GetAttribute("actdam", string.Empty));
         }
 
         /// <summary>
@@ -271,7 +310,15 @@ namespace PFE.Systems.Map.Rendering
                 DestroyPresenter(pair.Value);
             }
 
+            // Unregister by membership set, not by `_presenters`: objects with no visual were still
+            // registered and would otherwise stay in the registry after the room is torn down.
+            foreach (ObjectInstance registered in _registeredObjects)
+            {
+                PFE.Core.RuntimeEntityIdContext.Unregister(registered);
+            }
+
             _presenters.Clear();
+            _registeredObjects.Clear();
             _seenObjects.Clear();
             _staleObjects.Clear();
         }
@@ -302,6 +349,13 @@ namespace PFE.Systems.Map.Rendering
 
                 _staleObjects.Remove(obj);
 
+                // Register even when no visual can be resolved: an invisible box is still a live
+                // entity with state. An empty `entityId` is derived into a host runtime id here.
+                if (_registeredObjects.Add(obj))
+                {
+                    PFE.Core.RuntimeEntityIdContext.TryRegister(obj, obj.entityId);
+                }
+
                 if (!TryResolveRenderableVisual(obj, out MapObjectVisualDefinition visual))
                 {
                     RemovePresenter(obj);
@@ -326,7 +380,13 @@ namespace PFE.Systems.Map.Rendering
 
             for (int i = 0; i < _staleObjects.Count; i++)
             {
-                RemovePresenter(_staleObjects[i]);
+                ObjectInstance stale = _staleObjects[i];
+                if (_registeredObjects.Remove(stale))
+                {
+                    PFE.Core.RuntimeEntityIdContext.Unregister(stale);
+                }
+
+                RemovePresenter(stale);
             }
         }
 
@@ -442,7 +502,10 @@ namespace PFE.Systems.Map.Rendering
                 // AS3 `Box.as:310`'s `xml.scr.length()` gate — the only one a button satisfies, since a
                 // `knop1` placement authors children instead of an `allact`. Asked here rather than in
                 // UsesDoorPresenter so the rule stays a pure function of its arguments.
-                HasInteractScript(obj));
+                HasInteractScript(obj),
+                // AS3 `Box.as:410`'s `actdam` gate — the bullet-pressed button, which needs neither an
+                // `allact` nor a `<scr>` to be a target.
+                HasBulletDamageProxy(obj));
 
             // AS3 checks `cont` BEFORE the door branch — Interact.actOsn() runs `cont != null -> loot()`
             // (Interact.as:1285-1288) and only then falls through to the door/knop toggle (:1294-1314).
@@ -741,6 +804,14 @@ namespace PFE.Systems.Map.Rendering
             if (visual != null)
             {
                 anchorPixels += visual.localOffset;
+
+                // AS3 positions a MovieClip by its REGISTRATION POINT, while the SWF exporter pads each
+                // frame to the symbol's full bounds. When the padding is at the BOTTOM (vischeckpoint is
+                // 130x229 with 40 transparent pixels below the art), bottom-aligning the frame lifts the
+                // drawing off the floor. `artBottomInsetPixels` is measured from the opaque bbox at
+                // import time; see CheckpointVisualRules.ArtBottomInsetPixels and the measurement in
+                // docs/OnMapObjects/07_PropFootprint_2026-11-01.md. Zero for every other visual.
+                anchorPixels.y -= visual.artBottomInsetPixels;
             }
 
             bool isArea = string.Equals(obj?.objectType, "area", StringComparison.OrdinalIgnoreCase) ||
