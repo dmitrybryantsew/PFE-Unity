@@ -344,7 +344,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 0, y: 0.35}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -354,7 +354,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.55, y: 0.7}
+  m_Size: {x: 0.5, y: 0.7}
   m_EdgeRadius: 0
 --- !u!114 &222318991976930990
 MonoBehaviour:
@@ -372,7 +372,6 @@ MonoBehaviour:
   _showDebugInfo: 1
   _mouseAiming: 1
   _doubleTapWindowSeconds: 0.25
-  _interactionRadius: 2
 --- !u!114 &7812910789973770164
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -385,9 +384,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5264179736f0da04795ec97cc44bdc67, type: 3}
   m_Name: 
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Physics.TilePhysicsController
-  collisionWidth: 30
-  collisionHeight: 50
-  crouchedCollisionHeight: 30
+  collisionWidth: 50
+  collisionHeight: 70
+  crouchedCollisionHeight: 35
   colliderOffsetPixels: {x: 0, y: 0}
   acceleration: 2
   maxSpeedX: 8
@@ -399,20 +398,12 @@ MonoBehaviour:
   platformThreshold: 8
   maxSubStepDistance: 9
   stepUpThreshold: 10
+  stepUpThresholdWalking: 20
+  stepUpThresholdIdle: 0
   stepUpThresholdWhileAirborne: 4
   platformDropDurationSeconds: 0.18
   ladderClimbSpeed: 5
   ladderProbeHalfWidth: 6
-  isGrounded: 0
-  isOnPlatform: 0
-  isInWater: 0
-  isFullySubmerged: 0
-  isOnLadder: 0
-  isCrouching: 0
-  hitCeiling: 0
-  wallLeft: 0
-  wallRight: 0
-  facingDirection: 1
 --- !u!114 &3205032263152521522
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -496,6 +487,7 @@ MonoBehaviour:
     hideMane: 0
     transparent: 0
     showWings: 0
+    showShield: 0
   _useFlashTint: 1
 --- !u!114 &874929367802877649
 MonoBehaviour:
@@ -557,10 +549,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Weapons.PlayerWeaponLoadout
   _startingWeaponDef: {fileID: 11400000, guid: 8981429f56d50d04f9555200a9af8eb4, type: 2}
+  _punchWeaponDef: {fileID: 0}
   _mounts: {fileID: 2652813275163745492}
   _weaponPresenter: {fileID: 7413519071082799414}
   _projectileSpawner: {fileID: 1671985779421430584}
   _meleeHitVolume: {fileID: 4333916084889463412}
+  _characterAssembler: {fileID: 0}
   _aimTarget: {x: 0, y: 0}
 --- !u!114 &2652813275163745492
 MonoBehaviour:

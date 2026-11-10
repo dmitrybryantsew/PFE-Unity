@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using PFE.Entities.Units;
 using PFE.Systems.Map.TileQuery;
@@ -146,6 +147,42 @@ namespace PFE.Tests.Editor.Entities.Units
                 "ApplyDefinitionToBody no longer hands the motor the crouch height, so a prefab that " +
                 "serialized a stale crouchedCollisionHeight crouches to that instead of the " +
                 "definition's sitHeight (AS3 sitY).");
+        }
+
+        /// <summary>
+        /// Row 0.3's acceptance is not "a rule exists" — it is that the <b>shipping collision path</b>
+        /// resolves the box through that rule, so every peer computes the same three numbers from the
+        /// same content. <c>UnitBodyBoxRules</c> had zero production callers when the content half was
+        /// fixed; a rule nobody calls cannot prevent a host/client divergence.
+        ///
+        /// <para><b>Why the arguments are inspected rather than just the call.</b> A bare
+        /// <c>Does.Contain("UnitBodyBoxRules.Resolve(")</c> would go green if the resolved box were
+        /// computed and then ignored — the exact shape of an "available but not load-bearing" rule.
+        /// The three values that reach <c>ConfigureCollisionSize</c> must be the resolved box's fields.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void ApplyDefinitionToBody_FeedsTheMotorTheResolvedBox()
+        {
+            string source = SourceLint.ReadStripped("Entities/Units/UnitController.cs");
+            string body = SourceLint.MethodBody(source, "protected void ApplyDefinitionToBody()");
+
+            Assert.That(body, Does.Contain("UnitBodyBoxRules.Resolve("),
+                "ApplyDefinitionToBody must resolve the body box through the one shared rule. Reading " +
+                "width/height/sitHeight straight off the definition makes each consumer its own " +
+                "authority, which is the peer divergence row 0.3 exists to prevent.");
+
+            Match call = Regex.Match(body, @"ConfigureCollisionSize\(([^)]*)\)", RegexOptions.Singleline);
+            Assert.IsTrue(call.Success,
+                "ApplyDefinitionToBody no longer calls ConfigureCollisionSize at all.");
+
+            string args = call.Groups[1].Value;
+            Assert.That(args, Does.Contain("bodyBox.WidthPx")
+                              .And.Contain("bodyBox.HeightPx")
+                              .And.Contain("bodyBox.SitHeightPx"),
+                "The motor must receive the RESOLVED box's three fields. Computing a UnitBodyBox and " +
+                "then handing ConfigureCollisionSize the raw conversions leaves the rule decorative: " +
+                "a peer with a stale crouchedCollisionHeight still crouches to the wrong height.");
         }
     }
 }

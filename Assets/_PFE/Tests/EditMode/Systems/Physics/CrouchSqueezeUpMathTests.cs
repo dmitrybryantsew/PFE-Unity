@@ -31,8 +31,15 @@ namespace PFE.Tests.EditMode.Systems.Physics
         /// <summary>littlepip's standing height — AS3 <c>stayY = 70</c>.</summary>
         private const float StandingHeight = 70f;
 
-        /// <summary>littlepip's crouched height — AS3 <c>sitY = stayY / 2 = 35</c>; the asset's <c>sitHeight</c> is 0.3 → 30 px.</summary>
-        private const float CrouchedHeight = 30f;
+        /// <summary>
+        /// littlepip's crouched height — AS3 <c>sitY = stayY / 2 = 35</c> (<c>Unit.as:1041-1048</c>).
+        ///
+        /// <para>Was 30, mirroring an asset that had drifted 5 px short of the oracle. This fixture is
+        /// about the crouch <i>arithmetic</i>, so it cites the oracle; whether the serialized asset
+        /// agrees is <c>UnitBodyBoxContentLintTests</c>' job, and duplicating the number here is how the
+        /// wrong one survived in two places.</para>
+        /// </summary>
+        private const float CrouchedHeight = 35f;
 
         // ── The mirror ───────────────────────────────────────────────────────────────────────────
 
