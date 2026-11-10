@@ -573,26 +573,44 @@ namespace PFE.UI.HUD
                 // `= textItem.y`. The +35 form is the common case; see HudLayout.ApplyRelative.
                 { HudSlot.ManaText, new HudAnchor(TopLeft, new Vector2(20f, -93f)) },
 
-                // ── Not set by the Oracle at all: port choices ────────────────
+                // ── Authored inside `visualGUI` (4651) ───────────────────────
                 //
-                // These elements' positions live in the SWF symbol `visualGUI` (Symbol 4651), which the
-                // importer writes out as a single flat PNG (Assets/_PFE/Art/UI/Interface/HUD_MasterLayout.png)
-                // with no placement data. The numbers below are the port's and are a KNOWN GAP: the
-                // faithful fix is to read the child placements out of the SWF, not to nudge these until
-                // they look right.
+                // These were tagged PortChoice, with the rationale that the importer writes
+                // `visualGUI` out as one flat PNG and cannot read placements from it. The *importer*
+                // cannot; the file can. The numbers below are the symbol's own PlaceObject2 matrices
+                // in twips, read with `.workbuddy-ai/tools/swf_sprite_layout.py assets.swf 4651`:
                 //
-                // They sit in the top-left because the Oracle's own top-left content does — textItem is
-                // pinned at absolute y=58 (GUI.as:1068) and hpBar/manaBar/xpBar are shown and hidden as
-                // one group with it (GUI.as:758,764,773). The rows below are laid out to stay inside the
-                // 0..58 band that the item/mana readouts do not occupy.
+                //   hpBar     (9489)  t=(4.35, 6.00)   scale 2.2895
+                //   hp        (9745)  t=(6.50, 10.75)
+                //   manaBar   (28177) t=(4.00, 34.60)  scale 1.1478
+                //   xpBar     (30481) t=(3.80, 1.00)   scale (2.2999, 1.0)
+                //   eff0..11  (26385) t=(288 + 34i, 18)
+                //
+                // The old guesses put the health bar at x=20 and the strip in the top-RIGHT corner;
+                // the real strip starts at x=288 — to the right of the bar, on the left half of the
+                // screen — which is why the owner's screenshot shows icons beside the health bar
+                // rather than in a corner.
 
-                { HudSlot.HealthBar, new HudAnchor(TopLeft, new Vector2(20f, -10f)) },
-                { HudSlot.HealthText, new HudAnchor(TopLeft, new Vector2(348f, -12f)) },
-                { HudSlot.ArmourBar, new HudAnchor(TopLeft, new Vector2(20f, -38f)) },
-                { HudSlot.ArmourText, new HudAnchor(TopLeft, new Vector2(348f, -40f)) },
-                { HudSlot.ManaBar, new HudAnchor(TopLeft, new Vector2(20f, -50f)) },
-                { HudSlot.ExperienceBar, new HudAnchor(TopLeft, new Vector2(20f, -58f)) },
-                { HudSlot.StatusEffectsStrip, new HudAnchor(TopRight, new Vector2(-20f, -20f)) },
+                { HudSlot.ExperienceBar, new HudAnchor(TopLeft, new Vector2(3.8f, -1f)) },
+                { HudSlot.HealthBar, new HudAnchor(TopLeft, new Vector2(4.35f, -6f)) },
+
+                // The readout is centred *inside* the bar (the Oracle places the field at 6.5, 10.75
+                // and the field's own width carries the centring — see `hp` = 9745).
+                { HudSlot.HealthText, new HudAnchor(TopLeft, new Vector2(6.5f, -6f)) },
+
+                // GUI.as:1000 draws the ORGAN here, not the budget — see HudSlot.ManaBar.
+                { HudSlot.ManaBar, new HudAnchor(TopLeft, new Vector2(4f, -34.6f)) },
+
+                // The strip's own width is 12 x 34 = 408; the first slot's left edge is 288.
+                { HudSlot.StatusEffectsStrip, new HudAnchor(TopLeft, new Vector2(288f, -18f)) },
+
+                // ── Port choices ─────────────────────────────────────────────
+                //
+                // The armour bar has no Oracle counterpart at all (see HudSlot.ArmourBar), so it is
+                // placed in the gap the Oracle's own cluster leaves: directly under the mana bar.
+
+                { HudSlot.ArmourBar, new HudAnchor(TopLeft, new Vector2(4f, -46f)) },
+                { HudSlot.ArmourText, new HudAnchor(TopLeft, new Vector2(260f, -47f)) },
                 { HudSlot.PetHealthBar, new HudAnchor(TopLeft, new Vector2(20f, -80f)) },
 
                 // FALLBACK ONLY. In the Oracle this bar is a child of the player's own world sprite,
@@ -645,6 +663,17 @@ namespace PFE.UI.HUD
                 // Both halves are authored: x from resizeScreen, y from the symbol's own matrix inside
                 // visualGUI. Neither is a guess, which is why this is not with the rows below.
                 case HudSlot.BossHealthBar:
+                    return HudAnchorSource.OracleAuthored;
+
+                // The stat cluster and the effect strip. The Oracle never writes these in
+                // `resizeScreen` — their positions are the symbol's own placements inside
+                // `visualGUI` (4651), read out of the SWF's PlaceObject2 matrices. Authored data with a
+                // cited twips value, so it must not be quoted as a guess (see HudAnchorSource).
+                case HudSlot.HealthBar:
+                case HudSlot.HealthText:
+                case HudSlot.ManaBar:
+                case HudSlot.ExperienceBar:
+                case HudSlot.StatusEffectsStrip:
                     return HudAnchorSource.OracleAuthored;
 
                 // Horizontally centred by the Oracle, vertically not set. Classified as a port choice

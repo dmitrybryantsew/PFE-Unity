@@ -452,14 +452,40 @@ namespace PFE.Tests.EditMode.UI
         public void ElementsTheOracleNeverPlaces_AreTaggedAsPortChoices()
         {
             // The anti-laundering test: an invented position must never be quoted as a citation.
-            Assert.AreEqual(HudAnchorSource.PortChoice, HudLayout.SourceFor(HudSlot.HealthBar));
-            Assert.AreEqual(HudAnchorSource.PortChoice, HudLayout.SourceFor(HudSlot.ManaBar));
-            Assert.AreEqual(HudAnchorSource.PortChoice, HudLayout.SourceFor(HudSlot.ExperienceBar));
-            Assert.AreEqual(HudAnchorSource.PortChoice, HudLayout.SourceFor(HudSlot.StatusEffectsStrip));
+            //
+            // The stat cluster and the effect strip used to be in this list. They are not any more:
+            // their positions are PlaceObject2 matrices inside `visualGUI` (4651), read out of the SWF
+            // (see HudLayout's table). Only the armour bar is still the port's own — AS3 has no player
+            // armour bar at all (see HudSlot.ArmourBar).
+            Assert.AreEqual(HudAnchorSource.PortChoice, HudLayout.SourceFor(HudSlot.ArmourBar));
+            Assert.AreEqual(HudAnchorSource.PortChoice, HudLayout.SourceFor(HudSlot.ArmourText));
 
             // ...while the rows that ARE read out of resizeScreen stay tagged as such.
             Assert.AreEqual(HudAnchorSource.OracleResizeScreen, HudLayout.SourceFor(HudSlot.WeaponBlock));
             Assert.AreEqual(HudAnchorSource.OracleResizeScreen, HudLayout.SourceFor(HudSlot.ActionPointsBar));
+        }
+
+        [Test]
+        public void TheStatClusterAndStrip_AreAuthoredDataFromTheSwf()
+        {
+            // `resizeScreen` never writes any of these; `visualGUI` places them. Tagging them as a port
+            // choice would understate what is known, and tagging them OracleResizeScreen would be a lie.
+            Assert.AreEqual(HudAnchorSource.OracleAuthored, HudLayout.SourceFor(HudSlot.HealthBar));
+            Assert.AreEqual(HudAnchorSource.OracleAuthored, HudLayout.SourceFor(HudSlot.HealthText));
+            Assert.AreEqual(HudAnchorSource.OracleAuthored, HudLayout.SourceFor(HudSlot.ManaBar));
+            Assert.AreEqual(HudAnchorSource.OracleAuthored, HudLayout.SourceFor(HudSlot.ExperienceBar));
+            Assert.AreEqual(HudAnchorSource.OracleAuthored, HudLayout.SourceFor(HudSlot.StatusEffectsStrip));
+
+            // The values themselves, so a nudge toward "looks right" fails here instead of shipping.
+            // hpBar t=(4.35, 6.00); manaBar t=(4.00, 34.60); xpBar t=(3.80, 1.00); eff0 t=(288, 18).
+            Assert.AreEqual(4.35f, HudLayout.AnchorFor(HudSlot.HealthBar).Offset.x, 1e-3f);
+            Assert.AreEqual(-6f, HudLayout.AnchorFor(HudSlot.HealthBar).Offset.y, 1e-3f);
+            Assert.AreEqual(4f, HudLayout.AnchorFor(HudSlot.ManaBar).Offset.x, 1e-3f);
+            Assert.AreEqual(-34.6f, HudLayout.AnchorFor(HudSlot.ManaBar).Offset.y, 1e-3f);
+            Assert.AreEqual(3.8f, HudLayout.AnchorFor(HudSlot.ExperienceBar).Offset.x, 1e-3f);
+            Assert.AreEqual(-1f, HudLayout.AnchorFor(HudSlot.ExperienceBar).Offset.y, 1e-3f);
+            Assert.AreEqual(288f, HudLayout.AnchorFor(HudSlot.StatusEffectsStrip).Offset.x, 1e-3f);
+            Assert.AreEqual(-18f, HudLayout.AnchorFor(HudSlot.StatusEffectsStrip).Offset.y, 1e-3f);
         }
     }
 }

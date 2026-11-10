@@ -12,6 +12,7 @@ using PFE.Systems.Inventory;
 using PFE.Systems.Weapons;
 using PFE.UI.Common;
 using PFE.UI.HUD;
+using PFE.UI.PipBuck;
 
 namespace PFE.Core
 {
@@ -47,7 +48,26 @@ namespace PFE.Core
         private AmmoCounterView _ammoCounter;
         private ReloadIndicatorView _reloadIndicator;
         private ArmourBarView _armourBar;
+        private ManaBarView _manaBar;
+        private ExperienceBarView _experienceBar;
+        private StatusEffectStripView _effectStrip;
         private ActionProgressBarView _holdBar;
+
+        /// <summary>
+        /// The PipBuck device, resolved on first use. It is a container singleton rather than a
+        /// component, and the HUD is built before anything opens it — so this is looked up lazily by
+        /// <see cref="IsPipBuckOpen"/> and kept, instead of being required at build time.
+        /// </summary>
+        private PipBuckManager _pipBuck;
+
+        /// <summary>
+        /// The mana meter's root — one of the four elements <c>GUI.hpBarOnOff</c> assigns
+        /// (<c>GUI.as:758</c>: <c>hpBar</c>, <c>hp</c>, <c>manaBar</c>, <c>xpBar</c>).
+        /// </summary>
+        private GameObject _manaBarRoot;
+
+        /// <summary>The experience meter's root — the fourth element of that same assignment.</summary>
+        private GameObject _experienceBarRoot;
 
         /// <summary>
         /// The three elements that are <b>not placed on the screen</b> but projected from a world
@@ -272,6 +292,13 @@ namespace PFE.Core
             _ammoCounter = BuildAmmoCounter(canvasGo.transform);
             _reloadIndicator = BuildReloadIndicator(canvasGo.transform);
             _armourBar = BuildArmourBar(canvasGo.transform);
+
+            // The rest of the Oracle's top-left stat cluster: the mana meter and the experience
+            // hairline, then the effect strip that sits to their right at x = 288.
+            _manaBar = BuildManaBar(canvasGo.transform);
+            _experienceBar = BuildExperienceBar(canvasGo.transform);
+            _effectStrip = BuildStatusEffectStrip(canvasGo.transform);
+
             _holdBar = BuildHoldBar(canvasGo.transform);
             _prompt = BuildInteractionPrompt(canvasGo.transform);
 
@@ -293,12 +320,19 @@ namespace PFE.Core
             _toast = BuildToast(canvasGo.transform);
             _dialogue = BuildDialogue(canvasGo.transform);
             _overlay = BuildOverlay(canvasGo.transform);
-            // The boss bar goes with the stat cluster: AS3's `gui off` hides all of `vis` (the whole
-            // HUD sheet), and a boss bar floating over a black cutscene is the most conspicuous part of
-            // getting that wrong.
+            // `gui off` is `hpBarOnOff(false)` (<c>Script.as:386</c>), which assigns exactly four
+            // elements (<c>GUI.as:758</c>) — NOT the whole HUD sheet, which is what `allOff` does and
+            // which the port has no equivalent of. The boss bar and the pet bar are added to the group
+            // anyway, as a deliberate deviation: both hang over the world, and a boss bar floating above
+            // a black cutscene is the most conspicuous part of getting that wrong. The Oracle's own
+            // `allOff` does hide `hpbarboss` (<c>GUI.as:767</c>), so this errs toward its intent rather
+            // than away from it. The effect strip is deliberately absent — `hpBarOnOff` does not touch
+            // the `eff` slots at all; see BuildStatusEffectStrip.
             _overlay.SetGuiElements(_healthBarRoot, _healthTextRoot,
                 _bossBar != null ? _bossBar.gameObject : null,
-                _petBar != null ? _petBar.gameObject : null);
+                _petBar != null ? _petBar.gameObject : null,
+                _manaBarRoot,
+                _experienceBarRoot);
 
             // On the bootstrapper, not on the canvas — see the field's note. Added unconditionally so
             // that Bind can report a missing broker instead of the component being absent entirely.
@@ -318,11 +352,18 @@ namespace PFE.Core
             _ammoCounter.SetViewModel(_viewModel);
             _reloadIndicator.SetViewModel(_viewModel);
             _armourBar.SetViewModel(_viewModel);
+            _manaBar.SetViewModel(_viewModel);
+            _experienceBar.SetViewModel(_viewModel);
 
-            Debug.Log("[HudBootstrapper] HUD built (health bar, boss health bar, armour bar, ammo " +
-                      "counter, world-anchored reload bar, world-anchored hold bar, world-anchored " +
-                      "interaction prompt, script banner, dialogue window, blackout overlay, pickup " +
-                      "message list, pickup floating labels, starred-enemy nameplates) on a " +
+            // The strip polls rather than binding, so it only needs the reference. Set here (not in its
+            // own Start) because the view has no Start of its own — see StatusEffectStripView.
+            _effectStrip.SetViewModel(_viewModel);
+
+            Debug.Log("[HudBootstrapper] HUD built (health bar, boss health bar, armour bar, mana bar, " +
+                      "experience bar, status effect strip, ammo counter, world-anchored reload bar, " +
+                      "world-anchored hold bar, world-anchored interaction prompt, script banner, " +
+                      "dialogue window, blackout overlay, pickup message list, pickup floating labels, " +
+                      "starred-enemy nameplates) on a " +
                       HudLayout.ReferenceWidth + "x" + HudLayout.ReferenceHeight + " canvas.");
 
             // A missing nameplate is not a missing bar — nothing else in the HUD draws a star, so the
@@ -496,7 +537,11 @@ namespace PFE.Core
             // Top-left stat column. Placement is HudLayout's (HudSlot.HealthBar) — the Oracle's own
             // stat cluster is top-left, and the bottom-left now belongs to the weapon block
             // (`vis.textWeapon.y = screenY - 20`, GUI.as:314).
-            var barRect = CreateHudElement("Health Bar", parent, new Vector2(320f, 24f));
+            //
+            // 251 x 26: the authored placement is (4.35, 6) with scale 2.2895 on symbol 9489, and the
+            // measured on-screen frame in the owner's capture is 251 px wide. The bar used to be
+            // 320 x 24 at x=20 — a size and a position that belong to no source.
+            var barRect = CreateHudElement("Health Bar", parent, new Vector2(HealthBarWidth, HealthBarHeight));
             _layout.Register(HudSlot.HealthBar, barRect);
             _healthBarRoot = barRect.gameObject;
 
@@ -529,22 +574,46 @@ namespace PFE.Core
 
             var view = barRect.gameObject.AddComponent<HealthBarView>();
 
-            // Health readout, to the right of the bar. HudLayout places it at x=348, which clears the
-            // 320-wide bar rather than overlapping it.
-            var textRect = CreateHudElement("Health Text", parent, new Vector2(160f, 24f));
+            // Health readout, centred inside the bar — the Oracle places the `hp` field at (6.5, 10.75)
+            // over the bar and lets the field's own width centre the text, which is why the running game
+            // shows "209/457" in the middle of the frame rather than beside it.
+            var textRect = CreateHudElement("Health Text", parent, new Vector2(HealthBarWidth, HealthBarHeight));
             _layout.Register(HudSlot.HealthText, textRect);
             _healthTextRoot = textRect.gameObject;
             var text = textRect.gameObject.AddComponent<Text>();
             text.font = ResolveFont();
             text.fontSize = 18;
             text.color = Color.white;
-            text.alignment = TextAnchor.MiddleLeft;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.raycastTarget = false;
             text.text = "-- / --";
 
             view.SetHealthText(text);
 
             return view;
         }
+
+        // ── The stat cluster's geometry ───────────────────────────────────────
+        //
+        // Widths are shared by the four bars because the Oracle's three (hpBar / manaBar / xpBar) are
+        // all left-aligned on the same sheet column and the owner's capture shows them ending on the
+        // same edge. The heights are the authored ones: hpBar is drawn at scale 2.2895 and manaBar at
+        // 1.1478, which is why the mana bar is the thin one.
+
+        /// <summary>Health bar width in canvas pixels — the authored frame, 4.35 → 255.</summary>
+        private const float HealthBarWidth = 251f;
+
+        /// <summary>Health bar height — the authored symbol at its 2.2895 placement scale.</summary>
+        private const float HealthBarHeight = 26f;
+
+        /// <summary>Mana bar height — 34.6 to 43 on the sheet, i.e. the thin organ track.</summary>
+        private const float ManaBarHeight = 8f;
+
+        /// <summary>
+        /// XP bar height. The symbol is placed with scale <c>(2.2999, 1.0)</c> — stretched on x only —
+        /// so it is a hairline at the very top of the sheet, one row band above the health bar.
+        /// </summary>
+        private const float ExperienceBarHeight = 3f;
 
         /// <summary>
         /// The boss health bar — <c>vis.hpbarboss</c> (<c>GUI.hpBarBoss</c>, <c>GUI.as:1693-1705</c>).
@@ -667,6 +736,153 @@ namespace PFE.Core
             visuals.gameObject.SetActive(false);
 
             return view;
+        }
+
+        /// <summary>
+        /// The mana meter — <c>vis.manaBar</c> plus the <c>vis.textMana</c> readout.
+        ///
+        /// <para><b>This was the port's most conspicuous missing element:</b> <see cref="HudSlot.ManaBar"/>
+        /// has had an anchor row since the layout table was written, and nothing ever built at it, so the
+        /// HUD had no mana display at all while the oracle's has had one since <c>GUI.setMana</c>.</para>
+        ///
+        /// <para><b>Blue, thin, and immediately under the health bar.</b> The SWF places it at
+        /// <c>(4.00, 34.60)</c> at scale <c>1.1478</c> — the health bar's frame ends at 32 and this starts
+        /// two pixels below it. The colour is the port's (the oracle's bar is a gradient in symbol
+        /// 28177 that was never imported), chosen to read as "not health" at a glance.</para>
+        /// </summary>
+        private ManaBarView BuildManaBar(Transform parent)
+        {
+            var barRect = CreateHudElement("Mana Bar", parent, new Vector2(HealthBarWidth, ManaBarHeight));
+            _layout.Register(HudSlot.ManaBar, barRect);
+            _manaBarRoot = barRect.gameObject;
+
+            // Slider first, with fillRect assigned before the view is added: ManaBarView.Awake reads
+            // GetComponent<Slider>() — the same ordering constraint as the health and armour bars.
+            var slider = barRect.gameObject.AddComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 1f;
+            slider.transition = Selectable.Transition.None;
+            slider.interactable = false;
+
+            var background = CreateImage("Background", barRect, new Color(0f, 0f, 0f, 0.6f));
+            Stretch(background.rectTransform);
+
+            var fillArea = CreateRect("Fill Area", barRect,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(fillArea, 1f);
+
+            var fill = CreateImage("Fill", fillArea, new Color(0.25f, 0.45f, 0.95f, 0.95f));
+            Stretch(fill.rectTransform);
+
+            slider.fillRect = fill.rectTransform;
+            slider.targetGraphic = fill;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            var view = barRect.gameObject.AddComponent<ManaBarView>();
+
+            // The budget readout. HudLayout places it at (20, 93) — `textMana` is pinned below the item
+            // readout, not beside the bar (GUI.setOtstup: `textMana.y = textItem.y + 35`).
+            var textRect = CreateHudElement("Mana Text", parent, new Vector2(240f, 18f));
+            _layout.Register(HudSlot.ManaText, textRect);
+            var text = textRect.gameObject.AddComponent<Text>();
+            text.font = ResolveFont();
+            text.fontSize = 14;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.raycastTarget = false;
+            text.text = string.Empty;
+
+            view.SetManaText(text);
+
+            return view;
+        }
+
+        /// <summary>
+        /// The experience meter — <c>vis.xpBar</c>.
+        ///
+        /// <para><b>A hairline, and that is the authored shape.</b> <c>xpBar</c> (30481) is placed at
+        /// <c>(3.80, 1.00)</c> with scale <c>(2.2999, 1.0)</c>: stretched horizontally, not vertically.
+        /// It sits above the health bar's top edge, which is where the owner's screenshot shows the thin
+        /// bright line.</para>
+        /// </summary>
+        private ExperienceBarView BuildExperienceBar(Transform parent)
+        {
+            var barRect = CreateHudElement("Experience Bar", parent, new Vector2(HealthBarWidth, ExperienceBarHeight));
+            _layout.Register(HudSlot.ExperienceBar, barRect);
+            _experienceBarRoot = barRect.gameObject;
+
+            var slider = barRect.gameObject.AddComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 0f;
+            slider.transition = Selectable.Transition.None;
+            slider.interactable = false;
+
+            var background = CreateImage("Background", barRect, new Color(0f, 0f, 0f, 0.55f));
+            Stretch(background.rectTransform);
+
+            var fill = CreateImage("Fill", barRect, new Color(0f, 1f, 0.6f, 0.95f));
+            Stretch(fill.rectTransform);
+
+            slider.fillRect = fill.rectTransform;
+            slider.targetGraphic = fill;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            return barRect.gameObject.AddComponent<ExperienceBarView>();
+        }
+
+        /// <summary>
+        /// The twelve-slot status-effect strip — <c>vis.eff0..eff11</c>, the port of
+        /// <c>GUI.setEffects</c>.
+        ///
+        /// <para><b>The icons are the imported frames of symbol 4453.</b>
+        /// <see cref="PipBuckCompositionDefinition.statusEffectIcons"/> already holds all 56
+        /// (<c>_effectIco_174</c>), which is why this needs no new asset work — only the id → frame
+        /// table, which lives in <see cref="StatusEffectIcons"/> and was read out of the SWF's frame
+        /// labels.</para>
+        ///
+        /// <para><b>The strip is one registered slot, not twelve.</b> Its children are laid out at the
+        /// SWF's own 34 px pitch inside the root, so a canvas resize moves twelve icons with one anchor
+        /// write instead of twelve.</para>
+        ///
+        /// <para><b>It is deliberately not in <see cref="ScriptOverlayView"/>'s group.</b> That group is
+        /// <c>hpBarOnOff</c>, which assigns exactly <c>hpBar</c>, <c>hp</c>, <c>manaBar</c> and
+        /// <c>xpBar</c> (<c>GUI.as:758</c>) — the <c>eff</c> slots are not among them. The method that
+        /// does hide the strip is <c>allOff</c> (<c>GUI.as:766</c>), it hides only <c>eff0..eff5</c> — a
+        /// six-slot remnant of a shorter strip — and <c>allOn</c> never restores them (<c>:769-775</c>).
+        /// The port has no <c>allOff</c> equivalent, so <c>gui off</c> leaves the strip on screen here
+        /// exactly as it does in the Oracle.</para>
+        /// </summary>
+        private StatusEffectStripView BuildStatusEffectStrip(Transform parent)
+        {
+            var rect = CreateHudElement("Status Effect Strip", parent,
+                new Vector2(StatusEffectStripView.StripWidth, StatusEffectStripView.StripHeight));
+            _layout.Register(HudSlot.StatusEffectsStrip, rect);
+
+            var view = rect.gameObject.AddComponent<StatusEffectStripView>();
+            view.Initialize(
+                _composition != null ? _composition.statusEffectIcons : null,
+                ResolveFont(),
+                IsPipBuckOpen);
+
+            return view;
+        }
+
+        /// <summary>
+        /// The PipBuck's <c>active</c> flag, for the strip's 0.2 dim (<c>GUI.as:1163-1170</c>).
+        /// Resolved lazily and cached: the device is a container singleton, and the HUD is built before
+        /// anything has opened it.
+        /// </summary>
+        private bool IsPipBuckOpen()
+        {
+            if (_pipBuck == null && _resolver != null)
+            {
+                _resolver.TryResolve(out _pipBuck);
+            }
+
+            return _pipBuck != null && _pipBuck.IsOpen;
         }
 
         /// <summary>
@@ -1508,6 +1724,14 @@ namespace PFE.Core
             _ammoCounter?.BindToViewModel(_viewModel);
             _reloadIndicator?.BindToViewModel(_viewModel);
             _armourBar?.BindToViewModel(_viewModel);
+
+            // The two new meters must be here, not only in the SetViewModel list above. Each view binds
+            // in its own Start, and the HUD is built during this component's Start — so their Start runs
+            // while `_viewModel.Initialize` has not yet been called and every source property is still
+            // null. They then log "waiting for the bootstrapper to rebind" and, without these two lines,
+            // wait forever: a bar that is built, anchored, correctly sized and permanently empty.
+            _manaBar?.BindToViewModel(_viewModel);
+            _experienceBar?.BindToViewModel(_viewModel);
         }
 
         /// <summary>

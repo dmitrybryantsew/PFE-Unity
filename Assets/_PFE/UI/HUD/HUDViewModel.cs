@@ -2,7 +2,10 @@ using UnityEngine;
 using R3;
 using PFE.Systems.Weapons;
 using PFE.Entities.Units;
+using PFE.Systems.Effects;
 using PFE.Systems.RPG;
+using PFE.Systems.RPG.Data;
+using PFE.UI.Common;
 
 namespace PFE.UI.HUD
 {
@@ -62,6 +65,8 @@ namespace PFE.UI.HUD
         private ReadOnlyReactiveProperty<float> _manaOrganPercent;
         private ReadOnlyReactiveProperty<float> _armourPercent;
         private ReadOnlyReactiveProperty<bool> _hasArmour;
+        private ReadOnlyReactiveProperty<string> _manaText;
+        private ReadOnlyReactiveProperty<float> _experiencePercent;
 
         // Composite disposable for cleanup
         private CompositeDisposable _disposables;
@@ -165,8 +170,8 @@ namespace PFE.UI.HUD
         /// <summary>
         /// The organ as a 0..1 fraction. <b>This is the mana bar's value.</b> AS3:
         /// <c>vis.manaBar.mana.scaleX = gg.pers.manaHP / gg.pers.inMaxMana</c>
-        /// (<c>GUI.as:1000</c>), while the adjacent text shows the budget. Both are in
-        /// <c>setMana</c>, four lines apart.
+        /// (<c>GUI.as:999</c>), while the adjacent text shows the budget. Both are in
+        /// <c>setMana</c>, six lines apart.
         /// </summary>
         public ReadOnlyReactiveProperty<float> ManaOrganPercent => _manaOrganPercent;
 
@@ -180,6 +185,50 @@ namespace PFE.UI.HUD
         /// Whether any armour is equipped (for binding). The armour bar's visibility gate.
         /// </summary>
         public ReadOnlyReactiveProperty<bool> HasArmour => _hasArmour;
+
+        /// <summary>
+        /// The magic-budget readout as one reactive string — AS3 <c>GUI.setMana</c>'s three branches,
+        /// over <c>gg.mana</c> (<c>GUI.as:987-998</c>). The rule is
+        /// <see cref="ManaReadout.Format"/>; this is only its lifetime.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Reactive, not a per-frame call, because the mana text is the one readout whose
+        /// <i>silence</i> is meaningful.</b> A full pool prints nothing, so a view that polled
+        /// <see cref="GetManaText"/> would have to decide every frame whether an empty string means
+        /// "full" or "no source". Binding to the stream makes the empty state an ordinary value.</para>
+        /// </remarks>
+        public ReadOnlyReactiveProperty<string> ManaText => _manaText;
+
+        /// <summary>
+        /// Progress through the current level, 0..1 — the value behind AS3
+        /// <c>vis.xpBar.xp.scaleX</c> (<c>GUI.as:1057-1061</c>). Read from
+        /// <see cref="characterStats"/>, so it stays at 0 for a HUD with no player block.
+        /// </summary>
+        /// <remarks>
+        /// Polled with <c>EveryUpdate</c> rather than published, for the same reason as the mana organ:
+        /// <c>CharacterStats.xp</c>/<c>level</c> are plain serialized fields written by
+        /// <c>GainXp</c>/<c>UpLevel</c> with no change stream, and a level-up changes <i>two</i> of them
+        /// at once, so a subscription to either alone would show one frame of the wrong fraction.
+        /// </remarks>
+        public ReadOnlyReactiveProperty<float> ExperiencePercent => _experiencePercent;
+
+        /// <summary>
+        /// This player's live status effects — AS3 <c>Unit.effects</c>, for the effect strip. Null
+        /// before the player exists; the strip tolerates that and draws nothing.
+        /// </summary>
+        /// <remarks>
+        /// <b>Deliberately not a reactive property.</b> The set is a plain list with no change
+        /// notification (see <see cref="ActiveEffectSet"/>), and every consumer of it — the strip, a
+        /// debug readback — wants the whole list rather than a diff. A view polls it and writes only
+        /// what changed.
+        /// </remarks>
+        public ActiveEffectSet Effects => playerStats != null ? playerStats.Effects : null;
+
+        /// <summary>
+        /// AS3 <c>gg.shithp</c> — the magic-shield pool. One of the effect strip's three hard-coded
+        /// priority slots (<c>GUI.as:1191-1197</c>); 0 when there is no player.
+        /// </summary>
+        public float ShieldHp => playerStats != null ? playerStats.ShitHp : 0f;
 
         /// <summary>
         /// Initialize the ViewModel with its game data sources.
@@ -292,6 +341,8 @@ namespace PFE.UI.HUD
             _manaOrganPercent = null;
             _armourPercent = null;
             _hasArmour = null;
+            _manaText = null;
+            _experiencePercent = null;
 
             SetupBindings();
         }
@@ -397,6 +448,15 @@ namespace PFE.UI.HUD
             _disposables.Add(_maxMana);
             _disposables.Add(_manaPercent);
 
+            // The budget readout. Bound to the budget alone — the percentage is a function of that one
+            // number, because the ceiling is a constant 1000 (ManaReadout.MaxBudget) rather than a stat.
+            _manaText = playerStats.Mana
+                .Select(mana => ManaReadout.Format(mana, MagiaLabel, MagiaOverLabel))
+                .DistinctUntilChanged()
+                .ToReadOnlyReactiveProperty();
+
+            _disposables.Add(_manaText);
+
             // Mana ORGAN bindings — the other half of AS3's split readout.
             //
             // Polled with EveryUpdate rather than read off a ReactiveProperty because
@@ -440,7 +500,51 @@ namespace PFE.UI.HUD
             _disposables.Add(_armourPercent);
             _disposables.Add(_hasArmour);
 
+            // Experience. Read off the character block, which is where the level and the lifetime XP
+            // total live (AS3 Pers.xpCur/xpPrev/xpNext). Optional source: without it the bar simply
+            // stays empty rather than showing a fake 0 %.
+            if (characterStats != null)
+            {
+                _experiencePercent = Observable.EveryUpdate()
+                    .Select(_ => ExperienceFraction())
+                    .DistinctUntilChanged()
+                    .ToReadOnlyReactiveProperty();
+
+                _disposables.Add(_experiencePercent);
+            }
+
             Debug.Log($"[HUDViewModel] Reactive bindings established (weapon={(ammo != null ? "yes" : "none")}).");
+        }
+
+        /// <summary>
+        /// AS3 <c>(xpCur - xpPrev) / (xpNext - xpPrev)</c>, with both ends derived from the curve the
+        /// way <c>Pers.as:579-580</c> derives them: <c>xpPrev = xpProgress(level - 1)</c>,
+        /// <c>xpNext = xpProgress(level)</c>.
+        ///
+        /// <para><b>The thresholds come from the curve, not from a stored field.</b> The oracle caches
+        /// them on the Pers block, but they are a pure function of the level and the curve's
+        /// <c>xpDelta</c> — and the port's curve is a ScriptableObject that a difficulty change can
+        /// replace. Reading them live means a curve swap moves the bar on the same frame instead of
+        /// leaving it pinned to the old progression until the next level-up.</para>
+        /// </summary>
+        private float ExperienceFraction()
+        {
+            if (characterStats == null)
+            {
+                return 0f;
+            }
+
+            LevelCurve curve = characterStats.Curve;
+            if (curve == null)
+            {
+                return 0f;
+            }
+
+            int level = characterStats.Level;
+            int previous = curve.GetXpForLevel(level - 1);
+            int next = curve.GetXpForLevel(level);
+
+            return ExperienceReadout.Fraction(characterStats.Xp, previous, next);
         }
 
         /// <summary>
@@ -525,38 +629,42 @@ namespace PFE.UI.HUD
         ///   <item><description>otherwise → empty. A full pool shows nothing at all.</description></item>
         /// </list>
         ///
-        /// <para><b>Not ported, and deliberately not invented:</b> AS3's <c>txtMagia</c> /
-        /// <c>txtMagiaOver</c> come from <c>Res.guiText</c>, and this port has no GUI-string table,
-        /// so the keys are returned literally (see the two constants below) rather than translated.
-        /// Also absent: the spell-cooldown term in branch 2, and the two <c>appendText</c> suffixes
-        /// (the held prop's kg, and "heavy" when <c>dmana &lt; -5</c>). None of those affects which
-        /// pool is read, which is the point of this method.</para>
+        /// <para><b>The labels now come from the real table.</b> AS3 reads <c>txtMagia</c> /
+        /// <c>txtMagiaOver</c> through <c>Res.guiText</c>, and the port <i>does</i> ship that table
+        /// (<c>Resources/Localisation/text_en.xml</c>, resolved by <see cref="PfeTextTableProvider"/> —
+        /// it has carried <c>magia</c> = "Magic" all along). An earlier revision of this method returned
+        /// the raw keys on the belief that no GUI table existed, which put the literal string
+        /// <c>magia 34%</c> on the HUD.</para>
+        ///
+        /// <para><b>Not ported, and deliberately not invented:</b> the spell-cooldown term in branch 2,
+        /// and the two <c>appendText</c> suffixes (the held prop's kg, and "heavy" when
+        /// <c>dmana &lt; -5</c>). None of those affects which pool is read, which is the point of this
+        /// method.</para>
         /// </summary>
         /// <returns>Formatted mana string</returns>
         public string GetManaText()
         {
             if (playerStats == null) return string.Empty;
 
-            float mana = playerStats.Mana.Value;
-
-            if (mana < 10f)
-            {
-                return MagiaOverLabel;
-            }
-
-            if (mana < 995f)
-            {
-                return $"{MagiaLabel} {Mathf.Round(mana / 10f):0}%";
-            }
-
-            return string.Empty;
+            return ManaReadout.Format(playerStats.Mana.Value, MagiaLabel, MagiaOverLabel);
         }
 
-        // AS3 reads these through Res.guiText("magia") / Res.guiText("magiaover"). The port has no
-        // GUI-string table, so the keys stand in for the text. They are constants rather than inline
-        // literals so that a later localisation pass has exactly one place to change -- and so a
-        // reviewer sees a placeholder rather than a suspiciously English-looking label.
-        private const string MagiaLabel = "magia";
-        private const string MagiaOverLabel = "magiaover";
+        // AS3 reads these through Res.guiText("magia") / Res.guiText("magiaover"); both rows exist in
+        // the shipped document, so they are resolved rather than echoed. The fallbacks are the keys
+        // themselves — a missing table then reads as "magia 34%", which is obviously a lookup miss
+        // rather than a plausible-looking English word.
+        private const string MagiaKey = "magia";
+        private const string MagiaOverKey = "magiaover";
+
+        private static string MagiaLabel => ResolveGuiText(MagiaKey);
+        private static string MagiaOverLabel => ResolveGuiText(MagiaOverKey);
+
+        private static string ResolveGuiText(string key)
+        {
+            string text = PfeTextTableProvider.Shared.Gui(key);
+            return string.IsNullOrEmpty(text) || text.StartsWith("*", System.StringComparison.Ordinal)
+                ? key
+                : text;
+        }
     }
 }
