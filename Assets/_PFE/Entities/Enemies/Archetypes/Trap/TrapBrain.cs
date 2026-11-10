@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
+using PFE.Systems.Particles;
 using PFE.Systems.Weapons;
 using PFE.Systems.Weapons.Controllers;
 using PFE.Systems.Map;
@@ -34,6 +36,27 @@ namespace PFE.Entities.Enemies.Archetypes
         [SerializeField] protected bool _isArmed = true;
         [SerializeField] protected float _range = 400f;
         [SerializeField] protected float _damage = 35f;
+
+        /// <summary>
+        /// AS3 <c>UnitDamager.tipDamager</c> — 1 shooter, 2 grenade thrower, 3 satchel charge. Read off
+        /// the definition (<c>&lt;un tip&gt;</c>) by <see cref="ApplyDefinitionTuning"/>; 1 until then,
+        /// which is the oracle's own declaration default.
+        /// </summary>
+        [SerializeField] protected int _damagerTip = DamagerTrapRules.DefaultTip;
+
+        /// <summary>
+        /// AS3 <c>UnitDamager.status</c> — <c>0</c> dormant (invisible, waiting for a script),
+        /// <c>1</c> woken and shooting. <b>Not</b> <see cref="IsArmed"/>: a bear trap's latch and a
+        /// damager's wake state are different machines, and overloading one flag is how the two would
+        /// drift apart.
+        ///
+        /// <para><b>Why a damager must start at 0.</b> <c>UnitDamager.control()</c> attacks only inside
+        /// <c>if(this.status == 1)</c> (<c>:390</c>), and <c>activate()</c> is the only writer of 1 — so
+        /// a charge that no script has woken does <i>nothing</i>. The port ran its damager from
+        /// <c>IsArmed</c>, which defaults true, so every <c>damshot</c>/<c>damgren</c>/<c>damexpl1</c>
+        /// in the game was an invisible unit shooting the player from spawn.</para>
+        /// </summary>
+        [SerializeField] protected int _damagerStatus;
 
         protected int _fireCooldownTicks;
         protected float _wallDecayAccumulator;
@@ -168,6 +191,11 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (def.damage > 0) _damage = def.damage;
 
+            // AS3 `UnitDamager.getXmlParam()` (`:107-110`) — the `<un tip>` dispatch. Written on every
+            // tuning pass, not only on the first, because `ApplyDefinitionTuning` also runs from
+            // `OnDefinitionAssigned` before the placement exists.
+            _damagerTip = def.damagerTip;
+
             string id = def.id != null ? def.id.ToLowerInvariant() : "";
             if (id.Contains("turret")) _kind = TrapKind.Turret;
             else if (id.Contains("trap")) _kind = TrapKind.BearTrap;
@@ -200,6 +228,25 @@ namespace PFE.Entities.Enemies.Archetypes
         public override void OnPlacementApplied(UnitInstance placement)
         {
             base.OnPlacementApplied(placement);
+
+            // ── A satchel charge is drawn, a hidden shooter is not ────────────────────────────────
+            //
+            // AS3 spawns every damager with `setVis(false)` (`UnitDamager.as:96`) and reveals it from
+            // `control()` when the PLAYER's trap vision notices it —
+            // `if(aiN % 10 == 0 && !isVis) { isVis = World.w.gg.lookInvis(this); … }` (`:395-399`), i.e.
+            // `look(param1, false, pers.visiTrap)`. That perception half is not ported: there is no
+            // `visiTrap` and no `lookInvis` in the port at all.
+            //
+            // So a charge has to be drawn from the start or it is invisible forever, which is the
+            // reported "no visible bombs" — `rooms_begin/room_1_4` places three and the player could not
+            // see one of them. A hidden SHOOTER (tips 1/2) stays hidden until a script wakes it, because
+            // that is what its invisibility is for; it simply never becomes visible to a perceptive
+            // player the way the oracle's would. Named, not hidden.
+            if (_kind == TrapKind.Damager && DamagerTrapRules.IsBomb(_damagerTip) && _controller != null)
+            {
+                _controller.SetVisible(true);
+            }
+
             if (_kind != TrapKind.Turret || placement == null) return;
 
             int tip = TurretMountMath.TipOfDefinitionId(
@@ -722,12 +769,162 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected virtual void TickDamager(int tickIndex)
         {
-            if (!_isArmed) return;
+            // AS3 `UnitDamager.control()` (`:390`) attacks only inside `if(this.status == 1)`. `status`
+            // is written by `activate()` and by nothing else, so a charge no script has woken does
+            // nothing at all. The port gated on `IsArmed`, which defaults TRUE, so every damager in the
+            // game was an invisible unit that shot the player from the moment the room loaded.
+            if (!DamagerTrapRules.Attacks(_damagerStatus)) return;
 
             if (_fireCooldownTicks <= 0 && _blackboard.TargetUnit != null && _blackboard.TargetDistance <= _range)
             {
                 ExecuteAttackAction();
                 _fireCooldownTicks = 45;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitDamager.command("dam")</c> → <c>activate()</c> (<c>UnitDamager.as:354-372</c>) —
+        /// what a room script's <c>&lt;s act="dam" targ="…"/&gt;</c> reaches.
+        ///
+        /// <para><b>Three arms, and only one of them is a weapon.</b> Tip 3 explodes and removes itself;
+        /// tips 1 and 2 wake, become visible and start using the weapon <c>setWeapon()</c> built. The
+        /// <c>sost &gt; 1</c> half of the oracle's guard is <see cref="UnitController.IsAlive"/> here —
+        /// the port models the terminal state, not the ladder.</para>
+        /// </summary>
+        /// <returns><c>true</c> when the command was understood, even if the charge was already spent.</returns>
+        public bool ActivateDamager()
+        {
+            if (_kind != TrapKind.Damager || _controller == null) return false;
+
+            // AS3 returns silently rather than reporting a miss, so "already awake" is still an
+            // understood command — returning false here would make the script runner log a bogus
+            // "no object or unit matches" warning.
+            if (!_controller.IsAlive || !DamagerTrapRules.CanActivate(_damagerStatus)) return true;
+
+            if (DamagerTrapRules.IsBomb(_damagerTip))
+            {
+                DetonateBomb();
+                return true;
+            }
+
+            _damagerStatus = 1;
+            _controller.SetVisible(true);
+            return true;
+        }
+
+        /// <summary>The live damager state — 0 dormant, 1 awake. Exposed for the lints; nothing writes it
+        /// outside <see cref="ActivateDamager"/>.</summary>
+        public int DamagerStatus => _damagerStatus;
+
+        /// <summary>The resolved <c>&lt;un tip&gt;</c> — 1 shooter, 2 thrower, 3 charge.</summary>
+        public int DamagerTip => _damagerTip;
+
+        /// <summary>
+        /// The tip-3 arm — AS3 <c>activate()</c> → <c>iExpl()</c> → <c>disarm()</c>.
+        ///
+        /// <para><b>Every number is a literal in the oracle, not data.</b> <c>setWeapon()</c> writes
+        /// <c>damageExpl = 250</c>, <c>destroyExpl = 1000</c>, <c>explRadius = 200</c> for
+        /// <c>tipDamager == 3</c> (<c>:166-172</c>) and <c>iExpl</c> anchors the bullet at
+        /// <c>(X, Y - 20)</c> because a charge never builds a <c>currentWeapon</c> (<c>:357-362</c>).
+        /// They live in <see cref="DamagerTrapRules"/> with their citations and are asserted by a
+        /// fixture.</para>
+        ///
+        /// <para><b>Order: tiles, then bodies, then the visual.</b> That is <c>explRun</c>
+        /// (<c>Bullet.as:705-720</c>) and it is the same order a mine and a thrown grenade use here.</para>
+        /// </summary>
+        protected virtual void DetonateBomb()
+        {
+            Vector3 centre = transform.position
+                + Vector3.up * (DamagerTrapRules.BombCentreOffsetPixels * DamagerTrapRules.PixelToUnit);
+            float radius = DamagerTrapRules.BombRadiusPixels * DamagerTrapRules.PixelToUnit;
+
+            // `if(this.destroy > 0) this.explDestroy()` — the charge's 1000 is tile hp per hit.
+            ExplosionTileDamage.Apply(centre, radius, DamagerTrapRules.BombDestroyTiles,
+                                      DamageType.Explosive, DecalType.None);
+
+            var context = DamageContext.Blast(DamagerTrapRules.BombDamage, DamageType.Explosive,
+                                              DamagerTrapRules.BombDestroyTiles);
+
+            Collider2D[] hits = Physics2D.OverlapCircleAll(centre, radius);
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider2D hit = hits[i];
+                if (hit == null || hit.isTrigger) continue;
+
+                var damageable = hit.GetComponent<IDamageable>();
+                if (damageable == null || !damageable.CanBeHit) continue;
+
+                // The charge itself is left out of the sweep and removed explicitly below. AS3 includes
+                // the owner in `explBlast`'s loop and lets the child bullet kill it three frames later;
+                // that ordering is invisible in the game (the charge is gone either way) and cannot be
+                // reproduced through the resolver, which reports rather than resolves.
+                if (damageable is Component self && self.transform == transform) continue;
+
+                if (_controller.DamageSystem != null)
+                {
+                    // `factionMultiplier: 1` — AS3's blast builds `weap = null`, so the
+                    // `this.weap && owner.fraction == …` gate short-circuits and a charge hurts its own
+                    // side at full strength. Same reasoning as the mine's.
+                    _controller.DamageSystem.Report(PendingDamage.Explosion(
+                        context, damageable, hit.transform.position, centre, radius,
+                        factionMultiplier: 1f));
+                }
+                else
+                {
+                    // Headless / no resolver: the number is still the oracle's, the reduction is not.
+                    damageable.TakeDamage(DamagerTrapRules.BombDamage);
+                }
+            }
+
+            EmitBombVisuals(centre);
+
+            // `budilo(X, Y, 1500)` — the D_EXPL arm of `explVis` (`Bullet.as:972`).
+            Budilo(1500f);
+
+            // `disarm()` → `loc.remObj(this)`: the charge is consumed. Routed through the ordinary death
+            // path so the room RECORD learns it is gone — a record that still says "alive" respawns the
+            // charge on every re-entry, which is the defect `RoomUnitSpawner.OnUnitDied` exists to stop.
+            // Named divergence: AS3's `remObj` does not run `die()`, so the authored
+            // `<scr eve="die">` on `room_1_4`'s `trExpl1` fires here and would not in the oracle.
+            _controller.TakeDamage(float.MaxValue);
+        }
+
+        /// <summary>
+        /// <c>explVis()</c>'s D_EXPL arm (<c>Bullet.as:962-977</c>) — <c>expl</c>, <c>flare</c>,
+        /// <c>iskr ×16</c> and <c>expl_e</c>.
+        ///
+        /// <para><b>The table is not restated here.</b> <see cref="ExplosionVisualRules.Plan"/> already
+        /// owns it (and every other damage type's), so this method only converts the centre to pixels and
+        /// forwards. <c>visExpl</c> is <c>null</c> on purpose: a charge has no weapon, so the per-weapon
+        /// override branch cannot fire.</para>
+        ///
+        /// <para><b>Not modelled:</b> the underwater arm (<c>explw</c>/<c>bubble</c>/<c>expl_uw</c>) —
+        /// the brain has no water query — and <c>World.w.quake</c>. Both are named rather than silently
+        /// approximated.</para>
+        /// </summary>
+        void EmitBombVisuals(Vector3 centre)
+        {
+            if (_controller == null) return;
+
+            var emits = new List<ParticleEmit>(4);
+            if (!ExplosionVisualRules.Plan(visExpl: null, DamageType.Explosive, inWater: false,
+                                           isInitialPulse: true, rng: null, emits: emits,
+                                           out string soundId))
+            {
+                return;
+            }
+
+            Vector2 centrePixels = (Vector2)centre * TileQueryConstants.UnitToPixel;
+            for (int i = 0; i < emits.Count; i++)
+            {
+                ParticleEmit emit = emits[i];
+                _controller.EmitParticle(emit.Id,
+                    centrePixels + new Vector2(emit.OffsetX, -emit.OffsetY), emit.Spec);
+            }
+
+            if (!string.IsNullOrEmpty(soundId))
+            {
+                (_controller as EnemyController)?.Sound?.Play(soundId, centre);
             }
         }
 

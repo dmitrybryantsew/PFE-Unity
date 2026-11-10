@@ -481,6 +481,47 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
+        /// A blast with <b>no weapon and no bullet</b> behind it — the shape AS3 reaches through
+        /// <c>Bullet.iExpl(damage, destroy, radius)</c> (<c>weapon/Bullet.as:694-703</c>), which a
+        /// satchel charge and a mine both call.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this cannot be <see cref="Contact"/>.</b> The explosion path reads
+        /// <see cref="ExplosionDamage"/>, not <see cref="BaseDamage"/>
+        /// (<c>DamageSystem</c>'s <c>isExplosion ? ExplosionDamageFor : ctx.BaseDamage</c>), and
+        /// <see cref="Contact"/> leaves <c>explosionDamage</c> at <b>0</b> — so a blast built from it
+        /// deals <i>nothing at all</i> and reports no error. The two numbers are written from the same
+        /// argument here for the same reason <c>ProjectileFactory</c> passes one weapon attribute to
+        /// both: the two branches then cannot disagree about the magnitude, only about the reduction.</para>
+        ///
+        /// <para><b>Every bullet-derived term is absent, not zero-valued</b> — no crit, no piercing, no
+        /// armour multiplier, no knockback. AS3's <c>iExpl</c> builds a <c>Bullet</c> with a null weapon
+        /// and calls <c>explRun</c>, whose arms never consult them. <c>IsMelee</c> stays false: a blast
+        /// is not <c>udarUnit</c>, and hit avoidance is never rolled for it.</para>
+        /// </remarks>
+        public static DamageContext Blast(float explosionDamage, DamageType damageType,
+                                          float destroyTiles = 0f)
+        {
+            return new DamageContext(
+                ownerId:           EntityId.Empty,
+                weapon:            null,
+                baseDamage:        explosionDamage,
+                explosionDamage:   explosionDamage,
+                armorMultiplier:   1f,
+                piercing:          0f,
+                knockback:         0f,
+                knockbackDir:      Vector2.zero,
+                critChance:        0f,
+                critMultiplier:    1f,
+                damageType:        damageType,
+                destroyTiles:      destroyTiles,
+                penetrationChance: 0f,
+                dopEffect:         null,
+                dopDamage:         0f,
+                dopChance:         0f);
+        }
+
+        /// <summary>
         /// Convenience factory — builds a context from weapon definition and owner stats,
         /// applying base weapon values without ammo modifiers.
         /// Ammo modifiers are applied by the controller after ammo type is resolved.

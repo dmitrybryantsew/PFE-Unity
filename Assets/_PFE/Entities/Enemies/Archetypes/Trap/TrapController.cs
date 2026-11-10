@@ -280,6 +280,32 @@ namespace PFE.Entities.Enemies.Archetypes
             base.Awake();
             if (Brain != null) Brain.Kind = TrapKind.Damager;
         }
+
+        /// <summary>
+        /// AS3 <c>UnitDamager.command("dam")</c> (<c>UnitDamager.as:374-380</c>) — <c>activate()</c>,
+        /// and nothing else.
+        ///
+        /// <para><b>This is the verb the detonator's script uses.</b>
+        /// <c>rooms_begin/room_1_4</c> hangs <c>&lt;scr targ="trExpl1" act="dam"/&gt;</c> on the
+        /// <c>detonator</c> box; pressing it runs that action, which resolves <c>trExpl1</c> through the
+        /// unit half of the <c>@targ</c> table and lands here. Without this override the command reached
+        /// <see cref="UnitController.Command"/>, matched nothing, returned <c>false</c>, and the script
+        /// runner logged "no object or unit matches that uid" — the fuse was connected to a dead end.</para>
+        ///
+        /// <para><b>Falls through to the base for every other verb.</b> AS3's override does not call
+        /// <c>super</c>, so <c>activate</c>/<c>fraction</c> are inert on a damager there. Keeping them
+        /// live is a deliberate superset: no shipped data addresses either verb at a damager, and
+        /// silently swallowing them would make a future script fail with no diagnostic.</para>
+        /// </summary>
+        public override bool Command(string verb, string value)
+        {
+            if (verb != null && string.Equals(verb.Trim(), "dam", StringComparison.OrdinalIgnoreCase))
+            {
+                return Brain != null && Brain.ActivateDamager();
+            }
+
+            return base.Command(verb, value);
+        }
     }
 
     [RequireComponent(typeof(TrapBrain))]
