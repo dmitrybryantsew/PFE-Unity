@@ -406,7 +406,7 @@ namespace PFE.Systems.Weapons.Controllers
                 meleeCurrTip:  impactPos));
 
             _pendingSound = _kick ? HoofStrikeRules.KickSound : HoofStrikeRules.PunchSound;
-            State.IsShoot = true;
+            State.NoteShot();
         }
 
         // ── The sweep ─────────────────────────────────────────────────────────

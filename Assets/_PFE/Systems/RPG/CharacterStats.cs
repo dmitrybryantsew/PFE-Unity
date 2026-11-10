@@ -435,6 +435,21 @@ namespace PFE.Systems.RPG
         [HideInInspector] public float maxOd = 75f;
 
         /// <summary>
+        /// AS3 <c>Pers.modAnalis</c> (<c>Pers.as:407</c>, 0) — the analysis <b>implant</b>, granted by
+        /// the <c>mod_analis</c> item's <c>&lt;sk id='modAnalis' v1='1'/&gt;</c>
+        /// (<c>AllData.as:4152-4154</c>). It is the only thing that turns the S.A.T.S. hover panel on:
+        /// <c>Sats.getUnits</c> builds the level/HP/armour readout only
+        /// <c>if(World.w.pers.modAnalis)</c> (<c>Sats.as:503</c>). Without it the mode shows names and
+        /// percentages but no stats.
+        ///
+        /// <para><b>A module, not a perk.</b> The PipBuck's own page gates the same readout on
+        /// <c>modAnalis</c> for exactly this reason. Reset to 0 by <see cref="ResetToDefaults"/> because
+        /// <c>defaultParams()</c> does (<c>Pers.as:938</c>) — it is a worn implant, and the recompute
+        /// re-applies whatever the implant pass carries.</para>
+        /// </summary>
+        [HideInInspector] public float modAnalis = 0f;
+
+        /// <summary>
         /// AS3 <c>Pers.runPenalty</c> (<c>Pers.as:189</c>) — the accuracy hit for firing while
         /// running. Read at <c>UnitPlayer.as:1185-1187</c> as <c>precMult *= 1 - runPenalty</c>,
         /// applied only when the value is positive <b>and</b> the player is moving faster than
@@ -1943,6 +1958,11 @@ namespace PFE.Systems.RPG
             gunsDamMult = 1.0f;
             spellsDamMult = 1.0f;
             punchDamMult = 1.0f;
+            // AS3 defaultParams() DOES assign modAnalis = 0 (Pers.as:938) — the analysis module is a
+            // worn implant, not a perk, and a recompute re-applies whatever the implant pass carries.
+            // Resetting it here is what stops a removed mod_analis from leaving the S.A.T.S. info
+            // panel on. It was the one field on the Pers.as:941 list with a live reader and no writer.
+            modAnalis = 0f;
             // AS3 defaultParams() resets reloadMult and recoilMult to 1 (Pers.as:913-914) on every
             // recompute. They were missing here, so a removed perk left a stale multiplier behind.
             reloadMult = 1.0f;
@@ -2967,6 +2987,13 @@ namespace PFE.Systems.RPG
                 case "maxOd":
                     maxOd = ApplyFloatOp(maxOd, refType, val);
                     TrackFactor("maxOd", sourceId ?? "stat", sourceType, val, maxOd);
+                    break;
+                case "modAnalis":
+                    // AS3 Pers.as:407 / AllData.as:4153 (the mod_analis implant). The only writer of
+                    // the field, and the only thing that turns the S.A.T.S. hover panel on
+                    // (Sats.as:503). A module, not a perk — the same readout the PipBuck gates on it.
+                    modAnalis = ApplyFloatOp(modAnalis, refType, val);
+                    TrackFactor("modAnalis", sourceId ?? "stat", sourceType, val, modAnalis);
                     break;
                 case "recMana":
                     recMana = ApplyFloatOp(recMana, refType, val);

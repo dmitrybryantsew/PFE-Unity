@@ -447,7 +447,7 @@ namespace PFE.Systems.Weapons.Controllers
             // `shootFrameStart >= 0`) a candidate for a weapon whose vis is a single held frame.
             // AS3 keeps WThrow's vis on frame 1: `vis.gotoAndStop(1)` in the constructor.
             State.TAuto   = 3;
-            State.IsShoot = true;
+            State.NoteShot();
         }
 
         /// <summary>

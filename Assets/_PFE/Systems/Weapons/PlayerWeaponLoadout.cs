@@ -101,6 +101,51 @@ namespace PFE.Systems.Weapons
         private PFE.Core.Rng.IRngService _rng;
 
         /// <summary>
+        /// The interface pause gate — <c>World.allStat</c>. While an interface holds it, the weapon
+        /// does not tick: the room is frozen (<c>World.as:1257</c>), and <c>UnitPlayer.control()</c> —
+        /// which is what calls <c>weapon.attack()</c> — is inside that block. Without this check the
+        /// gun keeps firing through a frozen frame, and a queued S.A.T.S. plan would spend itself
+        /// before the player ever accepted it.
+        /// </summary>
+        private PFE.Core.InterfacePauseGate _pauseGate;
+
+        /// <summary>S.A.T.S. — the queue this loadout releases, one tick at a time.</summary>
+        private PFE.Systems.Combat.Sats.SatsController _sats;
+
+        /// <summary>
+        /// The equipped weapon's <c>ShotsFired</c> counter as sampled at the previous
+        /// <c>DriveSatsQueue</c> call. Synced on <b>every</b> FixedUpdate, including ticks with no
+        /// plan, so rounds fired manually are never charged to a later S.A.T.S. plan.
+        /// </summary>
+        private int _satsShotBaseline;
+
+        /// <summary>
+        /// True while <c>DriveSatsQueue</c> — not the mouse — is holding the weapon's trigger.
+        /// <c>BeginAttack()</c> latches <c>_attackHeld</c> until an explicit <c>EndAttack()</c>; a
+        /// plan is a finite list of trigger pulls, so it must let go when the list is spent.
+        /// </summary>
+        private bool _satsTriggerHeld;
+
+        /// <summary>True while an interface has the world suspended.</summary>
+        private bool IsWorldPaused => _pauseGate != null && _pauseGate.IsWorldPaused;
+
+        /// <summary>
+        /// The interface gate and S.A.T.S., injected separately from <see cref="Construct"/>.
+        ///
+        /// <para><b><c>PlayerRigBuilder</c> calls <c>Construct</c> positionally</b>, so adding
+        /// parameters to it re-binds every argument after the insertion point — the build catches the
+        /// obvious cases and says nothing about the ones where two neighbours happen to share a type.
+        /// A second <c>[Inject]</c> method leaves that seam untouched.</para>
+        /// </summary>
+        [Inject]
+        public void InjectInterfaces(PFE.Core.InterfacePauseGate pauseGate,
+                                     PFE.Systems.Combat.Sats.SatsController sats)
+        {
+            _pauseGate = pauseGate;
+            _sats = sats;
+        }
+
+        /// <summary>
         /// Ammo source (player inventory). Assign before equipping when inventory is live.
         /// Leave null for training/infinite-ammo mode.
         /// </summary>
@@ -357,6 +402,13 @@ namespace PFE.Systems.Weapons
         /// <summary>Equip a weapon by definition, disposing the previous controller.</summary>
         public void Equip(WeaponDefinition def)
         {
+            // AS3 `changeWeapon` (:3588-3592) clears the S.A.T.S. plan as its very first statement —
+            // before the null/"not" handling and before the spell branch below. So selecting a
+            // supportive spell from the inventory also cancels a plan, which reads like an oversight
+            // in the Oracle and is reproduced here because a plan that survives a weapon change fires
+            // at cells measured against a weapon that no longer exists.
+            _sats?.Invalidate(PFE.Systems.Combat.Sats.SatsInvalidationReason.WeaponChange);
+
             if (def == null)
             {
                 Debug.LogWarning("[PlayerWeaponLoadout] Equip called with null definition — skipping.");
@@ -442,7 +494,31 @@ namespace PFE.Systems.Weapons
             if (statsChanged && _punchController != null)
                 BuildPunchWeapon();
 
-            _current = _factory.Create(def, ownerFaction);
+            // ── The tier of the weapon in hand ──────────────────────────────────────────────────────
+            //
+            // AS3 equips `invent.weapons[id]` — an instance whose `variant` is whatever tier the player
+            // picked up — and `Weapon.getXmlParam` has already re-read `char[variant]` over the base
+            // node, so the object it fires is the tier-1 one. The port keeps the tier on
+            // `GameWeaponInstance`, and this method is the only place that has both the row and the
+            // inventory, so it is where the two are folded together.
+            //
+            // Resolved from the inventory rather than from a new parameter on purpose: every caller
+            // (PipBuck row click, dev console, debug overlay) then gets the same answer without knowing
+            // that tiers exist, and a caller that passes an id the bag does not hold gets tier 0 — which
+            // is AS3's own state for a weapon the player does not own.
+            int variant = 0;
+            if (_ammoSource is PlayerInventory inventoryOwner && inventoryOwner.Inventory != null)
+            {
+                GameWeaponInstance held = inventoryOwner.Inventory.GetWeapon(def.weaponId);
+                if (held != null) variant = held.Variant;
+            }
+
+            // Tier 0 returns `def` itself; a unique returns a cached copy with its own numbers. Every
+            // consumer below takes this one, so the controller, the presenter, the spawner and the skill
+            // tier cannot disagree about which tier is in hand.
+            WeaponDefinition effective = WeaponVariantStats.Effective(def, variant);
+
+            _current = _factory.Create(effective, ownerFaction);
 
             if (_current == null)
             {
@@ -467,13 +543,13 @@ namespace PFE.Systems.Weapons
             }
 
             // Notify sub-systems about the new weapon.
-            _weaponPresenter?.SetState(_current.State, def);
-            _projectileSpawner?.SetWeapon(def);
+            _weaponPresenter?.SetState(_current.State, effective);
+            _projectileSpawner?.SetWeapon(effective);
 
             // Sync weapon skill tier to owner's UnitStats (charStats resolved above).
             if (ownerUnit != null && ownerUnit.UnitStats != null && charStats != null)
             {
-                ownerUnit.UnitStats.weaponSkillLevel = charStats.GetSkillTierForWeapon(def.skillLevel);
+                ownerUnit.UnitStats.weaponSkillLevel = charStats.GetSkillTierForWeapon(effective.skillLevel);
             }
 
             // ── Record the equipped weapon on the inventory ────────────────────────────────────────
@@ -507,10 +583,14 @@ namespace PFE.Systems.Weapons
             // held, and getting that wrong silently kills a held trigger.
             if (def.weaponType == WeaponType.Thrown && _throwController == null)
             {
-                EquipThrow(def);
+                // The same tier as the weapon just equipped: AS3 shares ONE `Weapon` object between
+                // `currentWeapon` and `throwWeapon` (:3693-3696), so the grenade slot fires the tier the
+                // player picked up rather than the base row.
+                EquipThrow(effective);
             }
 
-            Debug.Log($"[PlayerWeaponLoadout] Equipped '{def.weaponId}'.");
+            Debug.Log($"[PlayerWeaponLoadout] Equipped '{def.weaponId}'" +
+                      (variant > 0 ? " tier " + variant : "") + ".");
         }
 
         /// <summary>
@@ -894,8 +974,96 @@ namespace PFE.Systems.Weapons
             _weaponPresenter?.SetAimTarget(_aimTarget);
         }
 
+        /// <summary>
+        /// Release one round of a queued S.A.T.S. plan — the port of <c>UnitPlayer.as:1133-1166</c>.
+        ///
+        /// <para><b>The queue fires through the normal fire cycle, not around it.</b> A queued shot
+        /// calls the same <c>BeginAttack()</c> the mouse does, so it pays the same recoil, jam, ammo
+        /// and reload rules; the only thing the mode changes is the <i>aim point</i>, which
+        /// <c>PlayerController.HandleAiming</c> already overrides from the front cell. That is why
+        /// accepting a plan is not a separate execution path in the Oracle and must not become one
+        /// here: the plan is a list of trigger pulls, not a list of hits.</para>
+        ///
+        /// <para><b>Why a shot counter and not <c>IsShoot</c>.</b> The Oracle's
+        /// <c>currentWeapon.is_shoot</c> is a one-tick latch: <c>shoot()</c> sets it during
+        /// <c>actions()</c> (<c>Weapon.as:1618</c>) and the <i>next</i> <c>control()</c> clears it
+        /// (<c>UnitPlayer.as:1133-1140</c>). Every port controller instead clears its
+        /// <c>State.IsShoot</c> at the <b>end of its own Tick</b>, so the old read here was always
+        /// <c>false</c>: <c>Sats.act()</c> never ran, <c>kol</c> never fell, and the queue never
+        /// emptied. An accepted plan on an automatic weapon then fired until the magazine was dry.
+        /// <c>WeaponRuntimeState.ShotsFired</c> is monotonic and has no lifetime to get wrong.</para>
+        ///
+        /// <para><b>The trigger is a latch, so it must be released.</b> <c>BeginAttack()</c> holds
+        /// <c>_attackHeld</c> until <c>EndAttack()</c>. The Oracle simply stops calling
+        /// <c>attack(true)</c> when <c>que.length</c> reaches zero; the port has to say so. Without
+        /// <see cref="ReleaseSatsTrigger"/> the minigun keeps firing after its cell is spent even if
+        /// the accounting is fixed.</para>
+        /// </summary>
+        private void DriveSatsQueue()
+        {
+            int shotsNow = _current != null ? _current.State.ShotsFired : 0;
+            int baseline = _satsShotBaseline;
+            _satsShotBaseline = shotsNow;
+
+            // Syncing the baseline above happens even when there is no plan: rounds fired by hand
+            // must not become charges on a plan the player queues later.
+            if (_sats == null || !_sats.HasQueuedShots)
+            {
+                ReleaseSatsTrigger();
+                return;
+            }
+
+            if (_current == null)
+            {
+                ReleaseSatsTrigger();
+                _sats.ClearAll();
+                return;
+            }
+
+            if (!_sats.PreWeaponTick(shotsNow, baseline, out Vector2 aimPx))
+            {
+                ReleaseSatsTrigger();
+                return;
+            }
+
+            // The aim point in world units. HandleAiming pushes the same value every frame, but the
+            // queue can advance between two frames, so the tick that fires sets it again from the
+            // front cell it just read.
+            _aimTarget = new Vector2(aimPx.x / 100f, aimPx.y / 100f);
+
+            // Re-assert every tick, as the original did: an unrelated EndAttack() (e.g. the mouse
+            // release message arriving mid-plan) must not stall an accepted plan.
+            _current.BeginAttack();
+            _satsTriggerHeld = true;
+        }
+
+        /// <summary>
+        /// Let go of the trigger the plan latched, exactly once. Called on every path where the plan
+        /// is not firing this tick — empty, invalidated, weapon gone, or a front cell that cannot be
+        /// fired.
+        /// </summary>
+        private void ReleaseSatsTrigger()
+        {
+            if (!_satsTriggerHeld) return;
+            _satsTriggerHeld = false;
+            EndAttack();
+        }
+
         private void FixedUpdate()
         {
+            // The interface pause gate — the port of `World.as:1257`'s `allStat == 1`. Everything below
+            // is `UnitPlayer.control()` and the weapon's `actions()`, both of which live inside the
+            // frozen room block in the Oracle. Returning here is therefore the literal transcription:
+            // no trigger pull, no timer tick, no reload, and — the case that matters — no queued
+            // S.A.T.S. shot released while the mode is still open.
+            if (IsWorldPaused) return;
+
+            // S.A.T.S.'s turn, and it comes FIRST: in AS3 this block is the head of `control()`, which
+            // runs before the weapon's own `actions()` in the same unit step. It reads the `is_shoot`
+            // the previous tick's shot set, charges that shot to the plan, and arms the next one — so
+            // the one-tick relationship between "a round left" and "a cell is spent" survives.
+            DriveSatsQueue();
+
             // The grenade slot ticks even when the player is unarmed — AS3 runs
             // `throwWeapon.actions()` from `UnitPlayer.as:1202-1205` unconditionally, which is what
             // advances `t_attack`/`t_auto` between throws. Placed before the `_current == null` early

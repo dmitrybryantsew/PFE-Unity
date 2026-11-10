@@ -775,7 +775,7 @@ namespace PFE.Systems.Weapons.Controllers
 
             State.KolShoot++;
             State.TAuto    = 3;
-            State.IsShoot  = true;
+            State.NoteShot();
 
             if (_debugSettings?.LogWeaponControllerDiagnostics == true)
             {

@@ -164,7 +164,37 @@ namespace PFE.Systems.Weapons
         // ── Input edge-detection (set by controller from BeginAttack/EndAttack) ──
         public bool IsAttack;    // attack is held this tick
         public bool WasAttack;   // attack was held last tick (for prep-sound edge)
-        public bool IsShoot;     // a bullet fired this tick (reset each tick start)
+
+        /// <summary>
+        /// <b>Same-tick</b> flag: a round left the barrel during this controller's <c>Tick()</c>.
+        /// Every controller clears it at the <i>end</i> of that tick, so it is <b>never observable
+        /// on the following tick</b>. It is not, and cannot be, "did a shot fire last tick" — the
+        /// old comment here claimed "reset each tick start", which was never true. Code that needs
+        /// the cross-tick edge must use <see cref="ShotsFired"/> instead.
+        /// </summary>
+        public bool IsShoot;
+
+        /// <summary>
+        /// Monotonic count of rounds that have left this weapon's barrel. <b>Never reset</b> — not on
+        /// reload, not on equip, not on save (it is runtime bookkeeping, not what
+        /// <c>kol_shoot</c> is). A consumer snapshots it, then charges the difference.
+        ///
+        /// <para><b>Why a counter and not a one-tick latch.</b> AS3's <c>Weapon.is_shoot</c> is set
+        /// by <c>shoot()</c> in <c>actions()</c> (<c>Weapon.as:1618</c>) and cleared at the head of
+        /// the next <c>UnitPlayer.control()</c> (<c>:1133-1140</c>) — a one-tick latch that
+        /// <c>sats.act()</c> reads. The port's controllers clear <c>IsShoot</c> at the end of their
+        /// own tick, before anyone outside can read it; that is what made an accepted S.A.T.S. plan
+        /// never advance its cells. A monotonic counter has no lifetime to get wrong, and it also
+        /// survives a <c>Tick()</c> that ran more than one flash frame.</para>
+        /// </summary>
+        public int ShotsFired;
+
+        /// <summary>Record one round leaving the barrel — the single writer for both fields above.</summary>
+        public void NoteShot()
+        {
+            IsShoot = true;
+            ShotsFired++;
+        }
 
         // ── Aim state ─────────────────────────────────────────────────────────
         public bool  Ready;      // weapon has rotated to aim target (drot reached)

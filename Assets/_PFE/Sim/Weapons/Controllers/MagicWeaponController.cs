@@ -49,6 +49,16 @@ namespace PFE.Systems.Weapons.Controllers
     /// class. It is not a projectile weapon at all in AS3 — it is cast through <c>Spell.as</c> via
     /// <c>Invent.useItem</c> — and <c>WeaponControllerFactory</c> refuses to build a controller for it
     /// (<c>WeaponControllerFactory.cs:109-116</c>). See the audit's §3.</para>
+    ///
+    /// <para><b><see cref="IWeaponStats"/> may be a variant copy, and that is where "II" comes
+    /// from.</b> A weapon's second tier (<c>ice^1</c>, *Ice II*) is not a separate row: the equip path
+    /// resolves the held instance's tier through <c>WeaponVariantStats.Effective</c> and hands this
+    /// controller the folded definition. So <c>_def.magicPoolCost</c>, <c>_def.manaHealthCost</c> and
+    /// <c>_def.projectilesPerShot</c> already carry the tier — *Ice II* costs 13 mana per shot, not the
+    /// 5 the base row says, and hits for 10 rather than 5. <b>Reading the base definition here instead
+    /// would be the bug</b>, not the reverse; nothing in this class should re-resolve the row.
+    /// Attributes the tier does not author are inherited, so a value that looks "unchanged" between the
+    /// tiers is inherited rather than missing.</para>
     /// </summary>
     public sealed class MagicWeaponController : IWeaponController
     {
@@ -399,7 +409,7 @@ namespace PFE.Systems.Weapons.Controllers
                 State.TShoot = 3;
             State.KolShoot++;
             State.TAuto   = 3;
-            State.IsShoot = true;
+            State.NoteShot();
         }
     }
 }

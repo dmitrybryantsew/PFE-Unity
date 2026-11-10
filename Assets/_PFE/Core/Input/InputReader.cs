@@ -117,6 +117,18 @@ namespace PFE.Core.Input
         /// <summary><c>J</c> — AS3 <c>keyQuest</c>: info page 3 <b>sub-page 2</b> (quest log).</summary>
         public InputAction PipQuests { get; private set; }
 
+        /// <summary>
+        /// <c>V</c> or the middle mouse button — AS3 <c>keySats</c>
+        /// (<c>Ctr.as:34</c>: <c>def={Keyboard.V} alt='mmb'</c>): toggle S.A.T.S.
+        /// (<c>World.as:1377-1384</c>).
+        ///
+        /// <para><b>Not gated here, gated at the consumer.</b> The Oracle's gate is a condition on the
+        /// handler — <c>ggControl &amp;&amp; !pip.active &amp;&amp; gg &amp;&amp; gg.pipOff &lt;= 0 &amp;&amp;
+        /// !catPause</c> — not on the key. Putting it on the action would make an EMP'd PipBuck unable
+        /// to re-enable its own lockout, and would hide from the mode the fact that it was asked for.</para>
+        /// </summary>
+        public InputAction SatsToggle { get; private set; }
+
         // Reactive Properties (for UI binding with R3)
         public readonly ReactiveProperty<Vector2> MoveInput = new(Vector2.zero);
         public readonly ReactiveProperty<bool> IsJumping = new(false);
@@ -288,6 +300,11 @@ namespace PFE.Core.Input
             PipMedicine = BuildButtonAction("PipMedicine", s?.pipMedicine, "<Keyboard>/l", "", "");
             PipMap = BuildButtonAction("PipMap", s?.pipMap, "<Keyboard>/m", "", "");
             PipQuests = BuildButtonAction("PipQuests", s?.pipQuests, "<Keyboard>/j", "", "");
+
+            // ---- S.A.T.S. (AS3 Ctr.as:34) ----
+            // `def={Keyboard.V} alt='mmb'` — the only interface key whose alternate is a mouse button.
+            SatsToggle = BuildButtonAction("SatsToggle", s?.satsToggle,
+                "<Keyboard>/v", "<Mouse>/middleButton", "");
         }
 
         private InputAction BuildButtonAction(string name, ButtonBinding b,

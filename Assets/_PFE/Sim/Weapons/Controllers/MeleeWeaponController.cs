@@ -739,7 +739,7 @@ namespace PFE.Systems.Weapons.Controllers
             State.CurrentDurability = Mathf.Max(0, State.CurrentDurability - 1);
             State.KolShoot++;
             State.TShoot = 3;
-            State.IsShoot = true;
+            State.NoteShot();
         }
 
         // ── Shoot (hit detection) ─────────────────────────────────────────────

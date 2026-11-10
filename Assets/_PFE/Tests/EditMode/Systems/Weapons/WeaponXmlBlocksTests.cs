@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using PFE.Systems.Items;
 using PFE.Systems.Weapons;
+using PFE.Tests.Editor.Common;
 
 namespace PFE.Tests.EditMode.Systems.Weapons
 {
@@ -963,5 +964,442 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.That(WeaponXmlAttrs.AttrF(merged, "knock",   0f), Is.EqualTo(3f).Within(0.001f));
             Assert.That(WeaponXmlAttrs.AttrF(merged, "destroy", 0f), Is.EqualTo(10f).Within(0.001f));
         }
+    }
+
+    /// <summary>
+    /// Pins <see cref="WeaponVariantOverrides"/> — the <i>typed</i> read of a weapon's tier-1 runs, which
+    /// is what the runtime actually consumes — plus the one property of <c>WeaponVariantStats.ApplyTo</c>
+    /// that can be checked without a <c>ScriptableObject</c>.
+    ///
+    /// <para><b>Why this is a second fixture and not more of <see cref="WeaponVariantXmlTests"/>.</b>
+    /// That one pins the <i>string</i> merge (<c>MergeRuns</c>); this one pins the layer above it, where
+    /// "absent" has to survive as a sentinel rather than as a number. The two fail differently: a broken
+    /// merge yields a wrong value in a string that a reader could still see, while a broken parse yields
+    /// <c>0f</c> in a field nothing distinguishes from an authored zero — so the assertions here are
+    /// almost all <b>pair</b>s of "this one is present" and "that one is absent", never a lone value.</para>
+    ///
+    /// <para><b>Why the fixtures are the real rows.</b> Every body below is the child elements of a
+    /// weapon from <c>AllData.as</c>, in document order, exactly as the file writes them. The interesting
+    /// cases are not synthetic: <c>ice</c> is a delta of one attribute per node kind, <c>anti</c> is the
+    /// only weapon in the file with a tier-1 <c>&lt;snd&gt;</c> and it authors <c>recoil='0'</c>,
+    /// <c>sword</c> authors a <c>long</c> that is <i>different</i> from its base tier, and
+    /// <c>cflamer</c> repeats four of the seven kinds at once.</para>
+    ///
+    /// <para><b>What cannot be tested here, and is guarded instead.</b>
+    /// <c>WeaponVariantStats.ApplyTo</c> takes a <see cref="PFE.Data.Definitions.WeaponDefinition"/>, which
+    /// is a <c>ScriptableObject</c>: constructing one is an ECall and throws outside the editor (measured
+    /// on <c>WeaponDispatchTests</c>). So its <i>behaviour</i> is editor-only and its <i>shape</i> is
+    /// pinned by <see cref="ApplyTo_Lint_AppliesEveryParsedFieldExceptTheFiveTheOracleReadsAtTierZero"/>,
+    /// which is a source lint and therefore runs everywhere.</para>
+    /// </summary>
+    [TestFixture]
+    public class WeaponVariantOverridesTests
+    {
+        // ── Fixtures: real weapon bodies, verbatim ───────────────────────────
+
+        /// <summary>
+        /// <c>ice</c> (<c>AllData.as:3554-3566</c>), the magic weapon the whole feature was investigated
+        /// through. Tier 1 raises <c>damage</c> 5→10, <c>mana</c> 5→13 and <c>price</c> 400→1800 — one
+        /// attribute per node kind, and it says <b>nothing</b> about the other thirteen.
+        /// </summary>
+        private const string IceBody =
+            "<char damage='5' kol='5' rapid='15' prec='4' tipdam='11' knock='5' destroy='10'/>" +
+            "<char damage='10'/>" +
+            "<phis speed='70' deviation='6'/>" +
+            "<vis vbul='ice'/>" +
+            "<snd shoot='ice' noise='300'/>" +
+            "<ammo magic='200' mana='5'/>" +
+            "<ammo mana='13'/>" +
+            "<dop effect='ice' ch='0.1'/>" +
+            "<com price='400' chance='0' stage='1' uniq='0'/>" +
+            "<com price='1800'/>";
+
+        /// <summary>
+        /// <c>oldshot</c> (<c>AllData.as:2795-2806</c>). The worked example: hp 150→250, damage 6→7,
+        /// prec 6→7, and <b>silence</b> about <c>kol</c>, <c>knock</c> and <c>destroy</c>.
+        /// </summary>
+        private const string OldshotBody =
+            "<char maxhp='150' damage='6' kol='5' rapid='10' prec='6' knock='3' destroy='10'/>" +
+            "<char maxhp='250' damage='7' rapid='10' prec='7'/>" +
+            "<phis speed='150' m='2' drot='13' deviation='5' recoil='12' massa='5'/>" +
+            "<vis tipdec='1' shell='1'/>" +
+            "<snd shoot='oldshot_s' reload='shotgun_r' noise='1200'/>" +
+            "<ammo holder='2' reload='45'/>" +
+            "<com price='360' worth='4' chance='1' stage='1' uniq='1'/>";
+
+        /// <summary>
+        /// <c>anti</c> (<c>AllData.as</c>, the <c>tip='2'</c> sniper row). Two properties nothing else in
+        /// the file has: the <b>only</b> tier-1 <c>&lt;snd&gt;</c> node (a 1-attribute override), and
+        /// <c>recoil='0'</c> — an authored zero against a base of <c>recoil='10'</c>, which is the exact
+        /// case a "parse, then treat 0 as absent" reader gets wrong.
+        /// </summary>
+        private const string AntiBody =
+            "<char maxhp='250' damage='85' rapid='25' prec='24' antiprec='8' crit='2' critdam='0.5' " +
+            "knock='15' destroy='30'/>" +
+            "<char maxhp='300' damage='95' prec='27' pier='10' knock='18'/>" +
+            "<phis speed='500' drot='8' deviation='2' recoil='10' massa='10' m='3'/>" +
+            "<phis drot='10' deviation='2' recoil='0'/>" +
+            "<vis tipdec='3' shell='1'/>" +
+            "<snd shoot='anti_s' reload='sniper_r' noise='1200'/>" +
+            "<snd shoot='spitfire_s' noise='2200'/>" +
+            "<ammo holder='5' reload='60'/>" +
+            "<dop vision='2' probiv='0.6'/>" +
+            "<com price='5400' worth='5' chance='0.4' stage='5' rep='0.12' uniq='0'/>";
+
+        /// <summary>
+        /// <c>cflamer</c> — repeats <c>&lt;char&gt;</c>, <c>&lt;phis&gt;</c>, <c>&lt;vis&gt;</c>,
+        /// <c>&lt;dop&gt;</c> and <c>&lt;com&gt;</c>, and its tier-1 <c>&lt;phis&gt;</c> omits
+        /// <c>deviation</c> while its <c>&lt;char&gt;</c> omits <c>knock</c> (authored <c>'0'</c> at tier
+        /// 0 — so a merged read must land on "no knockback", not on "inherit nothing"). It also has
+        /// <b>no</b> second <c>&lt;ammo&gt;</c>, so <c>holder='600'</c> must survive.
+        /// </summary>
+        private const string CflamerBody =
+            "<char maxhp='3000' damage='6' rapid='1' pier='16' prec='6' crit='0' tipdam='3' " +
+            "knock='0' destroy='10'/>" +
+            "<char maxhp='3600' damage='7' prec='8' pier='20'/>" +
+            "<phis speed='40' drot='5' drot2='3' deviation='4' grav='1' massa='20' m='3'/>" +
+            "<phis speed='45' drot='8' massa='15'/>" +
+            "<vis tipdec='11' vbul='flame' flare='flame' bulanim='1'/>" +
+            "<vis tipdec='11' vbul='flame2' flare='flame' bulanim='1'/>" +
+            "<snd prep='flamer_s' t1='1540' t2='2840' reload='flamer_r' noise='400'/>" +
+            "<ammo holder='600' rashod='3' reload='60'/>" +
+            "<dop effect='igni' damage='10' ch='0.2'/>" +
+            "<dop effect='igni' damage='13' ch='0.2'/>" +
+            "<com price='3000' worth='5' chance='0.4' stage='5' rep='0.25' uniq='0'/>";
+
+        /// <summary>
+        /// <c>sword</c> — the case that proves tier-1 <c>long</c> is <i>not</i> a duplicate of tier 0:
+        /// <c>long='80'</c> against <c>long='90'</c>, and <c>minlong</c> authored on both. The oracle
+        /// reads <c>phis[0]</c> (<c>WClub.as:121</c>), so applying tier 1 here would lengthen the II's
+        /// reach by 10 px. Also the only fixture whose base tier carries <c>crit='2'</c> while tier 1 is
+        /// silent — so "crit survives" is observable.
+        /// </summary>
+        private const string SwordBody =
+            "<char maxhp='500' damage='35' rapid='12' crit='2' tipdam='1' knock='5' destroy='10'/>" +
+            "<char maxhp='1000' damage='40' pier='25'/>" +
+            "<phis massa='5' m='2' minlong='30' long='80'/>" +
+            "<phis massa='5' m='2' minlong='30' long='90'/>" +
+            "<vis tipdec='4'/>" +
+            "<snd shoot='m_med' fall='fall_hammer' noise='300'/>" +
+            "<dop effect='cut' damage='3' ch='0.5'/>" +
+            "<dop effect='cut' damage='4' ch='0.5'/>" +
+            "<com price='3500' chance='0.2' stage='5' worth='4' rep='0' uniq='0'/>";
+
+        // ── The existence test ───────────────────────────────────────────────
+
+        [Test]
+        public void Parse_WeaponWithNoSecondChar_ReturnsNull()
+        {
+            // `Stand.as:212` decides existence on `char.length() > 1` alone, so 142 of the 213 weapons
+            // have no tier at all. Null — not an all-absent instance — because the runtime's `Effective`
+            // branches on it, and an empty instance would make `variant > 0` silently meaningful.
+            var data = WeaponVariantXml.Read("<char maxhp='150'/><phis speed='150'/>", 1);
+
+            Assert.IsFalse(data.IsPresent);
+            Assert.IsNull(WeaponVariantOverrides.Parse(data));
+        }
+
+        [Test]
+        public void Parse_IceTier1_IsADeltaNotACopyOfTheNode()
+        {
+            // The headline case. Three values present, and the four the node is silent about must read
+            // ABSENT — not 0, which would zero a shotgun's pellet count and its knockback.
+            var o = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(IceBody, 1));
+
+            Assert.IsNotNull(o);
+            Assert.That(o.Damage, Is.EqualTo(10f).Within(0.001f), "char damage 5 -> 10");
+            Assert.That(o.Mana,   Is.EqualTo(13f).Within(0.001f), "ammo mana 5 -> 13");
+            Assert.That(o.Price,  Is.EqualTo(1800f).Within(0.001f), "com price 400 -> 1800, not 3x");
+
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Knock),   "knock 5 must survive tier 1");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Rapid),   "rapid 15 must survive tier 1");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Kol),     "kol 5 must survive tier 1");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Magic),   "magic 200 must survive tier 1");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Prec),    "prec 4 must survive tier 1");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.MaxHp),   "ice authors no maxhp at either tier");
+        }
+
+        [Test]
+        public void Parse_OldshotTier1_LeavesTheThreeInheritedAttributesAbsent()
+        {
+            // The merge fixture's typed twin. `rapid='10'` is authored and EQUAL to the base — it must
+            // still read present, because presence comes from the node, not from a value comparison.
+            var o = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(OldshotBody, 1));
+
+            Assert.That(o.MaxHp,  Is.EqualTo(250f).Within(0.001f));
+            Assert.That(o.Damage, Is.EqualTo(7f).Within(0.001f));
+            Assert.That(o.Prec,   Is.EqualTo(7f).Within(0.001f));
+            Assert.IsTrue(WeaponVariantOverrides.Has(o.Rapid), "authored, even though it matches tier 0");
+
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Kol),     "kol 5 inherited");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Knock),   "knock 3 inherited");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Destroy), "destroy 10 inherited");
+        }
+
+        // ── The presence distinction: an authored 0 is not an absent attribute ─
+
+        [Test]
+        public void Parse_ExplicitZeroKnock_IsPresentAndZero()
+        {
+            // `knock='0'` means "no knockback", not "inherit". A parser that treated 0 as absent would
+            // give this weapon the base 3 and pass every "the override wins" test.
+            var o = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(
+                "<char knock='3' rapid='10'/><char knock='0'/>", 1));
+
+            Assert.IsTrue(WeaponVariantOverrides.Has(o.Knock), "an authored 0 is present");
+            Assert.That(o.Knock, Is.EqualTo(0f).Within(0.001f));
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Rapid), "and the omitted one still inherits");
+        }
+
+        [Test]
+        public void Parse_AntiRecoilZero_IsPresentAndZero()
+        {
+            // The same distinction on a real row: `anti` goes recoil 10 -> 0. `recoilFrames` is applied
+            // presence-gated in ApplyTo, so a parser that dropped the zero would leave the II recoiling
+            // like the base weapon.
+            var o = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(AntiBody, 1));
+
+            Assert.IsTrue(WeaponVariantOverrides.Has(o.Recoil));
+            Assert.That(o.Recoil, Is.EqualTo(0), "recoil='0' is an override to zero");
+            Assert.That(o.Deviation, Is.EqualTo(2f).Within(0.001f), "and deviation is re-authored as 2");
+        }
+
+        // ── The two recomputes, and the tri-state that makes `auto` one ──────
+
+        [Test]
+        public void Parse_Auto_IsATriStateNotABool()
+        {
+            // `getCharParam` assigns `auto = rapid <= 6` on EVERY pass, then `@auto` if present. So
+            // absent is not "false" and not "inherit" — it is "re-derive from the merged rapid", which
+            // the port encodes as autoMode 0. Seven tier-1 nodes author it; fourteen weapons depend on
+            // the re-derivation.
+            Assert.That(ParseChar("<char rapid='10'/><char rapid='10'/>").Auto, Is.EqualTo(-1),
+                        "absent");
+            Assert.That(ParseChar("<char rapid='10'/><char auto='0' rapid='10'/>").Auto, Is.EqualTo(0),
+                        "authored false");
+            Assert.That(ParseChar("<char rapid='10'/><char auto='1' rapid='10'/>").Auto, Is.EqualTo(1),
+                        "authored true");
+        }
+
+        [Test]
+        public void Parse_Massa_IsSentinelWhenSilentAndRawWhenAuthored()
+        {
+            // `massa = @massa > 0 ? @massa/50 : 0` is assigned unconditionally, so silence means "reset
+            // to 0", not "keep the base". The parser must therefore report absent — ApplyTo turns that
+            // into the oracle's 0 — and must not pre-divide by 50 (the port stores it raw and clamps
+            // with 50/massa at the point of use).
+            Assert.IsFalse(WeaponVariantOverrides.Has(ParseChar("<char a='1'/><char a='1'/>").Massa));
+
+            var cflamer = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(CflamerBody, 1));
+            Assert.That(cflamer.Massa, Is.EqualTo(15f).Within(0.001f), "20 -> 15, stored raw");
+
+            var sword = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(SwordBody, 1));
+            Assert.That(sword.Massa, Is.EqualTo(5f).Within(0.001f), "re-authored at the same value");
+        }
+
+        // ── Multi-kind rows ─────────────────────────────────────────────────
+
+        [Test]
+        public void Parse_AntiTier1_ReadsTheOnlySndOverrideInTheFile()
+        {
+            // One weapon in the whole file repeats `<snd>`. If the reader only handled `<char>` this
+            // would be a weapon whose tier-1 sound silently stayed at the base — audible, not a crash.
+            var o = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(AntiBody, 1));
+
+            Assert.That(o.Shoot, Is.EqualTo("spitfire_s"), "anti_s -> spitfire_s");
+            Assert.That(o.Noise, Is.EqualTo(2200f).Within(0.001f), "1200 -> 2200");
+            Assert.IsNull(o.Reload, "the tier-1 node does not repeat `reload`, so sniper_r survives");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Reload));
+        }
+
+        [Test]
+        public void Parse_CflamerTier1_ReadsFourKindsAndLeavesTheFifthAlone()
+        {
+            var o = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(CflamerBody, 1));
+
+            // <phis>
+            Assert.That(o.Speed, Is.EqualTo(45f).Within(0.001f), "40 -> 45");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Deviation), "deviation 4 inherited");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Grav), "grav 1 inherited");
+
+            // <vis>
+            Assert.That(o.Vbul, Is.EqualTo("flame2"), "flame -> flame2");
+            Assert.That(o.Flare, Is.EqualTo("flame"));
+            Assert.That(o.Tipdec, Is.EqualTo(11));
+            Assert.That(o.BulAnim, Is.EqualTo(1), "presence-only flag");
+
+            // <dop>
+            Assert.That(o.Effect, Is.EqualTo("igni"));
+            Assert.That(o.DopDamage, Is.EqualTo(13f).Within(0.001f), "10 -> 13");
+            Assert.That(o.DopCh, Is.EqualTo(0.2f).Within(0.001f));
+
+            // <ammo> does NOT repeat: 600 rounds must survive, and that is the control that keeps the
+            // four positives above from being satisfied by a reader that returned the whole node.
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Holder));
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Rashod));
+        }
+
+        [Test]
+        public void Parse_SwordTier1_ParsesLongAndMinLong_WhichApplyToMustNotUse()
+        {
+            // Parsed so the data surface is visible, never applied: `WClub.as:121-129` reads
+            // `node.phis[0]`. The "not applied" half is the lint below — this half only pins that the
+            // values are reachable, so a future reader cannot claim the field was dropped by accident.
+            var o = WeaponVariantOverrides.Parse(WeaponVariantXml.Read(SwordBody, 1));
+
+            Assert.That(o.Long,    Is.EqualTo(90f).Within(0.001f), "tier 1 says 90");
+            Assert.That(o.MinLong, Is.EqualTo(30f).Within(0.001f));
+            Assert.That(o.MaxHp,   Is.EqualTo(1000f).Within(0.001f), "500 -> 1000");
+            Assert.That(o.Pier,    Is.EqualTo(25f).Within(0.001f), "pier appears only at tier 1");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Crit), "crit 2 inherited from tier 0");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Power), "pow is index-0 only");
+            Assert.IsFalse(WeaponVariantOverrides.Has(o.Combo), "combo is index-0 only");
+        }
+
+        [Test]
+        public void Parse_VariantWithEveryRunEmpty_ReportsEverythingAbsent()
+        {
+            // A tier whose nodes are present but attribute-less. Not in the shipped data, but it is what
+            // a partially-imported asset looks like (Unity zero-fills), and the honest answer is "the
+            // tier exists and overrides nothing" rather than an exception or a silent all-zero.
+            var data = WeaponVariantXml.Read("<char maxhp='1'/><char/>", 1);
+            var o = WeaponVariantOverrides.Parse(data);
+
+            Assert.IsNotNull(o, "the tier exists");
+            Assert.IsTrue(data.IsPresent);
+
+            foreach (System.Reflection.FieldInfo field in ParsedFields())
+            {
+                object value = field.GetValue(o);
+                bool present = value is float f
+                    ? WeaponVariantOverrides.Has(f)
+                    : value is int i
+                        ? WeaponVariantOverrides.Has(i)
+                        : WeaponVariantOverrides.Has((string)value);
+
+                Assert.IsFalse(present, field.Name + " must be absent, not zero");
+            }
+        }
+
+        /// <summary>
+        /// An attribute-less node <b>before</b> a real sibling must keep the real one at index 1.
+        ///
+        /// <para><b>This is the one place in the shipped file where the old reader was wrong.</b>
+        /// <c>spear</c> (<c>AllData.as:2223-2228</c>) is <c>&lt;dop/&gt;</c> followed by
+        /// <c>&lt;dop effect='poison' damage='2' ch='0.5'/&gt;</c>. The reader's pattern required
+        /// whitespace after the tag name, so <c>&lt;dop/&gt;</c> was invisible: it reported <b>one</b>
+        /// dop node and that node was the tier-1 one. The consequence was double — the importer read it
+        /// as index 0 (the base tier gained poison it should not have) and the variant read found
+        /// nothing at index 1 (the override vanished). Both are asserted here.</para>
+        /// </summary>
+        [Test]
+        public void Read_EmptyNodeBeforeARealOne_KeepsTheIndex()
+        {
+            const string body =
+                "<char maxhp='100' damage='32' rapid='20' tipdam='1' knock='5' destroy='10' pow='1'/>" +
+                "<char maxhp='200' damage='30'/>" +
+                "<phis massa='2' m='2' long='50'/>" +
+                "<vis tipdec='4'/>" +
+                "<dop/>" +
+                "<dop effect='poison' damage='2' ch='0.5'/>" +
+                "<snd shoot='m_med' fall='falll_item' noise='400'/>";
+
+            var runs = WeaponVariantXml.Runs(body, "dop");
+            Assert.AreEqual(2, runs.Count, "an attribute-less node is still a node");
+
+            var data = WeaponVariantXml.Read(body, 1);
+            var o = WeaponVariantOverrides.Parse(data);
+
+            Assert.That(o.Effect, Is.EqualTo("poison"), "the tier-1 poison must be reachable at index 1");
+            Assert.That(o.DopDamage, Is.EqualTo(2f).Within(0.001f));
+            Assert.That(o.DopCh, Is.EqualTo(0.5f).Within(0.001f));
+
+            // The control: index 0 is EMPTY, so the base tier must carry no dop at all. A reader that
+            // dropped the empty node would make this the poison run — which is what the importer did.
+            Assert.AreEqual("", WeaponVariantXml.Runs(body, "dop")[0].Trim(),
+                            "index 0 must be the empty node, not the tier-1 one");
+        }
+
+        // ── The lint: ApplyTo's shape, which cannot be exercised offline ─────
+
+        /// <summary>
+        /// Every field <see cref="WeaponVariantOverrides"/> parses is either written by
+        /// <c>WeaponVariantStats.ApplyTo</c> or is one of the five that must <b>not</b> be.
+        ///
+        /// <para><b>Why a lint and not a test.</b> <c>ApplyTo</c>'s parameter is a
+        /// <see cref="PFE.Data.Definitions.WeaponDefinition"/>, a <c>ScriptableObject</c>; creating one is
+        /// an ECall, so the method cannot run offline at all. Its <i>behaviour</i> therefore has no
+        /// executable guard — but its <i>shape</i> does, and shape is what fails silently here: a field
+        /// added to the parser and never written reads as the base value with no error anywhere.</para>
+        ///
+        /// <para><b>The expected set is a diff, not a list.</b> The five unapplied names are asserted as
+        /// the <i>complete</i> difference between "fields the type declares" and "names mentioned in
+        /// <c>ApplyTo</c>". Adding a field without wiring it, or wiring one of these five, both fail —
+        /// and neither can be satisfied by editing a hand-maintained list in this fixture.</para>
+        /// </summary>
+        [Test]
+        public void ApplyTo_Lint_AppliesEveryParsedFieldExceptTheFiveTheOracleReadsAtTierZero()
+        {
+            string body = ApplyToBody();
+
+            CollectionAssert.AreEqual(
+                new[] { "Combo", "Long", "MinLong", "Power", "Vweap" },
+                UnappliedIn(body),
+                "the set of parsed-but-unwritten fields changed: either a new field was added to " +
+                "WeaponVariantOverrides without a write in ApplyTo, or one of the five documented " +
+                "exceptions was wired up (which would diverge from the oracle — see the comments at " +
+                "the write sites)");
+
+            // The positive control for the scan itself: if reflection returned nothing, the diff above
+            // would be an empty set against an empty expectation and this lint would pass vacuously.
+            Assert.That(ParsedFields().Length, Is.GreaterThan(50), "the override surface must be large");
+
+            // The two writes that were REMOVED, pinned by absence: `WClub` reads phis[0], so a tier-1
+            // reach must never reach the definition. `sword` authors 80 vs 90, so this is not academic.
+            Assert.That(body, Does.Not.Contain("meleeDlina"));
+            Assert.That(body, Does.Not.Contain("meleeMinDlina"));
+            Assert.That(body, Does.Not.Contain("meleePowerAttack"));
+            Assert.That(body, Does.Not.Contain("meleeCombo"));
+        }
+
+        [Test]
+        public void TheUnappliedScan_DetectsARemovedWrite()
+        {
+            // A guard that cannot fail is not a guard. Deleting one write from a copy of the real method
+            // body must make the scan report that field — otherwise the assertion above would pass on a
+            // method that had lost every line it checks for.
+            string mutated = ApplyToBody().Replace("o.Damage", "");
+
+            Assert.That(mutated, Is.Not.EqualTo(ApplyToBody()), "the mutation must actually change the body");
+            Assert.That(UnappliedIn(mutated), Does.Contain("Damage"),
+                        "the scan must notice a write that is no longer there");
+        }
+
+        // ── Helpers ─────────────────────────────────────────────────────────
+
+        private static WeaponVariantOverrides ParseChar(string body)
+            => WeaponVariantOverrides.Parse(WeaponVariantXml.Read(body, 1));
+
+        private static System.Reflection.FieldInfo[] ParsedFields()
+            => typeof(WeaponVariantOverrides)
+                .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+        /// <summary>The stripped source of <c>ApplyTo</c>, with comments and literals removed.</summary>
+        private static string ApplyToBody()
+            => SourceLint.MethodBody(
+                SourceLint.ReadStripped("Data/Definitions/WeaponDefinition.cs"),
+                "public static void ApplyTo(");
+
+        /// <summary>
+        /// The parsed fields <paramref name="body"/> never reads, ordinal-sorted. A field is "read" when
+        /// the body mentions <c>o.Name</c> — the parameter is named <c>o</c> in the signature this
+        /// fixture asserts on, so a rename must update this fixture rather than quietly stop scanning.
+        /// </summary>
+        private static string[] UnappliedIn(string body)
+            => ParsedFields()
+                .Select(f => f.Name)
+                .Where(n => body.IndexOf("o." + n, System.StringComparison.Ordinal) < 0)
+                .OrderBy(n => n, System.StringComparer.Ordinal)
+                .ToArray();
     }
 }

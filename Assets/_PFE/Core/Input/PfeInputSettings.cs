@@ -81,6 +81,11 @@ namespace PFE.Core.Input
         public ButtonBinding pipMap       = new ButtonBinding("<Keyboard>/m",   "", "");
         public ButtonBinding pipQuests    = new ButtonBinding("<Keyboard>/j",   "", "");
 
+        // Ctr.as:34 — keySats, V with the middle mouse button as its alternate. Not part of the
+        // PipBuck block: S.A.T.S. is a separate mode that the PipBuck's own gate then locks out.
+        [Header("S.A.T.S. (Ctr.as:34)")]
+        public ButtonBinding satsToggle   = new ButtonBinding("<Keyboard>/v", "<Mouse>/middleButton", "");
+
         // ---- Defaults (used by editor Reset buttons) ----
 
         public static MoveBindings DefaultMove => new MoveBindings();
@@ -108,6 +113,13 @@ namespace PFE.Core.Input
         public static ButtonBinding DefaultPipMedicine  => new ButtonBinding("<Keyboard>/l",   "", "");
         public static ButtonBinding DefaultPipMap       => new ButtonBinding("<Keyboard>/m",   "", "");
         public static ButtonBinding DefaultPipQuests    => new ButtonBinding("<Keyboard>/j",   "", "");
+
+        /// <summary>
+        /// <c>Ctr.as:34</c> — <c>&lt;key id='keySats' def={Keyboard.V} alt='mmb'/&gt;</c>: <b>V</b>, with
+        /// the middle mouse button as the alternate. A toggle (<c>World.as:1377-1384</c>), and the only
+        /// key in the interface block whose alternate is a mouse button rather than a key.
+        /// </summary>
+        public static ButtonBinding DefaultSatsToggle  => new ButtonBinding("<Keyboard>/v", "<Mouse>/middleButton", "");
     }
 
     [Serializable]

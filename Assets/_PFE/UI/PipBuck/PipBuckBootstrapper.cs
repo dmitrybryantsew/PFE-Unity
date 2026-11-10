@@ -118,6 +118,9 @@ namespace PFE.UI.PipBuck
         /// </summary>
         private IObjectResolver _resolver;
 
+        /// <summary>S.A.T.S. — read only for its <c>active</c> flag, which gates every hotkey below.</summary>
+        private PFE.Systems.Combat.Sats.SatsController _sats;
+
         /// <summary>The travel-map subscription, released in <see cref="OnDestroy"/>.</summary>
         private IDisposable _travelMapSubscription;
 
@@ -137,11 +140,13 @@ namespace PFE.UI.PipBuck
         private PipPageWorkView _workPage;
 
         [Inject]
-        public void Construct(InputReader input, PipBuckManager manager, IObjectResolver resolver)
+        public void Construct(InputReader input, PipBuckManager manager, IObjectResolver resolver,
+                              PFE.Systems.Combat.Sats.SatsController sats)
         {
             _input = input;
             _manager = manager;
             _resolver = resolver;
+            _sats = sats;
         }
 
         private void Start()
@@ -1507,9 +1512,10 @@ namespace PFE.UI.PipBuck
         /// The Oracle's hotkey block (<c>World.as:1321-1376</c>).
         ///
         /// <para>Every one of the seven is gated on <c>!this.sats.active</c> in the Oracle — S.A.T.S.
-        /// owns the screen while it is up, so no PipBuck key may fire. The port has no S.A.T.S. yet
-        /// (Item I14), so the gate is <see cref="IsSatsActive"/> returning a constant false. It is a
-        /// method rather than an inlined <c>false</c> so that landing I14 changes one place.</para>
+        /// owns the screen while it is up, so no PipBuck key may fire. <see cref="IsSatsActive"/> is
+        /// now backed by the injected <c>SatsController</c> (Item I14), so a PipBuck key is swallowed
+        /// for the whole time the tactical pause is held. It was a constant <c>false</c> placeholder
+        /// before the controller existed.</para>
         ///
         /// <para>Note the sub-pages. <c>keyMed</c> (L) is <c>onoff(1,5)</c> — the character sheet's
         /// self-treatment sub-page, <b>not</b> a medical page; page 6 is the doctor's contextual
@@ -1537,11 +1543,17 @@ namespace PFE.UI.PipBuck
         }
 
         /// <summary>
-        /// <c>World.sats.active</c> — always false until Item I14 lands. See <see cref="Update"/>.
+        /// <c>World.sats.active</c> — the gate every PipBuck hotkey sits behind.
+        ///
+        /// <para><b>Why S.A.T.S. wins the keyboard.</b> <c>World.as:1321-1376</c> wraps all seven
+        /// device keys in <c>if (!this.sats.active)</c>: while the tactical mode is up it owns the
+        /// screen, and a <c>Tab</c> that opened the PipBuck over a frozen, blurred room would leave two
+        /// interfaces holding the pause gate with no way to tell which one the next key belonged to.
+        /// S.A.T.S. is the stricter mode, so it takes precedence.</para>
         /// </summary>
-        private static bool IsSatsActive()
+        private bool IsSatsActive()
         {
-            return false;
+            return _sats != null && _sats.IsActive;
         }
 
         /// <summary>

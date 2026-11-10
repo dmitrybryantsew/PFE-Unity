@@ -203,6 +203,16 @@ namespace PFE.Systems.Weapons
         /// </summary>
         public readonly bool NoSats;
 
+        /// <summary>
+        /// <c>&lt;sats noperc&gt;</c> present — the weapon shows no hit-percentage in S.A.T.S. and,
+        /// because <c>Sats.setCel</c> finds the clicked unit by looking for the hover glow that only a
+        /// percentage-bearing weapon applies (<c>Sats.as:246-256</c> gated on <c>:397</c>), it also
+        /// <b>cannot lock a unit</b>: free-aim cells only. Seven weapons carry it —
+        /// <c>bfg</c>, <c>glau</c>, <c>glau1</c>, <c>aglau</c>, <c>mlau</c>, <c>bel</c>,
+        /// <c>eclipse</c>. Presence-based, not value-based (<c>Weapon.as:449-452</c>).
+        /// </summary>
+        public readonly bool NoPerc;
+
         /// <summary>The <c>perk</c> root attribute, or empty when the weapon declares none.</summary>
         public readonly string Perk;
 
@@ -212,21 +222,22 @@ namespace PFE.Systems.Weapons
         /// <summary>False when the row has no <c>&lt;phis m&gt;</c>, leaving <see cref="WeaponXmlAttrs"/> users to fall back.</summary>
         public readonly bool HasMass;
 
-        public WeaponXmlExtras(float satsCons, bool hasSats, int satsQue, bool noSats,
+        public WeaponXmlExtras(float satsCons, bool hasSats, int satsQue, bool noSats, bool noPerc,
                                string perk, float mass, bool hasMass)
         {
             SatsCons = satsCons;
             HasSats = hasSats;
             SatsQue = satsQue;
             NoSats = noSats;
+            NoPerc = noPerc;
             Perk = perk ?? string.Empty;
             Mass = mass;
             HasMass = hasMass;
         }
 
-        /// <summary>No row resolved: the AS3 defaults, with both presence flags false.</summary>
+        /// <summary>No row resolved: the AS3 defaults, with all three presence flags false.</summary>
         public static WeaponXmlExtras Empty =>
-            new WeaponXmlExtras(SatsConsDefault, false, SatsQueDefault, false, "", 0f, false);
+            new WeaponXmlExtras(SatsConsDefault, false, SatsQueDefault, false, false, "", 0f, false);
 
         /// <summary><c>Weapon.as:294</c> — <c>public var satsCons:Number = 10;</c>.</summary>
         public const float SatsConsDefault = 10f;
@@ -275,10 +286,17 @@ namespace PFE.Systems.Weapons
                 : WeaponXmlExtras.SatsQueDefault;
             bool noSats = sats != null && WeaponXmlAttrs.AttrPresent(sats, "no");
 
+            // Weapon.as:449-452 — `@noperc.length()`, the same presence idiom as `no`. Seven weapons
+            // carry it (bfg, glau, glau1, aglau, mlau, bel, eclipse), and it does two things in the
+            // oracle: the label omits the "%" line (Sats.as:489,495) and the unit can never be locked,
+            // because setCel finds the clicked unit by the hover glow that only a percentage-bearing
+            // weapon applies (Sats.as:246-256 gated on :397).
+            bool noPerc = sats != null && WeaponXmlAttrs.AttrPresent(sats, "noperc");
+
             bool hasMass = phis != null && WeaponXmlAttrs.AttrPresent(phis, "m");
             float mass = hasMass ? WeaponXmlAttrs.AttrF(phis, "m", 0f) : 0f;
 
-            return new WeaponXmlExtras(cons, sats != null, que, noSats, block.RootAttrs == null
+            return new WeaponXmlExtras(cons, sats != null, que, noSats, noPerc, block.RootAttrs == null
                 ? string.Empty
                 : WeaponXmlAttrs.Attr(block.RootAttrs, "perk", string.Empty), mass, hasMass);
         }
@@ -631,7 +649,19 @@ namespace PFE.Systems.Weapons
             var runs = new List<string>();
             if (string.IsNullOrEmpty(body) || string.IsNullOrEmpty(tag)) return runs;
 
-            foreach (Match m in Regex.Matches(body, "<" + tag + @"(\s[^>]*?)(?:/>|>)",
+            // The attribute run is OPTIONAL: `<char/>` is a real element with no attributes, and
+            // `Stand.as:212` counts it — `char.length() > 1` is the existence test for a variant, so a
+            // reader that could not see an empty node would report "no variant" for a weapon whose
+            // tier 1 is an empty node.
+            //
+            // ⚠ This was not theoretical, and it was not only about counting. Measured 2026-11-07:
+            // seven attribute-less nodes exist in the shipped file, and one of them PRECEDES a real
+            // sibling — `spear` (AllData.as:2223) is `<dop/>` then `<dop effect='poison' …/>`. The old
+            // pattern required whitespace after the tag name, so it saw ONE dop node and called it
+            // index 0: the base tier imported the variant's poison, and `AttrsFor("dop")` at index 1
+            // found nothing. Every weapon in the game was one empty node away from reading its tier-1
+            // stats as its base.
+            foreach (Match m in Regex.Matches(body, "<" + tag + @"(\s[^>]*?)?(?:/>|>)",
                                               RegexOptions.Singleline))
                 runs.Add(m.Groups[1].Value);
 
@@ -769,6 +799,315 @@ namespace PFE.Systems.Weapons
 
             unread.Sort(System.StringComparer.Ordinal);
             return unread;
+        }
+    }
+
+    /// <summary>
+    /// The tier-1 numbers of a unique ("II") weapon, parsed into typed values with <b>AS3's own
+    /// encoding of "the attribute is absent"</b> — so the merge is a <i>fallback</i> per field, not a
+    /// copy with a nullable per field.
+    ///
+    /// <para><b>Why this type exists separately from the definition.</b> <c>WeaponDefinition</c> is a
+    /// <c>ScriptableObject</c>: creating one is a Unity ECall, and an ECall throws
+    /// <c>SecurityException: ECall methods must be packaged into a system module</c> outside the editor
+    /// — measured on <c>WeaponDispatchTests</c>, which fails offline for exactly that reason. If the
+    /// merge lived on the definition, every test of it would be editor-only, and the merge is the one
+    /// rule here that goes <i>silently</i> wrong (an inherited stat reading 0). So the parse lives in
+    /// the runtime assembly as plain data, and only the field-by-field write
+    /// (<c>WeaponVariantStats.ApplyTo</c>) is Unity-side — a mechanical function pinned by a source
+    /// lint instead.</para>
+    ///
+    /// <para><b>The sentinels are the oracle's presence tests.</b> <c>getCharParam</c> and its six
+    /// siblings (<c>Weapon.as:641-861</c>) test <c>param1.@x.length()</c> per attribute and only then
+    /// assign, so "absent" and "present with value 0" are different answers and both occur in the data
+    /// (<c>knock='0'</c> means no knockback, not "inherit"). Hence:</para>
+    /// <list type="bullet">
+    /// <item><description><c>float</c> — <see cref="float.NaN"/> means absent. A data value can never
+    /// be NaN (<c>Number('…')</c> on this file is always finite), so the sentinel is unambiguous.</description></item>
+    /// <item><description><c>int</c> — <see cref="WeaponVariantOverrides.AbsentInt"/> means absent. The
+    /// presence-only flags use a <i>second</i> sentinel (<c>-1</c>), because they carry no value and
+    /// <c>int.MinValue</c> in a flag field would read as data; <see cref="WeaponVariantOverrides.Has(int)"/>
+    /// tests both.</description></item>
+    /// <item><description><c>string</c> — <c>null</c> means absent; empty is a real authored value.</description></item>
+    /// </list>
+    ///
+    /// <para><b>Two fields are recomputed rather than merged, and that is the oracle.</b>
+    /// <c>getCharParam</c> assigns <c>auto = rapid &lt;= 6</c> on <i>every</i> pass before applying
+    /// <c>@auto</c>; <c>getPhisParam</c> assigns <c>massa = @massa &gt; 0 ? @massa/50 : 0</c>
+    /// unconditionally. So a tier-1 node that is silent about <c>auto</c> does <b>not</b> inherit
+    /// tier 0's <c>auto='1'</c> — it re-derives it from the merged <c>rapid</c>. Those two are marked
+    /// below and handled in <c>ApplyTo</c>; collapsing them into plain presence-merge would be wrong on
+    /// 14 of the 71 variant weapons.</para>
+    ///
+    /// <para><b>Five fields are parsed but never applied, and that is not an oversight.</b>
+    /// <c>long</c>, <c>minlong</c>, <c>pow</c> and <c>combo</c> are absent from <c>getXmlParam</c>
+    /// entirely: <c>WClub.as:121-137</c> reads them off <c>node.phis[0]</c> / <c>node.char[0]</c>, the
+    /// <b>base</b> tier, so a tier-1 value is dead data in the oracle — and measurably different data,
+    /// not a duplicate (<c>sword</c> is <c>long='80'</c> at tier 0 against <c>long='90'</c> at tier 1).
+    /// <c>vweap</c> is the held sprite, a presentation gap tracked separately. They are kept here so
+    /// the data surface is <i>visible</i> — a field that exists and is not written says "checked" to
+    /// the next audit, where a missing field says "nobody looked".</para>
+    /// </summary>
+    public sealed class WeaponVariantOverrides
+    {
+        // ── Sentinels ─────────────────────────────────────────────────────────
+
+        /// <summary>"This attribute was not authored" for a float. See the type's remarks.</summary>
+        public const float AbsentFloat = float.NaN;
+
+        /// <summary>"This attribute was not authored" for an int or a flag.</summary>
+        public const int AbsentInt = int.MinValue;
+
+        /// <summary>
+        /// "This attribute was not authored" for a <b>presence-only</b> flag, which is a different
+        /// question from a numeric one: <c>pow</c>, <c>combo</c>, <c>bumc</c>, <c>bulanim</c>,
+        /// <c>phisbul</c> and <c>shell</c> have no value to carry, only an existence, and AS3 tests
+        /// <c>@x.length()</c>. They are encoded <c>-1</c> / <c>1</c> rather than <c>AbsentInt</c> / <c>1</c>
+        /// because the field is an <c>int</c> and <see cref="int.MinValue"/> would read as a value.
+        /// No numeric attribute in the shipped file authors a negative value (measured 2026-11-07 over
+        /// all seven node kinds), so <c>-1</c> cannot collide with data.
+        ///
+        /// <para><b>Both sentinels must be tested, and getting this wrong is silent in the worst
+        /// direction.</b> An earlier version of <see cref="Has(int)"/> compared against
+        /// <see cref="AbsentInt"/> alone, so <b>every</b> presence-only flag reported "present" on every
+        /// weapon in the game — the flags still worked in <c>ApplyTo</c> (which tests <c>== 1</c>), so
+        /// nothing misbehaved and nothing failed; only the <c>Has</c> question lied. Caught by
+        /// <c>Parse_SwordTier1_ParsesLongAndMinLong_WhichApplyToMustNotUse</c>.</para>
+        /// </summary>
+        public const int AbsentFlag = -1;
+
+        /// <summary>True when the value came from the data (i.e. it is not one of the two sentinels).</summary>
+        public static bool Has(float value) => !float.IsNaN(value);
+
+        /// <summary>True when the value came from the data. Tests <b>both</b> sentinels — see
+        /// <see cref="AbsentFlag"/> for why testing one of them is a silent lie.</summary>
+        public static bool Has(int value) => value != AbsentInt && value != AbsentFlag;
+
+        /// <summary>True when the value came from the data. Empty is a real authored value, so this
+        /// tests for <c>null</c> only.</summary>
+        public static bool Has(string value) => value != null;
+
+        // ── <char> — Weapon.getCharParam ──────────────────────────────────────
+
+        public readonly float MaxHp;      // maxhp   → maxDurability
+        public readonly float Damage;     // damage  → baseDamage
+        public readonly float ExplDamage; // damexpl → explosionDamage
+        public readonly float Rapid;      // rapid
+        public readonly float Pier;       // pier    → armorPenetration
+        public readonly float Crit;       // crit    → critChance/critMultiplier, see ApplyTo
+        public readonly float Knock;      // knock   → knockback
+        public readonly int   Tipdam;     // tipdam  → damageType
+        public readonly float Prec;       // prec    → precision, ×40
+        public readonly float AntiPrec;   // antiprec→ antiPrecision, ×40
+        public readonly float Destroy;    // destroy → destroyTiles
+        public readonly int   Kol;        // kol     → projectilesPerShot
+        public readonly int   Dkol;       // dkol    → burstCount
+        public readonly float Expl;       // expl    → explRadius
+        public readonly int   ExplTip;    // expltip → explTip
+        public readonly int   ExplKol;    // explkol → explKol
+        public readonly int   Prep;       // prep    → prepFrames
+        /// <summary><c>char@pow</c>. <b>Parsed, never applied</b> — <c>WClub.as:131</c> reads
+        /// <c>node.char[0]</c>, so the oracle keeps tier 0's flag. See the type's remarks.</summary>
+        public readonly int   Power;
+        /// <summary><c>char@combo</c>. <b>Parsed, never applied</b> — same reason as <see cref="Power"/>
+        /// (<c>WClub.as:135</c>).</summary>
+        public readonly int   Combo;
+
+        /// <summary>
+        /// <c>char@auto</c> as a tri-state: <c>-1</c> absent, <c>0</c> <c>auto='0'</c>, <c>1</c> anything
+        /// else. Absent does not mean "inherit" — see the type's remarks.
+        /// </summary>
+        public readonly int Auto;
+
+        // ── <phis> — Weapon.getPhisParam ──────────────────────────────────────
+        //
+        // Not represented here: `drot`, `drot2`, `m`, `grav2`, `distexpl`, `volna`. `getPhisParam`
+        // does merge all six (and `grav2` is enemy-only, `Weapon.as:750`), but the port models none of
+        // them at the BASE tier either — `WeaponDefinition`'s attribute table records them as
+        // ballistic features it does not have. Adding a field here with no consumer would be dead
+        // code, not parity; the gap belongs to the base tier and is closed for both at once.
+
+        /// <summary><c>phis@massa</c>, raw. Always meaningful: absent authors 0, which the oracle writes
+        /// unconditionally.</summary>
+        public readonly float Massa;
+
+        public readonly float Speed;     // speed     → projectileSpeed
+        public readonly float Deviation; // deviation
+        public readonly int   Flame;     // flame     → bulletFlame
+        public readonly float Grav;      // grav      → bulletGravity
+        public readonly float Accel;     // accel     → bulletAccel
+        public readonly float Navod;     // navod     → bulletNavod
+        public readonly int   Bumc;      // bumc      → bumc (presence only)
+        public readonly int   Recoil;    // recoil    → recoilFrames
+        /// <summary><c>phis@long</c>. <b>Parsed, never applied</b> — <c>WClub.as:121</c> reads
+        /// <c>node.phis[0]</c>, so a tier-1 reach is dead data in the oracle (<c>sword</c> is
+        /// <c>long='80'</c> at tier 0 and <c>long='90'</c> at tier 1, so this is not a no-op).</summary>
+        public readonly float Long;
+        /// <summary><c>phis@minlong</c>. <b>Parsed, never applied</b> — see <see cref="Long"/>.</summary>
+        public readonly float MinLong;
+
+        // ── <vis> — Weapon.getVisParam ────────────────────────────────────────
+
+        public readonly string Vweap;    // vweap   → held sprite id (not applied; see ApplyTo)
+        public readonly string Vbul;     // vbul    → vbul
+        public readonly string VisExpl;  // visexpl → visExpl
+        public readonly int    Spring;   // spring  → springMode
+        public readonly int    BulAnim;  // bulanim → bulletAnimated (presence only)
+        public readonly int    PhisBul;  // phisbul → isPhysBullet (presence only)
+        public readonly int    Shell;    // shell   → hasShell (presence only)
+        public readonly int    Shine;    // shine   → shineRadius
+        public readonly int    Tipdec;   // tipdec  → decalType
+        public readonly string Flare;    // flare   → muzzleFlareId
+
+        // ── <snd> — Weapon.getSndParam ────────────────────────────────────────
+
+        public readonly string Shoot;    // shoot  → soundShoot
+        public readonly string Reload;   // reload → soundReload
+        public readonly string Hit;      // hit    → soundHit
+        public readonly string PrepSnd;  // prep   → soundPrep
+        public readonly int    T1;       // t1     → soundPrepT1
+        public readonly int    T2;       // t2     → soundPrepT2
+        public readonly float  Noise;    // noise  → noiseRadius
+
+        // ── <ammo> — Weapon.getAmmoParam ──────────────────────────────────────
+
+        public readonly int   Holder;      // holder  → magazineSize
+        public readonly float ReloadTime;  // reload  → reloadTime
+        public readonly int   Rashod;      // rashod  → ammoPerShot
+        public readonly int   Recharg;     // recharg → rechargeFrames
+        public readonly float Mana;        // mana    → manaHealthCost
+        public readonly float Magic;       // magic   → magicPoolCost
+
+        // ── <dop> — Weapon.getDopParam ────────────────────────────────────────
+
+        public readonly string Effect;    // effect → dopEffect
+        public readonly float  DopDamage; // damage → dopDamage
+        public readonly float  DopCh;     // ch     → dopChance
+        public readonly float  Probiv;    // probiv → penetration
+
+        // ── <com> — Weapon.getComParam ────────────────────────────────────────
+
+        /// <summary>
+        /// <c>com[variant]@price</c>. <b>Only <c>price</c> is read from the variant's own
+        /// <c>&lt;com&gt;</c> node</b> — <c>getComParam</c> takes <c>rep</c>, <c>price</c> and
+        /// <c>uniq</c> from <c>com[0]</c> and then re-reads <i>price alone</i> at
+        /// <c>com[variant]</c> (<c>Weapon.as:454-472</c>).
+        /// </summary>
+        public readonly float Price;
+
+        private WeaponVariantOverrides(WeaponVariantData v)
+        {
+            string ch = v.CharAttrs  ?? "";
+            string ph = v.PhisAttrs  ?? "";
+            string vs = v.VisAttrs   ?? "";
+            string sd = v.SndAttrs   ?? "";
+            string am = v.AmmoAttrs  ?? "";
+            string dp = v.DopAttrs   ?? "";
+            string cm = v.ComAttrs   ?? "";
+
+            MaxHp      = F(ch, "maxhp");
+            Damage     = F(ch, "damage");
+            ExplDamage = F(ch, "damexpl");
+            Rapid      = F(ch, "rapid");
+            Pier       = F(ch, "pier");
+            Crit       = F(ch, "crit");
+            Knock      = F(ch, "knock");
+            Tipdam     = I(ch, "tipdam");
+            Prec       = F(ch, "prec");
+            AntiPrec   = F(ch, "antiprec");
+            Destroy    = F(ch, "destroy");
+            Kol        = I(ch, "kol");
+            Dkol       = I(ch, "dkol");
+            Expl       = F(ch, "expl");
+            ExplTip    = I(ch, "expltip");
+            ExplKol    = I(ch, "explkol");
+            Prep       = I(ch, "prep");
+            Power      = Flag(ch, "pow");
+            Combo      = Flag(ch, "combo");
+            Auto       = AutoFlag(ch);
+
+            Massa     = F(ph, "massa");
+            Speed     = F(ph, "speed");
+            Deviation = F(ph, "deviation");
+            Flame     = I(ph, "flame");
+            Grav      = F(ph, "grav");
+            Accel     = F(ph, "accel");
+            Navod     = F(ph, "navod");
+            Bumc      = Flag(ph, "bumc");
+            Recoil    = I(ph, "recoil");
+            Long      = F(ph, "long");
+            MinLong   = F(ph, "minlong");
+
+            Vweap    = S(vs, "vweap");
+            Vbul     = S(vs, "vbul");
+            VisExpl  = S(vs, "visexpl");
+            Spring   = I(vs, "spring");
+            BulAnim  = Flag(vs, "bulanim");
+            PhisBul  = Flag(vs, "phisbul");
+            Shell    = Flag(vs, "shell");
+            Shine    = I(vs, "shine");
+            Tipdec   = I(vs, "tipdec");
+            Flare    = S(vs, "flare");
+
+            Shoot   = S(sd, "shoot");
+            Reload  = S(sd, "reload");
+            Hit     = S(sd, "hit");
+            PrepSnd = S(sd, "prep");
+            T1      = I(sd, "t1");
+            T2      = I(sd, "t2");
+            Noise   = F(sd, "noise");
+
+            Holder     = I(am, "holder");
+            ReloadTime = F(am, "reload");
+            Rashod     = I(am, "rashod");
+            Recharg    = I(am, "recharg");
+            Mana       = F(am, "mana");
+            Magic      = F(am, "magic");
+
+            Effect    = S(dp, "effect");
+            DopDamage = F(dp, "damage");
+            DopCh     = F(dp, "ch");
+            Probiv    = F(dp, "probiv");
+
+            Price = F(cm, "price");
+        }
+
+        /// <summary>
+        /// Parse a weapon's stored tier-1 runs, or <c>null</c> when the row has no second
+        /// <c>&lt;char&gt;</c> — the honest answer for 142 of the 213 weapons, and the state every
+        /// pre-existing asset loads as.
+        /// </summary>
+        public static WeaponVariantOverrides Parse(WeaponVariantData data)
+            => data.IsPresent ? new WeaponVariantOverrides(data) : null;
+
+        // ── Attribute readers ─────────────────────────────────────────────────
+        //
+        // One reader per type, each returning its sentinel when the attribute is absent. Presence is
+        // asked with AttrPresent (a `@x.length()` test), never inferred from the parsed value — that is
+        // the distinction `knock='0'` needs.
+
+        private static float F(string run, string name)
+            => WeaponXmlAttrs.AttrPresent(run, name) ? WeaponXmlAttrs.AttrF(run, name) : AbsentFloat;
+
+        private static int I(string run, string name)
+            => WeaponXmlAttrs.AttrPresent(run, name) ? WeaponXmlAttrs.AttrI(run, name) : AbsentInt;
+
+        private static string S(string run, string name)
+            => WeaponXmlAttrs.AttrPresent(run, name) ? WeaponXmlAttrs.Attr(run, name) : null;
+
+        /// <summary>Presence-only flag: <c>1</c> when authored, <c>-1</c> when not.</summary>
+        private static int Flag(string run, string name)
+            => WeaponXmlAttrs.AttrPresent(run, name) ? 1 : -1;
+
+        /// <summary>
+        /// <c>@auto</c> as AS3 reads it: present and <c>!= '0'</c> is true, present and <c>'0'</c> is
+        /// false, absent is "derive from <c>rapid</c>" (which <c>ApplyTo</c> does, because the port
+        /// encodes that as <c>autoMode == 0</c>).
+        /// </summary>
+        private static int AutoFlag(string run)
+        {
+            if (!WeaponXmlAttrs.AttrPresent(run, "auto")) return -1;
+            return WeaponXmlAttrs.Attr(run, "auto") != "0" ? 1 : 0;
         }
     }
 
