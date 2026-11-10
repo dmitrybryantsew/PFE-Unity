@@ -47,7 +47,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars, 16: Room, 17: Cheats, 18: Security, 19: Difficulty
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars, 16: Room, 17: Cheats, 18: Security, 19: Difficulty, 20: Camera
 
         private static readonly string[] TabNames = new string[]
         {
@@ -70,7 +70,8 @@ namespace PFE.Core.Scripting
             "🏠 Room",
             "🎮 Cheats",
             "🔐 Security",
-            "⚙️ Difficulty"
+            "⚙️ Difficulty",
+            "📷 Camera"
         };
 
         /// <summary>How many tabs the strip actually ships. Exposed <b>so the strip test can assert against
@@ -152,6 +153,18 @@ namespace PFE.Core.Scripting
         /// than pretending.</para>
         /// </remarks>
         private const int DifficultyTab = 19;
+
+        /// <summary>
+        /// Index of the "Camera" tab — the AS3 <c>zoom100</c> option: room-static (whole room fitted
+        /// and centred) versus the port's player-follow camera.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Exempt from the no-player guard, like DifficultyTab.</b> The mode flag is a static
+        /// on <see cref="PFE.Core.CameraFollow"/>, not a field on the player, and the room centre is
+        /// derived from world coordinates. Being able to switch the camera while no player exists is
+        /// exactly the case where a scene-wired follow target would otherwise be missing.</para>
+        /// </remarks>
+        private const int CameraTab = 20;
 
         // Scroll positions for each tab
         private Vector2 _pipStatsScroll;
@@ -931,10 +944,13 @@ namespace PFE.Core.Scripting
             //
             // The Difficulty tab (19) is exempt because GlobalDifficulty is a static: nothing on it
             // reads the player, and choosing a difficulty before a run exists is the whole point.
+            //
+            // The Camera tab (20) is exempt for the same reason: CameraFollow.StaticRoomCamera is a
+            // static and a room-static camera does not need a follow target at all.
             if (player == null && _activeTab != 9 && _activeTab != LandsTab &&
                 _activeTab != LandStateTab && _activeTab != LandMapTab && _activeTab != SaveLoadTab &&
                 _activeTab != CampaignVarsTab && _activeTab != RoomTab && _activeTab != SecurityTab &&
-                _activeTab != DifficultyTab)
+                _activeTab != DifficultyTab && _activeTab != CameraTab)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
                 GUI.DragWindow(new Rect(0, 0, _windowRect.width, 30));
@@ -1002,6 +1018,9 @@ namespace PFE.Core.Scripting
                     break;
                 case DifficultyTab:
                     DrawDifficultyTab(player);
+                    break;
+                case CameraTab:
+                    DrawCameraTab(player);
                     break;
             }
 
@@ -1546,12 +1565,6 @@ namespace PFE.Core.Scripting
         private RoomInstance _unitSpawnTrackedRoom;
 
         /// <summary>
-        /// Monotonic counter for the debug entity ids. It makes a debug spawn's id distinct from every
-        /// authored one by construction (<c>room:debug:&lt;id&gt;:NNN</c>), instead of guessing at an
-        /// index that the room's own spawn pass also uses.
-        /// </summary>
-        private int _unitSpawnSerial;
-
         // ── Lands tab (11) state ──────────────────────────────────────────────
         //
         // This tab is the debug stand-in for the travel-map PAGE, which does not exist yet — the camp's
@@ -2005,9 +2018,9 @@ namespace PFE.Core.Scripting
 
                 var unit = new UnitInstance
                 {
-                    entityId = PFE.Core.Ids.EntityId
-                        .CreateForRoomSpawn(room.RoomInstance.id, "debug:" + unitId, _unitSpawnSerial++)
-                        .ToString(),
+                    // Phase 3.2 (F-05): even a debug spawn goes through the host allocator, or a
+                    // console-spawned unit would mint an id the replay cannot reproduce.
+                    entityId = PFE.Core.RuntimeEntityIdContext.AllocateRuntimeId().ToString(),
                     unitId = unitId,
                     unitType = unitId,
                     isDead = false,
@@ -8925,6 +8938,97 @@ namespace PFE.Core.Scripting
         // =========================================================================
         // TAB 19: DIFFICULTY (globalDif — Axis A)
         // =========================================================================
+
+        private Vector2 _cameraScroll;
+
+        /// <summary>
+        /// Camera tab. One toggle implements the AS3 <c>zoom100</c> option: the shipped default
+        /// (<c>isZoom=2</c>) fits the whole room and holds it centred, while 1:1 follows the player.
+        /// Everything else here is a LIVE readout — the flag has exactly one owner, the static on
+        /// <see cref="PFE.Core.CameraFollow"/>, so this tab cannot disagree with the camera.
+        /// </summary>
+        private void DrawCameraTab(PlayerController player)
+        {
+            _cameraScroll = GUILayout.BeginScrollView(_cameraScroll);
+
+            GUILayout.Label("<b>Room camera</b> — <color=#AAAAAA>AS3 zoom100 / Camera.setLoc</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.BeginVertical(_cardStyle);
+            bool isStatic = PFE.Core.CameraFollow.StaticRoomCamera;
+            bool next = CheatToggle(isStatic, "Room-static camera",
+                "ON = whole room centred, never scrolls. OFF = follow the player.");
+            if (next != isStatic)
+            {
+                PFE.Core.CameraFollow.StaticRoomCamera = next;
+                EnsureCameraDriver(player);
+                isStatic = next;
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(6);
+
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                GUILayout.Label("<color=#FFAA33>No Camera.main in this scene — nothing to drive.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+            else
+            {
+                Vector2 room = PFE.Core.CameraFollow.RoomSizeUnity;
+                float fit = PFE.Core.CameraFollow.GetStaticOrthoSize(cam.aspect);
+                Vector3 anchor = player != null ? player.transform.position : cam.transform.position;
+                Vector3 center = PFE.Core.CameraFollow.GetStaticRoomCenter(anchor);
+
+                GUILayout.Label($"mode <b>{(isStatic ? "static (whole room)" : "follow player")}</b>   " +
+                                $"<color=#AAAAAA>ortho {cam.orthographicSize:0.###} · aspect {cam.aspect:0.###} · " +
+                                $"{(cam.orthographic ? "orthographic" : "perspective")}</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.Label($"camera <b>({cam.transform.position.x:0.##}, {cam.transform.position.y:0.##})</b>   " +
+                                $"room centre <b>({center.x:0.##}, {center.y:0.##})</b>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.Label($"<color=#AAAAAA>room {room.x:0.##} x {room.y:0.##} units · " +
+                                $"whole-room fit needs ortho {fit:0.###}</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.Label("<color=#AAAAAA><size=11>" + CameraDriverStatus(cam) + "</size></color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.Space(6);
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>Scope</b>", GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>Runtime-only: this is an F2 debug toggle, not a persisted option. It resets when Play Mode restarts.</size></color>", GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>Standard 48x25 rooms. AS3's oversized rooms scrolled even when zoomed out; the port has no such room rect yet.</size></color>", GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>Mouse aim, world-anchored overlays, audio pan and the LandFon backdrop read Camera.main live — no rewiring was needed.</size></color>", GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>Not ported: keyZoom cycling, quake screen shake, showOn cutscene pan, cinematic bars.</size></color>", GUILayout.ExpandWidth(true));
+            GUILayout.EndVertical();
+
+            GUILayout.EndScrollView();
+        }
+
+        private static string CameraDriverStatus(Camera cam)
+        {
+            var follow = cam.GetComponent<PFE.Core.CameraFollow>();
+            return follow != null
+                ? "Driver present: CameraFollow on " + cam.name + "."
+                : "Driver MISSING on " + cam.name + " — flip the toggle once to add it.";
+        }
+
+        /// <summary>
+        /// The camera component is Inspector-wired in <c>SampleScene.unity</c>. Guarantee a driver
+        /// exists so the F2 toggle cannot be silently dead in a scene that lacks it. A driver added
+        /// here gets the live player as its follow target, so switching back to follow still works.
+        /// </summary>
+        private static void EnsureCameraDriver(PlayerController player)
+        {
+            Camera cam = Camera.main;
+            if (cam == null) return;
+            var follow = cam.GetComponent<PFE.Core.CameraFollow>();
+            if (follow != null) return;
+            follow = cam.gameObject.AddComponent<PFE.Core.CameraFollow>();
+            if (player != null) follow.SetTarget(player.transform);
+        }
 
         private Vector2 _difficultyScroll;
 

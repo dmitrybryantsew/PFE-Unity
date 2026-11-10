@@ -416,7 +416,10 @@ namespace PFE.Systems.Map.Streaming
             }
 
             // Snap the camera the way a door transition does. CameraFollow smooths, so without this
-            // the view pans in from the room the player just left.
+            // the view pans in from the room the player just left. In room-static mode the snap has
+            // to land on the ROOM centre, not the player: CameraFollow.LateUpdate would correct it
+            // on the following frame, but that leaves one frame of player-centred view on every
+            // room restore.
             GameObject target = player;
             if (target == null)
             {
@@ -433,7 +436,15 @@ namespace PFE.Systems.Map.Streaming
                 var follow = mainCam.GetComponent<PFE.Core.CameraFollow>();
                 float camZ = follow != null ? follow.offset.z : -10f;
                 Vector3 playerPos = target.transform.position;
-                mainCam.transform.position = new Vector3(playerPos.x, playerPos.y, camZ);
+                if (PFE.Core.CameraFollow.StaticRoomCamera)
+                {
+                    Vector3 center = PFE.Core.CameraFollow.GetStaticRoomCenter(playerPos);
+                    mainCam.transform.position = new Vector3(center.x, center.y, camZ);
+                }
+                else
+                {
+                    mainCam.transform.position = new Vector3(playerPos.x, playerPos.y, camZ);
+                }
             }
 
             Debug.Log($"[RoomTransitionManager] Applied restored room {room.id} (left: {(previous != null ? previous.id : "None")})");
@@ -819,13 +830,22 @@ namespace PFE.Systems.Map.Streaming
                 motor.RepositionForRoom(toRoom, spawnPos);
             }
 
-            // Snap camera directly to player in the new room
+            // Snap camera directly to player in the new room — or to the room centre when the
+            // room-static camera is enabled. Same one-frame-flash reason as ApplyRestoredRoom.
             Camera mainCam = Camera.main;
             if (mainCam != null)
             {
                 var follow = mainCam.GetComponent<PFE.Core.CameraFollow>();
                 float camZ = follow != null ? follow.offset.z : -10f;
-                mainCam.transform.position = new Vector3(spawnPos.x, spawnPos.y, camZ);
+                if (PFE.Core.CameraFollow.StaticRoomCamera)
+                {
+                    Vector3 center = PFE.Core.CameraFollow.GetStaticRoomCenter(spawnPos);
+                    mainCam.transform.position = new Vector3(center.x, center.y, camZ);
+                }
+                else
+                {
+                    mainCam.transform.position = new Vector3(spawnPos.x, spawnPos.y, camZ);
+                }
             }
 
             // Wait for transition duration

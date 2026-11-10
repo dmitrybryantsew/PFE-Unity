@@ -880,7 +880,7 @@ public class MapBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// Setup camera to follow the player.
+    /// Set up the camera driver for the player.
     /// </summary>
     private void SetupCameraFollow()
     {
@@ -891,37 +891,29 @@ public class MapBridge : MonoBehaviour
             return;
         }
 
-        // Add CameraFollow component via reflection to avoid compile issues
-        var followType = System.Type.GetType("PFE.Core.CameraFollow, Assembly-CSharp");
-        if (followType == null)
-        {
-            // Fallback: just position camera at player
-            if (_debugSettings?.LogMapBridgeLifecycle == true)
-                Debug.Log("[MapBridge] CameraFollow not yet compiled, positioning camera directly");
-            mainCamera.transform.position = new Vector3(
-                _playerTransform.position.x,
-                _playerTransform.position.y,
-                -10
-            );
-            return;
-        }
-
-        var follow = mainCamera.GetComponent(followType);
+        // Typed, not reflected. The old lookup was
+        //   System.Type.GetType("PFE.Core.CameraFollow, Assembly-CSharp")
+        // but CameraFollow.cs compiles into PFE.View (PFE.View.asmdef covers Core/), so that lookup
+        // ALWAYS returned null and this method silently took the "position the camera once" fallback.
+        // The follow camera worked only because SampleScene.unity happens to serialize a CameraFollow
+        // with an Inspector-wired target — exactly the scene-only dependency a runtime toggle cannot
+        // rely on. MapBridge and CameraFollow are in the same assembly, so a direct reference is
+        // legal, checked by the compiler, and cannot fail silently at runtime.
+        var follow = mainCamera.GetComponent<CameraFollow>();
         if (follow == null)
         {
-            follow = mainCamera.gameObject.AddComponent(followType);
+            follow = mainCamera.gameObject.AddComponent<CameraFollow>();
         }
 
-        // Set target via reflection
-        var setTargetMethod = followType.GetMethod("SetTarget");
-        setTargetMethod?.Invoke(follow, new object[] { _playerTransform });
+        follow.SetTarget(_playerTransform);
+        follow.smoothSpeed = 5f;
+        follow.offset = new Vector3(0, 0, -10);
 
-        // Set properties
-        followType.GetField("smoothSpeed")?.SetValue(follow, 5f);
-        followType.GetField("offset")?.SetValue(follow, new Vector3(0, 0, -10));
-
+        // CameraFollow.StaticRoomCamera is process-wide, so a driver added here joins whatever mode
+        // the F2 tab selected without anyone having to push the flag into this component.
         if (_debugSettings?.LogMapBridgeLifecycle == true)
-            Debug.Log("[MapBridge] Camera follow setup complete");
+            Debug.Log("[MapBridge] Camera follow setup complete" +
+                      (CameraFollow.StaticRoomCamera ? " (room-static mode)" : string.Empty));
     }
 
     private void OnDestroy()
