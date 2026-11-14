@@ -195,6 +195,15 @@ namespace PFE.Systems.Map.Serialization
                 // checkpoint the player returns to are derived from landStage / the checkpoint record.
                 RestoreCampaignState(saveData);
 
+                // AS3 Game.load's difficulty arm (Game.as:181-190) — restore the run's setting BEFORE the
+                // player snapshot, so the Pers parameter table (organMult/dieDamage/teleMana/difCapsMult)
+                // is already the saved difficulty's when the snapshot's own HP/level land on top of it.
+                // Seed, not Change: a save at Normal must still re-apply Normal's table, and Seed is what
+                // fires GlobalDifficulty.Changed → PlayerController → CharacterStats.
+                PFE.Systems.Campaign.GlobalDifficulty.SeedFromSave(saveData.dif);
+                Debug.Log($"[SaveManager] restored globalDif = " +
+                          $"{PFE.Systems.Campaign.GlobalDifficulty.Value} (saved dif = {saveData.dif}).");
+
                 // Restore player state
                 RestorePlayerState(saveData.player);
 

@@ -304,11 +304,66 @@ namespace PFE.Tests.Editor.Map.Serialization
             var chain = new SaveMigrationChain();
             var migrated = chain.Migrate(legacyV0Save);
 
-            Assert.AreEqual(1, migrated.saveFormatVersion);
+            // The chain runs to the CURRENT format, not one step. Asserting the literal 1 here pinned
+            // the wrong thing: it broke the moment v2 landed, and it never said which version the chain
+            // was supposed to reach.
+            Assert.AreEqual(SaveMigrationChain.CurrentFormatVersion, migrated.saveFormatVersion);
             Assert.IsNotNull(migrated.player.rpgStats);
             Assert.AreEqual(3, migrated.player.rpgStats.level);
             Assert.AreEqual(450, migrated.player.rpgStats.xp);
             Assert.IsNotNull(migrated.player.inventory);
+        }
+
+        /// <summary>
+        /// A save written before <c>dif</c> existed must come back at <b>Normal</b> — AS3's
+        /// <c>else globalDif = 2</c> arm (<c>Game.as:183-190</c>) — and specifically <b>not</b> at Very
+        /// easy, which is what a plain <c>int</c> default of 0 would have produced.
+        /// </summary>
+        [Test]
+        public void SaveMigration_V1ToV2_GivesAnAbsentDifficultyNormal()
+        {
+            var v1Save = new WorldSaveData
+            {
+                saveId = "v1_save",
+                timestamp = 700,
+                saveFormatVersion = 1,
+                minX = 0, minY = 0, minZ = 0, maxX = 1, maxY = 1, maxZ = 0,
+                player = new PlayerStateSnapshot { level = 1, health = 100f, maxHealth = 100f }
+            };
+
+            // A v1 file cannot carry dif at all, so the field holds its sentinel.
+            Assert.AreEqual(PFE.Systems.Campaign.GlobalDifficulty.NotSaved, v1Save.dif);
+
+            var migrated = new SaveMigrationChain().Migrate(v1Save);
+
+            Assert.AreEqual(2, migrated.saveFormatVersion);
+            Assert.AreEqual(PFE.Systems.Campaign.GlobalDifficulty.Default, migrated.dif);
+            Assert.AreEqual(2, migrated.dif, "Normal is 2 — an absent dif must not become Very easy (0).");
+        }
+
+        /// <summary>
+        /// A current-format save keeps the difficulty it was written with — the migration must not
+        /// stamp Normal over a real value, and Very easy (0) is the case that proves the sentinel is
+        /// doing the work.
+        /// </summary>
+        [Test]
+        public void SaveMigration_CurrentFormat_KeepsEveryDifficultyIncludingZero()
+        {
+            for (int dif = 0; dif <= 4; dif++)
+            {
+                var save = new WorldSaveData
+                {
+                    saveId = $"v2_save_{dif}",
+                    timestamp = 800,
+                    saveFormatVersion = SaveMigrationChain.CurrentFormatVersion,
+                    dif = dif
+                };
+
+                var migrated = new SaveMigrationChain().Migrate(save);
+
+                Assert.AreEqual(dif, migrated.dif, $"dif {dif} was rewritten by the migration chain.");
+                Assert.AreEqual(SaveMigrationChain.CurrentFormatVersion, migrated.saveFormatVersion);
+            }
         }
 
         [Test]

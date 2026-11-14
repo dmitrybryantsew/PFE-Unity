@@ -14,16 +14,20 @@ namespace PFE.Systems.Campaign
     /// assigns a field nothing reads has changed nothing (project rule: "a field with no consumer is not
     /// done"), so the applier writes only the cells whose destination exists and is read in this port:</para>
     /// <list type="table">
-    /// <item><term>applied</term><description><see cref="OrganMult"/> (organ damage scale,
-    /// <c>CharacterStats.organMult</c>), <see cref="DieDamage"/> (fatal fraction,
+    /// <item><term>applied</term><description><see cref="BegHp"/> and <see cref="LvlHp"/> (the player's
+    /// <b>main</b> HP pool, through <see cref="MaxHpAtLevel"/>), <see cref="OrganMult"/> (organ damage
+    /// scale, <c>CharacterStats.organMult</c>), <see cref="DieDamage"/> (fatal fraction,
     /// <c>CharacterStats.dieDamage</c>), <see cref="TeleMana"/> (telekinesis organ upkeep,
     /// <c>CharacterStats.teleMana</c>), <see cref="DifCapsMult"/> (the loot money/bits multiplier,
     /// <c>LootGen.as:245-252</c>).</description></item>
-    /// <item><term>spec only</term><description><see cref="BegHp"/>, <see cref="LvlHp"/>,
-    /// <see cref="CritHeal"/>, the five <c>Price*</c> values and <see cref="HimBadDif"/>. The oracle reads
-    /// each of them (organ init, level-up, healing, med vendors, addiction) but the port has no destination
-    /// field for any of them yet, so they are carried here so that the day a consumer lands the value is
-    /// already correct rather than re-derived from a guess.</description></item>
+    /// <item><term>applied elsewhere</term><description>the five <c>Price*</c> values. They are not
+    /// written onto <c>CharacterStats</c> — the doctor's price list reads the table directly
+    /// (<c>PipMedPrices.ForDifficulty</c>), so they are live even though the applier skips
+    /// them.</description></item>
+    /// <item><term>spec only</term><description><see cref="CritHeal"/> and <see cref="HimBadDif"/>. The
+    /// oracle reads both (critical healing, chem addiction) but the port has no destination field for
+    /// either yet, so they are carried here so that the day a consumer lands the value is already correct
+    /// rather than re-derived from a guess.</description></item>
     /// <item><term>not reproduced</term><description><see cref="PetRes"/> — the oracle assigns it per
     /// difficulty and then <c>defaultParams()</c> overwrites it with the literal 30 on every
     /// <c>setParameters()</c> (<c>Pers.as:861</c>), so the effective value is always 30. The cell is
@@ -38,10 +42,24 @@ namespace PFE.Systems.Campaign
         /// <summary>The difficulty index this row was built for, 0..4.</summary>
         public readonly int Index;
 
-        /// <summary>AS3 <c>begHP</c> — starting organ HP (<c>Pers.as:763,778,793,808,825</c>). Spec only.</summary>
+        /// <summary>
+        /// AS3 <c>begHP</c> — the player's <b>main</b> HP pool at level 1 (<c>Pers.as:763,778,793,808,825</c>).
+        /// <b>Applied</b> through <see cref="MaxHpAtLevel"/>.
+        ///
+        /// <para><b>Not organ HP.</b> The oracle writes it to <c>gg.maxhp</c> — the <c>UnitPlayer</c> whose
+        /// bar the HUD and the doctor's "hp" row draw (<c>Pers.as:845</c>, <c>UnitPlayer.as:409</c>). Organ
+        /// HP is a separate, difficulty-independent pool: <c>inMaxHP = 200</c> is a literal in
+        /// <c>defaultParams()</c> (<c>Pers.as:847</c>) and grows by <c>lvlOrganHp = 40</c>, which
+        /// <c>setGlobalDif</c> never touches (<c>Pers.as:157,2166</c>). A comment in this file claimed the
+        /// opposite until 2026-11-10 and would have wired the table into the wrong pool.</para>
+        /// </summary>
         public readonly int BegHp;
 
-        /// <summary>AS3 <c>lvlHP</c> — HP gained per level. Spec only.</summary>
+        /// <summary>
+        /// AS3 <c>lvlHP</c> — main HP gained per level (<c>Pers.as:2165</c>:
+        /// <c>gg.maxhp += (level - 1) * lvlHP</c>). <b>Applied</b> through <see cref="MaxHpAtLevel"/>.
+        /// Not the organ curve — see <see cref="BegHp"/>.
+        /// </summary>
         public readonly int LvlHp;
 
         /// <summary>AS3 <c>organMult</c> — the organ wound multiplier. <b>Applied.</b></summary>
@@ -56,19 +74,19 @@ namespace PFE.Systems.Campaign
         /// <summary>AS3 <c>teleMana</c> — the telekinesis upkeep. <b>Applied.</b></summary>
         public readonly float TeleMana;
 
-        /// <summary>AS3 <c>priceBlood</c>. Spec only.</summary>
+        /// <summary>AS3 <c>priceBlood</c>. Read by <c>PipMedPrices.ForDifficulty</c>.</summary>
         public readonly float PriceBlood;
 
-        /// <summary>AS3 <c>priceOrgan</c>. Spec only.</summary>
+        /// <summary>AS3 <c>priceOrgan</c>. Read by <c>PipMedPrices.ForDifficulty</c>.</summary>
         public readonly float PriceOrgan;
 
-        /// <summary>AS3 <c>priceRad</c>. Spec only.</summary>
+        /// <summary>AS3 <c>priceRad</c>. Read by <c>PipMedPrices.ForDifficulty</c>.</summary>
         public readonly float PriceRad;
 
-        /// <summary>AS3 <c>pricePoison</c>. Spec only.</summary>
+        /// <summary>AS3 <c>pricePoison</c>. Read by <c>PipMedPrices.ForDifficulty</c>.</summary>
         public readonly float PricePoison;
 
-        /// <summary>AS3 <c>priceCut</c>. Spec only.</summary>
+        /// <summary>AS3 <c>priceCut</c>. Read by <c>PipMedPrices.ForDifficulty</c>.</summary>
         public readonly float PriceCut;
 
         /// <summary>
@@ -172,6 +190,32 @@ namespace PFE.Systems.Campaign
                         teleMana: 0.5f, priceBlood: 0.5f, priceOrgan: 0.5f, priceRad: 1f,
                         pricePoison: 4f, priceCut: 4f, difCapsMult: 1f, himBadDif: 1.3f, petRes: 30f);
             }
+        }
+
+        /// <summary>
+        /// The player's <b>main</b> HP pool at a level — AS3 <c>Pers.defaultParams</c>'s
+        /// <c>gg.maxhp = begHP</c> (<c>Pers.as:845</c>) followed by <c>setParameters</c>'s
+        /// <c>gg.maxhp += (level - 1) * lvlHP</c> (<c>Pers.as:2165</c>), as one expression.
+        ///
+        /// <para><b>This is the only place the player's HP curve is decided.</b> It replaces the
+        /// <c>LevelCurve</c> asset's <c>baseHp</c>/<c>hpPerLevel</c>, which were a single hard-coded pair
+        /// (100 / 15) applied at every difficulty — the oracle varies both per difficulty, so a Very easy
+        /// run was starting on Normal's pool and a Super-hard run on Normal's too.</para>
+        ///
+        /// <para><b>Organs are not this.</b> <c>inMaxHP</c> is the literal 200 plus
+        /// <c>(level - 1) * lvlOrganHp</c> with <c>lvlOrganHp = 40</c> — a constant the oracle's
+        /// <c>setGlobalDif</c> never writes (<c>Pers.as:157,2166</c>). Feeding this table into the organ
+        /// pool would be a different, invented rule.</para>
+        ///
+        /// <para><c>level</c> is floored at 1 because the oracle's <c>Pers.level</c> starts there; a
+        /// level-0 read would otherwise return <c>begHP - lvlHP</c>, which no difficulty should
+        /// produce.</para>
+        /// </summary>
+        public static float MaxHpAtLevel(int globalDif, int level)
+        {
+            PersDifficultyTable row = PersTable(globalDif);
+            int clampedLevel = level < 1 ? 1 : level;
+            return row.BegHp + (clampedLevel - 1) * row.LvlHp;
         }
 
         /// <summary>

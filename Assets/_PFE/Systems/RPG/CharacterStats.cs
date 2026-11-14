@@ -1436,7 +1436,10 @@ namespace PFE.Systems.RPG
 
             SeedSkillIds();
 
-            maxHp = levelCurve != null ? levelCurve.BaseHp : 100f;
+            // Main HP is the difficulty table's (AS3 begHP + (level-1)*lvlHP). Organ HP is NOT: the
+            // oracle's inMaxHP is the literal 200 and lvlOrganHp a constant 40 (Pers.as:847,157,2166),
+            // so the LevelCurve asset stays the owner of the organ curve and only the organ curve.
+            maxHp = DifficultyRules.MaxHpAtLevel(GlobalDifficulty.Value, level);
             inMaxHP = levelCurve != null ? levelCurve.BaseOrganHp : 200f;
             inMaxMana = 400f;
             organMaxHp = inMaxHP;
@@ -1896,7 +1899,9 @@ namespace PFE.Systems.RPG
         {
             EnsureResources();
 
-            maxHp = levelCurve != null ? levelCurve.BaseHp : 100f;
+            // AS3 defaultParams()'s `gg.maxhp = begHP` (Pers.as:845) — the difficulty table owns the
+            // player's main pool. `inMaxHP = 200` right below is the oracle's own literal (Pers.as:847).
+            maxHp = DifficultyRules.MaxHpAtLevel(GlobalDifficulty.Value, level);
             inMaxHP = levelCurve != null ? levelCurve.BaseOrganHp : 200f;
             inMaxMana = 400f;
             organMaxHp = inMaxHP;
@@ -2214,9 +2219,14 @@ namespace PFE.Systems.RPG
             ResetToDefaults();
 
             // 3. Level scaling (AS3 Pers.as:2165-2166)
-            int hpPerLevel = levelCurve != null ? levelCurve.HpPerLevel : 15;
+            //
+            // The two terms have different owners on purpose. Main HP is the difficulty table's
+            // (`maxhp += (level - 1) * lvlHP`), so MaxHpAtLevel re-derives the whole value rather than
+            // adding to the one ResetToDefaults just wrote — one expression, one place to pin. The organ
+            // term is NOT difficulty-dependent: `lvlOrganHp` is the constant 40 and `inMaxHP` starts at
+            // the literal 200 (Pers.as:157,847), so it keeps reading the LevelCurve asset.
             int organHpPerLevel = levelCurve != null ? levelCurve.OrganHpPerLevel : 40;
-            maxHp += (level - 1) * hpPerLevel;
+            maxHp = DifficultyRules.MaxHpAtLevel(GlobalDifficulty.Value, level);
             inMaxHP += (level - 1) * organHpPerLevel;
             organMaxHp = inMaxHP;
 

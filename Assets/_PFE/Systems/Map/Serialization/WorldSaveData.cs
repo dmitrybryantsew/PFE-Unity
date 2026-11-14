@@ -47,6 +47,17 @@ namespace PFE.Systems.Map.Serialization
         public bool isRandomWorld;
         public int playTime;  // Seconds
 
+        /// <summary>
+        /// The run's difficulty setting — AS3 <c>Game.save</c>'s <c>_loc1_.dif = this.globalDif</c>
+        /// (<c>Game.as:99</c>), restored by <c>Game.load</c> (<c>:183-190</c>).
+        ///
+        /// <para><b><see cref="PFE.Systems.Campaign.GlobalDifficulty.NotSaved"/> means "absent", not
+        /// 0.</b> A pre-v2 file has no <c>dif</c> key at all, and 0 is a legitimate Very easy run, so the
+        /// default has to be distinguishable from every real value. <c>V1ToV2SaveMigrator</c> resolves
+        /// it to Normal the way the oracle's <c>else</c> arm does.</para>
+        /// </summary>
+        public int dif = PFE.Systems.Campaign.GlobalDifficulty.NotSaved;
+
         // ---- Campaign state (AS3 Game.save / LandAct.save, Game.as:86-309 / LandAct.as:267-301) ----
         //
         // Without these the descent is lost on reload: `landStage` resets to 0, every `openland` and
@@ -123,7 +134,16 @@ namespace PFE.Systems.Map.Serialization
                 player = playerState,
                 isRandomWorld = true,  // TODO: Get from world builder
                 worldSeed = "",  // TODO: Get from world builder
-                playTime = 0  // TODO: Track play time
+                playTime = 0,  // TODO: Track play time
+
+                // AS3 Game.as:99 — `_loc1_.dif = this.globalDif`. Stamped here rather than at the call
+                // site so every writer (named slot, quick save, checkpoint autosave) carries it.
+                dif = PFE.Systems.Campaign.GlobalDifficulty.Value,
+
+                // A save is written in the CURRENT format. Without this the field would keep its declared
+                // 1 and every fresh save would be run through the v1→v2 migrator on load, which would
+                // overwrite the real difficulty with the migration default.
+                saveFormatVersion = SaveMigrationChain.CurrentFormatVersion
             };
 
             // Serialize all rooms

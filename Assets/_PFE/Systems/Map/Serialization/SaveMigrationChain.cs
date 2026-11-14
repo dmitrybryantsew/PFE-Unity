@@ -13,13 +13,14 @@ namespace PFE.Systems.Map.Serialization
     /// </summary>
     public class SaveMigrationChain
     {
-        public const int CurrentFormatVersion = 1;
+        public const int CurrentFormatVersion = 2;
 
         private readonly List<ISaveMigrator> _migrators = new List<ISaveMigrator>();
 
         public SaveMigrationChain()
         {
             RegisterMigrator(new V0ToV1SaveMigrator());
+            RegisterMigrator(new V1ToV2SaveMigrator());
         }
 
         public void RegisterMigrator(ISaveMigrator migrator)
@@ -95,6 +96,35 @@ namespace PFE.Systems.Map.Serialization
             }
 
             data.saveFormatVersion = 1;
+            return data;
+        }
+    }
+
+    /// <summary>
+    /// Migrates version 1 saves to version 2 by giving them a difficulty.
+    ///
+    /// <para>v1 predates <c>WorldSaveData.dif</c>, so there is nothing to recover: AS3's restore arm
+    /// answers <b>Normal</b> when the field is absent (<c>Game.as:183-190</c>, the
+    /// <c>else globalDif = 2</c> branch), and that is what this writes. Note it is <b>2</b> and not the
+    /// field's own <c>NotSaved</c> sentinel: the point of migrating is that every loaded save leaves this
+    /// chain with a real, in-range difficulty, so the load path never has to reason about absence
+    /// again.</para>
+    /// </summary>
+    public class V1ToV2SaveMigrator : ISaveMigrator
+    {
+        public int SourceVersion => 1;
+        public int TargetVersion => 2;
+
+        public WorldSaveData Migrate(WorldSaveData data)
+        {
+            if (data == null) return null;
+
+            if (data.dif < 0)
+            {
+                data.dif = PFE.Systems.Campaign.GlobalDifficulty.Default;
+            }
+
+            data.saveFormatVersion = 2;
             return data;
         }
     }

@@ -23,10 +23,10 @@ namespace PFE.Systems.RPG.Data
         [SerializeField] public int skillPointsPerLevel = 5;
 
         [Header("HP Settings")]
-        [Tooltip("Base HP at level 1 (varies by difficulty)")]
+        [Tooltip("Superseded: the player's main HP now comes from the difficulty table (Pers begHP/lvlHP).")]
         [SerializeField] public int baseHp = 100;
 
-        [Tooltip("HP added per level")]
+        [Tooltip("Superseded: the player's per-level HP now comes from the difficulty table (Pers lvlHP).")]
         [SerializeField] public int hpPerLevel = 15;
 
         [Tooltip("Organ HP (head/torso/legs/blood) added per level")]
@@ -42,7 +42,16 @@ namespace PFE.Systems.RPG.Data
         // Public properties (backwards compatible)
         public int XpDelta => xpDelta;
         public int SkillPointsPerLevel => skillPointsPerLevel;
+
+        /// <summary>
+        /// <b>Superseded — no longer read by gameplay.</b> The player's main HP pool comes from
+        /// <c>DifficultyRules.MaxHpAtLevel</c> (AS3 <c>begHP</c> + <c>(level - 1) * lvlHP</c>), because the
+        /// oracle varies both numbers per difficulty and this asset could only hold one pair. Kept
+        /// serialized so the importer and existing asset data round-trip.
+        /// </summary>
         public int BaseHp => baseHp;
+
+        /// <summary><b>Superseded — see <see cref="BaseHp"/>.</b></summary>
         public int HpPerLevel => hpPerLevel;
         public int OrganHpPerLevel => organHpPerLevel;
         public int BaseOrganHp => baseOrganHp;

@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using PFE.Core;
 using PFE.Systems.Campaign;
@@ -239,6 +240,87 @@ namespace PFE.Tests.Editor.Campaign
 
             Assert.That(DifficultyRules.PersTable(4).OrganMult, Is.EqualTo(1f).Within(1e-5));
             Assert.That(DifficultyRules.PersTable(4).DieDamage, Is.EqualTo(0.35f).Within(1e-5));
+        }
+
+        /// <summary>
+        /// The player's <b>main</b> HP pool — AS3 <c>gg.maxhp = begHP</c> (<c>Pers.as:845</c>) then
+        /// <c>+= (level - 1) * lvlHP</c> (<c>Pers.as:2165</c>).
+        ///
+        /// <para><b>Literals, deliberately.</b> Re-deriving the expected number from
+        /// <see cref="DifficultyRules.PersTable"/> would make the fixture agree with any table edit, which
+        /// is the same shape as a test that compares a value to the symbol it pins. These are the oracle's
+        /// own numbers (<c>Pers.as:763-826</c>), typed out.</para>
+        ///
+        /// <para><b>This is not the organ pool.</b> Organs are <c>inMaxHP = 200</c> plus
+        /// <c>(level - 1) * 40</c> at every difficulty (<c>Pers.as:157,847,2166</c>) — see
+        /// <see cref="MaxHpAtLevel_IsTheMainPool_NotTheOrganPool"/>.</para>
+        /// </summary>
+        [Test]
+        public void MaxHpAtLevel_MatchesTheOracleCurve()
+        {
+            // level 1 is begHP exactly.
+            Assert.That(DifficultyRules.MaxHpAtLevel(0, 1), Is.EqualTo(200f).Within(1e-4), "Very easy");
+            Assert.That(DifficultyRules.MaxHpAtLevel(1, 1), Is.EqualTo(150f).Within(1e-4), "Easy");
+            Assert.That(DifficultyRules.MaxHpAtLevel(2, 1), Is.EqualTo(100f).Within(1e-4), "Normal");
+            Assert.That(DifficultyRules.MaxHpAtLevel(3, 1), Is.EqualTo(70f).Within(1e-4), "Hard");
+            Assert.That(DifficultyRules.MaxHpAtLevel(4, 1), Is.EqualTo(40f).Within(1e-4), "Super-hard");
+
+            // level 2 adds one lvlHP: 25 / 25 / 20 / 15 / 10.
+            Assert.That(DifficultyRules.MaxHpAtLevel(0, 2), Is.EqualTo(225f).Within(1e-4));
+            Assert.That(DifficultyRules.MaxHpAtLevel(2, 2), Is.EqualTo(120f).Within(1e-4));
+            Assert.That(DifficultyRules.MaxHpAtLevel(4, 2), Is.EqualTo(50f).Within(1e-4));
+
+            // level 5 adds four: 300 / 250 / 180 / 130 / 80.
+            Assert.That(DifficultyRules.MaxHpAtLevel(0, 5), Is.EqualTo(300f).Within(1e-4));
+            Assert.That(DifficultyRules.MaxHpAtLevel(1, 5), Is.EqualTo(250f).Within(1e-4));
+            Assert.That(DifficultyRules.MaxHpAtLevel(2, 5), Is.EqualTo(180f).Within(1e-4));
+            Assert.That(DifficultyRules.MaxHpAtLevel(3, 5), Is.EqualTo(130f).Within(1e-4));
+            Assert.That(DifficultyRules.MaxHpAtLevel(4, 5), Is.EqualTo(80f).Within(1e-4));
+        }
+
+        /// <summary>
+        /// The difficulty setting must move the main pool at <b>every</b> level, not only at level 1 — a
+        /// flat level term would leave a level-20 Very easy run indistinguishable from a level-20 Normal
+        /// one, and that is invisible on screen until someone compares two runs.
+        /// </summary>
+        [Test]
+        public void MaxHpAtLevel_StaysOrderedAtEveryLevel()
+        {
+            foreach (int level in new[] { 1, 2, 5, 12, 30 })
+            {
+                for (int dif = 0; dif < 4; dif++)
+                {
+                    Assert.That(DifficultyRules.MaxHpAtLevel(dif, level),
+                        Is.GreaterThan(DifficultyRules.MaxHpAtLevel(dif + 1, level)),
+                        $"level {level}: difficulty {dif} must have more HP than {dif + 1}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// The two pools are separate, and this is the guard that keeps them separate: the organ curve
+        /// (<c>inMaxHP = 200</c>, <c>lvlOrganHp = 40</c>, both difficulty-independent —
+        /// <c>Pers.as:157,847,2166</c>) must not equal the main-HP curve at Normal, or a future
+        /// "simplification" could route organs through this table without any fixture noticing.
+        /// </summary>
+        [Test]
+        public void MaxHpAtLevel_IsTheMainPool_NotTheOrganPool()
+        {
+            // The oracle's organ constants, typed out: inMaxHP = 200, lvlOrganHp = 40 (Pers.as:157,847).
+            const float organAtLevel1 = 200f;
+            const float organAtLevel5 = 360f;   // 200 + 4 * 40
+
+            // Normal's main pool is neither of them, so the two curves cannot be confused by eye.
+            Assert.That(DifficultyRules.MaxHpAtLevel(2, 1), Is.Not.EqualTo(organAtLevel1),
+                "Normal main HP (100) must not be mistaken for the organ pool (200)");
+            Assert.That(DifficultyRules.MaxHpAtLevel(2, 5), Is.Not.EqualTo(organAtLevel5),
+                "the per-level terms differ too: lvlHP 20 vs lvlOrganHp 40");
+
+            // The main pool moves with the setting. The organ curve has no difficulty input at all —
+            // there is no such overload — and the source lint below pins that CharacterStats keeps
+            // reading the LevelCurve asset for organs.
+            Assert.That(DifficultyRules.MaxHpAtLevel(0, 3), Is.Not.EqualTo(DifficultyRules.MaxHpAtLevel(4, 3)),
+                "the whole point of the fix: the setting moves the main pool");
         }
 
         /// <summary>
@@ -580,6 +662,102 @@ namespace PFE.Tests.Editor.Campaign
             Assert.That(DifficultyRules.IsNoResBoss(2, hasLocation: false, landTip: "rbl"), Is.False);
             Assert.That(DifficultyRules.IsNoResBoss(2, hasLocation: true, landTip: null), Is.True,
                 "a null tip is not 'base' — the oracle compares against the literal");
+        }
+    }
+
+    /// <summary>
+    /// Source lints for the two places the difficulty fix had to touch that no offline fixture can
+    /// execute.
+    ///
+    /// <para><b>Why a lint and not a fixture.</b> <c>CharacterStats</c> is a <c>MonoBehaviour</c>:
+    /// <c>RecalculateStats</c> goes through <c>EnsureResources</c> and a component graph, so outside the
+    /// editor it throws <c>SecurityException</c> before reaching an assertion. The pure rule
+    /// (<see cref="DifficultyRules.MaxHpAtLevel"/>) is pinned by
+    /// <see cref="DifficultyRulesTests.MaxHpAtLevel_MatchesTheOracleCurve"/>; what that cannot see is
+    /// whether <c>CharacterStats</c> actually calls it — the "arithmetic perfect, wiring wrong" shape
+    /// this project keeps hitting. Same for the load ordering in <c>SaveManager</c>: seeding the
+    /// difficulty after the player snapshot restores is an end state identical to seeding before it, so
+    /// only the order of the two statements can be asserted.</para>
+    /// </summary>
+    [TestFixture]
+    public class DifficultyHpWiringLintTests
+    {
+        private const string StatsPath = "Systems/RPG/CharacterStats.cs";
+        private const string SaveManagerPath = "Systems/Map/Serialization/SaveManager.cs";
+        private const string SaveDataPath = "Systems/Map/Serialization/WorldSaveData.cs";
+
+        /// <summary>
+        /// The main pool reads the difficulty table and <b>stops</b> reading the LevelCurve pair. The
+        /// absence half is the load-bearing one: a file that calls MaxHpAtLevel once and still adds
+        /// <c>levelCurve.HpPerLevel</c> elsewhere would double-count, and would stay green if this lint
+        /// only checked presence.
+        /// </summary>
+        [Test]
+        public void MainHp_ComesFromTheDifficultyTable_NotTheLevelCurve()
+        {
+            string source = PFE.Tests.Editor.Common.SourceLint.ReadStripped(StatsPath);
+
+            Assert.That(source, Does.Contain("DifficultyRules.MaxHpAtLevel"),
+                "CharacterStats must derive the player's main HP from the difficulty table (Pers begHP/lvlHP)");
+
+            Assert.That(source, Does.Not.Contain("levelCurve.BaseHp"),
+                "the LevelCurve baseHp is superseded — reading it again would re-flatten the pool to 100 at every difficulty");
+            Assert.That(source, Does.Not.Contain("levelCurve.HpPerLevel"),
+                "the LevelCurve hpPerLevel is superseded — reading it again would re-flatten the per-level term to 15");
+        }
+
+        /// <summary>
+        /// The organ pool keeps reading the asset. This is the half of the fix that must <b>not</b>
+        /// happen: AS3's <c>inMaxHP</c> is a literal 200 and <c>lvlOrganHp</c> a constant 40, so routing
+        /// organs through the difficulty table would invent a rule the oracle does not have.
+        /// </summary>
+        [Test]
+        public void OrganHp_StaysOnTheLevelCurve()
+        {
+            string source = PFE.Tests.Editor.Common.SourceLint.ReadStripped(StatsPath);
+
+            Assert.That(source, Does.Contain("levelCurve.BaseOrganHp"),
+                "organ max HP is the oracle's literal 200 — it must not move to the difficulty table");
+            Assert.That(source, Does.Contain("levelCurve.OrganHpPerLevel"),
+                "lvlOrganHp is the constant 40 at every difficulty — it must not move to the difficulty table");
+        }
+
+        /// <summary>
+        /// The difficulty is restored <b>before</b> the player snapshot. Asserting the end state cannot
+        /// see this: both orders leave the same <c>globalDif</c>. Only the statement order is decisive,
+        /// because the seed is what fires <c>Changed</c> → <c>CharacterStats</c> before the snapshot's own
+        /// HP/level land on top.
+        /// </summary>
+        [Test]
+        public void LoadPath_SeedsDifficultyBeforeThePlayerSnapshot()
+        {
+            string source = PFE.Tests.Editor.Common.SourceLint.ReadStripped(SaveManagerPath);
+
+            int seed = source.IndexOf("GlobalDifficulty.SeedFromSave", StringComparison.Ordinal);
+            int restore = source.IndexOf("RestorePlayerState(saveData.player)", StringComparison.Ordinal);
+
+            Assert.That(seed, Is.GreaterThanOrEqualTo(0),
+                "SaveManager.LoadGame must restore the saved difficulty (Game.as:181-190)");
+            Assert.That(restore, Is.GreaterThanOrEqualTo(0),
+                "the lint's anchor moved: RestorePlayerState(saveData.player) is no longer called by that name");
+            Assert.That(seed, Is.LessThan(restore),
+                "the difficulty seed must precede the player snapshot, or the table is applied after the save's HP");
+        }
+
+        /// <summary>
+        /// A written save carries the run's difficulty and stamps the current format. The stamp matters:
+        /// with the declared default of 1, every fresh save would be run through the v1→v2 migrator on
+        /// load, which overwrites the real <c>dif</c> with Normal.
+        /// </summary>
+        [Test]
+        public void SaveWriter_StampsDifficultyAndTheCurrentFormatVersion()
+        {
+            string source = PFE.Tests.Editor.Common.SourceLint.ReadStripped(SaveDataPath);
+
+            Assert.That(source, Does.Contain("dif = PFE.Systems.Campaign.GlobalDifficulty.Value"),
+                "CreateFromMap must stamp the run's difficulty (Game.as:99 `_loc1_.dif = this.globalDif`)");
+            Assert.That(source, Does.Contain("saveFormatVersion = SaveMigrationChain.CurrentFormatVersion"),
+                "a fresh save must be written in the current format, not the field's declared 1");
         }
     }
 }

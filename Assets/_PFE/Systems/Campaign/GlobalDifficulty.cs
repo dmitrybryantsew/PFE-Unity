@@ -50,6 +50,14 @@ namespace PFE.Systems.Campaign
         public const int MaxIndex = 4;
 
         /// <summary>
+        /// The "this save has no <c>dif</c>" marker — AS3's <c>param1.dif == null</c>
+        /// (<c>Game.as:183-190</c>). <b>It must not be <c>0</c></b>: 0 is Very easy, a real value the
+        /// oracle preserves, so a zero default would silently promote every pre-difficulty save to the
+        /// easiest setting instead of Normal.
+        /// </summary>
+        public const int NotSaved = -1;
+
+        /// <summary>
         /// Raised after a change was applied, with the new (clamped) value. The reader is the player's
         /// <c>CharacterStats</c>, which re-runs the <c>Pers.setGlobalDif</c> parameter table — the
         /// oracle's <c>changeDif</c> tail (<c>Game.as:326-327</c>).
@@ -84,6 +92,27 @@ namespace PFE.Systems.Campaign
 
         /// <summary>AS3's two clamp blocks (<c>Game.as:318-325</c>), as a value.</summary>
         public static int Clamp(int n) => n < MinIndex ? MinIndex : (n > MaxIndex ? MaxIndex : n);
+
+        /// <summary>
+        /// AS3 <c>Game.as:181-190</c>'s restore arm, as a value: a save carrying <c>dif</c> keeps it, a
+        /// save without one restores <b>Normal</b> — <c>if(param1.dif != null) globalDif = param1.dif;
+        /// else globalDif = 2;</c>.
+        ///
+        /// <para>Absence is <see cref="NotSaved"/>, not 0, so Very easy survives a round trip. The clamp
+        /// is the port's own defensive addition (the oracle assigns the raw value and then
+        /// <c>setGlobalDif</c> matches no arm for an out-of-range index, silently applying nothing); a
+        /// corrupt value landing on a valid row is better than a table that never applies.</para>
+        /// </summary>
+        public static int ResolveSavedValue(int savedDif)
+        {
+            return savedDif < 0 ? Default : Clamp(savedDif);
+        }
+
+        /// <summary>Seed from a loaded save — <see cref="ResolveSavedValue"/> then <see cref="Seed"/>.</summary>
+        public static void SeedFromSave(int savedDif)
+        {
+            Seed(ResolveSavedValue(savedDif));
+        }
 
         /// <summary>
         /// AS3 <c>Game.changeDif(n)</c> (<c>Game.as:311-329</c>). Returns <c>false</c> when the raw
