@@ -123,6 +123,47 @@ MonoBehaviour:
   iconCell: {x: -1, y: -1}
   armSprite: {fileID: 0}
   variantSprites: []
+  sheetVariants:
+  - sheetId: sprEnclboss2
+    cells:
+    - {fileID: -1395043914, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 1117767983, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 2060287914, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 137084449, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: -2066249710, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 1834781566, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: -56735720, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: -296064703, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 1024882848, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: -1832847289, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 1386708809, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: -1611546875, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 173868075, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 799535656, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 1227067230, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    - {fileID: 564963536, guid: cbc64f7eca91caff2853947e0ba58c7a, type: 3}
+    columns: 8
+    rows: 2
+  - sheetId: sprEnclboss3
+    cells:
+    - {fileID: -1547095125, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 481382699, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: -1374655146, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 127249546, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 922428308, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 1822329813, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 537653069, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: -1720087666, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 1593085259, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 1484395595, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 754004728, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: -782568116, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: -933597575, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: -1376176774, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: 2134774675, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    - {fileID: -434082560, guid: 01da02b52fe0d58c1a8a003bdc38abd7, type: 3}
+    columns: 8
+    rows: 2
   gender: 2
   musicTrack: boss_6
   deathSoundId: 

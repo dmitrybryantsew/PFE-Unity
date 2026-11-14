@@ -130,6 +130,31 @@ namespace PFE.Systems.Map
         public List<BackgroundDecorationInstance> backgroundDecorations = new List<BackgroundDecorationInstance>();
 
         /// <summary>
+        /// AS3 <c>Location.unitCoord</c> (<c>Location.as:3427</c>, created by
+        /// <c>UnitBossEncl.putLoc():105-110</c>): the Enclave Commander arena's shared rotation, one per
+        /// room.
+        ///
+        /// <para><b>Why it lives on the room and not on a commander.</b> The three commanders take turns
+        /// firing through one timer, and the timer has to survive a commander's death — <c>die()</c>
+        /// clears <c>coord["liv"+tr]</c> (<c>:99</c>) and <c>Coord.step()</c> reads that flag to skip the
+        /// dead (<c>Coord.as:72</c>). Three per-unit copies would drift apart the moment one of them
+        /// died, and the fight would end up with three independent firing rights.</para>
+        ///
+        /// <para><b>Created lazily, by the first commander to tick.</b> AS3 creates it inside
+        /// <c>putLoc</c>, which runs at placement; the port's placement hook may run before the room is
+        /// resolvable, so the brain creates it on the first tick that has one
+        /// (<c>BossEnclBrain.EnsureCoord</c>). A room rebuild drops this reference with the old
+        /// <see cref="RoomInstance"/>, and each surviving commander re-marks itself live on its next
+        /// tick — which is the same end state as a fresh <c>putLoc</c> for the ones still standing.</para>
+        ///
+        /// <para><b><c>[NonSerialized]</c>: it is a live timer, not room data.</b> Nothing about a
+        /// half-expired firing window belongs in a save file, and Unity's serializer would otherwise try
+        /// to walk the delegate the constructor holds.</para>
+        /// </summary>
+        [NonSerialized]
+        public PFE.Systems.Combat.BossEnclCoord bossCoord;
+
+        /// <summary>
         /// AS3 <c>Location.ups</c> (<c>Location.as:333-336</c>), as a count per <c>kolEn</c> slot: how
         /// many authored enemy points the room's template holds for each of the five point groups.
         ///

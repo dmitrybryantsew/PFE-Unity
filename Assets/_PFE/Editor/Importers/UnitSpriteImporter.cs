@@ -113,6 +113,26 @@ namespace PFE.Editor.Importers
             { "training", new[] { "visualTrain", "visualTrainArmor" } },
         };
 
+        /// <summary>
+        /// Units drawn from <b>more than one sheet</b>, where the choice is made in the controller class
+        /// rather than in data — the sheet half of <see cref="CodeAssignedVisuals"/>'s problem.
+        ///
+        /// <para><b>Why the table exists at all.</b> Pass 1 slices the sheet named by each unit's
+        /// <c>spriteSheetId</c>, and there is exactly one <c>bossencl</c> row whose
+        /// <c>sprEnclboss1</c> comes from <c>AllData.as:642</c>. The other two sheets are named
+        /// <i>only</i> inside <c>UnitBossEncl.as</c> (<c>:61</c> <c>blitId = "sprEnclboss2"</c>,
+        /// <c>:72</c> <c>"sprEnclboss3"</c>), so no data-driven pass can ever see them: the art sits in
+        /// <c>sprite1.swf/images</c> and every commander drew <c>sprEnclboss1</c>.</para>
+        ///
+        /// <para>The list is <b>all</b> of a unit's bodies, primary included, so the table reads as the
+        /// unit's full body set. The pass skips the entry equal to <c>spriteSheetId</c> — pass 1 already
+        /// sliced it — and writes the rest onto <see cref="UnitDefinition.sheetVariants"/>.</para>
+        /// </summary>
+        static readonly Dictionary<string, string[]> CodeAssignedSheets = new Dictionary<string, string[]>
+        {
+            { "bossencl", new[] { "sprEnclboss1", "sprEnclboss2", "sprEnclboss3" } },
+        };
+
         public class Result
         {
             public int SheetsImported;
@@ -177,6 +197,14 @@ namespace PFE.Editor.Importers
             /// <summary>Units for which no visual source could be found at all.</summary>
             public readonly List<string> Unresolved = new List<string>();
 
+            /// <summary>
+            /// Alternative body sheets sliced onto a unit's <see cref="UnitDefinition.sheetVariants"/> —
+            /// the <c>blitId</c> swap in <c>UnitBossEncl.as:61</c> / <c>:72</c>. Counted separately from
+            /// <see cref="SheetsImported"/> because these are extra bodies for a unit that already has
+            /// one, not the unit's own sheet.
+            /// </summary>
+            public int VariantSheetsImported;
+
             public readonly List<string> Warnings = new List<string>();
 
             public string Describe()
@@ -186,6 +214,8 @@ namespace PFE.Editor.Importers
                 sb.AppendLine($"visuals imported   : {VisualsImported} symbols, {VisualFramesCopied} frames");
                 sb.AppendLine($"units wired        : {UnitsWired}");
                 sb.AppendLine($"units with no visual: {UnitsWithNoVisual}");
+                sb.AppendLine($"variant sheets     : {VariantSheetsImported} " +
+                              "(alternative bodies for one unit, selected by `tr`)");
                 sb.AppendLine($"npc personas wired : {NpcsWired} ({NpcVisualsImported} visuals), " +
                               $"{NpcsWithNoVisual} with no visual");
                 sb.AppendLine($"npc persona clips  : {NpcClipsImported} personas, {NpcClipFrames} frames " +
@@ -285,6 +315,13 @@ namespace PFE.Editor.Importers
                     result.Warnings.Add($"{unit.id}: sheet import threw {e.GetType().Name}: {e.Message}");
                 }
             }
+
+            // ── Pass 1b: code-assigned variant sheets ────────────────────────
+            //
+            // AFTER pass 1, because it needs the primary sheet resolved (the entry equal to
+            // `spriteSheetId` is skipped — pass 1 sliced it) and because `spriteDimensions` is only
+            // meaningful once the unit's own `<vis>` has been read.
+            ImportCodeAssignedSheets(units, sheetSources, result);
 
             // ── Pass 2: DisplayObject visuals ────────────────────────────────
             foreach (UnitDefinition unit in units)
@@ -1037,8 +1074,32 @@ namespace PFE.Editor.Importers
         /// was wired to at least one sprite.
         /// </summary>
         static bool SliceSheet(UnitDefinition unit, string sourcePng, Result result)
+            => SliceSheet(unit, unit.spriteSheetId, sourcePng, assignPrimary: true, result,
+                          out _, out _, out _);
+
+        /// <summary>
+        /// Slice <paramref name="sheetId"/> into <c>Art/Units/Sheets</c> and write its cell grid.
+        ///
+        /// <para><b>Why the sheet id is a parameter and not <c>unit.spriteSheetId</c>.</b> A unit can
+        /// have more than one body (<see cref="CodeAssignedSheets"/>): the grid — cell size, pivot,
+        /// columns and rows — is the <i>unit's</i>, but the bitmap is the <i>sheet's</i>. Pass 1 hands in
+        /// the unit's own id and <paramref name="assignPrimary"/> <c>true</c>; the variant pass hands in
+        /// a sibling id and <c>false</c>, and receives the cells instead of writing them onto the row.
+        /// </para>
+        ///
+        /// <para><b>The grid is re-derived per sheet, not copied from the primary.</b> It has to be: a
+        /// variant whose size or cell count disagreed with the primary would produce cell rects that
+        /// address the wrong pixels, and silently reusing the primary's numbers is exactly how that
+        /// stays invisible. Both sheets land on the same <c>cols x rows</c> only because they are
+        /// genuinely the same grid.</para>
+        /// </summary>
+        static bool SliceSheet(UnitDefinition unit, string sheetId, string sourcePng, bool assignPrimary,
+                               Result result, out Sprite[] outCells, out int outColumns, out int outRows)
         {
-            string sheetId = unit.spriteSheetId;
+            outCells = null;
+            outColumns = 0;
+            outRows = 0;
+
             string destAssetPath = $"{SheetArtRoot}/{sheetId}.png";
 
             try
@@ -1195,19 +1256,119 @@ namespace PFE.Editor.Importers
                                     "not come back as sprites after import");
             }
 
-            SetPrivateField(unit, "spriteSheet", flat);
-            SetPrivateField(unit, "spriteSheetColumns", cols);
-            SetPrivateField(unit, "spriteSheetRows", rows);
+            outCells = flat;
+            outColumns = cols;
+            outRows = rows;
 
-            // The resting frame is lifted out so a spawner that draws nothing but `sprite` still
-            // shows the unit standing. See AssignRestingFrame for why this is not the icon cell.
-            AssignRestingFrame(unit, flat, cols, rows, result);
+            if (assignPrimary)
+            {
+                SetPrivateField(unit, "spriteSheet", flat);
+                SetPrivateField(unit, "spriteSheetColumns", cols);
+                SetPrivateField(unit, "spriteSheetRows", rows);
+
+                // The resting frame is lifted out so a spawner that draws nothing but `sprite` still
+                // shows the unit standing. See AssignRestingFrame for why this is not the icon cell.
+                AssignRestingFrame(unit, flat, cols, rows, result);
+            }
 
             EditorUtility.SetDirty(unit);
 
-            result.SheetsImported++;
+            if (assignPrimary)
+            {
+                result.SheetsImported++;
+            }
+            else
+            {
+                result.VariantSheetsImported++;
+            }
+
             result.CellsSliced += cols * rows;
             return flat.Any(s => s != null);
+        }
+
+        /// <summary>
+        /// Pass 1b — slice the extra bodies listed in <see cref="CodeAssignedSheets"/> onto each unit's
+        /// <see cref="UnitDefinition.sheetVariants"/>.
+        ///
+        /// <para><b>Why this is a table and not a data read.</b> The two extra <c>sprEnclboss</c> sheets
+        /// appear nowhere in <c>AllData.as</c>: <c>UnitBossEncl.as:61</c> / <c>:72</c> assign them to
+        /// <c>blitId</c> in the constructor. The importer is data-driven everywhere else, so the only
+        /// place that fact can live is a table — the same shape, and the same reason, as
+        /// <see cref="CodeAssignedVisuals"/>.</para>
+        ///
+        /// <para><b>Rebuilt, not appended.</b> A re-run must not accumulate duplicates, and a sheet that
+        /// has been removed from the table must disappear from the asset rather than linger with stale
+        /// cells.</para>
+        /// </summary>
+        static void ImportCodeAssignedSheets(List<UnitDefinition> units,
+                                             Dictionary<string, string> sheetSources,
+                                             Result result)
+        {
+            if (CodeAssignedSheets.Count == 0) return;
+
+            var byId = new Dictionary<string, UnitDefinition>(StringComparer.OrdinalIgnoreCase);
+            foreach (UnitDefinition unit in units)
+            {
+                if (unit != null && !string.IsNullOrEmpty(unit.id))
+                {
+                    byId[unit.id] = unit;
+                }
+            }
+
+            foreach (KeyValuePair<string, string[]> pair in CodeAssignedSheets)
+            {
+                if (!byId.TryGetValue(pair.Key, out UnitDefinition unit))
+                {
+                    // Reported, not skipped: a renamed row would otherwise leave the unit drawing one
+                    // body forever with no trace of why.
+                    result.Warnings.Add($"variant sheets: no unit '{pair.Key}' under {UnitAssetRoot}");
+                    continue;
+                }
+
+                unit.sheetVariants.Clear();
+
+                foreach (string sheetId in pair.Value)
+                {
+                    if (string.Equals(sheetId, unit.spriteSheetId, StringComparison.Ordinal))
+                    {
+                        continue;   // pass 1 owns the primary sheet
+                    }
+
+                    if (!sheetSources.TryGetValue(sheetId, out string sourcePng))
+                    {
+                        result.Warnings.Add($"{unit.id}: variant sheet '{sheetId}' has no PNG in " +
+                                            "sprite.swf/images or sprite1.swf/images");
+                        continue;
+                    }
+
+                    try
+                    {
+                        if (!SliceSheet(unit, sheetId, sourcePng, assignPrimary: false, result,
+                                        out Sprite[] cells, out int columns, out int rows))
+                        {
+                            result.Warnings.Add($"{unit.id}: variant sheet '{sheetId}' sliced to no sprites");
+                            continue;
+                        }
+
+                        unit.sheetVariants.Add(new UnitSheetVariant
+                        {
+                            sheetId = sheetId,
+                            cells = cells,
+                            columns = columns,
+                            rows = rows,
+                        });
+                    }
+                    catch (Exception e)
+                    {
+                        // Same reason as every other per-item catch in this run: one sheet must not be
+                        // able to unwind the import and leave the summary unprinted.
+                        result.Warnings.Add($"{unit.id}: variant sheet '{sheetId}' threw " +
+                                            $"{e.GetType().Name}: {e.Message}");
+                    }
+                }
+
+                EditorUtility.SetDirty(unit);
+            }
         }
 
         /// <summary>

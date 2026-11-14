@@ -1,0 +1,534 @@
+fileFormatVersion: 2
+guid: 01da02b52fe0d58c1a8a003bdc38abd7
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3362722451122789041
+    second: sprEnclboss3_0
+  - first:
+      213: -8511813150182724611
+    second: sprEnclboss3_1
+  - first:
+      213: 4451067372016088773
+    second: sprEnclboss3_2
+  - first:
+      213: 3055642338680737738
+    second: sprEnclboss3_3
+  - first:
+      213: 5236783411618396496
+    second: sprEnclboss3_4
+  - first:
+      213: -7638166881047041357
+    second: sprEnclboss3_5
+  - first:
+      213: -6226901299591584326
+    second: sprEnclboss3_6
+  - first:
+      213: 1749734824246537057
+    second: sprEnclboss3_7
+  - first:
+      213: -4954106685035204246
+    second: sprEnclboss3_8
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 67b54e73eadf3763146ef7867e27af18
+      internalID: -1547095125
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 224c5078032e1d846c9744ff93b058c1
+      internalID: 481382699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e36654a284ce6d7ac0f00ef6ca746d0d
+      internalID: -1374655146
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6fce8367fcf43813c005981339385980
+      internalID: 127249546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 66f222f6d3a7ca7d895a4a1d239d98f1
+      internalID: 922428308
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dde0b86eaee8bdd1123ae8c782bbbb66
+      internalID: 1822329813
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1e6eb69e501065d526dfd72623c10454
+      internalID: 537653069
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 150
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8fd9cc7137d1c81f4a8b5b6f708bb4cb
+      internalID: -1720087666
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 29c7916038a9f9b95a12857d0aeaa278
+      internalID: 1593085259
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5de6675105edf2947364bfc6de09b537
+      internalID: 1484395595
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 29fe2f6530439e6f4e409de4e412cdb2
+      internalID: 754004728
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 88e9772024c72e96c6f9da9905fac973
+      internalID: -782568116
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a24fc9feb72b39640222e2895a2f5866
+      internalID: -933597575
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cff24c3c5f6ee6c1466f09fe666903a4
+      internalID: -1376176774
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 418f6de3e118ebca143c2efeab1bac19
+      internalID: 2134774675
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprEnclboss3_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 0
+        width: 130
+        height: 150
+      alignment: 9
+      pivot: {x: 0.5, y: 0.06666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 81618dc53d9110516dfa669ffe12cab4
+      internalID: -434082560
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 4cec22c7b3a043b47be568fd3ff46c39
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprEnclboss3_0: 3168440517936816399
+      sprEnclboss3_1: 8568734930782166617
+      sprEnclboss3_2: -4568869066764143984
+      sprEnclboss3_3: -7999336118114316546
+      sprEnclboss3_4: -5523641171671558777
+      sprEnclboss3_5: -4840781444179720484
+      sprEnclboss3_6: 2738690536504653995
+      sprEnclboss3_7: -3770505613911980932
+      sprEnclboss3_8: -870213938980916539
+      sprEnclboss3_r0_c0: -153072091
+      sprEnclboss3_r0_c1: -1654813972
+      sprEnclboss3_r0_c2: 647164601
+      sprEnclboss3_r0_c3: 1147111970
+      sprEnclboss3_r0_c4: -1964672141
+      sprEnclboss3_r0_c5: 1174609571
+      sprEnclboss3_r0_c6: 1844343132
+      sprEnclboss3_r0_c7: -1386537737
+      sprEnclboss3_r1_c0: -750536454
+      sprEnclboss3_r1_c1: 1221352434
+      sprEnclboss3_r1_c2: -1237847311
+      sprEnclboss3_r1_c3: -995699045
+      sprEnclboss3_r1_c4: -2143785331
+      sprEnclboss3_r1_c5: -1166711869
+      sprEnclboss3_r1_c6: 1667444457
+      sprEnclboss3_r1_c7: -1541234968
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

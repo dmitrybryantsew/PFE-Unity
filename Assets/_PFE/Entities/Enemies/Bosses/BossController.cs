@@ -352,11 +352,403 @@ namespace PFE.Entities.Enemies.Bosses
         }
     }
 
+    /// <summary>
+    /// The Enclave Commander — AS3 <c>UnitBossEncl</c>. One of <b>three</b> bodies placed with
+    /// <c>tr = 1/2/3</c>; everything that differs between them is decided here, from
+    /// <see cref="BossEnclRules"/>.
+    ///
+    /// <para><b>Why the whole per-<c>tr</c> loadout lives on the controller.</b> AS3 writes it in the
+    /// constructor (<c>:50-73</c>): the weapon, the armour rating, the resistance triples and the body
+    /// swap. None of it is in the unit row — <c>bossencl.asset</c> carries <c>armor: 0</c>,
+    /// <c>magicArmor: 0</c> and an empty <c>weapons:</c> list, because <c>AllData.as:637-647</c> authors
+    /// none of those attributes. A port that read only the row gave all three commanders the same 0/0
+    /// body, no gun, and the row's single vulnerability table.</para>
+    /// </summary>
     [RequireComponent(typeof(BossEnclBrain))]
     public class BossEnclController : BossController
     {
         public new const string ControllerId = "UnitBossEncl";
         public new const string ControllerAlias = "bossencl";
+
+        /// <summary>Latched so a re-applied placement cannot refill a damaged armour pool.</summary>
+        bool _armourApplied;
+
+        /// <summary>Latched so the difficulty multipliers are applied exactly once.</summary>
+        bool _difficultyApplied;
+
+        /// <summary>The <c>mlau</c> clone with tr3's four constructor tweaks, once built.</summary>
+        WeaponDefinition _tunedLauncher;
+
+        /// <summary>
+        /// The weapon this commander holds, or <c>null</c> before <c>tr</c> is known or the mount failed
+        /// — AS3's <c>currentWeapon</c> (<c>:50-73</c>).
+        ///
+        /// <para><b>Per-controller and not on <see cref="BossController"/>.</b> The raider boss has its
+        /// own <c>EquippedWeaponId</c> and its own two-weapon variant table; sharing one field would
+        /// mean the two bosses could overwrite each other's answer through a common base. The three
+        /// commanders each hold exactly one weapon, chosen by <c>tr</c>.</para>
+        /// </summary>
+        public string CommanderWeaponId { get; private set; }
+
+        BossEnclBrain EnclBrain => BossBrain as BossEnclBrain;
+
+        int CommanderIndex => EnclBrain != null ? EnclBrain.CommanderIndex : BossEnclRules.DefaultCommander;
+
+        /// <summary><c>isFly = true</c> (<c>:92</c>) — this unit never touches the floor, so gravity must not act on it.</summary>
+        protected override bool IsFlying => true;
+
+        public override void Initialize(UnitDefinition definition, UnitStats stats)
+        {
+            base.Initialize(definition, stats);
+            ApplyCommanderLoadout();
+        }
+
+        protected override void OnWeaponServicesReady() => ApplyCommanderLoadout();
+
+        /// <summary>
+        /// Apply everything <c>tr</c> selects: weapon, armour, resistances, difficulty. Idempotent — it
+        /// runs from <see cref="Initialize"/>, from the weapon-services handover and again from
+        /// <see cref="BossEnclBrain.OnPlacementApplied"/> once the placement's <c>tr</c> is known.
+        ///
+        /// <para><b>Three callers is not an accident.</b> The placement can arrive before or after the
+        /// weapon services, and the brain cannot know the order; AS3 has no such problem because the
+        /// constructor has <c>param3</c> in hand. Each half is guarded on its own so the late caller
+        /// fills in only what is still missing.</para>
+        /// </summary>
+        public void ApplyCommanderLoadout()
+        {
+            if (Stats == null || EnclBrain == null) return;
+
+            int tr = CommanderIndex;
+
+            EquipCommanderWeapon(tr);
+            ApplyCommanderArmour(tr);
+            ApplyCommanderResistances(tr);
+            ApplyCommanderDifficulty(tr);
+            ApplyCommanderSheet(tr);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+        //  Body (UnitBossEncl.as:61, 72)
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Draw the sheet <c>tr</c> selects — <c>blitId = "sprEnclboss2"</c> (<c>:61</c>) and
+        /// <c>blitId = "sprEnclboss3"</c> (<c>:72</c>). <c>tr1</c> authors nothing and keeps the row's
+        /// own <c>sprEnclboss1</c>.
+        ///
+        /// <para><b>Why the port needed a seam for this at all.</b> AS3 assigns a <c>BitmapData</c> to
+        /// one object's <c>blitId</c>; the port's sheet is a <c>Sprite[]</c> on the shared
+        /// <c>bossencl</c> row, so writing it there would redraw all three commanders from whichever
+        /// one loaded last. <see cref="UnitAnimator.SetSheetOverride"/> is the per-instance half, and
+        /// <see cref="UnitDefinition.sheetVariants"/> is where the other two grids live.</para>
+        ///
+        /// <para><b>Idempotent, and safe to call before the animator exists.</b> This runs from
+        /// <see cref="Initialize"/> (where <c>tr</c> is still the default and the row's sheet is
+        /// already correct) and again from <c>OnPlacementApplied</c> once the placement has supplied
+        /// <c>tr</c> — which is the call that actually swaps the body.</para>
+        /// </summary>
+        void ApplyCommanderSheet(int tr)
+        {
+            if (Definition == null) return;
+
+            string sheetId = BossEnclRules.BlitIdFor(tr);
+
+            UnitAnimator animator = GetComponentInChildren<UnitAnimator>(true);
+
+            // `null` is the rule's own answer for "keep the row's sheet" — tr1, and any tr the oracle
+            // leaves alone. The equality test covers the case where a future row authors one of the
+            // variants as its primary sheet. Asserted rather than ignored so a re-applied placement
+            // cannot strand a stale override.
+            if (string.IsNullOrEmpty(sheetId) ||
+                string.Equals(Definition.spriteSheetId, sheetId, StringComparison.Ordinal))
+            {
+                animator?.ClearSheetOverride();
+                return;
+            }
+
+            if (animator == null)
+            {
+                // Named, not silent: the commander then draws sprEnclboss1 like its two brothers, which
+                // reads as "the art is still missing" rather than "the seam is not wired".
+                Debug.LogWarning(
+                    $"[BossEnclController] No UnitAnimator under '{name}' — tr={tr} cannot draw " +
+                    $"'{sheetId}' and keeps '{Definition.spriteSheetId}'.");
+                return;
+            }
+
+            UnitSheetVariant variant = FindSheetVariant(Definition, sheetId);
+            if (variant == null)
+            {
+                Debug.LogWarning(
+                    $"[BossEnclController] '{Definition.id}' has no sheet variant '{sheetId}' for " +
+                    $"tr={tr} — the commander keeps '{Definition.spriteSheetId}'. Expected the " +
+                    "importer's CodeAssignedSheets pass to have filled sheetVariants.");
+                return;
+            }
+
+            animator.SetSheetOverride(sheetId, variant.cells, variant.columns, variant.rows);
+        }
+
+        /// <summary>
+        /// The variant grid for <paramref name="sheetId"/>, or <c>null</c> when the row does not carry
+        /// it. Matched case-insensitively: the id comes from a C# constant, the stored one from
+        /// <c>AllData.as</c>, and the two differ in case across the data set (<c>sprEnclboss2</c> vs
+        /// <c>sprEnclBoss2</c> would otherwise silently miss).
+        /// </summary>
+        internal static UnitSheetVariant FindSheetVariant(UnitDefinition definition, string sheetId)
+        {
+            if (definition?.sheetVariants == null || string.IsNullOrEmpty(sheetId)) return null;
+
+            for (int i = 0; i < definition.sheetVariants.Count; i++)
+            {
+                UnitSheetVariant variant = definition.sheetVariants[i];
+                if (variant != null &&
+                    string.Equals(variant.sheetId, sheetId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return variant;
+                }
+            }
+
+            return null;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+        //  Weapon (UnitBossEncl.as:50-73, 76-91)
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>currentWeapon = Weapon.create(this, "lmg" | "quick" | "mlau")</c> (<c>:52</c>, <c>:58</c>,
+        /// <c>:65</c>).
+        ///
+        /// <para><b>A <c>tr</c> outside 1..3 gets no weapon, and that is the oracle's state.</b> Three
+        /// separate <c>if</c>s leave <c>currentWeapon</c> null, and the constructor's
+        /// <c>if(currentWeapon)</c> guards then leave <c>weap</c> empty and <c>childObjs</c> unset — the
+        /// commander flies and never fires. It cannot happen in the shipped rooms (the three placements
+        /// author 1/2/3), and inventing a default would hide a bad placement instead of showing it.</para>
+        /// </summary>
+        void EquipCommanderWeapon(int tr)
+        {
+            string weaponId = BossEnclRules.WeaponIdFor(tr);
+            if (string.IsNullOrEmpty(weaponId)) return;
+            if (Stats == null || !HasWeaponServices) return;
+
+            EnemyWeaponMount mount = EquipWeapon(weaponId);
+            if (mount == null) return;
+
+            CommanderWeaponId = weaponId;
+
+            // `if(!param1.player) this.auto = true;` (`Weapon.as:337-340`) — every NPC weapon fires
+            // continuously. Without this the mount takes the semi-auto debounce on every tick after the
+            // first shot, and since `attack()` runs every frame of state 1 the commander would fire
+            // exactly once for the whole fight. The alicorn hit the same wall; see `EquipBossWeapons`.
+            mount.MarkAutomaticTrigger();
+        }
+
+        /// <summary>
+        /// tr3's post-construction tuning of the launcher (<c>:66-69</c>):
+        /// <c>speed = 12; accel = 0.6; reload = 30; damageExpl *= 0.6;</c>
+        ///
+        /// <para><b>A private clone, not a write to the shared row.</b> AS3 mutates the
+        /// <c>Weapon</c> instance it just created, so the slowdown belongs to this one commander. The
+        /// port's <c>WeaponDefinition</c> is a shared <c>ScriptableObject</c>: stamping 12 / 0.6 / 30 onto
+        /// it would slow every <c>mlau</c> in the game — the same trap the raider boss documents for
+        /// <c>Definition.damage</c>. <see cref="WeaponDefinition.CopyAllFields"/> is the same copy
+        /// <c>WeaponVariantStats.Effective</c> already performs for tiered weapons.</para>
+        /// </summary>
+        protected override bool TryGetWeaponDefinition(string weaponId, out WeaponDefinition definition)
+        {
+            if (!base.TryGetWeaponDefinition(weaponId, out definition)) return false;
+            if (definition == null) return true;
+
+            if (CommanderIndex != 3) return true;
+            if (!string.Equals(weaponId, BossEnclRules.MlauWeaponId, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (_tunedLauncher == null)
+            {
+                _tunedLauncher = ScriptableObject.CreateInstance<WeaponDefinition>();
+                WeaponVariantStats.CopyAllFields(definition, _tunedLauncher);
+                _tunedLauncher.name = definition.name + "_bossencl_tr3";
+
+                _tunedLauncher.projectileSpeed = BossEnclRules.Tr3ProjectileSpeed;
+                _tunedLauncher.bulletAccel = BossEnclRules.Tr3BulletAcceleration;
+                _tunedLauncher.reloadTime = BossEnclRules.Tr3ReloadFrames;
+                _tunedLauncher.explosionDamage *= BossEnclRules.Tr3ExplosiveDamageScale;
+            }
+
+            definition = _tunedLauncher;
+            return true;
+        }
+
+        /// <summary>
+        /// <c>currentWeapon.attack()</c> (<c>:308</c>) — press and release this commander's one mount.
+        ///
+        /// <para>Called only from the brain's <c>attack()</c>, which has already tested
+        /// <c>coord.tr == tr &amp;&amp; coord.t1 &gt; 45</c>. The gate is deliberately not repeated here:
+        /// two copies of a firing condition is how one of them ends up stale.</para>
+        /// </summary>
+        public void FireCommanderWeapon()
+        {
+            if (string.IsNullOrEmpty(CommanderWeaponId)) return;
+            GetWeaponMount(CommanderWeaponId)?.FireOnce();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+        //  Armour and resistances (UnitBossEncl.as:53, 59, 70-71)
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>armor = 20</c> (tr1), <c>marmor = 20</c> (tr2), <c>armor = marmor = 10</c> (tr3) — a
+        /// <b>unit-pool</b> projection, since the oracle writes the fields directly on the unit.
+        ///
+        /// <para><b>The row cannot supply this.</b> <c>bossencl.asset</c> reads 0/0 for the reason the
+        /// class doc gives, and <c>SeedArmourFromDefinition</c> therefore leaves the projection at
+        /// <see cref="ArmourState.None"/>. Rebuilding it here is the oracle's own sequence: the
+        /// constructor runs <i>after</i> the base unit's XML read.</para>
+        /// </summary>
+        void ApplyCommanderArmour(int tr)
+        {
+            if (_armourApplied || UnitStats == null) return;
+
+            BossEnclRules.ArmourFor(tr, out int physical, out int magic);
+            if (physical <= 0 && magic <= 0) return;
+
+            ArmourState pool = UnitArmourMath.Build(
+                armour: physical,
+                magicArmour: magic,
+                authoredArmourHp: Stats.armorHealth,
+                hpAfterDifficulty: UnitStats.MaxHp.Value,
+                quality: Stats.armourQuality);
+
+            if (!pool.IsEquipped) return;
+
+            UnitStats.EquipArmour(pool);
+            _armourApplied = true;
+        }
+
+        /// <summary>
+        /// The three <c>vulner[...] = 0.7</c> triples (<c>:54</c>, <c>:60</c>, <c>:71</c>), applied on top
+        /// of the row's authored <c>&lt;vulner&gt;</c> table.
+        ///
+        /// <para><b>The baseline, not the live value.</b> <c>UnitStats.Vulnerabilities</c> is derived from
+        /// <c>_vulnerabilityBaseline</c> by <c>RecalculateVulnerabilities</c>, and every later pass
+        /// (an effect's <c>tip='res'</c>, a re-equip) rebuilds from that baseline. Writing the live table
+        /// alone would hold until the next pass and then silently revert — so the merged table is
+        /// installed as the baseline, which is what AS3 does by writing <c>vulner[...]</c> on the unit
+        /// itself.</para>
+        ///
+        /// <para><b>Idempotent by construction:</b> it starts from the row's own table every time, so a
+        /// second call re-derives the same answer instead of compounding it.</para>
+        /// </summary>
+        void ApplyCommanderResistances(int tr)
+        {
+            if (UnitStats == null) return;
+
+            VulnerabilityData table = Stats.vulnerabilities;
+            UnitStats.SetVulnerabilityBaseline(BossEnclRules.ApplyVulnerabilities(table, tr));
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+        //  Difficulty (UnitBossEncl.as:113-132)
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>hp = maxhp = hp * _loc3_; dam *= _loc3_; if(currentWeapon) currentWeapon.damage *= _loc3_;</c>
+        /// (<c>:126-131</c>).
+        ///
+        /// <para><b>Not free, and it was missing.</b> The spawner has already applied AS3's <i>base</i>
+        /// <c>Unit.setLevel</c> HP rule — <c>DifficultyRules.EnemyHpMultiplier</c>, which is <c>1</c> at
+        /// every difficulty above 1 and only shrinks a unit on easy. So the boss's own 1.2 / 1.5 is the
+        /// only scaling it gets on Hard and Very Hard, and without this the fight is identical on all
+        /// four difficulties. The alicorn's <c>ApplyDifficultyScaling</c> is the precedent, including the
+        /// reason the melee and weapon halves must scale the <i>instance</i>.</para>
+        ///
+        /// <para><b><c>damageExpl</c> is deliberately not scaled.</b> The oracle scales
+        /// <c>currentWeapon.damage</c> and stops; the tr3 launcher's explosive half is its own field and
+        /// stays where the constructor put it.</para>
+        /// </summary>
+        void ApplyCommanderDifficulty(int tr)
+        {
+            if (_difficultyApplied) return;
+
+            float scale = BossEnclRules.DifficultyScale(GlobalDifficulty.Value);
+            if (Mathf.Approximately(scale, 1f))
+            {
+                _difficultyApplied = true;
+                return;
+            }
+
+            if (UnitStats != null)
+            {
+                UnitStats.MaxHp.Value *= scale;
+                UnitStats.CurrentHp.Value = UnitStats.MaxHp.Value;
+            }
+
+            ScaleMeleeDamage(scale);
+
+            if (!string.IsNullOrEmpty(CommanderWeaponId))
+            {
+                EnemyWeaponMount mount = GetWeaponMount(CommanderWeaponId);
+                if (mount?.Controller != null)
+                {
+                    mount.Controller.State.DamageScale *= scale;
+                }
+            }
+
+            _difficultyApplied = true;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+        //  Death and loot (UnitBossEncl.as:96-100, 172-189)
+        // ─────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>die()</c> (<c>:96-100>): <c>super.die(3); this.coord["liv" + this.tr] = false;</c>
+        ///
+        /// <para><b>The flag is what makes the rotation skip the dead.</b> <c>Coord.step()</c> advances
+        /// <c>tr</c> past any commander whose <c>liv</c> is false (<c>Coord.as:72</c>), so a killed
+        /// commander stops being a candidate for the firing right instead of leaving the arena with a
+        /// window that grants a turn to a corpse. Without this the fight would stall for 150..209 ticks
+        /// every time the rotation reached a dead body.</para>
+        /// </summary>
+        protected override void OnFinalDeath()
+        {
+            BossEnclBrain brain = EnclBrain;
+            if (brain != null && brain.Coord != null)
+            {
+                brain.Coord.SetAlive(brain.CommanderIndex, false);
+            }
+
+            base.OnFinalDeath();
+        }
+
+        /// <summary>
+        /// <c>dropLoot()</c> (<c>:172-189): hide the held weapon's sprite, then drop the gun itself.
+        ///
+        /// <para><b>Ungated.</b> <c>UnitBossEncl</c> extends <c>UnitPon</c>, which has no
+        /// <c>isDropArm</c>, so the boss always drops its weapon — the same shape as the raider boss's
+        /// override, and for the same reason it cannot reuse <c>ArmedShooterController</c>'s
+        /// family-gated version.</para>
+        ///
+        /// <para><b>No <c>^N</c> variant.</b> The constructor's <c>if(currentWeapon.uniq)
+        /// currentWeapon.updVariant(1)</c> (<c>:88-91</c>) never fires here: <c>lmg</c>, <c>quick</c> and
+        /// <c>mlau</c> author no <c>uniq</c> attribute, so <c>variant</c> stays 0 and the dropped id is
+        /// the bare one.</para>
+        /// </summary>
+        protected override void DropWieldedWeapon(LootContext ctx, float centreY)
+        {
+            if (string.IsNullOrEmpty(CommanderWeaponId)) return;
+
+            GetWeaponMount(CommanderWeaponId)?.SetHeldVisualVisible(false);
+
+            LootRoller.RollPlacedItem(
+                EnemyWeaponDropRules.DropId(CommanderWeaponId, 0),
+                ctx,
+                kol: EnemyWeaponDropRules.DroppedWeaponKol,
+                nx: transform.position.x,
+                ny: centreY);
+        }
     }
 
     [RequireComponent(typeof(BossNecrBrain))]

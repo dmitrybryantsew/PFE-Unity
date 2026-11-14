@@ -83,6 +83,29 @@ namespace PFE.Entities.Units
         /// </summary>
         int _drawnCell = -1;
 
+        /// <summary>
+        /// The <b>alternative</b> sheet this instance is drawn from, or <c>null</c> to use the
+        /// definition's own — AS3 <c>blitId = "sprEnclboss2"</c> (<c>UnitBossEncl.as:61</c>), where the
+        /// <c>BitmapData</c> is swapped and every <c>BlitAnim</c> row keeps addressing it unchanged.
+        ///
+        /// <para><b>Why it lives on the animator and not on the definition.</b> The sheet is chosen per
+        /// <i>instance</i> — three commanders share one <c>bossencl</c> row and differ only by
+        /// <c>tr</c> — so writing it onto the shared <c>ScriptableObject</c> would redraw all three.
+        /// The override is the port's equivalent of the oracle's per-object <c>blitId</c> field, and
+        /// it is deliberately the same shape as the definition's grid so
+        /// <see cref="CellIndexFor"/> does not need to know which one it is reading.</para>
+        /// </summary>
+        Sprite[] _sheetOverride;
+
+        /// <summary>Columns of <see cref="_sheetOverride"/>; ignored while it is <c>null</c>.</summary>
+        int _overrideColumns;
+
+        /// <summary>Rows of <see cref="_sheetOverride"/>; ignored while it is <c>null</c>.</summary>
+        int _overrideRows;
+
+        /// <summary>The sheet id this animator is drawing, or <c>null</c> for the definition's own.</summary>
+        public string SheetOverrideId { get; private set; }
+
         readonly float _frameDuration = 1f / FrameRate;
         float _timer;
 
@@ -154,6 +177,14 @@ namespace PFE.Entities.Units
             _drawnCell = -1;
             _timer = 0f;
 
+            // A different definition has a different sheet, so a surviving override would address the
+            // new definition's rows through the old sheet's cells. Cleared here rather than in Rebind
+            // so no future re-bind path can forget it.
+            _sheetOverride = null;
+            _overrideColumns = 0;
+            _overrideRows = 0;
+            SheetOverrideId = null;
+
             // A re-bound animator is a freshly spawned unit, so it starts visible. Leaving the previous
             // unit's hidden state in place would spawn a unit the caller cannot see and would not
             // connect to the ambush it was hidden for.
@@ -190,6 +221,77 @@ namespace PFE.Entities.Units
             }
 
             return playable;
+        }
+
+        /// <summary>
+        /// Draw this instance from a <b>different</b> sheet with the same grid, keeping every state and
+        /// frame — the port of <c>blitId = "sprEnclboss2"</c> (<c>UnitBossEncl.as:61</c>, <c>:72</c>).
+        ///
+        /// <para><b>Not <see cref="Rebind"/>.</b> That one takes a different <see cref="UnitDefinition"/>
+        /// and with it a different animation set; the three enclave commanders share one row and one set
+        /// of <c>BlitAnim</c> rows and differ only in which bitmap the rows are cut from. Swapping the
+        /// cells keeps <see cref="_state"/> — and therefore the cursor — exactly where it was.</para>
+        ///
+        /// <para><b>Draws immediately.</b> The cell on the renderer still belongs to the previous sheet,
+        /// so waiting for the next animation step would show the wrong body for up to a frame — the same
+        /// reason <see cref="Rebind"/> draws early.</para>
+        ///
+        /// <para><b>A malformed variant is refused, not partially applied.</b> A grid whose array is
+        /// shorter than <c>columns * rows</c> would let <see cref="CellIndexFor"/> address past the end
+        /// and blank the unit, so it falls back to the definition's own sheet and reports <c>false</c>.
+        /// The previous override is cleared in that case: a caller that tried to swap and failed must
+        /// not be left drawing the sheet it was trying to leave.</para>
+        /// </summary>
+        /// <returns>True when this animator now draws <paramref name="sheetId"/>.</returns>
+        public bool SetSheetOverride(string sheetId, Sprite[] cells, int columns, int rows)
+        {
+            if (cells == null || columns <= 0 || rows <= 0 || cells.Length < columns * rows)
+            {
+                ClearSheetOverride();
+                return false;
+            }
+
+            if (string.Equals(SheetOverrideId, sheetId, StringComparison.Ordinal)
+                && ReferenceEquals(_sheetOverride, cells))
+            {
+                return true;
+            }
+
+            _sheetOverride = cells;
+            _overrideColumns = columns;
+            _overrideRows = rows;
+            SheetOverrideId = sheetId;
+
+            _drawnCell = -1;
+            if (_renderer != null)
+            {
+                Draw();
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Return to the definition's own sheet — the resting body. Idempotent, and a no-op when no
+        /// override is set, so a caller can assert "draw the row's sheet" without knowing the history.
+        /// </summary>
+        public void ClearSheetOverride()
+        {
+            if (_sheetOverride == null)
+            {
+                return;
+            }
+
+            _sheetOverride = null;
+            _overrideColumns = 0;
+            _overrideRows = 0;
+            SheetOverrideId = null;
+
+            _drawnCell = -1;
+            if (_renderer != null)
+            {
+                Draw();
+            }
         }
 
         /// <summary>
@@ -357,7 +459,7 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            Sprite[] sheet = _definition.spriteSheet;
+            Sprite[] sheet = _sheetOverride ?? _definition.spriteSheet;
             if (sheet == null || index >= sheet.Length)
             {
                 return;
@@ -398,8 +500,8 @@ namespace PFE.Entities.Units
                 return -1;
             }
 
-            int columns = _definition.spriteSheetColumns;
-            int rows = _definition.spriteSheetRows;
+            int columns = _sheetOverride != null ? _overrideColumns : _definition.spriteSheetColumns;
+            int rows = _sheetOverride != null ? _overrideRows : _definition.spriteSheetRows;
             if (columns <= 0 || rows <= 0)
             {
                 return -1;

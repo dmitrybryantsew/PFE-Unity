@@ -410,8 +410,18 @@ namespace PFE.Entities.Enemies
         protected IWeaponDefinitionProvider WeaponDefinitionProvider =>
             _weaponProvider ?? ResourcesWeaponDefinitionProvider.Shared;
 
-        /// <summary>Resolve a weapon id, or report that it does not exist. See <see cref="WeaponDefinitionProvider"/>.</summary>
-        protected bool TryGetWeaponDefinition(string weaponId, out WeaponDefinition definition)
+        /// <summary>
+        /// Resolve a weapon id, or report that it does not exist. See <see cref="WeaponDefinitionProvider"/>.
+        ///
+        /// <para><b><c>virtual</c> so a boss can hand back a tuned <i>instance</i>.</b> AS3's
+        /// <c>Weapon.create</c> builds a fresh weapon per unit and the constructor is free to mutate it
+        /// — <c>UnitBossEncl</c> slows its launcher to <c>speed 12</c>, <c>accel 0.6</c>,
+        /// <c>reload 30</c> and cuts <c>damageExpl</c> by 40 % (<c>:66-69</c>). The port's definitions
+        /// are shared assets, so writing those numbers onto the row would retune every launcher in the
+        /// game; the enclave's override returns a private clone instead. Nothing else overrides this,
+        /// so the default path is unchanged.</para>
+        /// </summary>
+        protected virtual bool TryGetWeaponDefinition(string weaponId, out WeaponDefinition definition)
             => WeaponDefinitionProvider.TryGetWeapon(weaponId, out definition);
 
         /// <summary>

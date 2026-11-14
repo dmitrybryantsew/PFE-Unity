@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using PFE.ModAPI;
 #if ODIN_INSPECTOR
@@ -9,6 +10,39 @@ using Sirenix.OdinInspector;
 
 namespace PFE.Data.Definitions
 {
+    /// <summary>
+    /// One <b>alternative body sheet</b> for a unit that draws from more than one sheet — the port's
+    /// answer to AS3 writing <c>blitId</c> from the constructor.
+    ///
+    /// <para><b>Why a variant is a whole grid and not a list of sprites.</b> The AS3 units that do this
+    /// — <c>UnitBossEncl</c> is the only one — swap the <c>BitmapData</c> and keep every
+    /// <c>BlitAnim</c> row untouched (<c>UnitBossEncl.as:61</c>, <c>:72</c> assign <c>blitId</c> only).
+    /// So the three sheets are interchangeable <i>as grids</i>: same cell size, same row/column
+    /// addressing, different pixels. Storing columns/rows beside the cells is what lets the animator
+    /// keep indexing by <c>row * columns + column</c> after the swap instead of re-deriving a layout
+    /// that never changed.</para>
+    ///
+    /// <para><b>The cell arrays are the same shape as <see cref="UnitDefinition.spriteSheet"/></b> —
+    /// row-major over the whole grid — so an override is a straight array substitution and nothing in
+    /// the animation data has to be rebuilt. Written by <c>UnitSpriteImporter</c>'s
+    /// <c>CodeAssignedSheets</c> pass; empty for every unit whose body is fixed at import time.</para>
+    /// </summary>
+    [System.Serializable]
+    public class UnitSheetVariant
+    {
+        /// <summary>The AS3 sheet id, e.g. <c>sprEnclboss2</c> — the key a caller looks the variant up by.</summary>
+        public string sheetId;
+
+        /// <summary>The sliced grid, row-major: index = <c>row * columns + column</c>.</summary>
+        public Sprite[] cells;
+
+        /// <summary>Columns in this sheet. Equals the unit's own <c>spriteSheetColumns</c> for every sheet that is a true variant.</summary>
+        public int columns;
+
+        /// <summary>Rows in this sheet.</summary>
+        public int rows;
+    }
+
     /// <summary>
     /// Complete ScriptableObject definition for unit data.
     /// Replaces XML-based unit definitions from AllData.as in ActionScript.
@@ -677,6 +711,24 @@ namespace PFE.Data.Definitions
         /// </summary>
         [Tooltip("Villager pony looks in `tr` order (ponpon only); empty until the villager pass runs")]
         public Sprite[] variantSprites;
+
+        /// <summary>
+        /// The <b>other</b> sheets this unit can be drawn from, keyed by AS3 sheet id — the
+        /// <c>blitId</c> swap in <c>UnitBossEncl.as:61</c> / <c>:72</c>, where <c>tr</c> chooses between
+        /// <c>sprEnclboss1</c>, <c>sprEnclboss2</c> and <c>sprEnclboss3</c>.
+        ///
+        /// <para><b>Why the sheet, and not another unit row.</b> AS3 has one unit id (<c>bossencl</c>)
+        /// and one <c>&lt;vis blit='sprEnclboss1'&gt;</c>; only the bitmap changes, so a second row
+        /// would duplicate every stat and every <c>BlitAnim</c> row to express three pixels sets. The
+        /// row keeps sheet 1 as its primary <see cref="spriteSheet"/> and lists the other two here.</para>
+        ///
+        /// <para>Empty for every unit whose body is fixed. Written by <c>UnitSpriteImporter</c>'s
+        /// <c>CodeAssignedSheets</c> pass; read by
+        /// <see cref="PFE.Entities.Enemies.Bosses.BossEnclController"/>, which asks
+        /// <c>BossEnclRules.BlitIdFor(tr)</c> which one to draw.</para>
+        /// </summary>
+        [Tooltip("Alternative body sheets by AS3 sheet id (bossencl only); empty for a fixed body")]
+        public List<UnitSheetVariant> sheetVariants = new List<UnitSheetVariant>();
 
         [Tooltip("Gender")]
         public Gender gender = Gender.Other;
