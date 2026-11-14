@@ -20,6 +20,12 @@ Vendor
 /[Aa]ssets/ConsolePro/
 /[Aa]ssets/Packages/
 /[Aa]ssets/Plugins/
+/[Aa]ssets/FishNet/
+/[Aa]ssets/FishNet.meta
+# Written by FishNet's own editor tooling when it registers its spawnable prefabs,
+# so it is import output exactly like the vendored tree above.
+/[Aa]ssets/DefaultPrefabObjects.asset
+/[Aa]ssets/DefaultPrefabObjects.asset.meta
 /docs/
 # tests
 [Tt]est[._rR]esult*
