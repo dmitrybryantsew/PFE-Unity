@@ -389,6 +389,55 @@ namespace PFE.UI.PipBuck
         }
 
         /// <summary>
+        /// Raised when the player has confirmed the return to the title screen from page 5. The device
+        /// has already closed itself by the time this fires, so a subscriber may tear the scene down
+        /// without leaving the world suspended.
+        ///
+        /// <para><b>Why an event and not a <c>SceneLoader</c> call.</b> This class is the navigation
+        /// state machine and is exercised by offline fixtures that have no scene, no build settings and
+        /// no <c>UniTask</c> loop; a load inside it would make the whole navigation path untestable.
+        /// The one object that knows both the device and the scene graph is the bootstrapper, so it
+        /// subscribes — the same split <see cref="PipPageRouter"/> uses for world interactions.</para>
+        /// </summary>
+        public event Action MainMenuRequested;
+
+        /// <summary>
+        /// The port of nothing — the Oracle has no way back to its main menu. Leaves the session:
+        /// closes the device, then asks the shell's owner to load the title screen.
+        ///
+        /// <para><b>The order is load-bearing.</b> The device holds <see cref="InterfacePauseGate"/>
+        /// while it is open; a scene load that began before <c>OnOff(-1)</c> would run with the world
+        /// frozen and — if the load failed — leave it frozen with nothing on screen to explain it.
+        /// Closing first also plays the device's own close sound (<c>pip3</c>) before the screen
+        /// fades, which is what the player's last frame in the wasteland should sound like.</para>
+        /// </summary>
+        /// <returns>
+        /// True when the request was accepted and <see cref="MainMenuRequested"/> fired. False when it
+        /// was refused: the device is not open (nothing on screen asked for it), or the key-capture
+        /// popup owns the keyboard (<see cref="IsInputCaptureActive"/>).
+        /// </returns>
+        public bool RequestMainMenu()
+        {
+            if (IsInputCaptureActive())
+            {
+                return false;
+            }
+
+            // A closed device cannot be showing page 5. Refused rather than silently honoured, so a
+            // stray caller — a debug command, a future hotkey — cannot end the session from a state
+            // the player never saw.
+            if (!IsOpen)
+            {
+                return false;
+            }
+
+            OnOff(-1);
+
+            MainMenuRequested?.Invoke();
+            return true;
+        }
+
+        /// <summary>
         /// The port of <c>PipPage.page2Click</c> (<c>PipPage.as:883-892</c>) — a sub-tab was clicked.
         ///
         /// <para><b>This is not <see cref="SetPage"/>, and the difference is load-bearing.</b>

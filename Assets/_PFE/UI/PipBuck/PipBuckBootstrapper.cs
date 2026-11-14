@@ -1,4 +1,5 @@
 ﻿using System;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using MessagePipe;
 using VContainer;
@@ -531,7 +532,26 @@ namespace PFE.UI.PipBuck
             _manager.RegisterPage(vendPage);
             _vendorPage = vendPage;
 
-            RegisterStub(5, "PipPageOpt — options / save / load");
+            // ── Page 5: the tab captioned "Main menu" ─────────────────────────
+            //
+            // The Oracle's page 5 is PipPageOpt — options, key bindings and ten save slots
+            // (PipPageOpt.as:142-348) — and none of it is ported. What the tab's own caption
+            // (`main5`) promises is the one thing this page does: confirm, then leave the session.
+            // Registering a stub here instead would have kept the tab lit over a screen that says it
+            // has no contents, which is what it said before this landed.
+            var mainMenuPage = new PipPageMainMenuView
+            {
+                // The page does not load anything itself: the manager owns the ordering (close the
+                // device, release the world gate, then ask), and this class owns the scene.
+                ReturnRequested = () => _manager.RequestMainMenu(),
+            };
+            mainMenuPage.Configure(_composition, _font, _text);
+            _manager.RegisterPage(mainMenuPage);
+            mainMenuPage.Build(_view.PageRoot);
+
+            // The one subscriber to the return-to-title request. Subscribed here rather than in Build
+            // so it lands with the page it belongs to; released in OnDestroy.
+            _manager.MainMenuRequested += OnMainMenuRequested;
 
             // ── Page 6: the doctor (PipPageMed) ───────────────────────────────
             //
@@ -872,6 +892,29 @@ namespace PFE.UI.PipBuck
                           "showing PipBuck page 3, World sub-tab (pip.onoff(3,3)).");
                 _manager?.OnOff(PipInfoFrame.InfoPageId, PipInfoFrame.WorldSubPage);
             });
+        }
+
+        /// <summary>
+        /// Leaves the session: loads the title screen after the device has already closed itself.
+        ///
+        /// <para><b>Why the fade duration is longer than the menu's own 0.22 s.</b> The 0.22 s is the
+        /// main menu starting a game; this is a screen the player asked to leave and may be sorry
+        /// about, and the device's close clunk (<c>pip3</c>) is playing under it. 0.35 s lets that
+        /// finish rather than cutting it off mid-sample.</para>
+        ///
+        /// <para><b>A failed load is survivable, and that is the point of the ordering.</b> The device
+        /// is closed and the world gate released before this runs, so if the scene is missing from the
+        /// build settings the player is back in the wasteland with the device shut — not staring at a
+        /// frozen world with nothing to explain it. <c>SceneLoader</c> also refuses a second
+        /// concurrent load, so a double press cannot queue two.</para>
+        /// </summary>
+        private void OnMainMenuRequested()
+        {
+            Debug.Log("[PipBuckBootstrapper] Return to main menu confirmed — loading " +
+                      PipPageMainMenuView.MainMenuSceneName + ".");
+
+            SceneLoader.LoadSceneAsync(PipPageMainMenuView.MainMenuSceneName, useFade: true,
+                fadeDuration: 0.35f).Forget();
         }
 
         /// <summary>
@@ -1598,6 +1641,11 @@ namespace PFE.UI.PipBuck
 
             _clinicSubscription?.Dispose();
             _clinicSubscription = null;
+
+            // The manager is injected and outlives this object (it is a singleton in the game's
+            // scope), so an un-removed handler would fire into a destroyed bootstrapper on the next
+            // return-to-title request — and would be a second, stale load request behind the live one.
+            if (_manager != null) _manager.MainMenuRequested -= OnMainMenuRequested;
         }
     }
 }
