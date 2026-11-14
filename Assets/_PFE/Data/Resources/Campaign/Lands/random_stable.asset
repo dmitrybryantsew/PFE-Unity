@@ -267,4 +267,90 @@ MonoBehaviour:
     - tip: wave
       uid: 
       qid: 
+    waves:
+    - hasDelay: 1
+      delaySeconds: 25
+      spawnCount: 6
+      spawns:
+      - unitId: landturret
+        tr: 
+        hero: 
+      - unitId: landturret
+        tr: 
+        hero: 
+      - unitId: protect
+        tr: 
+        hero: 
+      - unitId: protect
+        tr: 
+        hero: 
+      - unitId: spritebot
+        tr: 
+        hero: 
+      - unitId: spritebot
+        tr: 
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 45
+      spawnCount: 6
+      spawns:
+      - unitId: slaver
+        tr: 1
+        hero: 
+      - unitId: slaver
+        tr: 2
+        hero: 
+      - unitId: slaver
+        tr: 3
+        hero: 
+      - unitId: protect
+        tr: 
+        hero: 
+      - unitId: gutsy
+        tr: 
+        hero: 
+      - unitId: landturret
+        tr: 
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 60
+      spawnCount: 6
+      spawns:
+      - unitId: slaver
+        tr: 1
+        hero: 
+      - unitId: slaver
+        tr: 2
+        hero: 
+      - unitId: slaver
+        tr: 3
+        hero: 
+      - unitId: slaver
+        tr: 4
+        hero: 
+      - unitId: slaver
+        tr: 5
+        hero: 
+      - unitId: slaver
+        tr: 6
+        hero: 
+    - hasDelay: 0
+      delaySeconds: 0
+      spawnCount: 5
+      spawns:
+      - unitId: gutsy
+        tr: 
+        hero: 
+      - unitId: gutsy
+        tr: 
+        hero: 
+      - unitId: gutsy
+        tr: 
+        hero: 1
+      - unitId: eqd
+        tr: 
+        hero: 
+      - unitId: sentinel
+        tr: 
+        hero: 
   itemScripts: []

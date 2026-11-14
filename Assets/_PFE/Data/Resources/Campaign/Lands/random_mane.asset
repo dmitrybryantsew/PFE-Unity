@@ -227,4 +227,84 @@ MonoBehaviour:
     - tip: wave
       uid: 
       qid: 
+    waves:
+    - hasDelay: 1
+      delaySeconds: 30
+      spawnCount: 6
+      spawns:
+      - unitId: slaver
+        tr: 1
+        hero: 
+      - unitId: slaver
+        tr: 2
+        hero: 
+      - unitId: slaver
+        tr: 3
+        hero: 
+      - unitId: vortex
+        tr: 
+        hero: 
+      - unitId: vortex
+        tr: 
+        hero: 
+      - unitId: vortex
+        tr: 
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 60
+      spawnCount: 6
+      spawns:
+      - unitId: zebra
+        tr: 1
+        hero: 
+      - unitId: zebra
+        tr: 2
+        hero: 
+      - unitId: zebra
+        tr: 3
+        hero: 
+      - unitId: zebra
+        tr: 4
+        hero: 
+      - unitId: msp
+        tr: 
+        hero: 
+      - unitId: msp
+        tr: 
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 80
+      spawnCount: 5
+      spawns:
+      - unitId: merc
+        tr: 1
+        hero: 
+      - unitId: merc
+        tr: 2
+        hero: 
+      - unitId: merc
+        tr: 3
+        hero: 
+      - unitId: merc
+        tr: 4
+        hero: 
+      - unitId: merc
+        tr: 5
+        hero: 
+    - hasDelay: 0
+      delaySeconds: 0
+      spawnCount: 4
+      spawns:
+      - unitId: alicorn
+        tr: 1
+        hero: 
+      - unitId: alicorn
+        tr: 2
+        hero: 
+      - unitId: alicorn
+        tr: 1
+        hero: 1
+      - unitId: alicorn
+        tr: 3
+        hero: 
   itemScripts: []

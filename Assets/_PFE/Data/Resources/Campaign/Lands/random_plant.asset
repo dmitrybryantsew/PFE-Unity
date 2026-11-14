@@ -277,6 +277,77 @@ MonoBehaviour:
     - tip: wave
       uid: 
       qid: 
+    waves:
+    - hasDelay: 1
+      delaySeconds: 15
+      spawnCount: 3
+      spawns:
+      - unitId: raider
+        tr: 
+        hero: 
+      - unitId: raider
+        tr: 
+        hero: 
+      - unitId: robot
+        tr: 
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 20
+      spawnCount: 5
+      spawns:
+      - unitId: protect
+        tr: 
+        hero: 
+      - unitId: gutsy
+        tr: 
+        hero: 
+      - unitId: robot
+        tr: 
+        hero: 
+      - unitId: roller
+        tr: 
+        hero: 
+      - unitId: roller
+        tr: 
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 25
+      spawnCount: 5
+      spawns:
+      - unitId: raider
+        tr: 2
+        hero: 
+      - unitId: raider
+        tr: 3
+        hero: 
+      - unitId: raider
+        tr: 4
+        hero: 
+      - unitId: raider
+        tr: 5
+        hero: 
+      - unitId: raider
+        tr: 6
+        hero: 
+    - hasDelay: 0
+      delaySeconds: 0
+      spawnCount: 5
+      spawns:
+      - unitId: raider
+        tr: 5
+        hero: 
+      - unitId: raider
+        tr: 6
+        hero: 
+      - unitId: raider
+        tr: 8
+        hero: 
+      - unitId: raider
+        tr: 9
+        hero: 
+      - unitId: raider
+        tr: 7
+        hero: 1
   - id: generator
     hasLevel: 1
     level: 2

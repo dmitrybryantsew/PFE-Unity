@@ -153,4 +153,87 @@ MonoBehaviour:
     - tip: wave
       uid: 
       qid: 
+    waves:
+    - hasDelay: 1
+      delaySeconds: 30
+      spawnCount: 7
+      spawns:
+      - unitId: roller
+        tr: 2
+        hero: 
+      - unitId: roller
+        tr: 2
+        hero: 
+      - unitId: roller
+        tr: 2
+        hero: 
+      - unitId: dron
+        tr: 1
+        hero: 
+      - unitId: dron
+        tr: 2
+        hero: 
+      - unitId: dron
+        tr: 3
+        hero: 
+      - unitId: dron
+        tr: 3
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 60
+      spawnCount: 5
+      spawns:
+      - unitId: encl
+        tr: 1
+        hero: 1
+      - unitId: encl
+        tr: 1
+        hero: 
+      - unitId: encl
+        tr: 2
+        hero: 
+      - unitId: encl
+        tr: 3
+        hero: 
+      - unitId: encl
+        tr: 4
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 90
+      spawnCount: 5
+      spawns:
+      - unitId: hellhound
+        tr: 
+        hero: 
+      - unitId: dron
+        tr: 3
+        hero: 
+      - unitId: hellhound
+        tr: 
+        hero: 1
+      - unitId: dron
+        tr: 3
+        hero: 
+      - unitId: hellhound
+        tr: 
+        hero: 
+    - hasDelay: 0
+      delaySeconds: 0
+      spawnCount: 5
+      spawns:
+      - unitId: encl
+        tr: 2
+        hero: 1
+      - unitId: encl
+        tr: 3
+        hero: 1
+      - unitId: encl
+        tr: 4
+        hero: 1
+      - unitId: hellhound
+        tr: 
+        hero: 
+      - unitId: hellhound
+        tr: 
+        hero: 
   itemScripts: []

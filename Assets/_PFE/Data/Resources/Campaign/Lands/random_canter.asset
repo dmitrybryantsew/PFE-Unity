@@ -201,6 +201,98 @@ MonoBehaviour:
     - tip: wave
       uid: 
       qid: 
+    waves:
+    - hasDelay: 1
+      delaySeconds: 30
+      spawnCount: 7
+      spawns:
+      - unitId: bloodwing
+        tr: 2
+        hero: 
+      - unitId: bloodwing
+        tr: 2
+        hero: 
+      - unitId: bloodwing
+        tr: 2
+        hero: 1
+      - unitId: scorp3
+        tr: 
+        hero: 
+      - unitId: scorp3
+        tr: 
+        hero: 
+      - unitId: bloat
+        tr: 5
+        hero: 
+      - unitId: bloat
+        tr: 5
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 60
+      spawnCount: 7
+      spawns:
+      - unitId: zombie
+        tr: 5
+        hero: 
+      - unitId: zombie
+        tr: 6
+        hero: 
+      - unitId: zombie
+        tr: 7
+        hero: 
+      - unitId: zombie
+        tr: 8
+        hero: 
+      - unitId: zombie
+        tr: 9
+        hero: 
+      - unitId: bloat
+        tr: 6
+        hero: 
+      - unitId: bloat
+        tr: 6
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 80
+      spawnCount: 5
+      spawns:
+      - unitId: alicorn
+        tr: 1
+        hero: 
+      - unitId: alicorn
+        tr: 2
+        hero: 
+      - unitId: alicorn
+        tr: 3
+        hero: 
+      - unitId: necros
+        tr: 
+        hero: 
+      - unitId: necros
+        tr: 
+        hero: 
+    - hasDelay: 0
+      delaySeconds: 0
+      spawnCount: 6
+      spawns:
+      - unitId: zombie
+        tr: 7
+        hero: 1
+      - unitId: zombie
+        tr: 8
+        hero: 1
+      - unitId: zombie
+        tr: 9
+        hero: 1
+      - unitId: alicorn
+        tr: 3
+        hero: 
+      - unitId: necros
+        tr: 
+        hero: 
+      - unitId: necros
+        tr: 
+        hero: 
   - id: barahlo
     hasLevel: 1
     level: 2

@@ -138,6 +138,80 @@ MonoBehaviour:
     - tip: wave
       uid: 
       qid: 
+    waves:
+    - hasDelay: 1
+      delaySeconds: 15
+      spawnCount: 4
+      spawns:
+      - unitId: bloodwing
+        tr: 
+        hero: 
+      - unitId: bloodwing
+        tr: 
+        hero: 
+      - unitId: scorp
+        tr: 
+        hero: 
+      - unitId: scorp
+        tr: 
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 20
+      spawnCount: 5
+      spawns:
+      - unitId: zombie
+        tr: 0
+        hero: 
+      - unitId: zombie
+        tr: 1
+        hero: 
+      - unitId: zombie
+        tr: 2
+        hero: 
+      - unitId: bloat
+        tr: 4
+        hero: 
+      - unitId: bloat
+        tr: 4
+        hero: 
+    - hasDelay: 1
+      delaySeconds: 25
+      spawnCount: 5
+      spawns:
+      - unitId: zombie
+        tr: 0
+        hero: 
+      - unitId: zombie
+        tr: 1
+        hero: 
+      - unitId: zombie
+        tr: 2
+        hero: 
+      - unitId: zombie
+        tr: 5
+        hero: 
+      - unitId: zombie
+        tr: 6
+        hero: 
+    - hasDelay: 0
+      delaySeconds: 0
+      spawnCount: 5
+      spawns:
+      - unitId: zombie
+        tr: 2
+        hero: 
+      - unitId: zombie
+        tr: 3
+        hero: 
+      - unitId: zombie
+        tr: 4
+        hero: 
+      - unitId: zombie
+        tr: 5
+        hero: 1
+      - unitId: zombie
+        tr: 6
+        hero: 1
   itemScripts:
   - itemId: diary
     actions:
