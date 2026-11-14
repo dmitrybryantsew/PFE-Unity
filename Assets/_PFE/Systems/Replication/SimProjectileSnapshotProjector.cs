@@ -87,8 +87,9 @@ namespace PFE.Systems.Replication
         private SimTileMutation[] _tileJournal = Array.Empty<SimTileMutation>();
         private int _tileJournalVersion = -1;
 
+        // NOT paired with a "resolved" flag: see ResolveStreaming(). MapBridge builds this scene
+        // object at the END of a multi-second boot coroutine, long after this tickable's first tick.
         private RoomStreamingManager _streaming;
-        private bool _streamingResolved;
 
         private SimSnapshot _current;
         private uint _snapshotSequence;
@@ -112,6 +113,24 @@ namespace PFE.Systems.Replication
 
         /// <summary>The snapshot built by the last tick. Default until <see cref="SimTick"/> has run once.</summary>
         public SimSnapshot Current => _current;
+
+        /// <summary>
+        /// Whether the projector has found the scene's streaming manager. FALSE for the whole session
+        /// is the failure the fourth play-test showed: <c>projUnits=0</c> on a healthy wire. The
+        /// projector is an <see cref="IAutoRegisteredSimTickable"/> that <c>SimTickRegistrar</c>
+        /// attaches at container build, so it ticks while the world is still being built.
+        /// </summary>
+        public bool HasStreaming => _streaming != null;
+
+        /// <summary>How many rooms the last projection emitted deltas for. 0 means no unit can be sent.</summary>
+        public int ActiveRoomCount => _rooms.Count;
+
+        /// <summary>
+        /// How many live units passed the <c>HasEntityId</c> filter on the last projection. A non-zero
+        /// value here with <see cref="ProjectedUnitCount"/> == 0 means every unit failed the
+        /// <c>ReferenceEquals(controller.Room, room)</c> attribution, not that the wire is broken.
+        /// </summary>
+        public int IdentifiedUnitCount => _units.Count;
 
         /// <summary>
         /// The producer's reliable tile stream, exposed so Phase 4's ack can reach
@@ -485,16 +504,31 @@ namespace PFE.Systems.Replication
         }
 
         /// <summary>
-        /// Resolve the scene's streaming manager once, and only once. It is a scene object, so the
-        /// container cannot inject it; the lookup is cached because <c>FindFirstObjectByType</c> walks
-        /// the scene, and a per-tick walk would be the most expensive thing in the projection.
+        /// Resolve the scene's streaming manager, retrying until it exists, then caching it.
+        ///
+        /// <para><b>Why a "resolved" flag is wrong here.</b> This class is an
+        /// <c>IAutoRegisteredSimTickable</c>: <c>SimTickRegistrar.Start()</c> attaches it to
+        /// <c>SimLoop</c> at container build, so its first tick runs while
+        /// <c>MapBridge.WaitForInitialization</c> is still building the visual world. MapBridge
+        /// creates the <c>RoomStreamingManager</c> only at the END of that multi-second coroutine
+        /// (<c>MapBridge.cs:466-472</c>). Caching the first <c>FindFirstObjectByType</c> result
+        /// therefore caches <b>null for the entire session</b>: <c>_rooms</c> stays empty, every
+        /// snapshot carries zero room deltas, and <c>ProjectedUnitCount</c> is permanently 0 while
+        /// transport, snapshots, commands and the world contract all look perfectly healthy.</para>
+        ///
+        /// <para>That is the fourth play-test readback: <c>bootAct=1</c> (the session's own retrying
+        /// resolver DID find the manager and activated the boot room) next to <c>projUnits=0
+        /// projPlayers=0 localProj=0</c> (the projector was still looking at its cached null).
+        /// Unity's overloaded <c>== null</c> also re-arms the lookup after a scene unload destroys
+        /// the cached object, which a plain "resolved" flag could never do.</para>
+        ///
+        /// <para>The scene walk happens only on the boot ticks before the manager exists; once found
+        /// it is cached, so the steady-state cost is unchanged.</para>
         /// </summary>
         private RoomStreamingManager ResolveStreaming()
         {
-            if (_streamingResolved) return _streaming;
-
-            _streaming = UnityEngine.Object.FindFirstObjectByType<RoomStreamingManager>();
-            _streamingResolved = true;
+            if (_streaming == null)
+                _streaming = UnityEngine.Object.FindFirstObjectByType<RoomStreamingManager>();
             return _streaming;
         }
     }
