@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using Cysharp.Threading.Tasks;
 using PFE.Character;
@@ -56,6 +57,10 @@ namespace PFE.UI.MainMenu
         bool _suppressCustomizationEvents;
 
         InputField _nameInput;
+        InputField _connectAddressInput;
+        InputField _connectPortInput;
+        Text _connectStatusText;
+        PfeNetLaunchRole _connectRole = PfeNetLaunchRole.Host;
         Text _loadText;
         Text _modsText;
         Text _summaryText;
@@ -158,6 +163,7 @@ namespace PFE.UI.MainMenu
             CanvasGroup optionsPanel = BuildOptionsPanel(overlayRoot);
             CanvasGroup modsPanel = BuildModsPanel(overlayRoot);
             CanvasGroup aboutPanel = BuildAboutPanel(overlayRoot);
+            CanvasGroup connectPanel = BuildConnectPanel(overlayRoot);
 
             _menuManager.ConfigureRuntimeScreens(
                 new Dictionary<MainMenuScreen, CanvasGroup>
@@ -166,7 +172,8 @@ namespace PFE.UI.MainMenu
                     { MainMenuScreen.LoadGame, loadPanel },
                     { MainMenuScreen.Options, optionsPanel },
                     { MainMenuScreen.Mods, modsPanel },
-                    { MainMenuScreen.About, aboutPanel }
+                    { MainMenuScreen.About, aboutPanel },
+                    { MainMenuScreen.Connect, connectPanel }
                 },
                 MainMenuScreen.Title);
 
@@ -193,6 +200,7 @@ namespace PFE.UI.MainMenu
             MakeMenuButton(nav, "Options", new Vector2(0f, -150f), new Vector2(196f, 32f), 16, () => _menuManager.ShowOptions());
             MakeMenuButton(nav, "Mods", new Vector2(0f, -196f), new Vector2(196f, 32f), 16, OnModsPressed);
             MakeMenuButton(nav, "Authors", new Vector2(0f, -242f), new Vector2(196f, 32f), 16, () => _menuManager.ShowAbout());
+            MakeMenuButton(nav, "Connect (LAN)", new Vector2(0f, -288f), new Vector2(196f, 32f), 16, () => _menuManager.ShowConnect());
 
             RectTransform info = MakeRect("InfoBlock", parent, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(280f, 180f), new Vector2(84f, 242f));
             MakeText("InfoHeader", info, "Useful information and links:", 16, Accent, TextAnchor.UpperLeft, new Vector2(0f, 152f), new Vector2(270f, 24f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f));
@@ -308,6 +316,115 @@ namespace PFE.UI.MainMenu
             return panel;
         }
 
+        CanvasGroup BuildConnectPanel(RectTransform parent)
+        {
+            CanvasGroup panel = MakePanel("ConnectPanel", parent, new Vector2(760f, 470f));
+            RectTransform rect = (RectTransform)panel.transform;
+            MakeText("Title", rect, "LAN multiplayer", 20, Accent, TextAnchor.MiddleCenter,
+                new Vector2(0f, 200f), new Vector2(320f, 24f), Center, Center, Center);
+
+            RectTransform modes = MakeRect("ModeRoot", rect, Center, Center, Center,
+                new Vector2(300f, 64f), new Vector2(0f, 130f));
+            ToggleGroup modeGroup = modes.gameObject.AddComponent<ToggleGroup>();
+            MakeConnectModeToggle(modes, modeGroup, "Host a LAN game", PfeNetLaunchRole.Host,
+                new Vector2(0f, 14f), _connectRole == PfeNetLaunchRole.Host);
+            MakeConnectModeToggle(modes, modeGroup, "Join a LAN game", PfeNetLaunchRole.Client,
+                new Vector2(0f, -20f), _connectRole == PfeNetLaunchRole.Client);
+
+            MakeText("AddressLabel", rect, "Host address (Join only)", 16, PanelText,
+                TextAnchor.MiddleCenter, new Vector2(0f, 66f), new Vector2(300f, 22f),
+                Center, Center, Center);
+            _connectAddressInput = MakeInput(rect, new Vector2(0f, 32f), new Vector2(300f, 32f),
+                "localhost", "AddressInput");
+            _connectAddressInput.text = PfeNetLaunchRules.LoopbackAddress;
+
+            MakeText("PortLabel", rect, "UDP port (same on both machines)", 16, PanelText,
+                TextAnchor.MiddleCenter, new Vector2(0f, -6f), new Vector2(340f, 22f),
+                Center, Center, Center);
+            _connectPortInput = MakeInput(rect, new Vector2(0f, -40f), new Vector2(160f, 32f),
+                "7770", "PortInput");
+            _connectPortInput.text = PfeNetLaunchRules.DefaultPort.ToString(CultureInfo.InvariantCulture);
+
+            MakeText("Hint", rect,
+                "Host binds 0.0.0.0 on this port. Join needs the host's LAN IPv4 (e.g. 192.168.1.23).\n" +
+                "Both machines need the same build and UDP reachable on this port.\n" +
+                "World/campaign replication is not wired yet: each machine still builds its own world.",
+                15, PanelText, TextAnchor.UpperLeft, new Vector2(0f, -100f), new Vector2(660f, 80f),
+                Center, Center, Center);
+
+            _connectStatusText = MakeText("Status", rect, string.Empty, 15, Version,
+                TextAnchor.MiddleCenter, new Vector2(0f, -162f), new Vector2(660f, 24f),
+                Center, Center, Center);
+
+            MakeActionButton(rect, "Cancel", new Vector2(-104f, -204f), new Vector2(168f, 44f),
+                () =>
+                {
+                    PfeNetLaunchData.ClearPending();
+                    _connectStatusText.text = string.Empty;
+                    _menuManager.ShowTitle();
+                });
+            MakeActionButton(rect, "Start", new Vector2(104f, -204f), new Vector2(168f, 44f),
+                OnConnectStartPressed);
+            return panel;
+        }
+
+        void MakeConnectModeToggle(RectTransform parent, ToggleGroup group, string label,
+            PfeNetLaunchRole role, Vector2 anchoredPosition, bool isOn)
+        {
+            RectTransform row = MakeRect(role + "Mode", parent, Center, Center, Center,
+                new Vector2(280f, 30f), anchoredPosition);
+            Toggle toggle = row.gameObject.AddComponent<Toggle>();
+            toggle.group = group;
+            toggle.transition = Selectable.Transition.None;
+            toggle.isOn = isOn;   // set before the listener, so the default role is not re-applied
+
+            Image off = MakeImage("Off", row, _sprites.checkboxOff, Color.white, Center, Center, Center,
+                new Vector2(-128f, 0f), new Vector2(14f, 14f));
+            Image on = MakeImage("On", row, _sprites.checkboxOn, Color.white, Center, Center, Center,
+                new Vector2(-128f, 0f), new Vector2(14f, 14f));
+            off.raycastTarget = true;
+            on.enabled = toggle.isOn;
+            toggle.targetGraphic = off;
+            toggle.graphic = on;
+
+            Text text = MakeText("Label", row, label, 16, isOn ? Accent : PanelText,
+                TextAnchor.MiddleLeft, Vector2.zero, new Vector2(250f, 22f), Center, Center, Center);
+            toggle.onValueChanged.AddListener(value =>
+            {
+                on.enabled = value;
+                text.color = value ? Accent : PanelText;
+                if (value) _connectRole = role;
+            });
+        }
+
+        void OnConnectStartPressed()
+        {
+            int port;
+            if (!int.TryParse(_connectPortInput?.text, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out port))
+            {
+                port = 0;   // outside 1..65535: the rules refuse it with a named error
+            }
+
+            // PFE.View.asmdef cannot reference the Assembly-CSharp adapter, so this static bridge is
+            // the whole handoff. It MUST be written before the scene transition: the session watcher
+            // consumes it once, and a request stored afterwards would have no reader.
+            if (!PfeNetLaunchData.TryRequest(_connectRole, _connectAddressInput?.text, port))
+            {
+                _connectStatusText.text = "Cannot start: " + PfeNetLaunchData.LastError;
+                return;
+            }
+
+            // A LAN start is still an ordinary new-game boot; the game scene needs its settings.
+            NewGameSettings pending = _settings.Clone();
+            pending.playerName = string.IsNullOrWhiteSpace(_settings.playerName)
+                ? "Littlepip" : _settings.playerName.Trim();
+            GameBootData.SetPendingNewGame(pending);
+
+            _connectStatusText.text = "Starting " + _connectRole + " on port " + port + "...";
+            SceneLoader.LoadSceneAsync(SampleSceneName, useFade: true, fadeDuration: 0.22f).Forget();
+        }
+
         void OnContinuePressed()
         {
             List<SaveMetadata> saves = SaveManager.Instance.GetAllSaves();
@@ -335,6 +452,8 @@ namespace PFE.UI.MainMenu
 
         void OnStartPressed()
         {
+            // An ordinary single-player start must not inherit a LAN request whose scene load failed.
+            PfeNetLaunchData.ClearPending();
             NewGameSettings pending = _settings.Clone();
             pending.playerName = string.IsNullOrWhiteSpace(_nameInput?.text) ? "Littlepip" : _nameInput.text.Trim();
             GameBootData.SetPendingNewGame(pending);
@@ -792,9 +911,10 @@ namespace PFE.UI.MainMenu
             });
         }
 
-        InputField MakeInput(RectTransform parent, Vector2 anchoredPosition, Vector2 size)
+        InputField MakeInput(RectTransform parent, Vector2 anchoredPosition, Vector2 size,
+            string placeholderText = "Littlepip", string objectName = "Input")
         {
-            RectTransform rect = MakeRect("Input", parent, Center, Center, Center, size, anchoredPosition);
+            RectTransform rect = MakeRect(objectName, parent, Center, Center, Center, size, anchoredPosition);
             Image background = rect.gameObject.AddComponent<Image>();
             background.sprite = _sprites.inputBackground;
             var input = rect.gameObject.AddComponent<InputField>();
@@ -804,7 +924,7 @@ namespace PFE.UI.MainMenu
 
             RectTransform area = MakeRect("TextArea", rect, Vector2.zero, Vector2.one, Center, new Vector2(-28f, -10f), Vector2.zero);
             Text text = MakeText("Text", area, string.Empty, 18, Accent, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.one, Center);
-            Text placeholder = MakeText("Placeholder", area, "Littlepip", 18, new Color(0.12f, 0.6f, 0.46f, 0.8f), TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.one, Center);
+            Text placeholder = MakeText("Placeholder", area, placeholderText, 18, new Color(0.12f, 0.6f, 0.46f, 0.8f), TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.one, Center);
             input.textComponent = text;
             input.placeholder = placeholder;
             return input;

@@ -305,6 +305,7 @@ namespace PFE.Sim.Replication
         public static byte[] Serialize(SimBaselineChunk value) => Write(w => value.WriteTo(w));
         public static byte[] Serialize(SimSnapshotAck value) => Write(w => value.WriteTo(w));
         public static byte[] Serialize(SimInterestUpdate value) => Write(w => value.WriteTo(w));
+        public static byte[] Serialize(SimPlayerCommandBatch value) => Write(w => value.WriteTo(w));
 
         private static byte[] Write(Action<BinaryWriter> body)
         {
@@ -316,6 +317,14 @@ namespace PFE.Sim.Replication
                 return stream.ToArray();
             }
         }
+
+        /// <summary>
+        /// Reads one command window. <paramref name="maxCommands"/> is supplied by the session layer,
+        /// not invented here: the pure endpoint owns no transport constant, and a forged length prefix
+        /// must not be able to allocate an unbounded array.
+        /// </summary>
+        public static SimPlayerCommandBatch ReadPlayerCommandBatch(byte[] bytes, int maxCommands) =>
+            Read(reader => SimPlayerCommandBatch.ReadFrom(reader, maxCommands), bytes);
 
         public static SimJoinRequest ReadJoinRequest(byte[] bytes) => Read(SimJoinRequest.ReadFrom, bytes);
         public static SimJoinAccept ReadJoinAccept(byte[] bytes) => Read(SimJoinAccept.ReadFrom, bytes);

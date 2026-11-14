@@ -31,6 +31,10 @@ namespace PFE.Tests.Editor.Core
             "Sim/Replication/SimReplicationInterest.cs",
             "Sim/Replication/SimReplicationHost.cs",
             "Sim/Replication/SimReplicationClient.cs",
+            // Phase 5 command uplink. The first files that carry intent rather than state are exactly
+            // the ones most likely to grow a transport shortcut, so they join the same purity scan.
+            "Sim/Replication/SimPlayerCommandBatch.cs",
+            "Sim/Replication/SimCommandIngress.cs",
         };
 
         private const string HostPath = "Sim/Replication/SimReplicationHost.cs";

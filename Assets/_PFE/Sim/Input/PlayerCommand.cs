@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 
 namespace PFE.Core.Input
 {
@@ -126,6 +127,40 @@ namespace PFE.Core.Input
         {
             float clamped = value < -1f ? -1f : (value > 1f ? 1f : value);
             return (sbyte)System.Math.Round(clamped * 127f, MidpointRounding.AwayFromZero);
+        }
+
+        /// <summary>
+        /// Phase 5 (command uplink): append this intent to the wire in declaration order. Every field
+        /// is a fixed-width primitive, so a truncated payload throws instead of fabricating a command.
+        ///
+        /// <para><b>Why the codec lives on the command.</b> The readiness plan's §9 shape and the
+        /// batch payload both need the same byte order. A second copy in an adapter would be a second
+        /// definition of "one command" that could drift without either side noticing.</para>
+        /// </summary>
+        public readonly void WriteTo(BinaryWriter writer)
+        {
+            writer.Write(TickIndex);
+            writer.Write(SlotIndex);
+            writer.Write(Sequence);
+            writer.Write(MoveX);
+            writer.Write(MoveY);
+            writer.Write(AimAngle);
+            writer.Write((ushort)Buttons);
+        }
+
+        /// <summary>Reads one command in the exact order <see cref="WriteTo"/> wrote it.</summary>
+        public static PlayerCommand ReadFrom(BinaryReader reader)
+        {
+            return new PlayerCommand
+            {
+                TickIndex = reader.ReadInt32(),
+                SlotIndex = reader.ReadByte(),
+                Sequence = reader.ReadUInt32(),
+                MoveX = reader.ReadSByte(),
+                MoveY = reader.ReadSByte(),
+                AimAngle = reader.ReadSingle(),
+                Buttons = (Button)reader.ReadUInt16(),
+            };
         }
 
         public readonly bool Equals(PlayerCommand other)

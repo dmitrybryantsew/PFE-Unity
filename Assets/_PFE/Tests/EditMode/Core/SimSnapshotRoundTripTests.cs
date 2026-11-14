@@ -293,13 +293,15 @@ namespace PFE.Tests.EditMode.Core
         // ── v4 (§10.2 gaps 1 and 2) ───────────────────────────────────────────
 
         [Test]
-        public void V4ProtocolVersion_IsFour()
+        public void V5ProtocolVersion_IsFive()
         {
             // The literal, not the symbol: a test that compares CurrentProtocolVersion against itself
-            // stays green through a silent rollback to v3, which is precisely the change this pins.
-            Assert.AreEqual(4u, SimSnapshotSerializer.CurrentProtocolVersion,
-                "§10.2's two layout changes are incompatible with v3. A v3 number would let a v3 peer " +
-                "read the loot EntityHash as ItemIdHash and the journal count as trailing bytes.");
+            // stays green through a silent rollback to v4, which is precisely the change this pins.
+            // v5 changed no snapshot byte; it added the mandatory PlayerCommandBatch kind to the
+            // handshake. A v4 number would admit a peer that can receive state but never send intent.
+            Assert.AreEqual(5u, SimSnapshotSerializer.CurrentProtocolVersion,
+                "The replication handshake shares this constant. Rolling back to 4 would let a v4 peer " +
+                "join a session whose host expects a command uplink it can never send.");
         }
 
         [Test]

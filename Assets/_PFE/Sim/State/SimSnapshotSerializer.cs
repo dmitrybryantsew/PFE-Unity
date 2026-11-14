@@ -57,8 +57,16 @@ namespace PFE.Sim.State
         /// <c>SimTileMutation[] TileMutations</c> journal written after <c>Rooms</c>. A v3 reader
         /// would read the first loot id as the content id and then interpret the journal's count as
         /// trailing bytes — so the version guard must reject before a single record is read.</para>
+        ///
+        /// <para>v5 (2026-11-10, Phase 5): no snapshot field changed. The version is bumped because
+        /// the <b>handshake shares this number</b> (<c>SimReplicationProtocolRules</c>), and the
+        /// replication protocol gained a mandatory client → host message kind,
+        /// <c>PlayerCommandBatch</c>, plus peer→slot admission. A v4 peer would join, receive state,
+        /// and never send intent; worse, the host would have no way to tell "old build" from "idle
+        /// player". Refusing the peer at the handshake is the only honest answer. The snapshot byte
+        /// layout is deliberately unchanged, so no record codec was touched.</para>
         /// </remarks>
-        public const uint CurrentProtocolVersion = 4;
+        public const uint CurrentProtocolVersion = 5;
 
         /// <summary>"PFES" — PFE Snapshot. Rejects a payload that is not a snapshot at all before the
         /// version is even read.</summary>

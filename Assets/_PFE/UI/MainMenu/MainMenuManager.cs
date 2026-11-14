@@ -11,7 +11,10 @@ namespace PFE.UI.MainMenu
         LoadGame,
         Options,
         Mods,
-        About
+        About,
+        // Appended, never inserted: these values are serialized on the inspector fields, so
+        // inserting in the middle would silently renumber every existing screen.
+        Connect
     }
 
     /// <summary>
@@ -106,6 +109,11 @@ namespace PFE.UI.MainMenu
         public void ShowAbout()
         {
             OpenScreen(MainMenuScreen.About);
+        }
+
+        public void ShowConnect()
+        {
+            OpenScreen(MainMenuScreen.Connect);
         }
 
         public void Back()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PFE.Core.Input;
 using PFE.Sim.State;
 
 namespace PFE.Sim.Replication
@@ -57,6 +58,10 @@ namespace PFE.Sim.Replication
         public int AssembledBaselineCount { get; private set; }
         public SimBaselineAssemblyResult LastAssemblyResult { get; private set; }
         public SimJoinRejectReason LastJoinRejectReason { get; private set; }
+        public int CommandBatchesSent { get; private set; }
+        public int CommandsSent { get; private set; }
+        public int RejectedCommandSendCount { get; private set; }
+        public int LastCommandBatchSize { get; private set; }
 
         public void Join(SimPeerInterest interest)
         {
@@ -79,6 +84,79 @@ namespace PFE.Sim.Replication
         {
             SendClient(SimReplicationMessageKind.InterestUpdate, _sessionId, _peerId,
                 SimReplicationPayloadSerializer.Serialize(new SimInterestUpdate(interest)));
+        }
+
+        /// <summary>
+        /// Phase 5: publish the redundant last-N window of the local command tape to the host.
+        ///
+        /// <para><b>Why the whole window, every call.</b> D4's answer to a lost command datagram is a
+        /// redundant window rather than a resend protocol: the next batch repeats the commands the
+        /// host may have missed, so no ack, no hole list and no retransmission state is needed. The
+        /// host's overlap-integrity check makes a repeat harmless. <paramref name="windowSize"/> is
+        /// caller-supplied — the pure layer owns no invented <c>N</c>.</para>
+        ///
+        /// <para><b>Why the slot is re-stamped.</b> <c>PlayerController</c> builds commands with the
+        /// local slot (0 in single-player). The host assigns controller slots from peer ids, so the
+        /// wire must name the <b>host's</b> slot for this peer; otherwise the ingress refuses the
+        /// batch as an attempt to drive another player's body. Slot is session metadata, not intent,
+        /// so re-stamping does not change what the player asked to do. The local tape is left
+        /// untouched — local prediction still uses the local slot.</para>
+        ///
+        /// <para><b>One ordered channel.</b> Command batches use the same client envelope counter as
+        /// acks and interest updates. The view adapter must therefore carry all client → host
+        /// envelopes on one reliable ordered channel; mixing a separately ordered unreliable channel
+        /// into this counter would let a fast command packet mark a slower ack stale.</para>
+        /// </summary>
+        public bool SendCommands(PlayerCommandBuffer buffer, int windowSize)
+        {
+            if (!_isJoined || buffer == null || windowSize <= 0)
+            {
+                RejectedCommandSendCount++;
+                return false;
+            }
+
+            byte slot;
+            if (!SimCommandAdmissionRules.TrySlotForPeer(_peerId, out slot))
+            {
+                RejectedCommandSendCount++;
+                return false;
+            }
+
+            int total = buffer.Count;
+            if (total == 0) return false;   // Nothing to publish is not an error and sends no packet.
+
+            int take = total < windowSize ? total : windowSize;
+            var all = new PlayerCommand[total];
+            int copied = buffer.CopyOldestFirst(all);
+            if (copied != total)
+            {
+                RejectedCommandSendCount++;
+                return false;
+            }
+
+            // A tape longer than the window contributes its newest suffix; dropping the oldest keeps
+            // the batch contiguous in ticks, which the ingress requires.
+            var window = new PlayerCommand[take];
+            int start = total - take;
+            for (int i = 0; i < take; i++)
+            {
+                PlayerCommand command = all[start + i];
+                command.SlotIndex = slot;
+                window[i] = command;
+            }
+
+            SendClient(SimReplicationMessageKind.PlayerCommandBatch, _sessionId, _peerId,
+                SimReplicationPayloadSerializer.Serialize(new SimPlayerCommandBatch
+                {
+                    SessionId = _sessionId,
+                    PeerId = _peerId,
+                    Commands = window,
+                }));
+
+            CommandBatchesSent++;
+            CommandsSent += take;
+            LastCommandBatchSize = take;
+            return true;
         }
 
         public void Receive(SimReplicationEnvelope envelope)

@@ -3,7 +3,7 @@ using System.IO;
 
 namespace PFE.Sim.Replication
 {
-    /// <summary>The six messages the transport-neutral replication loop exchanges.</summary>
+    /// <summary>The messages the transport-neutral replication loop exchanges.</summary>
     public enum SimReplicationMessageKind : byte
     {
         None = 0,
@@ -14,6 +14,13 @@ namespace PFE.Sim.Replication
         Snapshot = 5,
         SnapshotAck = 6,
         InterestUpdate = 7,
+        /// <summary>
+        /// Phase 5: client → host, a redundant last-N window of <c>PlayerCommand</c>s. This is the
+        /// first message kind that carries *intent* rather than state, which is why admitting it bumps
+        /// the protocol version: a v4 peer silently ignores the kind while still believing it is in
+        /// the same session.
+        /// </summary>
+        PlayerCommandBatch = 8,
     }
 
     /// <summary>Why a join was refused. There is deliberately no "accepted anyway" member.</summary>
@@ -22,6 +29,13 @@ namespace PFE.Sim.Replication
         None = 0,
         IncompatibleProtocol = 1,
         AlreadyJoined = 2,
+        /// <summary>
+        /// Phase 5: the host ran out of controller slots. A peer id above <c>byte.MaxValue</c> cannot
+        /// own a <c>PlayerCommand.SlotIndex</c>, so admitting it would create a peer that can receive
+        /// state but can never send intent — indistinguishable from an idle player. Refuse at the
+        /// handshake instead.
+        /// </summary>
+        NoControllerSlot = 3,
     }
 
     /// <summary>

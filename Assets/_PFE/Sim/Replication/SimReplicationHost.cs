@@ -63,6 +63,7 @@ namespace PFE.Sim.Replication
         private readonly ISimReplicationSnapshotSource _source;
         private readonly ISimReplicationWire _wire;
         private readonly int _chunkSize;
+        private readonly SimCommandIngress _commands;
 
         private readonly Dictionary<uint, PeerState> _peers = new Dictionary<uint, PeerState>();
         private readonly Dictionary<ulong, uint> _peerByNonce = new Dictionary<ulong, uint>();
@@ -72,18 +73,34 @@ namespace PFE.Sim.Replication
         private long _globalRevision;
         private bool _hasGlobalRevision;
 
+        /// <summary>
+        /// <paramref name="commandWindow"/> / <paramref name="commandSink"/> configure the Phase 5
+        /// uplink. Both are optional so the Phase 4 loop (state only) keeps its exact constructor;
+        /// a window without a sink still parses and orders batches but refuses them with
+        /// <c>NoConsumer</c> rather than silently discarding intent. A session with
+        /// <c>commandWindow == 0</c> has no uplink at all and refuses the kind before touching the
+        /// peer's ordered high-water mark.
+        /// </summary>
         public SimReplicationHost(ulong sessionId, ISimReplicationSnapshotSource source,
-            ISimReplicationWire wire, int chunkSize)
+            ISimReplicationWire wire, int chunkSize, int commandWindow = 0,
+            ISimCommandSink commandSink = null)
         {
             if (sessionId == 0UL) throw new ArgumentException("A host session id must be non-zero.", nameof(sessionId));
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (wire == null) throw new ArgumentNullException(nameof(wire));
             if (chunkSize <= 0) throw new ArgumentOutOfRangeException(nameof(chunkSize));
+            if (commandWindow < 0) throw new ArgumentOutOfRangeException(nameof(commandWindow));
 
             _sessionId = sessionId;
             _source = source;
             _wire = wire;
             _chunkSize = chunkSize;
+
+            if (commandWindow > 0)
+            {
+                _commands = new SimCommandIngress(sessionId, commandWindow,
+                    peerId => _peers.ContainsKey(peerId), commandSink);
+            }
         }
 
         public ulong SessionId => _sessionId;
@@ -92,6 +109,13 @@ namespace PFE.Sim.Replication
         public int SentBaselineChunkCount { get; private set; }
         public int AppliedAckCount { get; private set; }
         public int RejectedEnvelopeCount { get; private set; }
+        public int AcceptedCommandBatchCount { get; private set; }
+        public int RejectedCommandBatchCount { get; private set; }
+
+        /// <summary>The live ingress, or null when this host was built without a command window.
+        /// Exposed for readbacks, not for callers to drive: only <see cref="Receive"/> may admit a
+        /// batch, because the ordered-channel high-water mark lives here.</summary>
+        public SimCommandIngress Commands => _commands;
 
         /// <summary>The producer's unacknowledged reliable events. The readback that proves an ack
         /// reached the journal, not just this endpoint.</summary>
@@ -191,6 +215,10 @@ namespace PFE.Sim.Replication
                     HandleInterest(envelope);
                     break;
 
+                case SimReplicationMessageKind.PlayerCommandBatch:
+                    HandleCommandBatch(envelope);
+                    break;
+
                 default:
                     RejectedEnvelopeCount++;
                     break;
@@ -212,6 +240,15 @@ namespace PFE.Sim.Replication
                 // A retried join with the same nonce is a duplicate connection attempt, not a new
                 // peer. Admitting it would give one client two reliable streams over the same state.
                 SendJoinReject(0u, 1u, SimJoinRejectReason.AlreadyJoined);
+                return;
+            }
+
+            byte ignoredSlot;
+            if (!SimCommandAdmissionRules.TrySlotForPeer(_nextPeerId, out ignoredSlot))
+            {
+                // A controller slot is not optional: admitting a peer that can never send intent
+                // would look exactly like an idle player to every diagnostic.
+                SendJoinReject(0u, 1u, SimJoinRejectReason.NoControllerSlot);
                 return;
             }
 
@@ -325,6 +362,32 @@ namespace PFE.Sim.Replication
                 peer.NeedsBaseline = true;
             }
             peer.Interest = next;
+        }
+
+        /// <summary>
+        /// Phase 5: admit a client → host command window. The ordered high-water mark is <b>shared</b>
+        /// with acks and interest updates: one per-peer channel, one sequence space, so a duplicate
+        /// batch cannot be revived by claiming a lower private watermark. A session built without an
+        /// ingress refuses before that mark moves — otherwise packets nobody can read would burn the
+        /// channel that acks still need.
+        /// </summary>
+        private void HandleCommandBatch(SimReplicationEnvelope envelope)
+        {
+            PeerState peer;
+            if (!_peers.TryGetValue(envelope.PeerId, out peer)) { RejectedEnvelopeCount++; return; }
+
+            if (!SimReplicationProtocolRules.AcceptEnvelope(envelope.Sequence, peer.ClientEnvelopeSequence))
+            {
+                RejectedEnvelopeCount++;
+                return;
+            }
+
+            if (_commands == null) { RejectedEnvelopeCount++; return; }
+            peer.ClientEnvelopeSequence = envelope.Sequence;
+
+            SimCommandReceipt receipt = _commands.Receive(envelope);
+            if (receipt.Applied) AcceptedCommandBatchCount++;
+            else RejectedCommandBatchCount++;
         }
 
         /// <summary>
