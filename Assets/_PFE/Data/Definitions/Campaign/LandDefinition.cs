@@ -268,32 +268,33 @@ namespace PFE.Data.Definitions.Campaign
         ///
         /// <para><b>What is still not parsed: the four <c>&lt;scr&gt;</c> children</b> (alarm / in /
         /// out / close, <c>Probation.as:105-130</c>) — the event scripts. Nothing runs them. The
-        /// <c>&lt;wave&gt;</c> payload question is separate and answered on
-        /// <see cref="waves"/>: the metadata is parsed, the <c>&lt;obj&gt;</c>s are not, because there
-        /// is no spawner to hand them to.</para>
+        /// <c>&lt;wave&gt;</c> <c>&lt;obj&gt;</c> payloads <b>are</b> parsed now, onto
+        /// <see cref="ProbWaveData.spawns"/>, because <c>ProbWaveSpawner</c> consumes them.</para>
         /// </summary>
         public List<ProbContentData> contents = new List<ProbContentData>();
 
         /// <summary>
         /// AS3 <c>&lt;wave&gt;</c> children: the timed spawn groups behind
-        /// <see cref="ProbationState.maxwave"/>. Metadata only — the <c>&lt;obj&gt;</c> payloads are not
-        /// carried, because <see cref="PFE.Systems.Map.Generation.ProbRoomSessions"/> has no spawner to
-        /// hand them to. What <b>is</b> carried is what the state machine needs to be honest: the count,
-        /// each delay, and each wave's size, so <c>nwave &lt; maxwave</c> is a real gate rather than
-        /// always-false.
+        /// <see cref="ProbationState.maxwave"/>. Both the metadata the state machine needs (delay and
+        /// size) and the ordered <c>&lt;obj&gt;</c> payload <c>ProbWaveSpawner</c> builds are carried.
         ///
-        /// <para><b>The consequence is stated, not hidden.</b> Because the payloads are not spawned,
-        /// <c>nwave</c> never advances and the six wave-only probs (<c>w_raiders</c>, <c>w_zombie</c>,
-        /// <c>w_robots</c>, <c>w_grif</c>, <c>w_necros</c>, <c>w_encl</c>) never close. Their gate is
-        /// <c>nwave &lt; maxwave</c>, which is true whenever the waves have not run — see the class
-        /// summary on <see cref="ProbRoomSessions"/>.</para>
+        /// <para><b>The six wave-only probs</b> (<c>w_raiders</c>, <c>w_zombie</c>, <c>w_robots</c>,
+        /// <c>w_grif</c>, <c>w_necros</c>, <c>w_encl</c>) gate their clear on
+        /// <c>nwave &lt; maxwave</c> (<c>Probation.as:185-188</c>), so until the waves actually spawn
+        /// they cannot close. The state machine, the payloads and the spawner have to agree on the
+        /// same list; <see cref="ProbWaveData.spawnCount"/> is derived from it rather than counted
+        /// twice.</para>
         /// </summary>
         public List<ProbWaveData> waves = new List<ProbWaveData>();
     }
 
     /// <summary>
-    /// One AS3 <c>&lt;wave t='…'&gt;</c> child of a <c>&lt;prob&gt;</c>, metadata only — see
-    /// <see cref="ProbRoomDefinition.waves"/> for why the payload is not parsed.
+    /// One AS3 <c>&lt;wave t='…'&gt;</c> child of a <c>&lt;prob&gt;</c>.
+    ///
+    /// <para><b>Order is the contract.</b> AS3's <c>createWave</c> walks <c>xml.wave[nwave].obj</c>
+    /// in document order and passes the running <c>nspawn</c> to <c>Location.waveSpawn</c>, which
+    /// uses it as the index into the room's <c>enspawn</c> markers (<c>Probation.as:326-346</c>,
+    /// <c>Location.as:3010-3013</c>). A reordered list would put the enemies on the wrong markers.</para>
     /// </summary>
     [Serializable]
     public class ProbWaveData
@@ -306,8 +307,34 @@ namespace PFE.Data.Definitions.Campaign
         public int delaySeconds;
 
         /// <summary>The number of <c>&lt;obj&gt;</c> children — what <c>kolEn</c> gains
-        /// (<c>Probation.as:337-340</c>).</summary>
+        /// (<c>Probation.as:337-340</c>). Always <c>spawns.Count</c>; kept as a plain int because
+        /// <c>ProbationState.CreateWave</c> reads it through <c>ProbWaveView.Size</c>.</summary>
         public int spawnCount;
+
+        /// <summary>The <c>&lt;obj&gt;</c> children, in document order. See the class remarks.</summary>
+        public List<ProbWaveSpawnData> spawns = new List<ProbWaveSpawnData>();
+    }
+
+    /// <summary>
+    /// One AS3 <c>&lt;obj id='…' tr='…' hero='…'/&gt;</c> child of a <c>&lt;wave&gt;</c>.
+    ///
+    /// <para><b>Only three attributes are authored.</b> Across all 24 shipped waves the
+    /// <c>&lt;obj&gt;</c> nodes carry <c>id</c>, <c>tr</c> and <c>hero</c> — no <c>hp</c>,
+    /// <c>code</c>, <c>trigger</c> or <c>cid</c>. <c>tr</c> and <c>hero</c> travel to the built unit
+    /// as placement attributes, the same way <c>RoomPopulator.CreateUnit</c> supplies an authored
+    /// tier and an elite promotion; empty strings mean "unauthored" and are not written.</para>
+    /// </summary>
+    [Serializable]
+    public class ProbWaveSpawnData
+    {
+        /// <summary>AS3 <c>@id</c> — the unit definition id passed to <c>Location.createUnit</c>.</summary>
+        public string unitId = "";
+
+        /// <summary>AS3 <c>@tr</c> — the placement's variant tier, or <c>""</c> when absent.</summary>
+        public string tr = "";
+
+        /// <summary>AS3 <c>@hero</c> — the authored elite tier, or <c>""</c> when absent.</summary>
+        public string hero = "";
     }
 
     /// <summary>One AS3 <c>&lt;con&gt;</c> child of a <c>&lt;prob&gt;</c>.</summary>

@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using PFE.Tests.Editor.Common;
 
@@ -38,6 +39,7 @@ namespace PFE.Tests.Editor.Map
         private const string SpawnerPath = "Systems/Map/Rendering/RoomUnitSpawner.cs";
         private const string VisualPath = "Systems/Map/Rendering/RoomVisualController.cs";
         private const string TransitionPath = "Systems/Map/Streaming/RoomTransitionManager.cs";
+        private const string BridgePath = "Systems/Map/MapBridge.cs";
 
         /// <summary>
         /// The interaction path: a door / container / knob open reaches <c>prob.check()</c> through the
@@ -152,13 +154,36 @@ namespace PFE.Tests.Editor.Map
                 "room it builds a Location for (Land.as:790-803); without the register calls the " +
                 "registry answers null for every room and the whole event is unreachable again.");
 
-            // ── Link 2: over() fires on entry. ────────────────────────────────────────────────
+            // ── Link 2: over() fires on entry — from PerformTransition, once the room is active. ──
+            //
+            // This assertion used to look for `_probSessions?.Enter(` inside TryEnterProb, and it was
+            // that placement which broke the lock-in: TryEnterProb runs one frame BEFORE the room is
+            // activated (`PerformTransition` opens with `yield return null`, and `ActivateRoom` is
+            // after it), while `activateProb` refuses while `loc.active` is false
+            // (Probation.as:275). So `close='1'` rooms computed the seal, refused it, and stayed open —
+            // with every link in the chain apparently wired.
             string enter = SourceLint.MethodBody(transition, "public bool TryEnterProb(string probId, Vector3 doorWorldPosition)");
-            Assert.That(enter, Does.Contain("_probSessions?.Enter("),
-                "TryEnterProb no longer calls prob.over(). AS3's Location.reactivate ends with " +
+            Assert.That(enter, Does.Not.Contain("_probSessions?.Enter("),
+                "TryEnterProb calls prob.over() before the transition's first yield, i.e. while the " +
+                "room is still inactive, so a close='1' room never seals. It belongs in " +
+                "PerformTransition, after ActivateRoom.");
+
+            string perform = SourceLint.MethodBody(transition,
+                "IEnumerator PerformTransition(");
+            int activated = perform.IndexOf("streamingManager.ActivateRoom(toRoom, fromRoom)", StringComparison.Ordinal);
+            int over = perform.IndexOf("_probSessions?.Enter(", StringComparison.Ordinal);
+
+            Assert.That(activated, Is.GreaterThanOrEqualTo(0),
+                "PerformTransition no longer activates the destination room through the streaming " +
+                "manager, so there is nothing left for over() to wait for — re-point this link.");
+            Assert.That(over, Is.GreaterThanOrEqualTo(0),
+                "PerformTransition no longer calls prob.over(). AS3's Location.reactivate ends with " +
                 "if(this.prob) this.prob.over() and runs on EVERY entry, so a cleared room re-runs it " +
                 "with both branches no-ops — dropping it also drops the enter banner and the broom " +
                 "reset that stops a room sweeping itself.");
+            Assert.That(over, Is.GreaterThan(activated),
+                "prob.over() runs before ActivateRoom. activateProb returns early while loc.active is " +
+                "false (Probation.as:275), so the room is left unsealed.");
 
             // ── Link 3: out() fires on the room being LEFT, and before the swap. ──────────────
             string leave = SourceLint.MethodBody(transition, "public bool TryReturnFromProb()");
@@ -184,6 +209,59 @@ namespace PFE.Tests.Editor.Map
             Assert.That(swap, Is.GreaterThan(leaveCall),
                 "out() now runs after the transition coroutine starts. `out()` is the branch that " +
                 "loots a cleared room's prizes, and by then currentRoom is already the destination.");
+        }
+
+        /// <summary>
+        /// Link 6 — <c>doorsOnOff</c>'s sparkle (<c>Probation.as:295</c>). The rule is behavioural and
+        /// covered in <c>ProbRoomSessionsTests</c>; what no fixture can see is whether the scene layer
+        /// ever binds the delegate. An unbound <c>Shine</c> is silent by design (a null adapter costs the
+        /// flash, not the seal), so without this link the feature could regress to "never flashes" with
+        /// every fixture green — the same failure shape as the missing construction site this file was
+        /// written for.
+        /// </summary>
+        [Test]
+        public void DoorsOnOff_ShineIsBoundAndForwarded()
+        {
+            string session = SourceLint.ReadStripped(SessionPath);
+            string transition = SourceLint.ReadStripped(TransitionPath);
+            string bridge = SourceLint.ReadStripped(BridgePath);
+
+            // Positive controls first: the names this link is about still exist.
+            Assert.That(session, Does.Contain("public Action<RoomInstance, ObjectInstance> Shine"),
+                "ProbRoomSessions no longer declares the Shine delegate, so this link is checking a " +
+                "dead name — re-point it.");
+            Assert.That(transition, Does.Contain("SetParticleEmitter("),
+                "RoomTransitionManager no longer exposes SetParticleEmitter, so nothing can hand it the " +
+                "scene's particle adapter — re-point this link.");
+            Assert.That(bridge, Does.Contain("SetProbContext(probContext)"),
+                "MapBridge no longer sets the prob context, so this ordering check would be vacuous.");
+
+            // 1. The registry forwards the effects' shine list.
+            string apply = SourceLint.MethodBody(session, "static void ApplyDoors(");
+            Assert.That(apply, Does.Contain("effects.ShineDoorUids"),
+                "ApplyDoors ignores ShineDoorUids, so doorsOnOff computes a flash nobody emits.");
+            Assert.That(apply, Does.Contain("shine?.Invoke("),
+                "ApplyDoors no longer invokes the shine delegate — the flash is dropped silently.");
+
+            // 2. The manager binds it when it builds the sessions.
+            string build = SourceLint.MethodBody(transition, "private void BuildProbSessions()");
+            Assert.That(build, Does.Contain("Shine ="),
+                "BuildProbSessions leaves Shine unbound, so every room in the land seals without a flash.");
+            Assert.That(build, Does.Contain("BuildShine("),
+                "BuildProbSessions sets Shine to something other than the one binding in BuildShine, " +
+                "which is how the seal and the flash drift apart.");
+
+            // 3. And the scene actually hands the adapter over, BEFORE the context builds the sessions.
+            //    (SetParticleEmitter re-binds an existing registry, so this is belt-and-braces — but the
+            //    order is the cheap half to keep right.)
+            int emitter = bridge.IndexOf("SetParticleEmitter(_particleEmitter)", StringComparison.Ordinal);
+            int context = bridge.IndexOf("SetProbContext(probContext)", StringComparison.Ordinal);
+            Assert.That(emitter, Is.GreaterThanOrEqualTo(0),
+                "MapBridge never calls SetParticleEmitter, so _particleEmitter is never handed over and " +
+                "the shine is unbound in every scene.");
+            Assert.That(emitter, Is.LessThan(context),
+                "MapBridge hands the particle adapter over AFTER building the prob context, so the " +
+                "sessions bind a null emitter and never flash.");
         }
     }
 }

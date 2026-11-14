@@ -463,6 +463,19 @@ namespace PFE.Systems.Map.Streaming
         private PFE.Systems.Map.Generation.IProbDoorContext _probContext;
 
         /// <summary>
+        /// The scene's particle adapter, held only so <c>doorsOnOff</c>'s sparkle can reach
+        /// <see cref="PFE.Systems.Map.ObjectShineEmitter"/>. Null is a legitimate state — a scene with no
+        /// particle registration still seals rooms, it just does not flash them, and
+        /// <c>ObjectShineEmitter</c> reports the missing emitter once by name rather than per door.
+        ///
+        /// <para>Handed in by <c>MapBridge</c> next to <see cref="SetProbContext"/>, because the two must
+        /// arrive in that order: the sessions are built by the former and bind this delegate at build
+        /// time. <see cref="SetParticleEmitter"/> re-binds an existing registry anyway, so the order is
+        /// not load-bearing.</para>
+        /// </summary>
+        private PFE.Systems.Particles.Adapters.RoomParticleEmitter _particleEmitter;
+
+        /// <summary>
         /// The room-cleared decision for every prob room this land built — one
         /// <see cref="PFE.Systems.Map.Generation.ProbationState"/> per detached room, built here because
         /// this is the one object that is handed both the registry and the rooms and outlives the build.
@@ -491,6 +504,29 @@ namespace PFE.Systems.Map.Streaming
 
         /// <summary>Prob ids already reported as unbuilt, so one bad door says so once.</summary>
         private readonly HashSet<string> _reportedMissingProbRooms = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Hand over the scene's particle adapter so <c>doorsOnOff</c> can flash a door it is about to
+        /// hide or reveal (<c>Probation.as:295</c>). Safe to call before or after
+        /// <see cref="SetProbContext"/>: an already-built registry is re-bound here.
+        /// </summary>
+        public void SetParticleEmitter(PFE.Systems.Particles.Adapters.RoomParticleEmitter emitter)
+        {
+            _particleEmitter = emitter;
+            if (_probSessions != null) _probSessions.Shine = BuildShine(_particleEmitter);
+        }
+
+        /// <summary>
+        /// The one binding of <see cref="PFE.Systems.Map.Generation.ProbRoomSessions.Shine"/> — kept in a
+        /// method so <see cref="SetProbContext"/> and <see cref="SetParticleEmitter"/> cannot drift apart.
+        /// Mirrors <c>AreaTriggerSystem</c>, which binds the same verb to the same emitter.
+        /// </summary>
+        private static Action<RoomInstance, ObjectInstance> BuildShine(
+            PFE.Systems.Particles.Adapters.RoomParticleEmitter emitter)
+        {
+            if (emitter == null) return null;
+            return (room, obj) => PFE.Systems.Map.ObjectShineEmitter.Emit(emitter, room, obj);
+        }
 
         /// <summary>
         /// Hand over the prob rooms for the land being entered — AS3 builds them with the land
@@ -558,6 +594,11 @@ namespace PFE.Systems.Map.Streaming
                 // subscriber takes it. Raising the event as well keeps the message and the observable
                 // consequence available to a view.
                 Notify = message => Debug.Log($"[RoomTransitionManager] Prob room: {message}"),
+
+                // AS3 `inter.shine()` from `doorsOnOff` (`Probation.as:295`). Bound here because this is
+                // the object that owns both the registry and the scene's particle adapter; null when the
+                // scene registered no emitter, which only costs the flash.
+                Shine = BuildShine(_particleEmitter),
             };
 
             // AS3 `World.w.game.triggers` — the run-state store `closeProb` increments. Null until a
@@ -667,17 +708,12 @@ namespace PFE.Systems.Map.Streaming
             Vector3 arrival = probRoom.GetPlayerSpawnWorldUnity();
             arrival.z = playerPos.z;
 
+            // `over()` is NOT called here — it runs from PerformTransition, once the room is active.
+            // AS3 calls it at the end of `Location.reactivate` (`Location.as:2236`), on a location that
+            // is already active; `activateProb` refuses when it is not (`Probation.as:275`), and this
+            // coroutine's first statement is a `yield return null`, so at this point the room is still
+            // inactive. Calling it here sealed nothing — `close='1'` rooms simply never closed.
             StartCoroutine(PerformTransition(from, probRoom, null, player, arrival));
-
-            // AS3 `Location.reactivate` ends with `if(this.prob) this.prob.over()` (Location.as:2236), and
-            // reactivate runs on EVERY entry, so a cleared room re-runs it — with both branches then
-            // no-ops, which is what keeps a cleared room's doors open (Probation.as:242-244).
-            //
-            // Fired after the coroutine starts rather than before the swap, because `over()` reads
-            // `loc.active` (`activateProb`'s guard, Probation.as:275) and the room is not active until the
-            // transition has begun. The one-visual-frame difference is invisible next to a coroutine that
-            // already yields a frame.
-            _probSessions?.Enter(probRoom, IsPlayerAboveTopThreshold(player, from));
             return true;
         }
 
@@ -790,6 +826,24 @@ namespace PFE.Systems.Map.Streaming
             if (streamingManager != null)
             {
                 streamingManager.ActivateRoom(toRoom, fromRoom);
+            }
+
+            // AS3 `Location.reactivate` ends with `if(this.prob) this.prob.over()`
+            // (`Location.as:2236`), and reactivate runs on EVERY entry — so a cleared room re-runs it,
+            // with both branches then no-ops, which is what keeps a cleared room's doors open
+            // (`Probation.as:242-244`).
+            //
+            // AFTER `ActivateRoom`, and that ordering is the whole of the lock-in: `over()` →
+            // `activateProb()` returns early while `loc.active` is false (`Probation.as:275`), and
+            // `ActivateRoom` is what sets it. This used to run in `TryEnterProb`, one frame earlier,
+            // while the room was still inactive — so a `close='1'` room computed the seal, refused to
+            // apply it, and stayed open. `ProbEnterOrderingLintTests` pins the order.
+            //
+            // `toRoom.probId` is the test for "this transition is into a prob room": only
+            // `TryEnterProb` produces one, and the return path's target is a land room with an empty id.
+            if (!string.IsNullOrEmpty(toRoom.probId))
+            {
+                _probSessions?.Enter(toRoom, IsPlayerAboveTopThreshold(player, fromRoom));
             }
 
             // LandMap's own bookkeeping was never updated here, so `landMap.currentRoom` kept

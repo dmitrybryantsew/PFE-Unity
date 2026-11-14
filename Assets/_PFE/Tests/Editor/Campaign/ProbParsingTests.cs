@@ -186,24 +186,112 @@ namespace PFE.Tests.Editor.Campaign
         }
 
         /// <summary>
-        /// <c>&lt;wave&gt;</c> children are <em>not</em> read here, and that is deliberate rather than an
-        /// oversight: <c>Probation.maxwave</c> is the only thing that uses them
-        /// (<c>Probation.as:127-130</c>) and the wave runtime has no port. Asserting the count would
-        /// imply a consumer that does not exist; this case records the boundary instead.
+        /// The <c>&lt;wave&gt;</c> payload of <c>w_raiders</c> (<c>GameData.as:138-162</c>), read in
+        /// document order. This used to be "not read because no consumer exists"; now
+        /// <c>ProbWaveSpawner</c> walks it, and the order decides which <c>enspawn</c> marker each
+        /// body lands on (<c>Probation.as:337-340</c>, <c>Location.as:3010-3013</c>).
         /// </summary>
         [Test]
-        public void WaveChildren_AreNotReadYet_BecauseNoConsumerExists()
+        public void WaveChildren_CarryTheOrderedObjPayload()
         {
-            ProbRoomDefinition prob = Parse(
-                "<prob id='bossraider1' level='0' tip='2' close='1'>" +
-                "  <con tip='wave'/>" +
-                "  <wave t='15'><obj id='raider'/></wave>" +
-                "  <wave t='20'><obj id='raider'/></wave>" +
-                "</prob>");
+            ProbRoomDefinition prob = Parse(W_RaidersXml);
 
-            Assert.AreEqual(1, prob.contents.Count, "only the <con> is a content");
-            Assert.AreEqual("wave", prob.contents[0].tip,
-                "the <con tip='wave'> is the gate checkAllCon uses; the <wave> elements are the payload");
+            Assert.AreEqual(4, prob.waves.Count, "w_raiders authors four waves (maxwave = 4)");
+            Assert.AreEqual(new[] { 3, 5, 5, 5 }, WaveSizes(prob));
+
+            Assert.AreEqual("raider", prob.waves[0].spawns[0].unitId);
+            Assert.AreEqual("robot", prob.waves[0].spawns[2].unitId);
+            Assert.AreEqual("protect", prob.waves[1].spawns[0].unitId);
+            Assert.AreEqual("roller", prob.waves[1].spawns[4].unitId);
+            Assert.AreEqual("raider", prob.waves[2].spawns[0].unitId);
+            Assert.AreEqual("2", prob.waves[2].spawns[0].tr);
+            Assert.AreEqual("6", prob.waves[2].spawns[4].tr);
+            Assert.AreEqual("7", prob.waves[3].spawns[4].tr);
+            Assert.AreEqual("1", prob.waves[3].spawns[4].hero);
+        }
+
+        /// <summary>
+        /// Only <c>id</c>, <c>tr</c> and <c>hero</c> are authored on a wave <c>&lt;obj&gt;</c>, and
+        /// the two optional ones must be <em>absent</em> rather than a fabricated value — an empty
+        /// attribute is not written onto the built unit's placement.
+        /// </summary>
+        [Test]
+        public void WaveObjAttributes_LeaveUnauthoredTrAndHeroEmpty()
+        {
+            ProbRoomDefinition prob = Parse(W_RaidersXml);
+
+            Assert.AreEqual("", prob.waves[0].spawns[0].tr);
+            Assert.AreEqual("", prob.waves[0].spawns[0].hero);
+            Assert.AreEqual("", prob.waves[3].spawns[0].hero);
+            Assert.AreEqual("raider", prob.waves[3].spawns[0].unitId);
+        }
+
+        /// <summary>
+        /// <c>spawnCount</c> is the very list the spawner walks, not a second count that can drift.
+        /// The state machine adds this number to <c>kolEn</c> (<c>Probation.as:337-340</c>), so a
+        /// disagreement would leave a wave room permanently unclearable.
+        /// </summary>
+        [Test]
+        public void WaveSpawnCount_IsDerivedFromThePayloadList()
+        {
+            ProbRoomDefinition prob = Parse(W_RaidersXml);
+            for (int i = 0; i < prob.waves.Count; i++)
+            {
+                Assert.AreEqual(prob.waves[i].spawns.Count, prob.waves[i].spawnCount,
+                    $"wave {i}: kolEn and the spawner would disagree");
+            }
+        }
+
+        /// <summary>
+        /// A present <c>&lt;wave&gt;</c> with no <c>@t</c> still advances <c>nwave</c>
+        /// (<c>Probation.as:331-334</c> only returns early for a <b>missing</b> wave node), and a
+        /// present-but-empty one is a real wave with zero bodies.
+        /// </summary>
+        [Test]
+        public void WaveWithoutDelay_AndWaveWithoutObjs_AreStillWaves()
+        {
+            ProbRoomDefinition prob = Parse(W_RaidersXml);
+
+            Assert.IsTrue(prob.waves[0].hasDelay);
+            Assert.AreEqual(15, prob.waves[0].delaySeconds);
+            Assert.IsFalse(prob.waves[3].hasDelay, "the fourth w_raiders wave has no t attribute");
+            Assert.AreEqual(0, prob.waves[3].delaySeconds);
+
+            ProbRoomDefinition empty = Parse(
+                "<prob id='w_empty' tip='2'><con tip='wave'/><wave/></prob>");
+            Assert.AreEqual(1, empty.waves.Count, "an empty wave still counts toward maxwave");
+            Assert.AreEqual(0, empty.waves[0].spawnCount);
+            Assert.IsNotNull(empty.waves[0].spawns);
+            Assert.AreEqual(0, empty.waves[0].spawns.Count);
+        }
+
+        /// <summary>The four-wave payload of <c>w_raiders</c> (<c>GameData.as:137-162</c>).</summary>
+        private const string W_RaidersXml =
+            "<prob id='w_raiders' level='2' tip='2'>" +
+            "  <con tip='wave'/>" +
+            "  <wave t='15'>" +
+            "    <obj id='raider'/><obj id='raider'/><obj id='robot'/>" +
+            "  </wave>" +
+            "  <wave t='20'>" +
+            "    <obj id='protect'/><obj id='gutsy'/><obj id='robot'/>" +
+            "    <obj id='roller'/><obj id='roller'/>" +
+            "  </wave>" +
+            "  <wave t='25'>" +
+            "    <obj id='raider' tr='2'/><obj id='raider' tr='3'/>" +
+            "    <obj id='raider' tr='4'/><obj id='raider' tr='5'/><obj id='raider' tr='6'/>" +
+            "  </wave>" +
+            "  <wave>" +
+            "    <obj id='raider' tr='5'/><obj id='raider' tr='6'/>" +
+            "    <obj id='raider' tr='8'/><obj id='raider' tr='9'/>" +
+            "    <obj id='raider' tr='7' hero='1'/>" +
+            "  </wave>" +
+            "</prob>";
+
+        private static int[] WaveSizes(ProbRoomDefinition prob)
+        {
+            var sizes = new int[prob.waves.Count];
+            for (int i = 0; i < prob.waves.Count; i++) sizes[i] = prob.waves[i].spawnCount;
+            return sizes;
         }
 
         // =====================================================================

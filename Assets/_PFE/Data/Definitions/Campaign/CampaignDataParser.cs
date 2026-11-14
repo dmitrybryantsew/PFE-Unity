@@ -666,25 +666,42 @@ namespace PFE.Data.Definitions.Campaign
                 }
             }
 
-            // AS3 `maxwave = xml.wave.length()` (Probation.as:127-130), and each wave's `@t`
-            // (:341-344) and `<obj>` count (:337-340). The payloads are NOT read — see
-            // ProbRoomDefinition.waves for why — but without the count `maxwave` is 0, and a wave-only
-            // prob's gate `nwave < maxwave` would read as already satisfied, closing a room that has
-            // spawned nothing. The count alone is what keeps those six rooms closed until a spawner
-            // exists.
+            // AS3 `maxwave = xml.wave.length()` (Probation.as:127-130), each wave's `@t`
+            // (:341-344) and the ordered `<obj>` payload (:337-340). `ProbWaveSpawner` consumes the
+            // payload, so it is read here in DOCUMENT ORDER — `createWave` passes the running
+            // `nspawn` to `Location.waveSpawn`, which uses it as the `enspawn` marker index.
+            //
+            // `spawnCount` is derived from the same list rather than counted a second time: the state
+            // machine's `kolEn` and the spawner's loop must describe exactly the same bodies.
             XmlNodeList waveNodes = probNode.SelectNodes("./wave");
             if (waveNodes != null)
             {
                 foreach (XmlNode waveNode in waveNodes)
                 {
-                    prob.waves.Add(new ProbWaveData
+                    var wave = new ProbWaveData
                     {
                         // `@t.length()`, not `@t` — a present wave with no delay must be told apart
                         // from one with `t='0'`, exactly as `level` is above.
                         hasDelay = waveNode.Attributes?["t"] != null,
                         delaySeconds = ParseInt(waveNode.Attributes?["t"]?.Value, 0),
-                        spawnCount = waveNode.SelectNodes("./obj")?.Count ?? 0,
-                    });
+                    };
+
+                    XmlNodeList objNodes = waveNode.SelectNodes("./obj");
+                    if (objNodes != null)
+                    {
+                        foreach (XmlNode objNode in objNodes)
+                        {
+                            wave.spawns.Add(new ProbWaveSpawnData
+                            {
+                                unitId = objNode.Attributes?["id"]?.Value?.Trim() ?? string.Empty,
+                                tr = objNode.Attributes?["tr"]?.Value?.Trim() ?? string.Empty,
+                                hero = objNode.Attributes?["hero"]?.Value?.Trim() ?? string.Empty,
+                            });
+                        }
+                    }
+
+                    wave.spawnCount = wave.spawns.Count;
+                    prob.waves.Add(wave);
                 }
             }
 

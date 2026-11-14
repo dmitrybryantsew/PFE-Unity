@@ -142,13 +142,14 @@ namespace PFE.Systems.Map.Generation
     /// <c>Probation.as:105-130</c>) — <b>not</b> parsed, so no close script runs.</description></item>
     /// </list>
     ///
-    /// <para><b>The door-visibility effects are applied as a no-op and that is not a shortcut.</b>
-    /// <c>doorsOnOff</c> hides and shows <c>doorout</c> boxes through <c>vis.visible</c> /
-    /// <c>inter.active</c>, and the port's <see cref="Rendering.RoomObjectVisualManager"/> has no
-    /// per-object visibility seam — it syncs presenters only when the visual definition or layer
-    /// changes. So a sealed room is <i>not</i> sealed in the port, and a cleared room's doors are
-    /// already open. Applying "show" is therefore behaviourally correct, and applying "hide" would
-    /// need a seam that does not exist rather than a value that is wrong.</para>
+    /// <para><b>The door-visibility effects are applied for real, through
+    /// <see cref="ObjectInstance.isActive"/>.</b> <c>doorsOnOff</c> hides and shows <c>doorout</c> boxes
+    /// through <c>vis.visible</c> / <c>inter.active</c>; the port expresses both with the one flag
+    /// <c>RoomObjectVisualManager</c> already reads to disable the renderer and withhold the interaction
+    /// surface. This paragraph used to say the effects were a no-op for want of a seam — the seam was
+    /// there, and the real defect was one layer up: the door list was filtered on <c>objectType</c>
+    /// while a synthetic return door carries <c>objectId = "doorout"</c> and <c>objectType = "box"</c>,
+    /// so the list was always empty. See <see cref="IsReturnDoor"/>.</para>
     ///
     /// <para><b>The prize effects are applied for real.</b> <c>prepare</c>/<c>closeProb</c> use
     /// <c>setAct("lock", 0)</c> and <c>inter.command("unlock")</c>, which the port expresses as the
@@ -179,6 +180,21 @@ namespace PFE.Systems.Map.Generation
         /// store still closes rooms and still raises <see cref="Cleared"/>, it just cannot persist the
         /// counter — which is exactly what an offline fixture needs.</summary>
         public IProbTriggerStore TriggerStore { get; set; }
+
+        /// <summary>
+        /// The sparkle <c>inter.shine()</c> leaves on a door that is about to change visibility
+        /// (<c>Probation.as:295</c>, called from <c>doorsOnOff</c>).
+        ///
+        /// <para><b>A delegate, not a <c>RoomParticleEmitter</c>.</b> The emitter is a scene-scoped
+        /// Unity adapter and this type is deliberately constructible offline — the same reason
+        /// <see cref="Notify"/> is an <c>Action&lt;string&gt;</c> rather than a HUD reference. The
+        /// scene owner binds it to <c>ObjectShineEmitter.Emit</c>, which is what
+        /// <c>AreaTriggerSystem</c> already does for the same verb.</para>
+        ///
+        /// <para>Null is legitimate: an unbound registry still seals rooms, it just does not flash
+        /// them.</para>
+        /// </summary>
+        public Action<RoomInstance, ObjectInstance> Shine { get; set; }
 
         /// <summary>The sessions in registration order, so a diagnostic can name them.</summary>
         public IReadOnlyList<ProbRoomSession> All => _order;
@@ -350,8 +366,7 @@ namespace PFE.Systems.Map.Generation
                     if (obj.runtimeState == null) continue;
 
                     // AS3 `loc.objs` filtered to `id == "doorout"` (Probation.as:293).
-                    if (string.Equals(obj.objectType, ProbationState.ReturnDoorObjectId,
-                                      StringComparison.OrdinalIgnoreCase))
+                    if (IsReturnDoor(obj))
                     {
                         view.Doors.Add(new ProbDoorView
                         {
@@ -411,6 +426,39 @@ namespace PFE.Systems.Map.Generation
             }
 
             return view;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="obj"/> is the room's return door — AS3
+        /// <c>_loc2_.id == "doorout"</c> (<c>Probation.as:293</c>).
+        ///
+        /// <para><b><c>objectId</c>, not <c>objectType</c>.</b> AS3's <c>id</c> is the <i>definition</i>
+        /// id and its <c>type</c> is the class; the port stores them as <see cref="ObjectInstance.objectId"/>
+        /// and <see cref="ObjectInstance.objectType"/>. A synthetic return door is created as
+        /// <c>createObj("doorout", "box", …)</c> (<c>Land.as:799</c>), i.e.
+        /// <c>objectId = "doorout"</c> and <c>objectType = "box"</c>
+        /// (<see cref="RoomPopulator.PlaceReturnDoor"/>). Matching on <c>objectType</c> therefore never
+        /// matched a real door: the list was always empty, so <c>doorsOnOff</c> had nothing to hide and a
+        /// <c>close='1'</c> room never sealed. The fixture that "covered" it built
+        /// <c>objectType = "doorout"</c> by hand — a shape the populator never produces.</para>
+        ///
+        /// <para><b>One predicate, two readers.</b> <see cref="BuildView"/> collects the doors and the
+        /// apply pass hides them; if the two filtered differently the hide list could name a door the
+        /// view never saw, which is silently a no-op.</para>
+        /// </summary>
+        public static bool IsReturnDoor(ObjectInstance obj)
+        {
+            if (obj == null) return false;
+
+            // `objectId` is the AS3 id. `definitionId` is the fallback for a placement that authored a
+            // `code`/definition but no `id` — CreateObject copies `id` into both when only one is given.
+            if (string.Equals(obj.objectId, ProbationState.ReturnDoorObjectId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            return string.IsNullOrEmpty(obj.objectId) &&
+                   string.Equals(obj.definitionId, ProbationState.ReturnDoorObjectId, StringComparison.Ordinal);
         }
 
         /// <summary>Presence test — AS3 reads every one of these as <c>xs.length()</c>, so a
@@ -545,6 +593,67 @@ namespace PFE.Systems.Map.Generation
             }
 
             ApplyPrizes(room, effects);
+            ApplyDoors(room, effects, Shine);
+        }
+
+        /// <summary>
+        /// Hide or show the room's return doors — the visibility half of <c>doorsOnOff</c>
+        /// (<c>Probation.as:272-302</c>), and the whole of the lock-in: a room whose
+        /// <c>&lt;prob&gt;</c> carries <c>close</c> hides its <c>doorout</c> on entry
+        /// (<c>over()</c> → <c>activateProb()</c> → <c>doorsOnOff(-1)</c>) and shows it again when it is
+        /// cleared (<c>closeProb()</c> → <c>doorsOnOff(1)</c>).
+        ///
+        /// <para><b>The port's <c>vis.visible</c> + <c>inter.active</c> is one flag:
+        /// <see cref="ObjectInstance.isActive"/>.</b> AS3 sets both on the same object; the port's
+        /// <c>RoomObjectVisualManager</c> already reads that flag to disable the renderer
+        /// (<c>UpdatePresenter</c>), to refuse a visual (<c>TryResolveRenderableVisual</c>) and — because
+        /// <c>DoorPropPresenter</c> is the project's only <c>IInteractable</c> — to withhold the
+        /// interaction surface. So a hidden door is invisible <i>and</i> unusable, which is what
+        /// <c>inter.active = false</c> means. <c>ObjectVerbCommand</c>'s <c>off</c> verb writes the same
+        /// field for the same reason.</para>
+        ///
+        /// <para><b>The shine is applied through <see cref="ProbRoomSessions.Shine"/>.</b>
+        /// <c>inter.shine()</c> (<c>:295</c>) is <c>ObjectShineEmitter</c> in the port, which needs the
+        /// scene's <c>RoomParticleEmitter</c>; the registry hands that in as a delegate so this class
+        /// stays constructible offline. A door is shined when it is <i>about to</i> change visibility,
+        /// which the state machine has already decided — this method only forwards
+        /// <see cref="ProbEffects.ShineDoorUids"/>.</para>
+        /// </summary>
+        static void ApplyDoors(RoomInstance room, ProbEffects effects, Action<RoomInstance, ObjectInstance> shine)
+        {
+            if (room?.objects == null) return;
+
+            bool hasVisibility = effects.HideDoorUids.Count != 0 || effects.ShowDoorUids.Count != 0;
+            if (!hasVisibility && effects.ShineDoorUids.Count == 0) return;
+
+            for (int i = 0; i < room.objects.Count; i++)
+            {
+                ObjectInstance obj = room.objects[i];
+                if (!IsReturnDoor(obj)) continue;
+
+                string uid = obj.uid ?? string.Empty;
+
+                // `List.Contains` on a string list is ordinal, which is what AS3's `uid` comparison is.
+                // Hide wins over show: the two lists are disjoint by construction (`DoorBecomesHidden`
+                // returns one answer), so this is an assertion of that, not a tie-break.
+                if (effects.HideDoorUids.Contains(uid))
+                {
+                    obj.isActive = false;
+                }
+                else if (effects.ShowDoorUids.Contains(uid))
+                {
+                    obj.isActive = true;
+                }
+
+                // AS3 computes the flash in the same pass as the visibility write (`:295`), on the
+                // object's own rect — so it is emitted here, per door, rather than as a second sweep.
+                // The object may have just been deactivated; `ObjectShineEmitter` reads the authored
+                // extent off the instance, not the renderer, so a hidden door still flashes.
+                if (effects.ShineDoorUids.Contains(uid))
+                {
+                    shine?.Invoke(room, obj);
+                }
+            }
         }
 
         /// <summary>

@@ -21,6 +21,13 @@ public class MapBridge : MonoBehaviour
     [SerializeField] private RoomVisualController _visualController;
     [SerializeField] private TileAssetDatabase _tileDatabase;
 
+    /// <summary>
+    /// The particle adapter this bridge was constructed with, kept only to hand to
+    /// <c>RoomTransitionManager</c> — the prob registry needs it for <c>inter.shine()</c> on the doors
+    /// <c>doorsOnOff</c> hides. Not serialized: it is a DI singleton, not scene data.
+    /// </summary>
+    private PFE.Systems.Particles.Adapters.RoomParticleEmitter _particleEmitter;
+
     public RoomVisualController VisualController => _visualController;
 
     /// <summary>
@@ -190,6 +197,11 @@ public class MapBridge : MonoBehaviour
         {
             _visualController.SetParticleAdapters(particleTileWater, particleEmitter);
         }
+
+        // ...and kept for the prob registry, which needs the same adapter for `inter.shine()` on a door
+        // that `doorsOnOff` is about to hide or reveal. Not passed down here: the registry does not
+        // exist until a land build composes its prob context, and a scene may build several lands.
+        _particleEmitter = particleEmitter;
 
         // ...and the container itself, down the SAME chain, so a spawned enemy can resolve the weapon
         // and audio services that [Inject] cannot reach it: a unit is built with AddComponent, which
@@ -1271,6 +1283,7 @@ public class MapBridge : MonoBehaviour
         // object after the build — the builder registered the prob rooms into it during the build, so the
         // door and the room it opens into can never disagree. (The builder's own copy was set before
         // BuildLand, not here.)
+        RoomTransitionManager.Instance?.SetParticleEmitter(_particleEmitter);
         RoomTransitionManager.Instance?.SetProbContext(probContext);
 
         if (!built)

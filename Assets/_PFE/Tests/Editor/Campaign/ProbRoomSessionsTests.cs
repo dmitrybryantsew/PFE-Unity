@@ -114,9 +114,21 @@ namespace PFE.Tests.Editor.Campaign
             return obj;
         }
 
+        /// <summary>
+        /// A return door in the shape <see cref="RoomPopulator.PlaceReturnDoor"/> actually creates:
+        /// <c>createObj("doorout", "box", …)</c> (<c>Land.as:799</c>), i.e. the AS3 <c>id</c> lands in
+        /// <see cref="ObjectInstance.objectId"/> and the AS3 <c>type</c> in
+        /// <see cref="ObjectInstance.objectType"/>.
+        ///
+        /// <para><b>This helper used to build <c>objectType = "doorout"</c>.</b> Nothing in the game
+        /// produces that shape, so the fixture agreed with the production filter
+        /// (<c>obj.objectType == "doorout"</c>) and both were wrong together: the door list was empty in
+        /// every real room, and a <c>close='1'</c> room never sealed. Pinned here as the populator's
+        /// shape, with <see cref="IsReturnDoor_RejectsABoxThatIsNotTheReturnDoor"/> as the control.</para>
+        /// </summary>
         static ObjectInstance Door(string uid)
         {
-            return new ObjectInstance { uid = uid, objectType = "doorout" };
+            return new ObjectInstance { uid = uid, objectId = "doorout", objectType = "box" };
         }
 
         static ProbRoomSessions Registry(out List<ProbRoomCleared> cleared,
@@ -568,6 +580,265 @@ namespace PFE.Tests.Editor.Campaign
             Assert.AreEqual(2, view.Doors.Count);
             Assert.AreEqual("begin", view.Doors[0].Uid);
             Assert.AreEqual(1, view.Boxes.Count);
+        }
+
+        // ── The lock-in — doorsOnOff applied to real records ────────────────
+
+        /// <summary>
+        /// The door predicate is the populator's shape, not a hand-built one. This is the control the
+        /// previous fixture lacked: it built <c>objectType = "doorout"</c>, agreed with the production
+        /// filter, and both were wrong — so the door list was empty in every real room and a
+        /// <c>close='1'</c> room never sealed.
+        /// </summary>
+        [Test]
+        public void IsReturnDoor_MatchesThePopulatorsShape_AndRejectsABoxThatIsNotTheReturnDoor()
+        {
+            Assert.IsTrue(ProbRoomSessions.IsReturnDoor(Door("begin")),
+                "a synthetic doorout is objectId='doorout' + objectType='box' (Land.as:799)");
+
+            Assert.IsTrue(ProbRoomSessions.IsReturnDoor(
+                    new ObjectInstance { uid = "x", definitionId = "doorout", objectType = "box" }),
+                "a placement that authored the definition but no id still names the return door");
+
+            Assert.IsFalse(ProbRoomSessions.IsReturnDoor(
+                    new ObjectInstance { uid = "crate", objectId = "crate", objectType = "box" }),
+                "an ordinary box must not be sealed with the doors");
+            Assert.IsFalse(ProbRoomSessions.IsReturnDoor(null));
+        }
+
+        /// <summary>
+        /// <c>over()</c> on a room whose <c>&lt;prob&gt;</c> carries <c>close</c> — the lock-in.
+        /// <c>bossencl</c> is exactly this shape: <c>GameData.as:73</c>
+        /// <c>&lt;prob id='bossencl' level='0' tip='2' close='1'&gt;</c>.
+        /// </summary>
+        [Test]
+        public void Enter_OnAClosingRoom_HidesEveryReturnDoor()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("bossencl");
+            ProbRoomDefinition def = Def("bossencl", Con("unit", "bossenclF1"));
+            def.close = true;
+            sessions.Register(room, def);
+
+            ObjectInstance begin = Door("begin");
+            ObjectInstance side = Door("side");
+            room.objects.Add(begin);
+            room.objects.Add(side);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+
+            // `over()` -> `if(isClose) activateProb()` -> `doorsOnOff(-1)`
+            // (Probation.as:239, :317-322, :272-302), which hides every `doorout` including `begin`.
+            Assert.IsFalse(begin.isActive, "the entrance door is the seal — it must hide too");
+            Assert.IsFalse(side.isActive);
+        }
+
+        [Test]
+        public void Enter_OnANonClosingRoom_ShowsTheEntranceAndHidesTheRest()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("p1");
+            sessions.Register(room, Def("p1", Con("unit", "boss")));
+
+            ObjectInstance begin = Door("begin");
+            ObjectInstance side = Door("side");
+            room.objects.Add(begin);
+            room.objects.Add(side);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+
+            // `doorsOnOff(0)` — `defaultProb` (Probation.as:294-297): hide every door whose
+            // `uid != "begin"`, show the one that is. A non-closing room therefore keeps exactly one
+            // usable exit.
+            Assert.IsTrue(begin.isActive);
+            Assert.IsFalse(side.isActive);
+        }
+
+        [Test]
+        public void Check_OnASealedRoom_ShowsEveryDoorAgain()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("bossencl");
+            ProbRoomDefinition def = Def("bossencl", Con("unit", "bossenclF1"));
+            def.close = true;
+            sessions.Register(room, def);
+            room.units.Add(Unit("bossenclF1", dead: true));
+
+            ObjectInstance begin = Door("begin");
+            ObjectInstance side = Door("side");
+            room.objects.Add(begin);
+            room.objects.Add(side);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+            Assert.IsFalse(begin.isActive, "precondition: the room sealed on entry");
+
+            sessions.Check(room);
+
+            // `closeProb()` -> `doorsOnOff(1)` (Probation.as:303, :298-301) shows every door, which is
+            // what makes the room escapable once it is cleared.
+            Assert.IsTrue(begin.isActive);
+            Assert.IsTrue(side.isActive);
+        }
+
+        [Test]
+        public void Enter_DoesNotSealABoxThatSharesTheRoomsDoorUid()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("bossencl");
+            ProbRoomDefinition def = Def("bossencl", Con("unit", "bossenclF1"));
+            def.close = true;
+            sessions.Register(room, def);
+
+            ObjectInstance crate = Box("begin");       // same uid, not a door
+            room.objects.Add(Door("begin"));
+            room.objects.Add(crate);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+
+            Assert.IsTrue(crate.isActive, "the hide list is keyed by uid but filtered by objectId");
+        }
+
+        /// <summary>
+        /// A second <c>over()</c> re-seals the room, and the reason is the order inside <c>over()</c>:
+        /// <c>defaultProb()</c> runs first and <b>clears <c>active</c></b> (<c>Probation.as:284</c>), so
+        /// <c>activateProb()</c>'s <c>if(closed || active || …)</c> guard (<c>:274</c>) no longer refuses
+        /// and the doors are hidden again. The entrance door is briefly shown and then hidden within the
+        /// same call, so nothing is ever drawn in between.
+        ///
+        /// <para>This fixture replaced a guess. The first draft asserted the opposite — that the second
+        /// entry would leave <c>begin</c> visible because <c>activateProb</c> would refuse — and it failed,
+        /// which is what established that <c>defaultProb</c> resets the latch.</para>
+        /// </summary>
+        [Test]
+        public void Enter_Twice_ResealsTheRoom_BecauseDefaultProbClearsTheActiveLatch()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("bossencl");
+            ProbRoomDefinition def = Def("bossencl", Con("unit", "bossenclF1"));
+            def.close = true;
+            sessions.Register(room, def);
+
+            ObjectInstance begin = Door("begin");
+            room.objects.Add(begin);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+            Assert.IsFalse(begin.isActive);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+            Assert.IsFalse(begin.isActive,
+                "defaultProb clears `active`, so activateProb hides the doors again");
+        }
+
+        // ── doorsOnOff's shine (Probation.as:295) ───────────────────────────
+
+        /// <summary>
+        /// <c>inter.shine()</c> fires on the <b>transition</b>, not on the resulting visibility: a door is
+        /// flashed when it is about to change state (<c>:295</c>). On entry to a <c>close='1'</c> room both
+        /// doors are visible and both are about to be hidden, so both flash.
+        /// </summary>
+        [Test]
+        public void Enter_OnAClosingRoom_ShinesTheDoorsItHides()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("bossencl");
+            ProbRoomDefinition def = Def("bossencl", Con("unit", "bossenclF1"));
+            def.close = true;
+            sessions.Register(room, def);
+
+            ObjectInstance begin = Door("begin");
+            ObjectInstance side = Door("side");
+            room.objects.Add(begin);
+            room.objects.Add(side);
+
+            var shined = new List<ObjectInstance>();
+            sessions.Shine = (r, o) =>
+            {
+                Assert.AreSame(room, r, "the shine is emitted in the room that owns the door");
+                shined.Add(o);
+            };
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+
+            CollectionAssert.AreEquivalent(new[] { begin, side }, shined,
+                "every door that was visible and is being hidden is shined, including the entrance");
+        }
+
+        /// <summary>
+        /// Mode <c>0</c> (<c>defaultProb</c>) never shines — <c>:295</c> tests
+        /// <c>!visible &amp;&amp; mode == 1</c> or <c>visible &amp;&amp; mode == -1</c>, and <c>0</c>
+        /// satisfies neither. A non-closing room therefore seals nothing and flashes nothing.
+        /// </summary>
+        [Test]
+        public void Enter_OnANonClosingRoom_NeverShines()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("p1");
+            sessions.Register(room, Def("p1", Con("unit", "boss")));
+
+            room.objects.Add(Door("begin"));
+            room.objects.Add(Door("side"));
+
+            var shined = new List<ObjectInstance>();
+            sessions.Shine = (r, o) => shined.Add(o);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+
+            Assert.IsEmpty(shined, "mode Default is not a transition, so nothing flashes");
+        }
+
+        /// <summary>
+        /// The mirror case: on clear, <c>closeProb</c> shows every door, so every door that was hidden
+        /// flashes as it comes back. This is the one that would be missed if the shine were emitted only
+        /// on the seal.
+        /// </summary>
+        [Test]
+        public void Check_OnASealedRoom_ShinesTheDoorsItReveals()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("bossencl");
+            ProbRoomDefinition def = Def("bossencl", Con("unit", "bossenclF1"));
+            def.close = true;
+            sessions.Register(room, def);
+            room.units.Add(Unit("bossenclF1", dead: true));
+
+            ObjectInstance begin = Door("begin");
+            ObjectInstance side = Door("side");
+            room.objects.Add(begin);
+            room.objects.Add(side);
+
+            var shined = new List<ObjectInstance>();
+            sessions.Shine = (r, o) => shined.Add(o);
+
+            sessions.Enter(room, playerAboveTopThreshold: true);
+            Assert.IsFalse(begin.isActive, "precondition: the room sealed on entry");
+            shined.Clear();   // the seal's flash is the previous test's subject
+
+            sessions.Check(room);
+
+            CollectionAssert.AreEquivalent(new[] { begin, side }, shined,
+                "the reveal is a transition too, so it shines as well");
+        }
+
+        /// <summary>
+        /// An unbound registry still seals. <c>Shine</c> is a scene-scoped adapter and the seal is not, so
+        /// a null delegate must cost the flash and nothing else — the same contract <c>Notify</c> has.
+        /// </summary>
+        [Test]
+        public void Enter_WithNoShineBound_StillSealsTheRoom()
+        {
+            ProbRoomSessions sessions = Registry(out _);
+            var room = Room("bossencl");
+            ProbRoomDefinition def = Def("bossencl", Con("unit", "bossenclF1"));
+            def.close = true;
+            sessions.Register(room, def);
+
+            ObjectInstance begin = Door("begin");
+            room.objects.Add(begin);
+
+            Assert.IsNull(sessions.Shine, "precondition: nothing bound the adapter");
+            sessions.Enter(room, playerAboveTopThreshold: true);
+
+            Assert.IsFalse(begin.isActive, "the seal does not depend on the flash");
         }
 
         // ── Stub ───────────────────────────────────────────────────────────
