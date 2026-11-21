@@ -43,6 +43,17 @@ namespace PFE.Core
         private GUIStyle _style;
         private Texture2D _background;
 
+        // Tickable-cost measurement. Armed only while this overlay's channel is on, so the per-tick
+        // Stopwatch cost is paid only when someone is reading the number. The report is a rolling
+        // window: the table is Reset after each snapshot, which keeps "total" and "avg" meaningful
+        // (a cumulative table only ever shows the session average, and a spike 10 seconds old is
+        // invisible inside it).
+        private bool _costsArmed;
+        private string _costReport;
+        private double _costReportAtMs;
+        private double _windowDispatchMs;
+        private int _windowFrames;
+
         // Frame timing. Measured in Update, never in OnGUI: OnGUI runs twice per frame (Layout then
         // Repaint), so sampling there would halve the reported frame time.
         private int _frameCount;
@@ -66,6 +77,16 @@ namespace PFE.Core
             _frameSeconds += UnityEngine.Time.unscaledDeltaTime;
             _frameCount++;
 
+            // Sum the dispatch cost for the cost window. LastFrameTickMs is the whole frame's
+            // tickable dispatch total (SimLoop accumulates it across catch-up ticks and clears it
+            // once per frame), and it is zero while the table is disabled — which it is unless this
+            // overlay armed it — so an unarmed overlay adds one double add per frame.
+            if (_costsArmed && _loop != null)
+            {
+                _windowDispatchMs += _loop.LastFrameTickMs;
+                _windowFrames++;
+            }
+
             if (_frameCount < FrameWindow)
             {
                 return;
@@ -85,12 +106,27 @@ namespace PFE.Core
                 return;
             }
 
+            // Arm the tickable cost table exactly while this channel is shown. This must run BEFORE
+            // the visibility gate below: when the channel turns off, OnGUI returns at that gate, so
+            // logic placed after it would never see the transition and the per-tick Stopwatches would
+            // stay armed forever. Writing only on transitions — not every frame — keeps this overlay
+            // from fighting a perf fixture that enables the same table for its own measurement.
+            bool channelOn = DebugOverlays.IsOn(DebugOverlayChannel.Clock);
+            if (channelOn != _costsArmed)
+            {
+                _costsArmed = channelOn;
+                _loop.TickableCosts.Enabled = channelOn;
+                _windowDispatchMs = 0.0;
+                _windowFrames = 0;
+                if (!channelOn) _costReport = null;
+            }
+
             // The channel gate, so `col off clock` hides this without destroying it. Resolved per
             // frame rather than cached: a cached answer is a second copy of the state, and a debug
             // overlay that disagrees with its own toggle is worse than no overlay. SimLoop still
             // keeps measuring frame time while hidden, which costs one accumulator and means the fps
             // figure is already warm when the readout comes back.
-            if (!DebugOverlays.IsOn(DebugOverlayChannel.Clock))
+            if (!channelOn)
             {
                 return;
             }
@@ -123,6 +159,78 @@ namespace PFE.Core
                 var lineRect = new Rect(rect.x + 8, rect.y + 5 + i * LineHeight, Width - 16, LineHeight);
                 GUI.Label(lineRect, lines[i], _style);
             }
+
+            DrawCostReport(new Rect(rect.x, rect.yMax + 8, 640f, 400f));
+        }
+
+        /// <summary>The rolling per-tickable cost window. The expensive half (the Stopwatch per
+        /// tickable per tick) runs inside SimLoop and is gated by <see cref="TickableCostTable.Enabled"/>;
+        /// this method only formats what has already been measured. The window is half a second, and
+        /// the table is Reset when each snapshot is taken, so a fresh spike shows up within a second
+        /// instead of being averaged into a cumulative total.</summary>
+        private void DrawCostReport(Rect rect)
+        {
+            if (!_costsArmed) return;
+            if (_loop == null) return;
+
+            double nowMs = UnityEngine.Time.unscaledTimeAsDouble * 1000.0;
+            if (_costReport == null || nowMs - _costReportAtMs >= 500.0)
+            {
+                _costReportAtMs = nowMs;
+                _costReport = BuildCostWindowText(_loop.TickableCosts, _windowDispatchMs, _windowFrames);
+                _loop.TickableCosts.Reset();
+                _windowDispatchMs = 0.0;
+                _windowFrames = 0;
+            }
+            if (_costReport == null) return;
+
+            string[] reportLines = _costReport.Split('\n');
+            var boxRect = new Rect(rect.x, rect.y, rect.width, reportLines.Length * LineHeight + 10);
+            GUI.DrawTexture(boxRect, _background);
+            for (int i = 0; i < reportLines.Length; i++)
+            {
+                var lineRect = new Rect(boxRect.x + 8, boxRect.y + 5 + i * LineHeight, boxRect.width - 16, LineHeight);
+                GUI.Label(lineRect, reportLines[i], _style);
+            }
+        }
+
+        private static string BuildCostWindowText(PFE.Core.Profiling.TickableCostTable table,
+            double dispatchMs, int frames)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("TICKABLE COSTS  (").Append(frames).Append(" frame")
+              .Append(frames == 1 ? "" : "s").Append(", rolling ~0.5s)");
+            if (table.InvalidatedSinceReset)
+            {
+                sb.Append("  !! tickables registered mid-window — totals cover only the settled tail");
+            }
+            sb.Append('\n');
+            sb.Append("type".PadRight(36)).Append("inst".PadLeft(6))
+              .Append("calls".PadLeft(8)).Append("total ms".PadLeft(11))
+              .Append("avg ms".PadLeft(9)).Append("max ms".PadLeft(9)).Append('\n');
+
+            double accounted = table.TotalMs;
+            var entries = table.Snapshot();
+            int shown = 0;
+            for (int i = 0; i < entries.Count && shown < 10; i++)
+            {
+                var e = entries[i];
+                sb.Append(e.Name.PadRight(36))
+                  .Append(e.Instances.ToString().PadLeft(6))
+                  .Append(e.Calls.ToString().PadLeft(8))
+                  .Append(e.TotalMs.ToString("F1").PadLeft(11))
+                  .Append(e.AverageMs.ToString("F3").PadLeft(9))
+                  .Append(e.MaxMs.ToString("F3").PadLeft(9))
+                  .Append('\n');
+                shown++;
+            }
+
+            double perFrame = frames > 0 ? dispatchMs / frames : 0.0;
+            sb.Append("dispatch ").Append(dispatchMs.ToString("F1")).Append(" ms across ")
+              .Append(frames).Append(" frame").Append(frames == 1 ? "" : "s")
+              .Append(" (").Append(perFrame.ToString("F2")).Append(" ms/frame of tickables; ")
+              .Append("accounted ").Append(accounted.ToString("F1")).Append(" ms)");
+            return sb.ToString();
         }
 
         private void EnsureStyle()

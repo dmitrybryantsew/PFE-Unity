@@ -1302,6 +1302,8 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
+            using (PFE.Core.Profiling.PfeViewMarkers.RoomVisualsLateUpdate.Auto())
+            {
             // Moving platforms step BEFORE the presenter sync below, so the frame that advances them is
             // also the frame that draws them at their new position.
             //
@@ -1321,7 +1323,10 @@ namespace PFE.Systems.Map.Rendering
                 platforms.Step();
             }
 
-            roomObjectVisualManager?.UpdateVisuals(Time.deltaTime);
+            using (PFE.Core.Profiling.PfeViewMarkers.ObjectVisuals.Auto())
+            {
+                roomObjectVisualManager?.UpdateVisuals(Time.deltaTime);
+            }
 
             if (roomBackdropRenderer == null)
             {
@@ -1352,7 +1357,11 @@ namespace PFE.Systems.Map.Rendering
                     + WorldCoordinates.PixelToUnity(lightOffsetPixels);
             }
 
-            roomBackdropRenderer.UpdateVisibilityMask(playerLightWorldPosition);
+            using (PFE.Core.Profiling.PfeViewMarkers.FogVisibilityMask.Auto())
+            {
+                roomBackdropRenderer.UpdateVisibilityMask(playerLightWorldPosition);
+            }
+            }
         }
 
         /// <summary>

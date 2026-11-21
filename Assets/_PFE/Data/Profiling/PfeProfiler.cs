@@ -221,6 +221,32 @@ namespace PFE.Core.Profiling
         }
 
         /// <summary>
+        /// Cumulative totals for one region id since the last <see cref="Reset"/>, for external
+        /// per-frame samplers that difference the series (PfeFrameSeriesRecorder reads sim.frame and
+        /// sim.tick this way — ProfilerRecorder can only see ProfilerMarkers, and these regions are
+        /// plain Stopwatch spans). False when the id has not been seen. Reading is one lock + one
+        /// dictionary hit per call; that is fine at frame granularity, not inside a hot loop.
+        /// </summary>
+        public static bool TryGetRegionTotals(string id, out int calls, out double totalMs, out double selfMs)
+        {
+            lock (Sync)
+            {
+                if (Regions.TryGetValue(id, out RegionInfo region))
+                {
+                    calls = region.Calls;
+                    totalMs = region.TotalMs;
+                    selfMs = region.SelfMs;
+                    return true;
+                }
+            }
+
+            calls = 0;
+            totalMs = 0.0;
+            selfMs = 0.0;
+            return false;
+        }
+
+        /// <summary>
         /// How many distinct region ids have been seen. The cheap "is anything actually
         /// instrumented" readout — 0 after a <see cref="Reset"/> means no instrumented code has run
         /// since, which is a different finding from "it ran and was fast".

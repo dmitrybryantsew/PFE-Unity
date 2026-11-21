@@ -109,6 +109,8 @@ namespace PFE.Core
 
         private void LateUpdate()
         {
+            using (PFE.Core.Profiling.PfeViewMarkers.CameraLateUpdate.Auto())
+            {
             if (_camera == null)
                 _camera = GetComponent<Camera>();
             Camera cam = _camera;
@@ -169,6 +171,7 @@ namespace PFE.Core
             }
 
             transform.position = smoothedPosition;
+            }
         }
 
         /// <summary>

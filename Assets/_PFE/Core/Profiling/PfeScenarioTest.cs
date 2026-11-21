@@ -401,7 +401,16 @@ namespace PFE.Core.Profiling
             var keyboard = Keyboard.current;
             if (keyboard == null)
             {
-                Debug.LogWarning("[Scenario] Keyboard.current is null - cannot inject input.");
+                // Batchmode players have no keyboard device — QueueStateEvent has nothing to
+                // deliver to and every hold phase silently records zero movement (seen in the
+                // netrepro and baseline runs: "Keyboard.current is null"). A virtual keyboard is
+                // exactly what the Input System docs recommend for headless input, and it exists
+                // only inside this scenario-driven process.
+                keyboard = InputSystem.AddDevice<Keyboard>();
+            }
+            if (keyboard == null)
+            {
+                Debug.LogWarning("[Scenario] Keyboard.current is null and AddDevice failed - cannot inject input.");
                 return;
             }
 

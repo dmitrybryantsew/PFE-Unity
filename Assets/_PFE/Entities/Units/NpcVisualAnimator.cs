@@ -341,6 +341,8 @@ namespace PFE.Entities.Units
                 return;
             }
 
+            using (PFE.Core.Profiling.PfeViewMarkers.NpcAnimatorFixedUpdate.Auto())
+            {
             _timer += Time.fixedDeltaTime;
             while (_timer >= _frameDuration)
             {
@@ -352,6 +354,7 @@ namespace PFE.Entities.Units
                 // first is what makes `gotoAndPlay` start on the frame it named.
                 Animate();
                 AdvanceFrame();
+            }
             }
         }
 
