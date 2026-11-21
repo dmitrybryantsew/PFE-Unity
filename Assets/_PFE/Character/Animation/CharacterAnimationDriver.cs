@@ -188,6 +188,23 @@ namespace PFE.Character.Animation
         /// <summary>Replace the event sink at runtime (e.g. after a scene AudioManager awakens).</summary>
         public void SetEventSink(IAnimationEventSink sink) => _eventSink = sink;
 
+        /// <summary>
+        /// Copy the serialized tunables that shape frame MAPPING (not timing) from another driver —
+        /// the multiplayer seam: a simulated peer body built from code has no prefab to configure its
+        /// stay-aim sub-range or its jump velocity mapping, and without them the host's view of the
+        /// peer — and the state/frame it captures for the clients — silently drops the aim tilt and
+        /// the fall-frame pose the local rig draws. Event-sink and frame-rate stay local: the sink is
+        /// per-rig sound wiring, and the frame rate comes from the shared definition.
+        /// </summary>
+        public void CopyFrameMappingsFrom(CharacterAnimationDriver source)
+        {
+            if (source == null) return;
+            _aimIdleStartFrame = source._aimIdleStartFrame;
+            _aimIdleEndFrame   = source._aimIdleEndFrame;
+            _jumpMaxRiseSpeed  = source._jumpMaxRiseSpeed;
+            _jumpMaxFallSpeed  = source._jumpMaxFallSpeed;
+        }
+
         // ── Internal ─────────────────────────────────────────────────────────
 
         void BuildStates()

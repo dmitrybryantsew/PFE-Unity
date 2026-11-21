@@ -2,6 +2,7 @@
 using VContainer;
 using R3;
 using MessagePipe;
+using PFE.Character;
 using PFE.Core;
 using PFE.Core.Input;
 using PFE.Core.Messages;
@@ -891,6 +892,10 @@ namespace PFE.Entities.Player
             _tilePhysics = GetComponent<TilePhysicsController>();
             _locomotion = GetComponent<PlayerLocomotionController>();
             _loadout = GetComponent<PlayerWeaponLoadout>();
+            // The replication seam for the avatar extras (aim/weapon/animation). Test rigs without
+            // an assembler simply report "state unknown" forever; that is the safe default, not a
+            // crash, because capture stamps only what the provider returns.
+            SetAvatarViewSource(new AvatarViewSource(this, GetComponent<CharacterSpriteAssembler>()));
             _actionInteractor = GetComponent<PlayerActionInteractor>();
             _telekinesis = GetComponent<PlayerTelekinesisController>() ?? gameObject.AddComponent<PlayerTelekinesisController>();
             base._unitStats = new UnitStats();
@@ -1331,6 +1336,17 @@ namespace PFE.Entities.Player
                 // (index 0); a multiplayer context would resolve this client's slot differently.
                 // The seam is that the context is consulted, not that the answer changes today.
                 byte commandSlot = (byte)0;
+
+                // A suppressed container interact (a joined client pressing E on a chest — the local
+                // open is replaced by the command edge) becomes this frame's InteractPressed. The
+                // latch is consumed HERE so the edge rides the same command everything else does and
+                // the per-tick tape fold keeps exactly-once delivery. A raised latch no build ever
+                // consumes is dropped, which is the same answer a lost press gets.
+                ulong interactRoomHash;
+                int interactObjectIndex;
+                bool interactPressed = SimInteractCommandLatch.TryConsume(
+                    out interactRoomHash, out interactObjectIndex);
+
                 var command = PFE.Core.Input.PlayerCommand.FromIntent(
                     tickIndex: commandTick,
                     slotIndex: commandSlot,
@@ -1342,7 +1358,28 @@ namespace PFE.Entities.Player
                     jumpPressed: jumpPressed,
                     dashPressed: dashPressed,
                     dropThroughPressed: dropThroughPressed,
-                    aimAngle: _aimAngle);
+                    aimAngle: _aimAngle,
+                    // Teleport is hold-to-charge, release-to-execute — a level plus the cursor the
+                    // charge will fire at. Read back off the locomotion so the command carries the
+                    // POST-telekinesis-steal key state (a grab that stole the key this frame already
+                    // called SetTeleportHeld(false)), and the last cursor the camera forwarded.
+                    teleportHeld: _locomotion.IsTeleportHeld,
+                    cursorWorldX: _locomotion.CursorWorldPixels.x,
+                    cursorWorldY: _locomotion.CursorWorldPixels.y,
+                    // What is in hand rides every command idempotently: the host cannot derive the
+                    // peer's equipped weapon (it lives in the peer's inventory), so the peer states
+                    // it and the host stamps it into the unit record the clients draw from.
+                    weaponIdHash: CurrentWeaponIdHash(),
+                    // The interact edge, when one fired this frame: zero hash means "no target",
+                    // which the host-side ingress refuses — an edge never defaults to chest 0.
+                    interactPressed: interactPressed,
+                    targetRoomHash: interactRoomHash,
+                    targetObjectIndex: interactObjectIndex,
+                    // The attack level rides the command like every other level: the host-side
+                    // weapon mount on the peer's simulated body fires while the flag is set. What
+                    // the peer holds is intent the host cannot derive — the local rig's trigger
+                    // state lives in the InputReader, not in any Sim record.
+                    fireHeld: _input != null && _input.IsAttackHeld);
 
                 // (2) first, so the tape always contains this frame's intent for the tick...
                 _commandTape.Push(command);
@@ -1495,6 +1532,53 @@ namespace PFE.Entities.Player
 
             // Push the aim target into the loadout; the controller and the presenter read it from there.
             _loadout?.SetAimTarget(targetWorld);
+        }
+
+        /// <summary>
+        /// The equipped weapon's content id in the wire's hash vocabulary, or 0 when unarmed. The
+        /// loadout is the authority on what is in hand; nothing equipped (or a loadout-less test rig)
+        /// hashes to 0, which both the host stamp and the client's weapon view read as "no weapon".
+        /// </summary>
+        private ulong CurrentWeaponIdHash()
+        {
+            string weaponId = _loadout != null ? _loadout.Current?.State.Def?.weaponId : null;
+            return string.IsNullOrEmpty(weaponId)
+                ? 0UL
+                : PFE.Sim.State.SimSnapshotProjectionRules.LootItemKey(weaponId, isWeapon: true);
+        }
+
+        /// <summary>
+        /// The <see cref="IUnitAvatarViewSource"/> the local rig installs on itself, so the shared
+        /// capture path replicates aim, weapon and animation without <c>UnitController</c> knowing
+        /// where any of them live. Reads its four values live each capture: aim from the controller,
+        /// weapon from the loadout, animation state/frame straight off the assembler the
+        /// <c>CharacterAnimationDriver</c> is already driving — there is no second write path to
+        /// drift from the local view.
+        /// </summary>
+        private sealed class AvatarViewSource : IUnitAvatarViewSource
+        {
+            [LocalOnly(Note = "Wiring back-reference; the view source reads the owner's live state, it carries none of its own")]
+            private readonly PlayerController _owner;
+            [LocalOnly(Note = "View-layer assembler reference, fixed at construction; the animation driver owns the state it reads")]
+            private readonly CharacterSpriteAssembler _assembler;
+
+            public AvatarViewSource(PlayerController owner, CharacterSpriteAssembler assembler)
+            {
+                _owner = owner;
+                _assembler = assembler;
+            }
+
+            public float AimAngle => _owner._aimAngle;
+
+            public ulong WeaponIdHash => _owner.CurrentWeaponIdHash();
+
+            public byte AnimStateId =>
+                _assembler != null
+                    ? PFE.Character.Animation.RemoteAnimStateIds.ToId(_assembler.CurrentState)
+                    : PFE.Character.Animation.RemoteAnimStateIds.Unknown;
+
+            public ushort AnimFrame =>
+                _assembler != null ? (ushort)Mathf.Clamp(_assembler.CurrentFrame, 0, ushort.MaxValue) : (ushort)0;
         }
 
         /// <summary>

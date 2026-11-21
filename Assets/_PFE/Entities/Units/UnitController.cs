@@ -125,7 +125,10 @@ namespace PFE.Entities.Units
         /// <para><b>Most of the record is already live here.</b> <see cref="_sim"/> is the record
         /// <c>UnitController</c>'s own step mutates, so health, gait, status and pose need no
         /// translation. Only three things are stamped at capture time: the identity (owned by the
-        /// record + registry, not by this component), the interned definition id, and the position.</para>
+        /// record + registry, not by this component), the interned definition id, and the position.
+        /// When an <see cref="IUnitAvatarViewSource"/> is installed (the multiplayer rig owners
+        /// install one; a bare unit has none) the avatar extras — aim, weapon, animation state and
+        /// frame — are stamped the same way.</para>
         ///
         /// <para><b>Position: <c>transform.localPosition</c> scaled by 100, which is exact for every
         /// unit <c>RoomUnitSpawner</c> builds.</b> The spawner parents the unit to the room root and
@@ -149,7 +152,45 @@ namespace PFE.Entities.Units
             state.Px = roomLocalPixels.x;
             state.Py = roomLocalPixels.y;
 
+            IUnitAvatarViewSource avatar = _avatarViewSource;
+            if (avatar != null)
+            {
+                state.AimAngle = avatar.AimAngle;
+                state.WeaponIdHash = avatar.WeaponIdHash;
+                state.PoseId = avatar.AnimStateId;
+                state.PoseFrame = avatar.AnimFrame;
+
+                // Facing rides the VISUAL truth, not the aim and not the raw record. The record's
+                // FacingDirection is motor-less truth: the step's velocity rule (Unit.as control())
+                // never runs for a motor-driven rig owner, so the field would freeze the avatar on
+                // every client. Deriving it from the aim instead froze it the other way — the body
+                // followed the mouse on clients while the local screen follows movement (the motor's
+                // dx rule writes the root mirror every step), so a host walking left under a
+                // right-side cursor turned on her own screen but not on the client's. The root's own
+                // localScale.x IS the facing every body shape maintains (TilePhysicsController step
+                // 8 for a motored rig, ApplyFacingToTransform for a motor-less one), on the local
+                // player and on a simulated peer body alike — reading it back at capture replicates
+                // exactly what the capturing machine sees.
+                state.FacingDirection = transform.localScale.x < 0f ? -1 : 1;
+            }
+
             return state;
+        }
+
+        /// <summary>
+        /// The rig owner's view-side source of the replicated avatar extras (aim / weapon / animation).
+        /// Null on every unit whose rig has no animation or weapon vocabulary to report — a bare NPC,
+        /// a fixture — and on those the record's avatar fields stay at their defaults, which the
+        /// receiver reads as "aiming right, unarmed, state unknown".
+        /// </summary>
+        [LocalOnly(Note = "View seam to the rig's animation/weapon components; never replicated itself")]
+        private IUnitAvatarViewSource _avatarViewSource;
+
+        /// <summary>Install (or clear, with null) the avatar view source <see cref="CaptureSimState"/>
+        /// stamps from. Called once by the rig owner after the components it reads exist.</summary>
+        public void SetAvatarViewSource(IUnitAvatarViewSource source)
+        {
+            _avatarViewSource = source;
         }
 
         /// <summary>
@@ -912,6 +953,26 @@ namespace PFE.Entities.Units
             // spawner for the same reason as the SimLoop line above: a pooled or re-enabled unit must
             // come back, and OnEnable is the one hook that fires on every path.
             UnitViewRegistry.Register(this);
+        }
+
+        /// <summary>
+        /// Drop out of the live-view registry while disabled, so the registry matches what
+        /// <c>FindObjectsByType</c> would return (active objects only).
+        ///
+        /// <para><b>Why this matters now.</b> <c>EnemyBrain.RefreshTargetCandidates</c> consumes
+        /// <see cref="UnitViewRegistry"/> instead of running its own scene walk every tick — the
+        /// registry only earns that trust if membership tracks ACTIVE units exactly. Room streaming
+        /// hides non-current rooms with <c>SetActive(false)</c>, which fires OnDisable without a
+        /// destroy: without this hook a hidden room's units would stay visible to every enemy's
+        /// targeting sweep while invisible to the engine's equivalent query.</para>
+        ///
+        /// <para><c>virtual</c> for the same hiding reason as <see cref="OnDestroy"/> below: a
+        /// subclass that declares its own <c>private void OnDisable()</c> silences this cleanup for
+        /// itself: it must override and call <c>base.OnDisable()</c>.</para>
+        /// </summary>
+        protected virtual void OnDisable()
+        {
+            UnitViewRegistry.Unregister(this);
         }
 
         /// <summary>
@@ -3783,6 +3844,13 @@ namespace PFE.Entities.Units
         /// </summary>
         private void OnCollisionEnter2D(Collision2D collision)
         {
+            // Client puppets run these callbacks too (kinematic contacts still fire), but on a client
+            // `_sim` is mirror truth owned by snapshots — a local Unity contact must not originate
+            // writes into it. The HostWriteGuard in SetVelocityY used to throw here every physics step
+            // (75k times in one MP session); in a release player the guard compiles out and the write
+            // landed anyway. Skip the whole fallback on any non-host context.
+            if (SimAuthorityContext.Current != SimWriteContext.HostSimulation) return;
+
             if (HasUpwardContact(collision))
             {
                 _supportingColliders.Add(collision.collider);
@@ -3793,6 +3861,8 @@ namespace PFE.Entities.Units
 
         private void OnCollisionStay2D(Collision2D collision)
         {
+            if (SimAuthorityContext.Current != SimWriteContext.HostSimulation) return;
+
             if (HasUpwardContact(collision))
             {
                 _supportingColliders.Add(collision.collider);
@@ -3823,6 +3893,10 @@ namespace PFE.Entities.Units
         /// </summary>
         private void OnCollisionExit2D(Collision2D collision)
         {
+            // Same authority gate as the enter/stay handlers: on a client `_sim.IsGrounded` is mirror
+            // truth and a local contact lifecycle must not write it.
+            if (SimAuthorityContext.Current != SimWriteContext.HostSimulation) return;
+
             _supportingColliders.Remove(collision.collider);
 
             if (_supportingColliders.Count == 0)
