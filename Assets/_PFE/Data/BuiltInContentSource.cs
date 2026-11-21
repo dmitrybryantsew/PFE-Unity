@@ -50,7 +50,6 @@ namespace PFE.Data
 
             RegisterType<AmmoDefinition>(registry, "game.db.load.ammo", "Ammo", "");
             RegisterType<MapObjectDefinition>(registry, "game.db.load.mapObjects", "MapObjects/Definitions", "");
-            RegisterType<PerkDefinition>(registry, "game.db.load.perks", "Perks", "");
             RegisterType<EffectDefinition>(registry, "game.db.load.effects", "Effects", "");
             RegisterType<RPGSkill>(registry, "game.db.load.rpgSkills", "Skills", "");
             RegisterType<RPGPerk>(registry, "game.db.load.rpgPerks", "RPG/Perks", "");

@@ -354,17 +354,6 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
-    /// Perk type from AS3.
-    /// tip='1' = Player selectable
-    /// tip='0' = Automatic/effect only
-    /// </summary>
-    public enum PerkType
-    {
-        Automatic = 0,
-        Selectable = 1
-    }
-
-    /// <summary>
     /// Decal type from AS3 — <c>tipdec</c> in the weapon XML <c>&lt;vis&gt;</c> node (or on the weapon tag
     /// for a melee weapon). <b>Values match the original integers exactly</b>; they are the argument
     /// <c>Grafon.dyrka(type, …)</c> switches on, so a value that is not declared here is a value the
@@ -498,40 +487,5 @@ namespace PFE.Data.Definitions
         Rare = 3,
         Epic = 4,
         Legendary = 5
-    }
-
-    /// <summary>
-    /// Skill requirement types from AS3.
-    /// </summary>
-    public enum RequirementType
-    {
-        Level,
-        Skill,
-        Guns,  // Small guns OR Energy weapons
-        Perk
-    }
-
-    /// <summary>
-    /// Stat modifier types from AS3.
-    /// ref='add' = Add to base
-    /// ref='mult' = Multiply with base
-    /// (no ref) = Set value
-    /// </summary>
-    public enum ModifierType
-    {
-        Add,
-        Multiply,
-        Set,
-        WeaponSkill  // Special case for weapon skills
-    }
-
-    /// <summary>
-    /// Stat modifier target from AS3.
-    /// </summary>
-    public enum ModifierTarget
-    {
-        Player,
-        Pers,  // Character
-        Unit   // Enemy/NPC
     }
 }
