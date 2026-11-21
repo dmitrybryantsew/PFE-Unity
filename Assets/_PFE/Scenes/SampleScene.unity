@@ -573,6 +573,7 @@ MonoBehaviour:
   roomBackgroundLookup: {fileID: 11400000, guid: a0dcd864515adc04ba3f430ba2b0a6a7, type: 2}
   roomBackdropSettingsLookup: {fileID: 11400000, guid: 63a27802d3c8f5f428ec52aaa0dd95cb, type: 2}
   debugSettings: {fileID: 11400000, guid: 338e44e0f49d4c7cb7e2f28f8675e1f5, type: 2}
+  roomTerrainArt: {fileID: 11400000, guid: 465b6caf08ca774469ef253607a20aac, type: 2}
   backdropTextureScale: {x: 1, y: 1}
   backdropTextureOffset: {x: 0, y: 0}
   flipBackdropTextureX: 0

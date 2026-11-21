@@ -62,4 +62,4 @@ MonoBehaviour:
   rngLogCallSites: 0
   logEntityIdAssignment: 0
   showEntityIdOverlay: 0
-  showConsoleQuickButtons: 1
+  showConsoleQuickButtons: 0
