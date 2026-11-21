@@ -134,11 +134,17 @@ namespace PFE.Tests.Editor.Campaign
             // If that regresses, this fixture dies in SetUp with a SecurityException rather than failing
             // an assertion, which is exactly how the regression would present.
             RecordingPublisher<LandTransitionMessage> transitions = new RecordingPublisher<LandTransitionMessage>();
-            CampaignManager manager = new CampaignManager(null, transitions, null, null);
+            CampaignManager manager = null;
+            Assert.DoesNotThrow(() => manager = new CampaignManager(null, transitions, null, null),
+                "Constructing with no catalogue must not touch the engine.");
 
-            Assert.That(manager.Catalog, Is.Null,
-                "No catalogue was supplied and none can be loaded here — and that must not throw.");
             Assert.That(manager.LandStates.Count, Is.EqualTo(0));
+
+            // The catalogue resolves lazily on the first access now — the constructor only stores the
+            // injected reference. In the editor that load succeeds and returns the authored catalogue;
+            // in a headless host the ECall is caught and the property reads as null. Either way the
+            // access must not throw, which is the regression this fixture exists to catch.
+            Assert.DoesNotThrow(() => { var _ = manager.Catalog; });
         }
 
         [Test]

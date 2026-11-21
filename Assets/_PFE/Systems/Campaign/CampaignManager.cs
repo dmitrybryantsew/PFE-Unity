@@ -283,11 +283,15 @@ namespace PFE.Systems.Campaign
                                  "shelf. Check GameLifetimeScope's IVendorItemSource registration.");
             }
 
-            // Start in starting land if uninitialized
-            CampaignCatalog catalog = Catalog;
-            if (string.IsNullOrEmpty(_currentLandId.Value) && catalog != null)
+            // Start in starting land if uninitialized. Gated on the injected `_catalog` rather than the
+            // lazy `Catalog` property on purpose — the same reasoning as the vendor gate above: the
+            // offline fixtures pass `catalog: null` and must not emit this, because for them "no
+            // starting land" is the truth. (The lazy getter resolves the authored catalogue inside
+            // the editor, and auto-transitioning from a fixture would publish a build the fixture
+            // never asked for.)
+            if (string.IsNullOrEmpty(_currentLandId.Value) && _catalog != null)
             {
-                string startLand = !string.IsNullOrEmpty(catalog.startingLandId) ? catalog.startingLandId : "begin";
+                string startLand = !string.IsNullOrEmpty(_catalog.startingLandId) ? _catalog.startingLandId : "begin";
                 TransitionToLand(startLand);
             }
         }

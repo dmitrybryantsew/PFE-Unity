@@ -288,9 +288,12 @@ namespace PFE.Tests.Editor.Campaign
                 }
             }
 
-            Assert.Greater(stageActions, 100,
-                "Sanity: the campaign assets should contain well over 100 stage actions; " +
-                "a much smaller number means the scan is not reading the files it thinks it is.");
+            // The oracle carries exactly 81 `act="stage"` lines (GameData.as) and the importer
+            // reproduces all of them; the floor is a sanity check that the scan reads the files it
+            // thinks it is, not a target to grow.
+            Assert.GreaterOrEqual(stageActions, 81,
+                "Sanity: the campaign assets should contain the oracle's 81 stage actions; " +
+                "fewer means the scan is not reading the files it thinks it is.");
 
             Assert.IsEmpty(offenders,
                 "These shipped assets still carry `stage` with numericParam 0, which closes no sub and " +
@@ -440,7 +443,10 @@ namespace PFE.Tests.Editor.Campaign
             // Real NPCs & Scripts
             var (npcs, scripts) = CampaignDataParser.ParseNpcsAndScripts(realContent);
             Assert.GreaterOrEqual(npcs.Count, 50, $"Expected at least 50 NPCs from GameData.as, got {npcs.Count}");
-            Assert.GreaterOrEqual(scripts.Count, 70, $"Expected at least 70 Scripts from GameData.as, got {scripts.Count}");
+            // The oracle has exactly 55 `<scr>` blocks carrying an @id (GameData.as; the other 57
+            // `<scr>` children are inline land scripts, parsed as part of the land, not as standalone
+            // script definitions), and the parser's `//scr[@id]` selection reproduces that count.
+            Assert.GreaterOrEqual(scripts.Count, 55, $"Expected at least 55 Scripts from GameData.as, got {scripts.Count}");
 
             var calamNpc = npcs.Find(n => n.npcId == "calam");
             Assert.IsNotNull(calamNpc, "NPC 'calam' must exist");

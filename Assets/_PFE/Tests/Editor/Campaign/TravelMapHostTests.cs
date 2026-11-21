@@ -242,13 +242,15 @@ namespace PFE.Tests.Editor.Campaign
             // The catalogue lookup fails, so `missionId` is not recorded and no forced regenerate is
             // asked for — but the transition still happens. AS3's guard is `lands[param1]`, and the port
             // deliberately does not refuse an id the catalogue does not know (03_GAP_LEDGER.md §1, D1).
+            // ("nio" used to be the unknown-id stand-in here; it is a real catalogue land now, so this
+            // uses an id that cannot resolve.)
             var builds = new RecordingPublisher<LandBuildRequestMessage>();
             CampaignManager host = new CampaignManager(null, null, null, builds, null);
 
-            Assert.IsTrue(host.BeginMission("nio"), "A transition was started.");
+            Assert.IsTrue(host.BeginMission("no_such_land"), "A transition was started.");
 
             Assert.AreEqual(1, builds.Published.Count);
-            Assert.AreEqual("nio", builds.Published[0].LandId);
+            Assert.AreEqual("no_such_land", builds.Published[0].LandId);
             Assert.IsFalse(builds.Published[0].ForceRegenerate);
             Assert.IsNull(host.MissionId,
                 "An unknown land does not become the mission — Game.as:453 requires lands[param1].");

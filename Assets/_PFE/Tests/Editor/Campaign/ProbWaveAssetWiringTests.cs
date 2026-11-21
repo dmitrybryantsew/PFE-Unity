@@ -46,7 +46,11 @@ namespace PFE.Tests.Editor.Campaign
         };
 
         static string Read(string asset) =>
-            File.ReadAllText(Path.Combine(SourceLint.ProjectRoot(), LandsDirectory, asset));
+            Normalize(File.ReadAllText(Path.Combine(SourceLint.ProjectRoot(), LandsDirectory, asset)));
+
+        /// <summary>The shipped assets are CRLF and every needle below is LF — the same normalisation
+        /// BossEnclSheetWiringTests does, for the same reason (git autocrlf must not decide this).</summary>
+        static string Normalize(string text) => text.Replace("\r\n", "\n");
 
         /// <summary>
         /// One probRooms row, from <c>  - id: w_*</c> up to the next <c>  - id:</c> or the next

@@ -92,6 +92,26 @@ namespace PFE.UI.MainMenu
             BuildLayout();
         }
 
+        void Start()
+        {
+            // Headless harness auto-start (the -pfe-scenario / -pfe-net-* command-line family): a
+            // batchmode two-instance net session has no synthetic UI input, and the scenario watcher
+            // never sees a player while the process sits in this menu. The switch takes the exact
+            // flow OnStartPressed takes — same pending settings, same scene load — so an auto-started
+            // game is indistinguishable from a clicked one. The net role itself comes from the CLI
+            // switches and is already owned by the session bootstrap; this only boots the game scene.
+            string[] args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (string.Equals(args[i], "-pfe-autostart", StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.Log("[MainMenuSceneBootstrapper] -pfe-autostart: starting a new game without menu input.");
+                    OnStartPressed();
+                    return;
+                }
+            }
+        }
+
         void OnDestroy()
         {
             if (_menuManager != null)

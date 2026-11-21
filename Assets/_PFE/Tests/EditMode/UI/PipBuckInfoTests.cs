@@ -62,6 +62,7 @@ namespace PFE.Tests.EditMode.UI
   <txt id='noteImp3b' imp='3'><n><t>Important note two</t></n></txt>
   <txt id='noteBody' imp='1'><n><r p='1'>Dear &amp;lp,[br]see [the manual] first.</r></n></txt>
   <txt id='noteIndented' imp='1'><n><t> Indented title that runs past the sixty character cap of the Oracle's own truncation rule</t></n></txt>
+  <pip id='done'><n>done</n></pip>
 </all>";
 
         /// <summary>The bestiary's roll-up, as one inline <c>&lt;all&gt;</c> document. The ids carry no
@@ -263,19 +264,21 @@ namespace PFE.Tests.EditMode.UI
         }
 
         [Test]
-        public void TravelDraw_LandWithNoNode_IsAbsentNotInvisible()
+        public void TravelDraw_LandWithNoNode_IsSkippedNotDrawn()
         {
-            // The `if (sim)` miss: the loop still visits the land, but there is nothing to draw.
+            // :157-158 — `sim = visWMap[land.id]; if (sim)`. The Oracle's loop looks the node up and
+            // misses in silence: the land contributes NO draw entry at all, rather than an entry in
+            // some "absent" state. (This test used to expect one Absent entry; Draw has always
+            // skipped, so it failed on its first in-editor run. The skip — not an absent marker — is
+            // the faithful behaviour for the six lands in LandsWithoutNode.)
             var draws = PipTravelMapLayout.Draw(
                 new[] { "grave" },
                 _ => false, _ => false, _ => true, _ => true, _ => true,
                 testMode: false, helpMess: false);
 
-            Assert.That(draws.Count, Is.EqualTo(1));
-            Assert.That(draws[0].Draw.Visible, Is.False,
-                "An absent node draws as Absent (visible false, alpha 1), not as a hidden one — " +
-                "the two differ in alpha and must not be collapsed.");
-            Assert.That(draws[0].Draw.Alpha, Is.EqualTo(1f));
+            Assert.That(draws.Count, Is.EqualTo(0),
+                "A land with no travel node must not appear in the draw list — the view has nothing " +
+                "to place and no absent-state to interpret.");
         }
 
         // ── The minimap state machine ─────────────────────────────────────────
@@ -298,10 +301,15 @@ namespace PFE.Tests.EditMode.UI
             var state = new PipMinimapState();
 
             // Anchor away from the pan: the pan's distance from the anchor scales with the zoom, the
-            // point under the anchor does not move. Initial pan (15, 15), scale 2 -> 3 about (10, 20):
+            // point under the anchor does not move. The wheel path (Scroll :836-850) is the one that
+            // takes the anchor from the caller — the zoom buttons re-anchor on the window centre via
+            // ZoomBy, which is the split Minimap_WheelAnchorsOnTheMouse pins. This test used to call
+            // ZoomBy and expect anchoring on (10, 20); ZoomBy never took an anchor, so it failed on
+            // the unverified first in-editor run.
+            //
+            // Initial pan (15, 15), scale 2 -> 3 about (10, 20):
             // (15 - 10) * 3/2 + 10 = 17.5 and (15 - 20) * 3/2 + 20 = 12.5.
-            state.SetMapSize(10f, 20f, 0f, 0f);
-            state.ZoomBy(1, 0f, 0f);
+            state.Scroll(1, 10f, 20f, 0f, 0f);
 
             Assert.That(state.MapScale, Is.EqualTo(3f));
             Assert.That(state.PanX, Is.EqualTo(17.5f).Within(0.0001f));
@@ -562,8 +570,12 @@ namespace PFE.Tests.EditMode.UI
             Assert.That(PipNoteJournal.CaptionFor(indented),
                 Is.EqualTo(indented.Substring(3, 60)));
 
-            // Below the cap nothing is trimmed past the indent.
-            Assert.That(PipNoteJournal.CaptionFor(" plain"), Is.EqualTo(" plain"));
+            // The start offset is NOT gated on the cap: AS3's substr(start, len) applies the offset
+            // whenever the first character is a space, so a short indented caption loses its first
+            // three characters too — " plain".substr(3, 60) is "ain". (In-game this arm is dead:
+            // parser-fed titles arrive already trimmed — see TitleSubstitutesThePlayerName — so the
+            // rule only fires on synthetic input, which is exactly what this fixture feeds it.)
+            Assert.That(PipNoteJournal.CaptionFor(" plain"), Is.EqualTo("ain"));
             Assert.That(PipNoteJournal.CaptionFor(""), Is.Empty);
         }
 

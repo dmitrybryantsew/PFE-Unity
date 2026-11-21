@@ -45,10 +45,15 @@ namespace PFE.Tests.Editor.Entities.Units
             public int Rows;
         }
 
-        static string ReadAsset() => File.ReadAllText(Path.Combine(SourceLint.ProjectRoot(), UnitAssetPath));
+        // Line endings are normalised because core.autocrlf=true checkouts hand these files CRLF
+        // terminators, and every regex below anchors on `$` — which then lands after a stray `\r`
+        // and matches nothing.
+        static string ReadAsset() => Normalize(File.ReadAllText(Path.Combine(SourceLint.ProjectRoot(), UnitAssetPath)));
 
         static string ReadMeta(string sheetId) =>
-            File.ReadAllText(Path.Combine(SourceLint.ProjectRoot(), SheetDirectory, sheetId + ".png.meta"));
+            Normalize(File.ReadAllText(Path.Combine(SourceLint.ProjectRoot(), SheetDirectory, sheetId + ".png.meta")));
+
+        static string Normalize(string text) => text.Replace("\r\n", "\n");
 
         /// <summary>
         /// The <c>sheetVariants:</c> block only — not the primary <c>spriteSheet:</c> list above it,

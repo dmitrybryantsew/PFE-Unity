@@ -119,6 +119,14 @@ namespace PFE.Entities.Enemies.Bosses
         BossAlicornTelekinesis _telekinesis;
 
         /// <summary>
+        /// The grab/throw helper. Created in <see cref="Awake"/>, with lazy creation as the fallback:
+        /// EditMode fixtures drive the brain directly and lifecycle callbacks never run there, so a
+        /// field that only Awake assigns is null in exactly the host that unit-tests the revive path.
+        /// In play mode Awake always runs first and the lazy branch is dead code.
+        /// </summary>
+        BossAlicornTelekinesis Telekinesis => _telekinesis ?? (_telekinesis = new BossAlicornTelekinesis(this));
+
+        /// <summary>
         /// How many scythes <see cref="EmitScythe"/> has actually put into the room. Exposed so the
         /// debug overlay and the fixtures can see that <c>emit()</c> fired — the count is a
         /// <i>result</i> now, not a substitute for one.
@@ -306,7 +314,7 @@ namespace PFE.Entities.Enemies.Bosses
             Attack();
 
             // The hold block (:533-565) — the tail of `control()`, after the attack.
-            _telekinesis.TickHold();
+            Telekinesis.TickHold();
         }
 
         // ── the rotation (:391-477) ──────────────────────────────────────────────────────────────
@@ -390,7 +398,7 @@ namespace PFE.Entities.Enemies.Bosses
             bool grabbed = false;
             if (_attState == BossAlicornRules.TelekinesisAttackState)
             {
-                grabbed = _telekinesis.TryGrab();
+                grabbed = Telekinesis.TryGrab();
             }
 
             _aiTCh = BossAlicornRules.AiTChForState2(_attState, grabbed);
@@ -403,7 +411,7 @@ namespace PFE.Entities.Enemies.Bosses
         {
             if (_attState == BossAlicornRules.TelekinesisAttackState)
             {
-                _telekinesis.Throw();
+                Telekinesis.Throw();
             }
 
             _aiTCh = BossAlicornRules.AiTChForState3(_attState, UnityEngine.Random.value);
@@ -1026,7 +1034,7 @@ namespace PFE.Entities.Enemies.Bosses
 
             // `superInvis = false; dropTeleObj(); isBlast = false;` (:706-708).
             LeaveInvisibility();
-            _telekinesis.Drop();
+            Telekinesis.Drop();
             _isBlast = false;
 
             // `sost = 1; mat = 0; timerDie = 90;` (:724-726) — alive again, and no longer
@@ -1064,7 +1072,7 @@ namespace PFE.Entities.Enemies.Bosses
             // this one a grabbed player stays levitated forever — TickControl stops running the
             // instant IsAlive goes false, so nothing else would ever release the hold.
             LeaveInvisibility();
-            _telekinesis.Drop();
+            Telekinesis.Drop();
 
             Vector2 selfWorld = (Vector2)transform.position * TileQueryConstants.UnitToPixel;
             _controller.EmitParticle("bloodblast2", selfWorld + new Vector2(0f, _controller.SpriteSizePixels.y * 0.5f));

@@ -250,6 +250,18 @@ namespace PFE.Tests.EditMode.UI
         [Test]
         public void OrganRowIds_CarryTheTraumaStage()
         {
+            // The labels are the Oracle's own pipText lookups (:107/:122/:137/:152/:167), so the
+            // assertions run against a table carrying those five keys at their shipped values —
+            // PipTextTable.Empty would render the missing-key marker "*p_head", which is the faithful
+            // answer for a document without the key but not what this fixture is about.
+            PipTextTable text = PipTextTable.Parse(@"<all>
+  <pip id='head'><n>Head</n></pip>
+  <pip id='tors'><n>Body</n></pip>
+  <pip id='legs'><n>Legs</n></pip>
+  <pip id='blood'><n>Blood</n></pip>
+  <pip id='mana'><n>Magical power</n></pip>
+</all>");
+
             PipMedSnapshot s = Healthy();
             s.HeadSt = 2;
             s.TorsoSt = 1;
@@ -257,7 +269,7 @@ namespace PFE.Tests.EditMode.UI
             s.BloodSt = 0;
             s.ManaSt = 4;
 
-            List<PipMedRow> rows = PipMedList.RowsFor(s, PipTextTable.Empty);
+            List<PipMedRow> rows = PipMedList.RowsFor(s, text);
 
             Assert.That(Row(rows, "statHead2").Name, Does.Contain("Head"));
             Assert.That(Row(rows, "statTors1").Name, Does.Contain("Body"));
