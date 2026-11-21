@@ -435,8 +435,9 @@ namespace PFE.Tests.Editor.RPG
         [Description("LevelUp_HpScaling_IsCorrect")]
         public void LevelUp_HpScaling_MatchesDocumentation()
         {
-            // From docs: hpPerLevel = 15, organHpPerLevel = 40
-            // Base: maxHp = 100, organMaxHp = 200
+            // Main HP is the difficulty table's lvlHP — 20 at Normal (Pers.as:793) — not the
+            // LevelCurve's superseded hpPerLevel=15; organ HP keeps the constant +40 (Pers.as:2166).
+            // Base: maxHp = 100 (begHP), organMaxHp = 200.
 
             float initialMaxHp = characterStats.MaxHp;
             float initialOrganHp = characterStats.OrganMaxHp;
@@ -446,7 +447,7 @@ namespace PFE.Tests.Editor.RPG
             float newMaxHp = characterStats.MaxHp;
             float newOrganHp = characterStats.OrganMaxHp;
 
-            Assert.AreEqual(initialMaxHp + 15, newMaxHp, "Max HP should increase by 15");
+            Assert.AreEqual(initialMaxHp + 20, newMaxHp, "Max HP should increase by 20 at Normal");
             Assert.AreEqual(initialOrganHp + 40, newOrganHp, "Organ HP should increase by 40");
 
             // Test multiple levels
@@ -456,7 +457,7 @@ namespace PFE.Tests.Editor.RPG
             float maxHpAt4 = characterStats.MaxHp;
             float organHpAt4 = characterStats.OrganMaxHp;
 
-            Assert.AreEqual(100 + 15 * 3, maxHpAt4, "Max HP should be base + 3 * 15");
+            Assert.AreEqual(100 + 20 * 3, maxHpAt4, "Max HP should be base + 3 * 20");
             Assert.AreEqual(200 + 40 * 3, organHpAt4, "Organ HP should be base + 3 * 40");
         }
 
@@ -788,14 +789,15 @@ namespace PFE.Tests.Editor.RPG
         {
             // Test multiple skills affecting the same stat. medic's maxhp uses a TIER-indexed
             // table: `<sk tip='unit' id='maxhp' ref='add' v1='20' v2='50' v3='90' v4='140'
-            // v5='200'/>` (AllData.as:5261), so raw 5 (tier 2) is +50. survival's skin is tier 2
-            // at raw 10, so +2.
+            // v5='200'/>` (AllData.as:5261), so raw 5 (tier 2) is +50. survival's skin is
+            // `<sk id='skin' v0='0' vd='1'/>` (AllData.as) with no dop, so it is evaluated against
+            // the TIER: raw 10 is tier 3 (getSkLevel, Pers.as:995-1018 — 10 >= 9), hence +3.
             characterStats.SetSkillLevel("medic", 5);    // tier 2 -> +50 HP
-            characterStats.SetSkillLevel("survival", 10); // tier 2 -> +2 skin
+            characterStats.SetSkillLevel("survival", 10); // tier 3 -> +3 skin
             characterStats.RecalculateStats();
 
             Assert.AreEqual(150, characterStats.MaxHp, "Should have 150 HP from medic tier 2");
-            Assert.AreEqual(2, characterStats.skin, "Should have 2 skin from survival tier 2");
+            Assert.AreEqual(3, characterStats.skin, "Should have 3 skin from survival tier 3");
 
             // Verify factor tracking for the skills that actually have modifiers.
             var maxHpFactors = characterStats.GetFactorsForStat("maxhp");

@@ -38,13 +38,13 @@ namespace PFE.Tests.EditMode.Systems.Map
             };
         }
 
-        private static TileData Grate()
+        private static TileData Grate(int hp = 100)
         {
             return new TileData
             {
                 gridPosition = new Vector2Int(0, 0),
                 physicsType = TilePhysicsType.Wall,
-                hitPoints = 100,
+                hitPoints = hp,
                 levelTwoSolid = true,   // phis == 2 in AS3
             };
         }
@@ -100,7 +100,9 @@ namespace PFE.Tests.EditMode.Systems.Map
         [Test]
         public void Resolve_DesoffHighHpGrate_ReturnsVisualOnlyButNoDecal()
         {
-            var d = TileHitRules.Resolve(Grate(), damage: 10f, decalType: 1,
+            // The desoff gate is `hp > 500` (Location.as:2513): the grate must be ABOVE it or the
+            // hit falls through to `udar` and genuinely damages the tile. "HighHp" is the premise.
+            var d = TileHitRules.Resolve(Grate(hp: 1000), damage: 10f, decalType: 1,
                                          destroyOn: false, roomActive: true);
             Assert.AreEqual(TileHitOutcome.VisualOnly, d.Outcome);
             Assert.IsFalse(d.DrawDecal, "grate (phis==2) draws nothing even when active");
@@ -215,7 +217,10 @@ namespace PFE.Tests.EditMode.Systems.Map
         {
             var d = TileHitRules.Resolve(Wall(hp: 1000), damage: 250f, decalType: 1);
             Assert.AreEqual(TileHitOutcome.Damaged, d.Outcome);
-            Assert.AreEqual(0.25f, d.DecalRatio, 0.001f);
+            // `udar` subtracts BEFORE `dyrka` is called (Location.as:2521 then :2559), so the
+            // denominator is the hp LEFT — 250/750, not 250/1000. The oracle does this on purpose:
+            // it makes the last hit before destruction the one most likely to throw a scorch.
+            Assert.AreEqual(250f / 750f, d.DecalRatio, 0.001f);
         }
 
         [Test]

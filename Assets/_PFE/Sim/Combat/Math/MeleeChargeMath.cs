@@ -75,7 +75,12 @@ namespace PFE.Systems.Weapons
             powerfull &&
             tAttack < rapidAct * ChargeArmFraction &&
             pow > ChargeMinPow &&
-            pow < rapidAct * ChargeCapFactor;
+            // AS3 evaluates in double, and the double literal 2.15 is what the oracle compares
+            // against. A float 2.15f is one ulp ABOVE 2.15, and Mono's JIT keeps the float product
+            // un-rounded — so at rapid_act 20 the float comparison asks `43 < 43.0000019` and stays
+            // charging one frame past the cap the oracle released at. The double literal restores
+            // the boundary on every runtime.
+            pow < rapidAct * 2.15;
 
         /// <summary>
         /// AS3 <c>WClub.actions()</c>'s charged multiplier (<c>WClub.as:351</c>):

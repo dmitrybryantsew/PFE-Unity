@@ -157,6 +157,9 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             if (at != null)
             {
                 at.transform.position = new Vector3(1f, 1f, 0f);
+                // The project ships with Physics2D auto-sync OFF (m_AutoSyncTransforms: 0), so a
+                // query right after a transform write sees the collider's stale pose and misses.
+                Physics2D.SyncTransforms();
             }
 
             return (Collider2D)Invoke("FindTileCollider", contactPx);

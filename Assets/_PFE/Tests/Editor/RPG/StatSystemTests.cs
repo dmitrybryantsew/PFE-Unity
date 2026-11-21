@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using PFE.Systems.Campaign;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
 using UnityEngine;
@@ -219,8 +220,10 @@ namespace PFE.Tests.Editor.RPG
             float newMaxHp = characterStats.MaxHp;
             float newOrganHp = characterStats.OrganMaxHp;
 
-            // Assert
-            Assert.AreEqual(initialMaxHp + 15, newMaxHp, "Max HP should increase by 15");
+            // Assert — main HP is +20/level at Normal (Pers.as:793 lvlHP, via
+            // DifficultyRules.MaxHpAtLevel; the LevelCurve's hpPerLevel is superseded). Organs stay
+            // +40, the constant lvlOrganHp the oracle's setGlobalDif never touches (Pers.as:2166).
+            Assert.AreEqual(initialMaxHp + 20, newMaxHp, "Max HP should increase by 20 (Normal lvlHP)");
             Assert.AreEqual(initialOrganHp + 40, newOrganHp, "Organ HP should increase by 40");
         }
 
@@ -556,20 +559,24 @@ namespace PFE.Tests.Editor.RPG
         [Description("Difficulty_BaseHp")]
         public void Difficulty_BaseHp_ScalesCorrectly()
         {
-            // From docs:
-            // Level 0 (Very Easy): begHP = 200
-            // Level 2 (Normal): begHP = 100
-            // Level 4 (Very Hard): begHP = 40
+            // The player's main HP pool is the Pers.setGlobalDif parameter table
+            // (Pers.as:763,778,793,808,825), applied through DifficultyRules.MaxHpAtLevel — the
+            // LevelCurve asset's baseHp/hpPerLevel are superseded and no longer read. At level 1 the
+            // pool is exactly begHP: 100 at Normal (2), 40 at Very Hard (4).
+            try
+            {
+                GlobalDifficulty.Seed(2);
+                characterStats.ApplyGlobalDifficulty(2);
+                Assert.AreEqual(100, characterStats.MaxHp, "Normal difficulty should start with 100 HP");
 
-            testLevelCurve.baseHp = 100; // Normal
-            testLevelCurve.hpPerLevel = 15;
-
-            characterStats.Initialize(testLevelCurve);
-            Assert.AreEqual(100, characterStats.MaxHp, "Normal difficulty should start with 100 HP");
-
-            testLevelCurve.baseHp = 40; // Very Hard
-            characterStats.Initialize(testLevelCurve);
-            Assert.AreEqual(40, characterStats.MaxHp, "Very Hard difficulty should start with 40 HP");
+                GlobalDifficulty.Seed(4);
+                characterStats.ApplyGlobalDifficulty(4);
+                Assert.AreEqual(40, characterStats.MaxHp, "Very Hard difficulty should start with 40 HP");
+            }
+            finally
+            {
+                GlobalDifficulty.ResetForTests();
+            }
         }
 
         #endregion

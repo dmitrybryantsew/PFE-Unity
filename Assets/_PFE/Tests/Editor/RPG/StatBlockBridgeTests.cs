@@ -105,8 +105,9 @@ namespace PFE.Tests.Editor.RPG
             _charStats.AddXp(5000);
 
             Assert.AreEqual(2, _charStats.Level);
-            Assert.AreEqual(115f, _charStats.MaxHp, 1e-4f);
-            Assert.AreEqual(115f, _unitStats.MaxHp.Value, 1e-4f);
+            // 100 begHP + 20 lvlHP at Normal (Pers.as:793 via DifficultyRules.MaxHpAtLevel).
+            Assert.AreEqual(120f, _charStats.MaxHp, 1e-4f);
+            Assert.AreEqual(120f, _unitStats.MaxHp.Value, 1e-4f);
             Assert.AreEqual(240f, _charStats.InMaxHP, 1e-4f);
             Assert.AreEqual(5, _charStats.SkillPoints);
             Assert.AreEqual(1, _charStats.PerkPoints);

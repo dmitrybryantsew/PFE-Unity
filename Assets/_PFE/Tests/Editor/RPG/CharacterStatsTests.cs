@@ -308,8 +308,9 @@ namespace PFE.Tests.Editor.RPG
             // Act
             stats.AddXp(5000); // Level up
 
-            // Assert
-            Assert.AreEqual(baseHp + 15f, stats.MaxHp, "Level up should add 15 HP");
+            // Assert — Normal's lvlHP is 20 (Pers.as:793, via DifficultyRules.MaxHpAtLevel; the
+            // LevelCurve's hpPerLevel=15 is superseded and no longer read).
+            Assert.AreEqual(baseHp + 20f, stats.MaxHp, "Level up should add 20 HP at Normal");
         }
 
         [Test]

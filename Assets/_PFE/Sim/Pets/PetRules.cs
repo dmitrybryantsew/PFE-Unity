@@ -506,8 +506,11 @@ namespace PFE.Systems.Pets
 
         // ── UnitPet.as:659-740 — the steering thresholds ──────────────────────────────────────
         /// <summary><c>_loc1_ &gt; rasstWeap * 0.9 || !mater</c> — close in (:680).</summary>
+        // `0.9` is a double literal on purpose: AS3 multiplies in doubles (`rasstWeap * 0.9`),
+        // where 200 * 0.9 is 180.0000000000000044, so an exact-0.9 distance does NOT close in.
+        // A float literal lands 1 ulp below 180 and flips that boundary.
         public static bool ShouldCloseIn(float distance, float weaponRange, bool material)
-            => distance > weaponRange * 0.9f || !material;
+            => distance > weaponRange * 0.9 || !material;
 
         /// <summary><c>_loc1_ &lt; rasstOut</c> — back off (:686).</summary>
         public static bool ShouldBackOff(float distance) => distance < BackOffDistance;

@@ -251,10 +251,13 @@ namespace PFE.Tests.Editor.Player
             player.Drop();
             prop.runtimeState.dynamicState.stay = true;
 
-            // Insert a solid wall column between player (x=0) and prop (x=100) at tile column x=1 (x: 40..80 px)
+            // Insert a solid wall column between player (x=0) and prop (x=100) at tile column x=1
+            // (x: 40..80 px). gridPosition is part of the stamp: TileData.GetBounds() derives its
+            // rect from it, and the raycast hit test is against those bounds — a wall whose
+            // gridPosition is left default claims to live at tile (0,0) and never stops the ray.
             for (int y = 0; y < room.height; y++)
             {
-                room.tiles[1, y] = new TileData { physicsType = TilePhysicsType.Wall };
+                room.tiles[1, y] = new TileData { gridPosition = new Vector2Int(1, y), physicsType = TilePhysicsType.Wall };
             }
 
             Assert.AreEqual(0, player.Stats.Telemaster);

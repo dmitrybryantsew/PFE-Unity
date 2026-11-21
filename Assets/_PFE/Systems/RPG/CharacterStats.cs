@@ -1171,19 +1171,19 @@ namespace PFE.Systems.RPG
         public float OrganMaxHp => organMaxHp;
         public float AllDamMult => allDamMult;
         public float AllVulnerMult => allVulnerMult;
-        public float MaxTeleMassa { get => maxTeleMassa; set => maxTeleMassa = value; }
-        public float TeleDist { get => teleDist; set => teleDist = value; }
-        public float TelePorog { get => telePorog; set => telePorog = value; }
-        public float TeleMult { get => teleMult; set => teleMult = value; }
-        public float ThrowForce { get => throwForce; set => throwForce = value; }
-        public float ThrowDmagic { get => throwDmagic; set => throwDmagic = value; }
-        public float ThrowDmanaMult { get => throwDmanaMult; set => throwDmanaMult = value; }
-        public float AllDManaMult { get => allDManaMult; set => allDManaMult = value; }
-        public int Telemaster { get => telemaster; set => telemaster = value; }
-        public float SpellPower { get => spellPower; set => spellPower = value; }
-        public float SpellDown { get => spellDown; set => spellDown = value; }
-        public float TelePower { get => telePower; set => telePower = value; }
-        public float AlicornShitHp { get => alicornShitHP; set => alicornShitHP = value; }
+        public float MaxTeleMassa { get => maxTeleMassa; set { maxTeleMassa = value; BumpDerivedStatsVersion(); } }
+        public float TeleDist { get => teleDist; set { teleDist = value; BumpDerivedStatsVersion(); } }
+        public float TelePorog { get => telePorog; set { telePorog = value; BumpDerivedStatsVersion(); } }
+        public float TeleMult { get => teleMult; set { teleMult = value; BumpDerivedStatsVersion(); } }
+        public float ThrowForce { get => throwForce; set { throwForce = value; BumpDerivedStatsVersion(); } }
+        public float ThrowDmagic { get => throwDmagic; set { throwDmagic = value; BumpDerivedStatsVersion(); } }
+        public float ThrowDmanaMult { get => throwDmanaMult; set { throwDmanaMult = value; BumpDerivedStatsVersion(); } }
+        public float AllDManaMult { get => allDManaMult; set { allDManaMult = value; BumpDerivedStatsVersion(); } }
+        public int Telemaster { get => telemaster; set { telemaster = value; BumpDerivedStatsVersion(); } }
+        public float SpellPower { get => spellPower; set { spellPower = value; BumpDerivedStatsVersion(); } }
+        public float SpellDown { get => spellDown; set { spellDown = value; BumpDerivedStatsVersion(); } }
+        public float TelePower { get => telePower; set { telePower = value; BumpDerivedStatsVersion(); } }
+        public float AlicornShitHp { get => alicornShitHP; set { alicornShitHP = value; BumpDerivedStatsVersion(); } }
 
         // ── Debug-facing views ────────────────────────────────────────────────
         // The console's `rpg` verb has to answer "is the modifier engine actually running, and from
@@ -1206,6 +1206,66 @@ namespace PFE.Systems.RPG
 
         /// <summary>Live perk table (perkId → rank). Read-only view for debug tooling.</summary>
         public IReadOnlyDictionary<string, int> PerkRanks => perkRanks;
+
+        // ── Derived-stat snapshot blocks ────────────────────────────────────────────────────────
+        //
+        // LocomotionStatBlock / CombatStatBlock / UtilityStatBlock are immutable snapshots of the
+        // derived stat fields, rebuilt lazily whenever the derived-stats version changes. Hot paths
+        // (locomotion, damage calc, UI) can read a tight struct copy instead of chasing ~100
+        // scattered fields on this heap object. The version is bumped by every write path that
+        // changes a derived field: RecalculateStats, ApplyNamedStat, ResetToDefaults, and the
+        // teleport/spell property setters below.
+        private int _derivedStatsVersion;
+        private int _locomotionBlockVersion = -1;
+        private int _combatBlockVersion = -1;
+        private int _utilityBlockVersion = -1;
+        private LocomotionStatBlock _locomotionBlock;
+        private CombatStatBlock _combatBlock;
+        private UtilityStatBlock _utilityBlock;
+
+        private void BumpDerivedStatsVersion() => _derivedStatsVersion++;
+
+        /// <summary>Snapshot of the movement/physics derived stats; rebuilt after any stat change.</summary>
+        public LocomotionStatBlock Locomotion
+        {
+            get
+            {
+                if (_locomotionBlockVersion != _derivedStatsVersion)
+                {
+                    _locomotionBlock = new LocomotionStatBlock(this);
+                    _locomotionBlockVersion = _derivedStatsVersion;
+                }
+                return _locomotionBlock;
+            }
+        }
+
+        /// <summary>Snapshot of the combat derived stats; rebuilt after any stat change.</summary>
+        public CombatStatBlock Combat
+        {
+            get
+            {
+                if (_combatBlockVersion != _derivedStatsVersion)
+                {
+                    _combatBlock = new CombatStatBlock(this);
+                    _combatBlockVersion = _derivedStatsVersion;
+                }
+                return _combatBlock;
+            }
+        }
+
+        /// <summary>Snapshot of the interaction/economy derived stats; rebuilt after any stat change.</summary>
+        public UtilityStatBlock Utility
+        {
+            get
+            {
+                if (_utilityBlockVersion != _derivedStatsVersion)
+                {
+                    _utilityBlock = new UtilityStatBlock(this);
+                    _utilityBlockVersion = _derivedStatsVersion;
+                }
+                return _utilityBlock;
+            }
+        }
 
         private void Awake()
         {
@@ -2078,6 +2138,8 @@ namespace PFE.Systems.RPG
             vulnerabilities.Clear();
             statFactors.Clear();
 
+            BumpDerivedStatsVersion();
+
             // restoreFractionOfHealth is deliberately NOT done here — see RecalculateStats, which
             // restores the fractions AFTER the skill/perk passes, exactly where AS3 does it
             // (setParameters:2186-2190). Doing it here would be undone by those passes.
@@ -2333,6 +2395,7 @@ namespace PFE.Systems.RPG
                 _unitStats.CurrentHp.Value = Mathf.Clamp(maxHp * procHp, 0, maxHp);
             }
 
+            BumpDerivedStatsVersion();
             onStatsRecalculated?.Invoke();
         }
 
@@ -2600,6 +2663,8 @@ namespace PFE.Systems.RPG
                                    string sourceId = null, string sourceType = "stat")
         {
             if (string.IsNullOrEmpty(statId)) return;
+
+            BumpDerivedStatsVersion();
 
             if (tip == "weap")
             {

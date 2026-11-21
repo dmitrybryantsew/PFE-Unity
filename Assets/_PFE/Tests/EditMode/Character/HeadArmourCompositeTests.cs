@@ -149,10 +149,19 @@ namespace PFE.Tests.EditMode.Character
                     {
                         if (!headPartOrder.TryGetValue(placement.partIndex, out int rank)) continue;
 
+                        // The message is interpolated on EVERY placement, not only on failure, so it
+                        // must not index with the sentinel: previousIndex is -1 until the first head
+                        // part is seen, and parts[-1] threw IndexOutOfRange here before the first
+                        // assertion ever ran (the test was red from birth).
+                        string placedName = _definition.parts[placement.partIndex].partName;
+                        string previousName = previousIndex >= 0
+                            ? _definition.parts[previousIndex].partName
+                            : "(start of frame)";
+
                         Assert.GreaterOrEqual(rank, previousRank,
                             $"'{clip.stateName}' frame {fi}: head part " +
-                            $"'{_definition.parts[placement.partIndex].partName}' is placed after " +
-                            $"'{_definition.parts[previousIndex].partName}'. The placement array is the " +
+                            $"'{placedName}' is placed after " +
+                            $"'{previousName}'. The placement array is the " +
                             "draw order and it must follow the parts array; a layer collected late " +
                             "(shell, helm2, morda_base_back) lands on top of everything.");
 
@@ -441,7 +450,14 @@ namespace PFE.Tests.EditMode.Character
                 .OrderBy(i => i)
                 .ToArray();
 
-            CollectionAssert.AreEquivalent(new[] { 4, 5, 11, 12 }, bodyOverrides,
+            int[] expected =
+            {
+                IndexOfPart("fleg1"),
+                IndexOfPart("fleg2"),
+                IndexOfPart("korpus"),
+                IndexOfPart("neck"),
+            };
+            CollectionAssert.AreEquivalent(expected, bodyOverrides,
                 "tre's body overrides should be fleg1, fleg2, korpus and neck");
         }
     }

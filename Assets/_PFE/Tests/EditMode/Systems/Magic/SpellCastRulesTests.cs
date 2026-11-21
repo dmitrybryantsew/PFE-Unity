@@ -550,9 +550,12 @@ namespace PFE.Tests.EditMode.Systems.Magic
         [Test]
         public void AnUnportedEffect_IsRefused_AndChargesNothing()
         {
-            // sp_blast is one of the nine (so HasEffect) but needs the unit/knockback subsystem.
+            // sp_mwall is one of the nine (so HasEffect) but its wall effect is not ported yet.
+            // (The fixture used to name sp_blast; the blast subsystem has since been written, and a
+            // fixture pinning "not ported" for a ported effect is vacuous — HasEffect minus
+            // IsEffectPorted is exactly the set {mwall, kdash, gwall, invulner} today.)
             var host = new FakeSpellHost { Mana = 5000f, ManaHp = 5000f };
-            var spell = new Spell("sp_blast", Data(dam: 20f, mana: 30f, magic: 300f, culd: 10f, rad: 500f, tele: true, atk: true, snd: "blast"), host);
+            var spell = new Spell("sp_mwall", Data(dam: 20f, mana: 30f, magic: 300f, culd: 10f, rad: 500f, tele: true, atk: true, snd: "blast"), host);
 
             var r = spell.Cast(0f, 0f);
 

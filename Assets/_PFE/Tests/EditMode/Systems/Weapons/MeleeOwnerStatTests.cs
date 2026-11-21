@@ -222,34 +222,44 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             return plans;
         }
 
-        /// <summary>Frames from attack start until a second attack is accepted.</summary>
-        private static int FramesUntilRefire(WeaponDefinition def, IWeaponStatSource stats, int cap)
+        /// <summary>
+        /// Frames from the attack being accepted until the swing has run its course
+        /// (<c>t_attack</c> back to 0) — i.e. the swing's duration, <c>rapid_act</c>.
+        ///
+        /// <para><b>Why not "frames until refire".</b> Holding the button is the charge, not a
+        /// request to re-swing: every held frame re-enters AS3's debounce branch
+        /// (<c>Weapon.as:1297-1302</c>), refreshing <c>t_auto</c> and climbing <c>pow</c>, so a held
+        /// button never produces a second attack — in the oracle either. This fixture predates the
+        /// charge (when the controller re-attacked on any held frame), and its "refire" was that
+        /// pre-charge behaviour. The duration of the swing itself is what <c>rapid_act</c> decides
+        /// and what the multipliers below claim to move.</para>
+        /// </summary>
+        private static int FramesUntilSwingEnds(WeaponDefinition def, IWeaponStatSource stats, int cap)
         {
             var ctrl = new MeleeWeaponController(new WeaponRuntimeState(def), stats);
             ctrl.HitVolume = new NullHitVolume();
 
-            ctrl.BeginAttack();
             var hold = Vector2.zero;
             var aim  = Vector2.zero;
 
-            // First frame accepts the attack and sets t_attack.
-            ctrl.Tick(Dt, hold, hold, aim);
-            int firstKolShoot = ctrl.State.KolShoot;
+            // One click: press on the first frame, release immediately after — a held button would
+            // be the charge, which is a different mechanic with its own fixture.
+            ctrl.BeginAttack();
+            ctrl.Tick(Dt, hold, hold, aim);   // accepts the attack: t_attack = rapid_act
+            ctrl.EndAttack();
+            int firstTAttack = ctrl.State.TAttack;
+            Assert.Greater(firstTAttack, 0, "the first frame must arm t_attack.");
 
-            for (int i = 1; i <= cap; i++)
+            int frames = 1;
+            while (ctrl.State.TAttack > 0 && frames < cap)
             {
                 ctrl.Tick(Dt, hold, hold, aim);
-                if (ctrl.State.KolShoot > firstKolShoot)
-                {
-                    ctrl.Dispose();
-                    UnityEngine.Object.DestroyImmediate(def);
-                    return i;   // frames after the first before the next swing landed
-                }
+                frames++;
             }
 
             ctrl.Dispose();
             UnityEngine.Object.DestroyImmediate(def);
-            return -1;
+            return frames;
         }
 
         // ── meleeDamMult ──────────────────────────────────────────────────────
@@ -300,14 +310,13 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         [Test]
         public void MeleeSpeed_WithADoubledMeleeSpdMult_SwingsTwiceAsFast()
         {
-            int control = FramesUntilRefire(MakeMelee(rapid: 20f, damage: 10f), null, cap: 120);
-            int fast    = FramesUntilRefire(MakeMelee(rapid: 20f, damage: 10f),
-                                            new FakeStats { MeleeSpdMult = 2f }, cap: 120);
+            int control = FramesUntilSwingEnds(MakeMelee(rapid: 20f, damage: 10f), null, cap: 120);
+            int fast    = FramesUntilSwingEnds(MakeMelee(rapid: 20f, damage: 10f),
+                                               new FakeStats { MeleeSpdMult = 2f }, cap: 120);
 
-            Assert.Greater(control, 0, "control: the weapon must refire within the cap.");
+            Assert.Greater(control, 0, "control: the swing must complete within the cap.");
 
-            // rapid = 20 → rapid_act = 20 with no stats, 10 at meleeSpdMult 2. Allow one frame of
-            // slack for the same single-frame offset the hit-window tests document.
+            // rapid = 20 → rapid_act = 20 with no stats, 10 at meleeSpdMult 2.
             Assert.AreEqual(20, control, 2, "rapid_act is rapid when meleeSpdMult is 1.");
             Assert.AreEqual(10, fast, 2,
                 "meleeSpdMult = 2 must halve the swing (WClub.as:204,658,667).");
@@ -339,12 +348,12 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             //
             // The controller divided by meleeSpdMult for all three sub-types, so a speed perk halved
             // an overhead swing — a difference in behaviour, not in rounding.
-            int control = FramesUntilRefire(MakeMelee(rapid: 20f, damage: 10f, type: MeleeType.Overhead),
-                                            null, cap: 120);
-            int fast    = FramesUntilRefire(MakeMelee(rapid: 20f, damage: 10f, type: MeleeType.Overhead),
-                                            new FakeStats { MeleeSpdMult = 2f }, cap: 120);
+            int control = FramesUntilSwingEnds(MakeMelee(rapid: 20f, damage: 10f, type: MeleeType.Overhead),
+                                               null, cap: 120);
+            int fast    = FramesUntilSwingEnds(MakeMelee(rapid: 20f, damage: 10f, type: MeleeType.Overhead),
+                                               new FakeStats { MeleeSpdMult = 2f }, cap: 120);
 
-            Assert.Greater(control, 0, "control: the overhead must refire within the cap.");
+            Assert.Greater(control, 0, "control: the overhead swing must complete within the cap.");
             Assert.AreEqual(20, control, 2, "an overhead with no stats swings in rapid frames.");
             Assert.AreEqual(20, fast, 2,
                 "meleeSpdMult must NOT shorten an mtip 2 swing (WClub.as:654-657). A 10 here means " +
@@ -438,10 +447,13 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         public void MeleeWear_DoesNotScaleTheKnockback()
         {
             // The wear penalty is on damage only; AS3 leaves the knock at otbros*otbrosMult (:594).
+            // Durability 25 (half of the 50 the test rows carry) is the worn-but-swingable state: AS3
+            // refuses to attack at hp <= 0 (`brokenWeapon`, Weapon.as:1286-1290), so a fully spent
+            // weapon emits no plan at all and there is nothing to compare.
             var fresh = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, knockback: 4f), null,
                                       new Vector2(5f, 0f), frames: 20);
             var worn  = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, knockback: 4f), null,
-                                      new Vector2(5f, 0f), frames: 20, durability: 0);
+                                      new Vector2(5f, 0f), frames: 20, durability: 25);
 
             Assert.AreEqual(4f, fresh[fresh.Count - 1].Damage.Knockback, 0.001f,
                 "control: the fresh knockback is the definition's.");
@@ -545,8 +557,15 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(1, rec.EnableCount, "the volume is enabled exactly once per strike.");
             Assert.AreEqual(1, rec.DisableCount, "and closed when the path is spent.");
             Assert.AreEqual(2, rec.Binds.Count, "the kick binds two lines (WKick.as:73-79).");
-            Assert.Greater(rec.Binds[0].from.x, rec.Binds[0].to.x,
-                "facing right, the kick sweeps RIGHT-to-LEFT: it strikes behind the body.");
+            // WKick.as:59 mirrors storona for the kick, so facing right the strike lands BEHIND the
+            // body: the segment runs from the far end (X - 70 px) toward the near end (X - 20 px),
+            // i.e. -0.7 -> -0.2. Asserting from.x > to.x here used to describe the sweep as
+            // "RIGHT-to-LEFT" while also claiming it strikes behind the body — the two halves of that
+            // sentence contradict; behind-the-body is the oracle's rule and it is far-to-near.
+            Assert.Less(rec.Binds[0].from.x, rec.Binds[0].to.x,
+                "the kick runs from the far end toward the body (WKick.as:73-79: X±70 -> X±20).");
+            Assert.Less(rec.Binds[0].to.x, 0f,
+                "facing right, both ends stay behind the body — WKick.as:59 mirrors storona.");
         }
 
         [Test]

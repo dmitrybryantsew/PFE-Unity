@@ -214,13 +214,17 @@ namespace PFE.Tests.Editor.Combat
         [Test]
         public void Super_CooldownIs80To120PercentOfTheTierFloor()
         {
-            // `Math.floor(tUsed * (Math.random() * 0.4 + 0.8))` (:1127).
+            // `Math.floor(tUsed * (Math.random() * 0.4 + 0.8))` (:1127), AS3 Number arithmetic
+            // (doubles). The roll-1 arm is one PAST the floor, not on it: 0.8 + 0.4 is
+            // 1.2000000000000002 in double, so -250 * factor floors to -301, not -300. These
+            // expectations are the oracle's own arithmetic (checked against IEEE doubles), not
+            // mental math — "nice" round values here would pin the wrong boundary.
             Assert.AreEqual(-200, AlicornVariantRules.SuperCooldownAfterUse(2, 0f));
             Assert.AreEqual(-250, AlicornVariantRules.SuperCooldownAfterUse(2, 0.5f));
-            Assert.AreEqual(-300, AlicornVariantRules.SuperCooldownAfterUse(2, 1f));
+            Assert.AreEqual(-301, AlicornVariantRules.SuperCooldownAfterUse(2, 1f));
 
             Assert.AreEqual(-400, AlicornVariantRules.SuperCooldownAfterUse(1, 0f));
-            Assert.AreEqual(-600, AlicornVariantRules.SuperCooldownAfterUse(1, 1f));
+            Assert.AreEqual(-601, AlicornVariantRules.SuperCooldownAfterUse(1, 1f));
         }
 
         [Test]

@@ -98,11 +98,12 @@ namespace PFE.Tests.EditMode.UI
                 hpPrimed = true;
             }));
 
-            // Level 2 at full health: both numbers move, 100 -> 115.
+            // Level 2 at full health: both numbers move, 100 -> 120 (Normal lvlHP is 20,
+            // Pers.as:793 via DifficultyRules.MaxHpAtLevel).
             _charStats.UpLevel();
 
-            Assert.AreEqual(115f, _unitStats.MaxHp.Value, 1e-3f, "baseHp 100 + 1 level x 15");
-            Assert.AreEqual(115f, _unitStats.CurrentHp.Value, 1e-3f, "the fraction is preserved, and it was full");
+            Assert.AreEqual(120f, _unitStats.MaxHp.Value, 1e-3f, "begHP 100 + 1 level x 20");
+            Assert.AreEqual(120f, _unitStats.CurrentHp.Value, 1e-3f, "the fraction is preserved, and it was full");
 
             CollectionAssert.AreEqual(new[] { "max", "hp" }, order,
                 "AS3 sets gg.maxhp (Pers.as:2165) before gg.hp (:2245); the reverse order is what made " +
@@ -116,7 +117,7 @@ namespace PFE.Tests.EditMode.UI
             _charStats.UpLevel();
 
             Assert.AreEqual(_unitStats.MaxHp.Value, _unitStats.CurrentHp.Value, 1e-3f,
-                "a full-health player must not read 115/100 after levelling");
+                "a full-health player must not read 120/100 after levelling");
         }
 
         [Test]
@@ -127,8 +128,8 @@ namespace PFE.Tests.EditMode.UI
 
             _charStats.UpLevel();
 
-            Assert.AreEqual(115f, _unitStats.MaxHp.Value, 1e-3f);
-            Assert.AreEqual(57.5f, _unitStats.CurrentHp.Value, 1e-3f, "half of the new ceiling");
+            Assert.AreEqual(120f, _unitStats.MaxHp.Value, 1e-3f);
+            Assert.AreEqual(60f, _unitStats.CurrentHp.Value, 1e-3f, "half of the new ceiling");
         }
 
         // ── Read side: the text follows a max-only change ────────────────────

@@ -181,15 +181,24 @@ namespace PFE.Tests.EditMode.Systems.Security
             alarm.Signal(Vector2.zero, 300, new Rolls(1f).Next);   // first delay = 75
 
             int spawns = 0;
+            bool activeAfterBudgetSpent = false;
             for (int i = 0; i < 300; i++)
             {
                 if (alarm.Tick(new Rolls(1f).Next).Spawn) spawns++;
+                // Both spawns land at ticks 75 and 105; sample the lockout mid-run, not at the end;
+                // after 300 ticks the 300-tick signal has legitimately expired and IsActive says
+                // nothing about the garrison. (The fixture used to sample after the loop and pin
+                // IsActive True — the oracle's t_alarm has no budget term, so it expired naturally.)
+                if (i == 149) activeAfterBudgetSpent = alarm.IsActive;
             }
 
             Assert.That(spawns, Is.EqualTo(2));
             Assert.That(alarm.SpawnedCount, Is.EqualTo(2));
             Assert.That(alarm.SpawnBudget, Is.EqualTo(0));
-            Assert.That(alarm.IsActive, Is.True, "the lockout is independent of the garrison.");
+            Assert.That(activeAfterBudgetSpent, Is.True,
+                "the lockout is independent of the garrison: the budget is spent at tick 105, " +
+                "and the alarm must still be running.");
+            Assert.That(alarm.TicksLeft, Is.EqualTo(0), "the 300-tick signal expires naturally.");
         }
 
         /// <summary>

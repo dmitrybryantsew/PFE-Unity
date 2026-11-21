@@ -140,6 +140,17 @@ namespace PFE.Entities.Player
         public bool IsCrouching => _isCrouching;
         public bool IsLevitating => _isLevitating;
 
+        /// <summary>Teleport key level as last written by <see cref="SetTeleportHeld"/> (or by a
+        /// network body's Drive). Read by <c>PlayerController</c> when it stamps the teleport flag
+        /// into the tick command, so the command and the controller cannot disagree about whether
+        /// the key is down.</summary>
+        public bool IsTeleportHeld => _teleportHeld;
+
+        /// <summary>The last teleport cursor in world pixels (AS3 <c>celX/celY</c>). Copied into the
+        /// tick command with <see cref="IsTeleportHeld"/> so a host body charges toward the same
+        /// point the local player aimed at. Zero until a camera first forwards one.</summary>
+        public Vector2 CursorWorldPixels => _cursorWorldPixels;
+
         /// <summary>
         /// AS3's <c>levitup</c> — levitating and climbing. The mana block charges the higher
         /// <c>levitDManaUp + levitDMana</c> only in this state (<c>UnitPlayer.as:1311-1314</c>),
@@ -578,7 +589,10 @@ namespace PFE.Entities.Player
 
         private bool HasManaForLevitation()
         {
-            if (_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana) return true;
+            // Through the interface, never `is PlayerLocomotionAbilities`: a network body wears a
+            // different ILocomotionAbilities whose InfiniteMana is always true, and a concrete
+            // pattern match would fall through to the null-stats refusal and ground it.
+            if (_abilities != null && _abilities.InfiniteMana) return true;
             if (_unitStats == null) return false;
             return _unitStats.Mana.Value > 0f;
         }
@@ -600,7 +614,7 @@ namespace PFE.Entities.Player
         /// </summary>
         private bool CanAffordLevitationTick(MovementMotorState state)
         {
-            if (_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana) return true;
+            if (_abilities != null && _abilities.InfiniteMana) return true;
             if (_unitStats == null) return false;
             if (_abilities == null) return false;
 
@@ -909,7 +923,7 @@ namespace PFE.Entities.Player
                 int maxAirJumps = _abilities.MaxJumpCount - 1; // MaxJumpCount includes ground jump
                 if (_airJumpCount < maxAirJumps)
                 {
-                    float airJumpRatio = (_abilities is PlayerLocomotionAbilities pla) ? pla.AirJumpForceRatio : 0.8f;
+                    float airJumpRatio = (_abilities != null) ? _abilities.AirJumpForceRatio : 0.8f;
                     float airJumpForce = baseJumpForce * jumpForceMultiplier * airJumpRatio;
                     _motor.Jump(airJumpForce);
                     _airJumpCount++;
@@ -1115,7 +1129,7 @@ namespace PFE.Entities.Player
 
             // Drain mana — the BUDGET pool (AS3 Unit.mana, 1000), not the mana organ.
             // TeleportManaCost already folds in allDManaMult (AS3's `portMana * allDManaMult`).
-            if (!(_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana))
+            if (_abilities == null || !_abilities.InfiniteMana)
             {
                 _unitStats.Mana.Value -= _abilities.TeleportManaCost;
             }
@@ -1143,7 +1157,7 @@ namespace PFE.Entities.Player
         /// </summary>
         private bool HasManaForTeleport()
         {
-            if (_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana) return true;
+            if (_abilities != null && _abilities.InfiniteMana) return true;
             if (_unitStats == null) return false;
 
             float cost = _abilities.TeleportManaCost;

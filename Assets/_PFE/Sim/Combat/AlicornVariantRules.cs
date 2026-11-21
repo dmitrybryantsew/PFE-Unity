@@ -271,7 +271,11 @@ namespace PFE.Systems.Combat
         public static int SuperCooldownAfterUse(int tier, float roll)
         {
             int used = For(tier).SuperUsedCooldown;
-            float factor = 0.8f + (roll * 0.4f);
+            // AS3 computes in doubles (Number); the literals stay double so the boundary lands
+            // where the oracle's does. With float literals the int*float product rounds to float
+            // (-250 * 0.8f is exactly -200.0f) while Mono's JIT keeps it in double and floors
+            // -200.00000298 to -201 — the two runtimes disagreed at the tier floor.
+            double factor = 0.8 + roll * 0.4;
             return (int)System.Math.Floor(used * factor);
         }
 

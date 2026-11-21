@@ -132,8 +132,11 @@ namespace PFE.Tests.EditMode.Systems.Map.TileQuery
             var query = new UnifiedTileQueryService(room);
 
             // The ASCII vocabulary has no grate glyph, so stamp one: a closed `grate` door writes
-            // `phis == 2` onto its tiles, which the port carries as `levelTwoSolid`. Without this the
-            // one kind the two predicates could disagree about is the one kind not in the room.
+            // `phis == 2` onto its tiles, which the port carries as Wall + `levelTwoSolid`. Both
+            // fields matter — the count below keys on the pair, and either alone names a different
+            // kind (an air tile with the bit set is not the grate case). Without this the one kind
+            // the two predicates could disagree about is the one kind not in the room.
+            room.tiles[1, 1].physicsType = TilePhysicsType.Wall;
             room.tiles[1, 1].levelTwoSolid = true;
 
             int occluders = 0;

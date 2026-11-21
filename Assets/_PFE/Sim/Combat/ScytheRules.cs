@@ -68,7 +68,11 @@ namespace PFE.Systems.Combat
 
         /// <summary><c>bindKoef = 0.05</c> (<c>:27</c>) — radians of orbit per tick, i.e. a full
         /// revolution every ~126 ticks (4.2 s at 30 Hz).</summary>
-        public const float BindKoef = 0.05f;
+        /// <remarks><c>double</c> on purpose: AS3's <c>bindKoef</c> is a <c>Number</c>, and the phase
+        /// arithmetic (<see cref="OrbitPhase"/>) must run in doubles — a float constant leaves the
+        /// int*float product at the mercy of whether the JIT rounds it to float before widening,
+        /// which is exactly the kind of runtime disagreement the scythe boundary fixtures pin.</remarks>
+        public const double BindKoef = 0.05;
 
         /// <summary>
         /// <c>while(_loc2_ &lt; 6) emit(_loc2_++)</c> (<c>UnitBossAlicorn.as:727-732</c>) — the ring has

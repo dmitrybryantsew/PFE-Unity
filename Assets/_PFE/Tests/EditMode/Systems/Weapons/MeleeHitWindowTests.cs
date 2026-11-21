@@ -112,7 +112,17 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         /// <summary>
         /// The aim point at which the melee spring is exactly at rest, for a body standing at the
         /// origin with <c>weaponY == 0</c> — i.e. the aim that makes <c>State.X/Y</c> stay on the hold
-        /// point for the whole swing. See the class note for the derivation.
+        /// point for the whole swing.
+        ///
+        /// <para><b>The spring's target IS the cursor.</b> The oracle's <c>norma</c> clamp never
+        /// lengthens (<see cref="MeleeSpringMath.ClampTo"/>), so a cursor inside <c>meleeR</c> of the
+        /// anchor is reached exactly: aiming at the hold point rests the weapon ON the hold point.
+        /// An earlier version of this helper aimed a thrust/overhead at <c>(meleeS, 0)</c> — the
+        /// ANCHOR point — which rests the weapon 40 px in front of the body and moved every asserted
+        /// tip magnitude out by that 0.4. (The swing keeps its pulled-back aim: the swing's cell is
+        /// the cursor minus the blade pullback, so aiming at <c>anchor + pullback</c> parks the
+        /// weapon exactly on the anchor, <c>(meleeS, 0)</c>, for the whole swing — stable, which is
+        /// all the swing-side assertions need.)</para>
         /// </summary>
         private static Vector2 RestAim(MeleeType type, float reachPx)
         {
@@ -121,7 +131,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
 
             return type == MeleeType.Horizontal
                 ? new Vector2(meleeS + 0.8f * dlina, 0.3f * dlina)
-                : new Vector2(meleeS, 0f);
+                : Vector2.zero;
         }
 
         /// <summary>Swing once and return everything the controller told the hit volume to do.</summary>
@@ -335,7 +345,14 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         [Test]
         public void Overhead_BindsTheSegmentFromMinReachToFullReach()
         {
-            var vol = RunOneSwing(MeleeType.Overhead, rapid: 6f, minReach: 30f, reach: 70f, frames: 6);
+            // rapid 20, not 6: the blade body is levitating and AS3's mtip 2 parks it on the
+            // pulled-back aim cell — with aim == hold == origin that is the meleeS anchor, 0.4 in
+            // front of the body (WClub.as:280-287 pullback, :310-335 half-step spring, one half per
+            // flash frame). rapid 6 gives the spring only five half-steps before the t_attack == 1
+            // bind (0.4 * 31/32 = 0.3875), which pinned the settling transient rather than the rule.
+            // At rapid 20 the spring has settled, and mtip 2's bind measures mindlina → dlina FROM
+            // the parked weapon, exactly as WClub.as:469-483 does.
+            var vol = RunOneSwing(MeleeType.Overhead, rapid: 20f, minReach: 30f, reach: 70f, frames: 20);
 
             Assert.AreEqual(1, vol.MoveCount);
 
@@ -343,8 +360,11 @@ namespace PFE.Tests.EditMode.Systems.Weapons
                 "The segment spans mindlina → dlina = (70 - 30) px = 0.4 units. A length of ~0 means " +
                 "meleeMinDlina was ignored; the weapon's reach values come from phis@long/@minlong.");
 
-            Assert.That(vol.Curr[0].magnitude, Is.EqualTo(0.7f).Within(0.01f),
-                "The segment ends at dlina (phis@long = 70 px = 0.7 units), along the aim axis.");
+            Assert.That(vol.Curr[0].magnitude, Is.EqualTo(1.1f).Within(0.01f),
+                "mtip 2 ends the segment at the PARKED weapon + dlina: the spring holds the blade on " +
+                "the pulled-back cell, (meleeS, 0) = 0.4 with this aim, so the tip lands at 0.4 + 0.7 = " +
+                "1.1 along the aim axis (phis@long = 70 px). 0.7 would mean the bind was measured " +
+                "from the body instead of the weapon — the thrust assumption, not the overhead's.");
         }
 
         [Test]
