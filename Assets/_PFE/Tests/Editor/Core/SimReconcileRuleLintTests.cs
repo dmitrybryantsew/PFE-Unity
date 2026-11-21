@@ -54,6 +54,8 @@ namespace PFE.Tests.Editor.Core
             ["SimStalenessRules.cs"] = "staleness predicates — no fields, no wire",
             ["SimTransientKind.cs"] = "a byte discriminator vocabulary — consts only, carried inside SimProjectileState",
             ["SimReconcileRule.cs"] = "the vocabulary this fixture lints against",
+            ["SimDroppedItemSetRules.cs"] = "the full-replace reconcile rule for a room's drop set — pure functions over the wire records, is not itself one",
+            ["SimLootHashContext.cs"] = "the lazily-built hash → content-id reverse catalog — an ambient lookup, no fields of its own on the wire",
         };
 
         // The records that serialize themselves. SimSnapshot is deliberately absent: its bytes are

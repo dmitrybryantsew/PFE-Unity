@@ -8,10 +8,13 @@ namespace PFE.Net
     /// <see cref="PFE.Sim.Replication.SimReplicationEnvelopeSerializer"/> byte frame; FishNet never
     /// learns what a snapshot, an ack or a command batch is.
     ///
-    /// <para><b>One message type, one channel.</b> Phase 5 put acks, interest updates and command
-    /// batches on a single per-peer ordered envelope sequence. Splitting them across FishNet channels
-    /// would let a fast command broadcast overtake a slower ack and mark it stale. Every envelope is
-    /// therefore sent as the same struct on <c>Channel.Reliable</c>.</para>
+    /// <para><b>One message type, two channels.</b> Wave 1A split the client → host stream: acks,
+    /// interest updates and room transitions stay on <c>Channel.Reliable</c> with one per-peer
+    /// envelope sequence, while <c>PlayerCommandBatch</c> rides <c>Channel.Unreliable</c> with its
+    /// own counter — a lost 30 Hz input batch is repaired by the redundant N-command window, and
+    /// must not head-of-line block the reliable stream behind a retransmission. Host → client is
+    /// the mirror image: snapshots unreliable, join/baseline reliable. Every envelope is still
+    /// the same struct; only the channel argument differs per kind.</para>
     /// </summary>
     public struct PfeReplicationBroadcast : IBroadcast
     {

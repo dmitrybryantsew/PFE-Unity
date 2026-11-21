@@ -73,6 +73,14 @@ namespace PFE.Systems.Replication
             (a, b) => a.entityHash.CompareTo(b.entityHash);
 
         /// <summary>
+        /// Deterministic order for opened containers: <c>spawnIndex</c> ascending. The index is the
+        /// receiver's key and the only ordering two hosts are guaranteed to share — <c>room.objects</c>
+        /// order is not stable because <c>RemoveObject</c> closes gaps in it.
+        /// </summary>
+        private static readonly Comparison<ObjectInstance> ByObjectSpawnIndex =
+            (a, b) => a.spawnIndex.CompareTo(b.spawnIndex);
+
+        /// <summary>
         /// The tile journal and its room subscriptions — §10.2 gap 1's producer.
         ///
         /// <para><b>Constructed here rather than injected.</b> It has exactly one consumer, which is this
@@ -83,6 +91,7 @@ namespace PFE.Systems.Replication
         private readonly SimTileJournalHost _journalHost = new SimTileJournalHost();
 
         private readonly List<DroppedItemInstance> _droppedScratch = new List<DroppedItemInstance>(16);
+        private readonly List<ObjectInstance> _objectScratch = new List<ObjectInstance>(16);
 
         private SimTileMutation[] _tileJournal = Array.Empty<SimTileMutation>();
         private int _tileJournalVersion = -1;
@@ -99,12 +108,16 @@ namespace PFE.Systems.Replication
 
         private int _lastProjectileCount;
         private int _lastUnattributedProjectileCount;
+        private int _lastSkippedNoIdProjectileCount;
         private int _lastUnitCount;
         private int _lastPlayerUnitCount;
         private int _lastUnattributedUnitCount;
         private int _lastUninternedDefinitionCount;
         private int _lastDroppedItemCount;
         private int _lastUnidentifiedDroppedItemCount;
+        private int _lastLootedObjectCount;
+        private int _lastUnaddressableLootedObjectCount;
+        private int _lastDoorStateCount;
         private long _projectionCount;
         private uint _transientSequence;
 
@@ -155,6 +168,15 @@ namespace PFE.Systems.Replication
         /// </summary>
         public int UnattributedProjectileCount => _lastUnattributedProjectileCount;
 
+        /// <summary>
+        /// How many registry entries the projectile walk dropped because the source carried no valid
+        /// id or a zero entity hash. The receiver refuses hash-0 records as malformed
+        /// (<c>PfeRemoteProjectileRules.IsDisplayableRecord</c>), so a round counted here is a round
+        /// NO client can ever see — play-test #7's "the host confirms the shot, nothing displays".
+        /// Counted every tick rather than dropped silently.
+        /// </summary>
+        public int SkippedNoIdProjectileCount => _lastSkippedNoIdProjectileCount;
+
         /// <summary>How many units the last projection emitted.</summary>
         public int ProjectedUnitCount => _lastUnitCount;
 
@@ -190,6 +212,24 @@ namespace PFE.Systems.Replication
         /// <c>AddDroppedItem</c> — a stack the client cannot see, which is otherwise completely silent.
         /// </summary>
         public int UnidentifiedDroppedItemCount => _lastUnidentifiedDroppedItemCount;
+
+        /// <summary>How many opened-container records the last projection emitted, across every room.
+        /// Zero on a fresh world is correct; zero after somebody opened a chest is the readback that
+        /// says the host never wrote the flag.</summary>
+        public int ProjectedLootedObjectCount => _lastLootedObjectCount;
+
+        /// <summary>
+        /// How many opened containers were skipped because their <c>spawnIndex</c> was negative — i.e.
+        /// the object never went through <c>RoomInstance.AddObject</c>. Such a container cannot be
+        /// addressed on the wire at all: the client would have no index to key it on, and the same
+        /// chest would be opened twice. Counted rather than dropped silently.
+        /// </summary>
+        public int UnaddressableLootedObjectCount => _lastUnaddressableLootedObjectCount;
+
+        /// <summary>How many door-state records the last projection emitted, across every room. The
+        /// readback for the door half of the object-state replication: a toggled door that never
+        /// moves this counter never left the host.</summary>
+        public int ProjectedDoorStateCount => _lastDoorStateCount;
 
         /// <summary>How many reliable tile events the last snapshot carried.</summary>
         public int TileJournalCount => _tileJournal.Length;
@@ -264,7 +304,11 @@ namespace PFE.Systems.Replication
             int projectedPlayers = 0;
             int uninterned = 0;
             int projectedDroppedItems = 0;
+            int projectedLootedObjects = 0;
+            int projectedDoorStates = 0;
             _lastUnidentifiedDroppedItemCount = 0;
+            _lastUnaddressableLootedObjectCount = 0;
+            _lastSkippedNoIdProjectileCount = 0;
 
             var deltas = new SimRoomDelta[_rooms.Count];
 
@@ -341,9 +385,13 @@ namespace PFE.Systems.Replication
                     Projectiles = projectiles,
                     DroppedItems = ProjectDroppedItems(room),
                     RemovedEntityHashes = Array.Empty<ulong>(),
+                    LootedObjects = ProjectLootedObjects(room),
+                    DoorStates = ProjectDoorStates(room),
                 };
 
                 projectedDroppedItems += deltas[i].DroppedItems.Length;
+                projectedLootedObjects += deltas[i].LootedObjects.Length;
+                projectedDoorStates += deltas[i].DoorStates.Length;
             }
 
             _lastProjectileCount = projectedProjectiles;
@@ -353,6 +401,8 @@ namespace PFE.Systems.Replication
             _lastUnattributedUnitCount = _units.Count - projectedUnits;
             _lastUninternedDefinitionCount = uninterned;
             _lastDroppedItemCount = projectedDroppedItems;
+            _lastLootedObjectCount = projectedLootedObjects;
+            _lastDoorStateCount = projectedDoorStates;
 
             _current = new SimSnapshot
             {
@@ -461,6 +511,150 @@ namespace PFE.Systems.Replication
         }
 
         /// <summary>
+        /// One room's opened containers — the authoritative half of
+        /// <c>ObjectInstance.runtimeState.lootState</c>, and the field that stops two peers from each
+        /// emptying the same chest.
+        ///
+        /// <para><b>Why the host has to be the one that reports it.</b> Container <i>contents</i> are
+        /// derived from <c>(roomKey, spawnIndex)</c> on both machines, so nothing needs sending for
+        /// them. "Somebody already took it" is the one fact no derivation can produce, and without it
+        /// each peer rolls and spawns its own copy of the same chest. Reading the live
+        /// <see cref="ObjectInstance"/> means the flag is authoritative exactly when the loot path
+        /// wrote it — no separate bookkeeping to fall out of sync.</para>
+        ///
+        /// <para><b>Sorted by <c>spawnIndex</c>, not by list order.</b> <c>room.objects</c> is in
+        /// population order today, but <c>RemoveObject</c> closes gaps in it, so the list order is not
+        /// stable within a session. The index is what the receiver keys on, and it is the only order
+        /// two hosts are guaranteed to agree on — an unpinned order makes the state hash a coin
+        /// flip.</para>
+        ///
+        /// <para><b>Only opened containers are emitted.</b> The set is a full replace per room, so
+        /// listing every container with its flag would send the closed ones for no information: closed
+        /// is the default on both sides. Only a positive <c>lootState</c> is a member.</para>
+        /// </summary>
+        private SimObjectState[] ProjectLootedObjects(RoomInstance room)
+        {
+            List<ObjectInstance> objects = room.objects;
+            if (objects == null || objects.Count == 0)
+            {
+                return Array.Empty<SimObjectState>();
+            }
+
+            _objectScratch.Clear();
+
+            for (int i = 0; i < objects.Count; i++)
+            {
+                ObjectInstance obj = objects[i];
+                if (obj?.runtimeState == null || obj.runtimeState.lootState <= 0)
+                {
+                    continue;
+                }
+
+                if (obj.spawnIndex < 0)
+                {
+                    // No addressable identity: the receiver keys the set on spawnIndex, so emitting it
+                    // would address whichever object happens to be at a defaulted index. Counted, so a
+                    // container built outside AddObject is visible in the overlay instead of being a
+                    // chest that mysteriously never stays open.
+                    _lastUnaddressableLootedObjectCount++;
+                    continue;
+                }
+
+                _objectScratch.Add(obj);
+            }
+
+            if (_objectScratch.Count == 0)
+            {
+                return Array.Empty<SimObjectState>();
+            }
+
+            if (_objectScratch.Count > 1)
+            {
+                _objectScratch.Sort(ByObjectSpawnIndex);
+            }
+
+            var projected = new SimObjectState[_objectScratch.Count];
+
+            for (int i = 0; i < _objectScratch.Count; i++)
+            {
+                ObjectInstance obj = _objectScratch[i];
+                projected[i] = new SimObjectState
+                {
+                    ObjectIndex = obj.spawnIndex,
+                    LootState = obj.runtimeState.lootState,
+                };
+            }
+
+            return projected;
+        }
+
+        /// <summary>
+        /// One room's door boxes and their current open state — the producing half of the door-state
+        /// replication, the same full-replace shape as <see cref="ProjectLootedObjects"/> but
+        /// bidirectional (a closed door is state, not the absence of state).
+        ///
+        /// <para><b>Every door box is a member, sorted by <c>spawnIndex</c>.</b> The receiver full-replaces,
+        /// so the set must say "closed" as explicitly as "open" — a player-closed door must read closed
+        /// on a peer that generated it open. The sort pins the only order two hosts agree on.</para>
+        ///
+        /// <para><b>Why the projector reads <c>ObjectInstance</c> directly and not the presenters.</b>
+        /// The state being replicated IS the record (<c>runtimeState.isOpen</c>); a presenter is a
+        /// view that may not be built for a streamed-out room, while the record lives as long as the
+        /// room. <see cref="ObjectInstance.IsDoorBox"/> is the same definition test the presenter
+        /// gates on, so the two cannot disagree about what a door is.</para>
+        ///
+        /// <para><b>The tiles are not here.</b> A toggle rewrites the covered cells'
+        /// <c>TilePhysicsType</c> and <c>SetOpen</c> notifies, so the reliable journal already carries
+        /// the geometry to the peer. This set exists for the half the journal cannot reach: the
+        /// presenter's sprite and its solid projectile collider.</para>
+        /// </summary>
+        private SimDoorState[] ProjectDoorStates(RoomInstance room)
+        {
+            List<ObjectInstance> objects = room.objects;
+            if (objects == null || objects.Count == 0)
+            {
+                return Array.Empty<SimDoorState>();
+            }
+
+            _objectScratch.Clear();
+
+            for (int i = 0; i < objects.Count; i++)
+            {
+                ObjectInstance obj = objects[i];
+                if (obj?.runtimeState == null || obj.spawnIndex < 0 || !obj.IsDoorBox())
+                {
+                    continue;
+                }
+
+                _objectScratch.Add(obj);
+            }
+
+            if (_objectScratch.Count == 0)
+            {
+                return Array.Empty<SimDoorState>();
+            }
+
+            if (_objectScratch.Count > 1)
+            {
+                _objectScratch.Sort(ByObjectSpawnIndex);
+            }
+
+            var projected = new SimDoorState[_objectScratch.Count];
+
+            for (int i = 0; i < _objectScratch.Count; i++)
+            {
+                ObjectInstance obj = _objectScratch[i];
+                projected[i] = new SimDoorState
+                {
+                    ObjectIndex = obj.spawnIndex,
+                    IsOpen = obj.runtimeState.isOpen,
+                };
+            }
+
+            return projected;
+        }
+
+        /// <summary>
         /// The registry walk — the production read that F-05 was missing. Sorted by id so the emitted
         /// order does not depend on <c>Dictionary</c> internals.
         /// </summary>
@@ -473,10 +667,19 @@ namespace PFE.Systems.Replication
                 // Every kind is collected, not just fired rounds. A thrown object and a mine have no
                 // room record either, so the registry is the only place they exist — before this they
                 // held an id that nothing ever read, which is a spawn a client cannot see.
-                if (entry.Value is ISimTransientStateSource transient && entry.Key.IsValid)
+                if (!(entry.Value is ISimTransientStateSource transient)) continue;
+
+                // Counted, never dropped silently: the receiver refuses a hash-0 record as malformed,
+                // so a transient without a valid id can never draw on any client. Play-test #7's
+                // missing client rounds were invisible because this walk used to skip them with no
+                // readback (the host overlay said shots=3 while projCaptured stayed 0).
+                if (!entry.Key.IsValid || transient.SimEntityHash == 0UL)
                 {
-                    _projectiles.Add(transient);
+                    _lastSkippedNoIdProjectileCount++;
+                    continue;
                 }
+
+                _projectiles.Add(transient);
             }
 
             if (_projectiles.Count > 1) _projectiles.Sort(ByTransientHash);

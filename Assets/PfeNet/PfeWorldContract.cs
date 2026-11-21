@@ -32,26 +32,70 @@ namespace PFE.Net
     /// The host's world and campaign identity at one instant. Plain data: no Unity, no FishNet, no
     /// globals, so the codec and every comparison rule are executable in the offline wall.
     ///
-    /// <para><b>Why the whole room-key set and not just a hash.</b> The client does not merely need to
-    /// know "the worlds differ" — it needs to name the first room the host has and it does not, because
-    /// that is the difference between a bad seed and a room that streamed out late. A single digest can
-    /// collide and can never name a key. The exact set also means the client can later reconcile its
-    /// room registry from the host's list without a second handshake.</para>
+    /// <para><b>Why a seed and a digest instead of the whole room-key set (protocol v2).</b> The set
+    /// existed because each machine generated its own world from a stream it seeded independently, so
+    /// the only way to know the two maps agreed was to ship every key — up to 4096 of them, which
+    /// fragments across several MTU-sized chunks on the first message a peer receives. Generation is
+    /// now derived from <see cref="WorldSeed"/> through
+    /// <c>world → land(landId, landStage) → room(roomKey)</c>, so the room set is a <i>function</i> of
+    /// values the contract already carries. Shipping the keys was shipping the answer to a sum both
+    /// sides can compute.</para>
     ///
-    /// <para><b>Why <see cref="HasCheckpoint"/> is a separate field.</b> The save format has the same
-    /// distinction: an empty checkpoint code is a real checkpoint (the exit room's), while "no
-    /// checkpoint" is a different state. Encoding absence as <c>""</c> would make those two worlds
-    /// compare equal and hide a real campaign divergence.</para>
+    /// <para><b>Why the digest is still here.</b> Determinism is an invariant of this build, not of the
+    /// wire. Two peers on different builds — different room templates, a changed generation rule —
+    /// generate different maps from the same seed. Comparing only the seed would call that a match and
+    /// then apply host state to a room the client does not have, which is the exact failure the
+    /// contract exists to prevent. The seed names the <i>cause</i>; the digest catches the
+    /// <i>effect</i>.</para>
+    ///
+    /// <para><b>What the shrink costs.</b> A mismatch can no longer name the first differing room key.
+    /// It names the seed and the room count instead, which is strictly better for the common case
+    /// (peers disagreeing about the seed) and worse for the rare one (same seed, different content).
+    /// The rare case is a build mismatch, and the fix for that is rebuilding, not reconciling.</para>
+    ///
+    /// <para><b>Why <see cref="RoomCount"/> is separate from the digest.</b> The fold of an empty set
+    /// equals the fold of a set whose members cancel, and a zero-room capture must read as "the world
+    /// is not built yet" rather than "an empty world". The count is the readiness signal;
+    /// <see cref="HasCheckpoint"/> has the same shape and the same reason.</para>
     /// </summary>
     public sealed class PfeWorldContract
     {
         public int Version;
-        public ulong[] RoomKeys;
+
+        /// <summary>The 64-bit generation root both peers must share. See <c>IWorldSeed</c>.</summary>
+        public ulong WorldSeed;
+
+        /// <summary>How many rooms the sender's world has. Zero means "not built yet".</summary>
+        public int RoomCount;
+
+        /// <summary>
+        /// Order-independent fold of the sorted, de-duplicated room-key set —
+        /// <c>PfeWorldContractRules.RoomSetSignature</c>, the same fold the snapshot path uses.
+        /// </summary>
+        public ulong RoomSetHash;
+
         public string LandId;
         public string MissionId;
         public bool HasCheckpoint;
         public string CheckpointCode;
         public int Difficulty;
+
+        /// <summary>
+        /// The land layout inputs the world build actually read: the stage and the two visited gates
+        /// (<c>visited</c> retires the procedural <c>beg*</c> entry room; <c>mbase_visited</c> gates
+        /// conf 4's). <see cref="PFE.Core.Rng.RngKeys.LandKey"/> deliberately excludes them, so two
+        /// peers that read these differently generate different maps from the same seed — they are
+        /// world inputs, compared as world identity, not campaign decoration. The capture writes the
+        /// (0, false, false) sentinel for authored lands, whose layouts ignore all three, so two
+        /// identical authored maps can never mismatch on a flag that did not shape them.
+        /// </summary>
+        public int LandStage;
+
+        /// <summary><see cref="LandStage"/> — the per-land <c>visited</c> gate.</summary>
+        public bool LandVisited;
+
+        /// <summary><see cref="LandStage"/> — the campaign-wide <c>mbase_visited</c> trigger.</summary>
+        public bool LandMbaseVisited;
     }
 
     /// <summary>
@@ -64,27 +108,42 @@ namespace PFE.Net
     {
         /// <summary>"PFWC", so a snapshot or an envelope accidentally routed here is refused by magic.</summary>
         public const uint Magic = 0x50465743u;
-        public const int CurrentVersion = 1;
+
+        /// <summary>
+        /// v2 replaced the room-key array with <c>(WorldSeed, RoomCount, RoomSetHash)</c>. The bump is
+        /// deliberate: a v1 peer reading v2 would take the seed's high word as a room count and decode
+        /// nonsense, so the version check must reject rather than guess.
+        ///
+        /// <para>v3 appends the land layout inputs <c>(LandStage, LandVisited, LandMbaseVisited)</c>
+        /// after Difficulty. They are world inputs — two peers that read them differently generate
+        /// different maps from the same seed — so they ride the contract and are compared before the
+        /// digest. Appending keeps every v2 offset valid; a v2 frame is still refused by the version
+        /// check rather than misread.</para>
+        /// </summary>
+        public const int CurrentVersion = 3;
+
+        /// <summary>A sanity bound on <c>RoomCount</c>, not an array capacity any more.</summary>
         public const int MaxRooms = 4096;
+
         public const int MaxStringBytes = 256;
 
         public static bool TrySerialize(PfeWorldContract value, out byte[] bytes, out string reason)
         {
             bytes = null;
             reason = "none";
-            if (value == null || value.RoomKeys == null)
+            if (value == null)
             {
                 reason = "no world contract to send";
                 return false;
             }
-            if (value.RoomKeys.Length == 0)
+            if (value.RoomCount <= 0)
             {
                 reason = "world is not built yet (zero rooms)";
                 return false;
             }
-            if (value.RoomKeys.Length > MaxRooms)
+            if (value.RoomCount > MaxRooms)
             {
-                reason = "world has too many rooms (" + value.RoomKeys.Length + ")";
+                reason = "world has too many rooms (" + value.RoomCount + ")";
                 return false;
             }
 
@@ -100,13 +159,17 @@ namespace PFE.Net
             {
                 writer.Write(Magic);
                 writer.Write(CurrentVersion);
-                writer.Write(value.RoomKeys.Length);
-                for (int i = 0; i < value.RoomKeys.Length; i++) writer.Write(value.RoomKeys[i]);
+                writer.Write(value.WorldSeed);
+                writer.Write(value.RoomCount);
+                writer.Write(value.RoomSetHash);
                 WriteString(writer, land);
                 WriteString(writer, mission);
                 writer.Write((byte)(value.HasCheckpoint ? 1 : 0));
                 WriteString(writer, checkpoint);
                 writer.Write(value.Difficulty);
+                writer.Write(value.LandStage);
+                writer.Write((byte)(value.LandVisited ? 1 : 0));
+                writer.Write((byte)(value.LandMbaseVisited ? 1 : 0));
                 writer.Flush();
                 bytes = stream.ToArray();
                 return true;
@@ -135,15 +198,16 @@ namespace PFE.Net
                     if (version != CurrentVersion)
                         return Refuse(out reason, "unsupported world contract version " + version);
 
+                    if (!HasBytes(reader, 8)) return Refuse(out reason, "truncated world contract (world seed)");
+                    ulong worldSeed = reader.ReadUInt64();
+
                     if (!HasBytes(reader, 4)) return Refuse(out reason, "truncated world contract (room count)");
                     int count = reader.ReadInt32();
                     if (count <= 0 || count > MaxRooms)
                         return Refuse(out reason, "world contract room count " + count + " out of range");
 
-                    if (!HasBytes(reader, (long)count * 8L))
-                        return Refuse(out reason, "truncated world contract (room keys)");
-                    var keys = new ulong[count];
-                    for (int i = 0; i < count; i++) keys[i] = reader.ReadUInt64();
+                    if (!HasBytes(reader, 8)) return Refuse(out reason, "truncated world contract (room set hash)");
+                    ulong roomSetHash = reader.ReadUInt64();
 
                     string land;
                     string mission;
@@ -160,6 +224,19 @@ namespace PFE.Net
                     if (!HasBytes(reader, 4)) return Refuse(out reason, "truncated world contract (difficulty)");
                     int difficulty = reader.ReadInt32();
 
+                    if (!HasBytes(reader, 4)) return Refuse(out reason, "truncated world contract (land stage)");
+                    int landStage = reader.ReadInt32();
+
+                    if (!HasBytes(reader, 1)) return Refuse(out reason, "truncated world contract (land visited flag)");
+                    byte visitedFlag = reader.ReadByte();
+                    if (visitedFlag > 1)
+                        return Refuse(out reason, "bad world contract land visited flag " + visitedFlag);
+
+                    if (!HasBytes(reader, 1)) return Refuse(out reason, "truncated world contract (mbase visited flag)");
+                    byte mbaseFlag = reader.ReadByte();
+                    if (mbaseFlag > 1)
+                        return Refuse(out reason, "bad world contract mbase visited flag " + mbaseFlag);
+
                     // A well-formed prefix followed by garbage is still a malformed frame. Refusing it
                     // keeps a future field append from silently reading the old layout.
                     if (reader.BaseStream.Position != reader.BaseStream.Length)
@@ -168,12 +245,17 @@ namespace PFE.Net
                     value = new PfeWorldContract
                     {
                         Version = version,
-                        RoomKeys = keys,
+                        WorldSeed = worldSeed,
+                        RoomCount = count,
+                        RoomSetHash = roomSetHash,
                         LandId = land,
                         MissionId = mission,
                         HasCheckpoint = flag == 1,
                         CheckpointCode = checkpoint,
                         Difficulty = difficulty,
+                        LandStage = landStage,
+                        LandVisited = visitedFlag == 1,
+                        LandMbaseVisited = mbaseFlag == 1,
                     };
                     reason = "none";
                     return true;
@@ -249,7 +331,7 @@ namespace PFE.Net
 
         public static bool IsWorldReady(PfeWorldContract contract)
         {
-            return contract != null && contract.RoomKeys != null && contract.RoomKeys.Length > 0;
+            return contract != null && contract.RoomCount > 0;
         }
 
         /// <summary>Sorted and de-duplicated. The map's <c>rooms.Values</c> enumeration order is not
@@ -285,8 +367,16 @@ namespace PFE.Net
             return signature;
         }
 
-        /// <summary>Exact two-pointer comparison of two normalized sets. A digest alone can collide;
-        /// this is the decision the gate actually uses, and it names the offending keys.</summary>
+        /// <summary>
+        /// Exact two-pointer comparison of two normalized sets, naming the first key each side has and
+        /// the other does not.
+        ///
+        /// <para><b>Why this survives the shrink.</b> The wire carries a digest now, so the gate cannot
+        /// use this. It is kept as the <i>oracle for the digest</i>: the offline fixture asserts
+        /// "equal signature ⇔ no difference" over generated sets, which is the only way to know the
+        /// fold is not silently weaker than the comparison it replaced. Without that, a hash collision
+        /// would read as a match forever and nothing would ever say so.</para>
+        /// </summary>
         public static bool TryFindFirstDifference(ulong[] hostKeys, ulong[] localKeys,
             out ulong hostOnly, out ulong localOnly)
         {
@@ -332,12 +422,59 @@ namespace PFE.Net
                 return PfeWorldVerdict.WorldMismatch;
             }
 
-            ulong hostOnly;
-            ulong localOnly;
-            if (TryFindFirstDifference(host.RoomKeys, local.RoomKeys, out hostOnly, out localOnly))
+            // ── World identity, in causal order ─────────────────────────────────────────────────
+            //
+            // Seed first, because it is the cause: two peers with different seeds generated different
+            // maps, and saying so is more useful than saying the digests differ. The digest is still
+            // checked, because the same seed on two different builds produces different maps — that is
+            // a real bug class (a client on an old build) that determinism alone cannot catch.
+            if (host.WorldSeed != local.WorldSeed)
             {
-                reason = "room set differs (host-only 0x" + hostOnly.ToString("X16")
-                    + ", local-only 0x" + localOnly.ToString("X16") + ")";
+                reason = "world seed differs (host 0x" + host.WorldSeed.ToString("X16")
+                    + ", local 0x" + local.WorldSeed.ToString("X16") + ")";
+                return PfeWorldVerdict.WorldMismatch;
+            }
+
+            // Land layout inputs, in the order the build reads them. Stage and the two visited gates
+            // are read BEFORE the world is built (LandLayoutPlanner gates beg* on !visited), and
+            // RngKeys.LandKey deliberately excludes them — so two peers that disagree about them
+            // generate different maps from the same seed. Naming the flag is actionable in a way
+            // "room set hash differs" is not. The capture writes (0,false,false) for authored lands,
+            // whose layouts ignore all three, so this can only fire for a procedural build where the
+            // gates actually shaped the map.
+            if (host.LandStage != local.LandStage)
+            {
+                reason = "land stage differs (host " + host.LandStage + ", local " + local.LandStage
+                    + ") — same seed, so the two builds generate different lands";
+                return PfeWorldVerdict.WorldMismatch;
+            }
+            if (host.LandVisited != local.LandVisited)
+            {
+                reason = "land visited flag differs (host " + (host.LandVisited ? 1 : 0)
+                    + ", local " + (local.LandVisited ? 1 : 0)
+                    + ") — the beg* entry gate makes these different maps";
+                return PfeWorldVerdict.WorldMismatch;
+            }
+            if (host.LandMbaseVisited != local.LandMbaseVisited)
+            {
+                reason = "mbase visited flag differs (host " + (host.LandMbaseVisited ? 1 : 0)
+                    + ", local " + (local.LandMbaseVisited ? 1 : 0)
+                    + ") — conf 4's entry gate makes these different maps";
+                return PfeWorldVerdict.WorldMismatch;
+            }
+
+            if (host.RoomCount != local.RoomCount)
+            {
+                reason = "room count differs (host " + host.RoomCount + ", local " + local.RoomCount
+                    + ") — same seed, so the two builds generate different lands";
+                return PfeWorldVerdict.WorldMismatch;
+            }
+
+            if (host.RoomSetHash != local.RoomSetHash)
+            {
+                reason = "room set hash differs (host 0x" + host.RoomSetHash.ToString("X16")
+                    + ", local 0x" + local.RoomSetHash.ToString("X16")
+                    + ") — same seed and count, so the room identities differ";
                 return PfeWorldVerdict.WorldMismatch;
             }
 

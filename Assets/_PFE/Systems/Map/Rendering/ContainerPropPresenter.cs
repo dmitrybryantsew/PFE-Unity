@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using PFE.Core;
 using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Systems.Audio;
@@ -55,6 +57,39 @@ namespace PFE.Systems.Map.Rendering
         private BoxCollider2D _triggerCollider;
 
         private int _lastInteractFrame = -1;
+
+        /// <summary>
+        /// Every live presenter keyed by its <see cref="ObjectInstance"/> — the lookup the host-side
+        /// interact sink uses to run a peer's admitted open: the sink has the room's data objects, and
+        /// the open logic lives on this component, so the map between them has to exist somewhere.
+        /// Registration happens in <see cref="Initialize"/>; <see cref="OnDestroy"/> unregisters only
+        /// when THIS instance is still the registered value, so a rebuilt room's new presenter is not
+        /// yanked out by its predecessor's teardown.
+        /// </summary>
+        private static readonly Dictionary<ObjectInstance, ContainerPropPresenter> Presenters =
+            new Dictionary<ObjectInstance, ContainerPropPresenter>();
+
+        /// <summary>The live presenter drawing <paramref name="obj"/>, or false when the object's room
+        /// visuals were never built in this process (the host refuses the open with a named reason).</summary>
+        public static bool TryGetPresenter(ObjectInstance obj, out ContainerPropPresenter presenter)
+        {
+            if (obj == null)
+            {
+                presenter = null;
+                return false;
+            }
+            return Presenters.TryGetValue(obj, out presenter) && presenter != null;
+        }
+
+        private void OnDestroy()
+        {
+            if (_objectInstance == null) return;
+            ContainerPropPresenter registered;
+            if (Presenters.TryGetValue(_objectInstance, out registered) && ReferenceEquals(registered, this))
+            {
+                Presenters.Remove(_objectInstance);
+            }
+        }
 
         /// <summary>
         /// The sound this container makes when it opens — AS3 <c>Box.sndOpen</c>, read off the definition
@@ -165,6 +200,11 @@ namespace PFE.Systems.Map.Rendering
 
             OpenSoundId = MapObjectSoundRule.OpenSound(obj?.definition?.legacyAttributes);
 
+            if (obj != null)
+            {
+                Presenters[obj] = this;
+            }
+
             _triggerCollider = GetComponent<BoxCollider2D>();
             if (_triggerCollider != null)
             {
@@ -192,6 +232,20 @@ namespace PFE.Systems.Map.Rendering
         /// <summary>
         /// Open the container: roll its table, eject the results, and mark it looted. Called by the
         /// player's interaction path — this component reads no input (same ownership split as the door).
+        ///
+        /// <para><b>A joined client does not open locally.</b> When this process is a network client
+        /// (<see cref="SimAuthorityContext.PeerRole"/>), the local roll is replaced by a latch: the press
+        /// is recorded on <see cref="SimInteractCommandLatch"/> and rides the next
+        /// <c>PlayerCommand</c> as the <c>InteractPressed</c> edge, the host runs the one authoritative
+        /// open, and the drops come back through <c>SimRoomDelta.DroppedItems</c>. Running the roll here
+        /// too would spawn a second copy of the chest on the client. The suppression lives HERE (not in
+        /// the controller) because all three paths — the E-key press, the click path and the
+        /// hold-completion — converge on this method.</para>
+        ///
+        /// <para><b>Suppression requires a wire-addressable container.</b> The host keys containers by
+        /// <c>(RoomKey(room.id), spawnIndex)</c>; an object with a negative spawnIndex never went
+        /// through <c>RoomInstance.AddObject</c> and cannot be addressed, so it keeps its local
+        /// behaviour rather than eating the press.</para>
         /// </summary>
         public void Interact(GameObject user)
         {
@@ -203,6 +257,42 @@ namespace PFE.Systems.Map.Rendering
             if (Time.frameCount == _lastInteractFrame) return;
             _lastInteractFrame = Time.frameCount;
 
+            if (SimAuthorityContext.PeerRole == SimPeerRole.Client
+                && _room != null && !string.IsNullOrEmpty(_room.id)
+                && _objectInstance != null && _objectInstance.spawnIndex >= 0)
+            {
+                SimInteractCommandLatch.Raise(
+                    PFE.Sim.State.SimSnapshotProjectionRules.RoomKey(_room.id),
+                    _objectInstance.spawnIndex);
+                return;
+            }
+
+            PerformOpen(user);
+        }
+
+        /// <summary>
+        /// The host-side network entry: run the authoritative open for a peer's admitted interact
+        /// request. The sink has already refused everything this method could trip on (unknown room,
+        /// wrong room, missing object, not a container, already looted, locked); the re-check of
+        /// <see cref="Admits"/> is the idempotency guard that keeps a duplicated edge from re-rolling a
+        /// chest that was opened a frame ago.
+        ///
+        /// <para><b>There is no local user.</b> The peer's body on the host carries no inventory or perk
+        /// sheet — the peer's stats live on the client's machine — so the roll resolves definitions
+        /// through the published static seams and runs with <c>ctx.Pers == null</c> (perk-dependent
+        /// branches simply do not fire for remote opens; recorded as a slice-1 gap). Returns whether
+        /// the open ran, so the sink's applied/refused counters stay honest.</para>
+        /// </summary>
+        public bool InteractHost()
+        {
+            if (!Admits(IsContainer, IsLooted)) return false;
+
+            PerformOpen(null);
+            return true;
+        }
+
+        private void PerformOpen(GameObject user)
+        {
             // The lock before the loot — AS3's act() resolves mine, then lock, and only then reaches
             // actOsn() → loot() (Interact.as:911-1244, :1285-1288). A failed pick must not spill the
             // contents, which is the one thing this ordering guarantees.
@@ -212,7 +302,21 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
-            LootContext ctx = LootRuntime.CreateContext(ResolvedCont);
+            // ── The contents come from THIS container's identity ─────────────────────────────────
+            //
+            // `(roomKey, spawnIndex)` is the same pair `SimRoomDelta.RoomHash` names the room with,
+            // plus the object's stable population index. Two peers therefore roll the same inventory
+            // for the same chest without a handshake, and two chests in one room do not share one.
+            //
+            // The previous call passed only the container TYPE, so the roll came from a per-land
+            // cursor: the chest in front of you held whatever the Nth container opened this land
+            // happened to produce, which is not a thing any other machine could reproduce.
+            LootContext ctx = _room != null && _objectInstance != null
+                ? LootRuntime.CreateContextForContainer(
+                    ResolvedCont,
+                    PFE.Sim.State.SimSnapshotProjectionRules.RoomKey(_room.id),
+                    _objectInstance.spawnIndex)
+                : LootRuntime.CreateContext(ResolvedCont);
             if (ctx == null)
             {
                 // LootRuntime has already logged why. Do NOT mark the container looted — an unready
@@ -319,20 +423,35 @@ namespace PFE.Systems.Map.Rendering
         /// Whether any ejected row carried <c>@imp</c> — AS3 <c>_loc5_ == 2</c>, which becomes the
         /// container's final <c>lootState</c>.
         /// </param>
+        /// <summary>
+        /// Resolve an item id the way the oracle's <c>itemTip()</c> does: the interactor's own
+        /// inventory first, then the published static seam (<see cref="WorldItemPickup.ItemDefinitionResolver"/>).
+        /// The static fallback is what makes a host-side <b>network</b> open possible at all: the peer's
+        /// body carries no <c>PlayerInventory</c> (the peer's bag lives on the client's machine), and
+        /// without the seam every remote open would spill nothing. The seam is the same delegate the
+        /// inventory publishes, so the two orders agree.
+        /// </summary>
+        private static ItemDefinition ResolveItem(GameObject user, string itemId)
+        {
+            PlayerInventory inventory = user != null ? user.GetComponent<PlayerInventory>() : null;
+            ItemDefinition definition = inventory != null ? inventory.ResolveItem(itemId) : null;
+            return definition ?? WorldItemPickup.ItemDefinitionResolver?.Invoke(itemId);
+        }
+
+        /// <summary>The weapon half of <see cref="ResolveItem"/> — the tables are disjoint, so the two
+        /// resolvers can never answer for each other.</summary>
+        private static WeaponDefinition ResolveWeapon(GameObject user, string weaponId)
+        {
+            PlayerInventory inventory = user != null ? user.GetComponent<PlayerInventory>() : null;
+            WeaponDefinition definition = inventory != null ? inventory.ResolveWeapon(weaponId) : null;
+            return definition ?? WorldItemPickup.WeaponDefinitionResolver?.Invoke(weaponId);
+        }
+
         private int SpillAuthoredItems(GameObject user, LootContext ctx, out bool anyImportant)
         {
             anyImportant = false;
 
             if (_objectInstance?.items == null || _objectInstance.items.Count == 0) return 0;
-
-            PlayerInventory inventory = user != null ? user.GetComponent<PlayerInventory>() : null;
-            if (inventory == null)
-            {
-                Debug.LogWarning("[ContainerPropPresenter] the interactor has no PlayerInventory, so " +
-                                 $"the {_objectInstance.items.Count} authored item row(s) on " +
-                                 $"'{_objectInstance.objectId}' cannot be spawned.");
-                return 0;
-            }
 
             // No scatter and no RNG here: the spread comes from the throw (LootFallRules.JumpVelocity),
             // which is the oracle's own mechanism and is seeded through the loot stream inside the
@@ -358,7 +477,7 @@ namespace PFE.Systems.Map.Rendering
 
                 // itemTip()'s order: the item table first (which holds the armour rows too), then the
                 // weapon table. `mont` is the row in the shipped data that needs the second half.
-                ItemDefinition itemDefinition = inventory.ResolveItem(row.id);
+                ItemDefinition itemDefinition = ResolveItem(user, row.id);
                 if (itemDefinition != null)
                 {
                     string fall = FallSoundFor(false, itemDefinition.legacyTip, row.id);
@@ -367,7 +486,7 @@ namespace PFE.Systems.Map.Rendering
                     continue;
                 }
 
-                WeaponDefinition weaponDefinition = inventory.ResolveWeapon(row.id);
+                WeaponDefinition weaponDefinition = ResolveWeapon(user, row.id);
                 if (weaponDefinition != null)
                 {
                     // A weapon is one instance with its own condition and magazine, so the count is 1
@@ -490,14 +609,6 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         private int SpillRolls(GameObject user, LootContext ctx)
         {
-            PlayerInventory inventory = user != null ? user.GetComponent<PlayerInventory>() : null;
-            if (inventory == null)
-            {
-                Debug.LogWarning("[ContainerPropPresenter] the interactor has no PlayerInventory, so " +
-                                 $"'{ResolvedCont}' rolled {ctx.Results.Count} item(s) that cannot be resolved or spawned.");
-                return 0;
-            }
-
             // No scatter and no RNG here: the spread comes from the throw (LootFallRules.JumpVelocity),
             // which is the oracle's own mechanism and is seeded through the loot stream inside the
             // pickup. `ctx.Rng` is still consumed by the roll itself, above.
@@ -513,7 +624,7 @@ namespace PFE.Systems.Map.Rendering
                 // asking the wrong one loses the weapon while losing nothing visible.
                 if (LootTips.IsWeaponTip(roll.Tip))
                 {
-                    WeaponDefinition weapon = inventory.ResolveWeapon(roll.ItemId);
+                    WeaponDefinition weapon = ResolveWeapon(user, roll.ItemId);
                     if (weapon == null)
                     {
                         Debug.LogWarning($"[ContainerPropPresenter] '{ResolvedCont}' rolled '{roll.ItemId}' " +
@@ -536,7 +647,7 @@ namespace PFE.Systems.Map.Rendering
                     continue;
                 }
 
-                ItemDefinition definition = inventory.ResolveItem(roll.ItemId);
+                ItemDefinition definition = ResolveItem(user, roll.ItemId);
                 if (definition == null)
                 {
                     // An armour roll resolves here: armour rows ARE item rows (they carry

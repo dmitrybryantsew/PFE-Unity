@@ -70,12 +70,33 @@ namespace PFE.Tests.EditMode.Core
             }
         }
 
+        private sealed class TransitionRecordingSink : ISimRoomTransitionSink
+        {
+            public int Calls;
+            public uint LastPeerId;
+            public byte LastSlot;
+            public string LastRoomId;
+            public float LastX;
+            public float LastY;
+
+            public void Apply(uint peerId, byte slot, string roomId, float worldPixelX, float worldPixelY)
+            {
+                Calls++;
+                LastPeerId = peerId;
+                LastSlot = slot;
+                LastRoomId = roomId;
+                LastX = worldPixelX;
+                LastY = worldPixelY;
+            }
+        }
+
         private sealed class Session
         {
             public readonly SimReplicationOutbox ToClient = new SimReplicationOutbox();
             public readonly SimReplicationOutbox ToHost = new SimReplicationOutbox();
             public readonly FakeSource Source = new FakeSource();
             public readonly RecordingSink Sink;
+            public readonly TransitionRecordingSink TransitionSink;
             public readonly SimReplicationHost Host;
             public readonly SimReplicationClient Client;
 
@@ -87,11 +108,13 @@ namespace PFE.Tests.EditMode.Core
 
             public SimPlayerCommandBatch LastSentBatch { get; private set; }
 
-            public Session(bool withSink = true, bool withWindow = true)
+            public Session(bool withSink = true, bool withWindow = true,
+                bool withTransitionSink = true)
             {
                 Sink = withSink ? new RecordingSink() : null;
+                TransitionSink = withTransitionSink ? new TransitionRecordingSink() : null;
                 Host = new SimReplicationHost(SessionId, Source, ToClient, ChunkSize,
-                    withWindow ? Window : 0, Sink);
+                    withWindow ? Window : 0, Sink, TransitionSink);
                 Client = new SimReplicationClient(Nonce, ToHost);
             }
 
@@ -659,18 +682,62 @@ namespace PFE.Tests.EditMode.Core
         }
 
         [Test]
-        public void EndToEnd_DuplicateEnvelope_IsRefusedByTheSharedOrderedChannel()
+        public void EndToEnd_DuplicateEnvelope_IsRefusedByTheCommandChannelWatermark()
         {
             var session = new Session();
             session.Join();
             SimReplicationEnvelope[] items = session.Send(Window, 1, 2);
 
             session.Deliver(items);
-            session.Deliver(items);   // exact re-delivery, same envelope sequence
+            session.Deliver(items);   // exact re-delivery, same command envelope sequence
 
             Assert.AreEqual(1, session.Sink.Calls,
                 "A re-delivered batch must not re-enter through the ingress.");
             Assert.AreEqual(1, session.Host.AcceptedCommandBatchCount);
+        }
+
+        [Test]
+        public void EndToEnd_FastCommandBatch_DoesNotAgeOutASlowerAckOrTransition()
+        {
+            var session = new Session();
+            // A manual join: the Session helper consumes only the accept, and the baseline chunks
+            // it drops are exactly what produces the ack this test guards.
+            session.Client.Join(Interest());
+            session.Deliver(session.TakeToHost());
+            SimReplicationEnvelope[] toClient = session.TakeToClient();
+            foreach (SimReplicationEnvelope accept in OfKind(toClient,
+                         SimReplicationMessageKind.JoinAccept))
+                session.Client.Receive(ThroughBytes(accept));
+            foreach (SimReplicationEnvelope chunk in OfKind(toClient,
+                         SimReplicationMessageKind.BaselineChunk))
+                session.Client.Receive(ThroughBytes(chunk));
+
+            SimReplicationEnvelope[] acks = OfKind(session.TakeToHost(),
+                SimReplicationMessageKind.SnapshotAck);
+            Assert.AreEqual(1, acks.Length, "The arrange step must produce the ack the test guards.");
+
+            // The client then declares its room and publishes two overlapping windows. On the
+            // wire the unreliable batches can overtake ALL THREE reliable envelopes; the second
+            // batch carries the higher command sequence and lands first.
+            Assert.IsTrue(session.Client.SendRoomTransition("room_1_0", 5f, 6f));
+            SimReplicationEnvelope[] transition = session.TakeToHost();
+            SimReplicationEnvelope[] first = session.Send(Window, 1, 2);
+            SimReplicationEnvelope[] second = session.Send(Window, 3);
+
+            session.Deliver(second[0]);
+            session.Deliver(acks[0]);
+            session.Deliver(transition[0]);
+            session.Deliver(first[0]);   // overtaken on the command stream: stale there only
+
+            Assert.AreEqual(1, session.Host.AcceptedCommandBatchCount);
+            Assert.AreEqual(1, session.Host.AppliedAckCount,
+                "A fast command batch must not commit the reliable watermark: the ack is older on " +
+                "that stream and would be refused as stale.");
+            Assert.AreEqual(1, session.Host.AcceptedRoomTransitionCount,
+                "The transition is equally older on the reliable stream and must survive too.");
+            Assert.AreEqual(1, session.Host.RejectedEnvelopeCount,
+                "Only the overtaken first batch is refused — and refused on the command watermark, " +
+                "not by anything the reliable stream committed.");
         }
 
         [Test]
@@ -685,7 +752,7 @@ namespace PFE.Tests.EditMode.Core
         }
 
         [Test]
-        public void EndToEnd_NoCommandWindow_RefusesBeforeMovingTheOrderedChannel()
+        public void EndToEnd_NoCommandWindow_RefusesBeforeMovingAnyWatermark()
         {
             var session = new Session(withSink: false, withWindow: false);
             session.Join();
@@ -695,21 +762,14 @@ namespace PFE.Tests.EditMode.Core
             Assert.IsNull(session.Host.Commands);
             Assert.AreEqual(1, session.Host.RejectedEnvelopeCount);
 
-            // Same sequence as the refused command batch. If the refusal had advanced the peer's
-            // high-water mark, this legitimate control packet would now look stale too.
-            var interest = new SimReplicationEnvelope
-            {
-                ProtocolVersion = SimReplicationProtocolRules.CurrentProtocolVersion,
-                SessionId = SessionId,
-                PeerId = session.Client.PeerId,
-                Kind = SimReplicationMessageKind.InterestUpdate,
-                Sequence = items[0].Sequence,
-                Payload = SimReplicationPayloadSerializer.Serialize(new SimInterestUpdate(Interest())),
-            };
-            session.Deliver(interest);
+            // The refused batch is stamped on the command counter; the reliable stream is probed
+            // with the real client's next reliable envelope. If the refusal had advanced either
+            // watermark, this legitimate control packet would now look stale too.
+            session.Client.UpdateInterest(Interest());
+            session.Deliver(session.TakeToHost());
 
             Assert.AreEqual(1, session.Host.RejectedEnvelopeCount,
-                "A refused command kind must not burn the ordered channel that acks still need.");
+                "A refused command kind must not burn the reliable channel that acks still need.");
         }
 
         [Test]
@@ -828,20 +888,47 @@ namespace PFE.Tests.EditMode.Core
             Assert.AreEqual(2, ingress.BufferedCommandCount(1u));
         }
 
-        // ── Protocol v5 ───────────────────────────────────────────────────────
+        // ── Protocol v5 / v6 / v7 / v8 / v9 ─────────────────────────────────────
 
         [Test]
-        public void ProtocolV5_CommandKindAndVersionArePinnedByLiterals()
+        public void ProtocolV9_CommandKindAndVersionArePinnedByLiterals()
         {
-            Assert.AreEqual(5u, SimSnapshotSerializer.CurrentProtocolVersion,
-                "The literal, not the symbol: a symbol compared against itself cannot see a rollback.");
+            Assert.AreEqual(9u, SimSnapshotSerializer.CurrentProtocolVersion,
+                "The literal, not the symbol: a symbol compared against itself cannot see a rollback. " +
+                "v9 grew SimRoomDelta by the door-state set, so a v8 peer would read the set's length " +
+                "prefix as the next room's RoomHash and must be refused at the handshake. (v8 grew " +
+                "SimUnitState by WeaponIdHash + AimAngle; v7 grew the command by the interact target.)");
             Assert.AreEqual(SimSnapshotSerializer.CurrentProtocolVersion,
                 SimReplicationProtocolRules.CurrentProtocolVersion,
                 "The handshake must share the codec version, not maintain a second number.");
             Assert.AreEqual(8, (int)SimReplicationMessageKind.PlayerCommandBatch,
                 "The first intent-carrying kind must have a stable wire value.");
-            Assert.AreEqual(9, Enum.GetValues(typeof(SimReplicationMessageKind)).Length,
-                "None plus eight real kinds; a dead or skipped value is a protocol defect.");
+            Assert.AreEqual(9, (int)SimReplicationMessageKind.PeerRoomTransition,
+                "The room-transition kind must have a stable wire value.");
+            Assert.AreEqual(10, Enum.GetValues(typeof(SimReplicationMessageKind)).Length,
+                "None plus nine real kinds; a dead or skipped value is a protocol defect.");
+        }
+
+        [Test]
+        public void ProtocolV8_TheCommandWireSizeIsPinned()
+        {
+            // A command's byte width is a protocol fact, not an implementation detail: the batch is a
+            // run of fixed-width records, so one added field silently re-frames every command after
+            // it. Pinned as a literal so adding a field forces a version bump in the same commit.
+            var command = PlayerCommand.FromIntent(1, 0, 1u, 0f, 0f, false, false, false, false,
+                false, 0f, interactPressed: true, targetRoomHash: 1UL, targetObjectIndex: 2,
+                weaponIdHash: 9UL);
+
+            using var stream = new System.IO.MemoryStream();
+            using (var writer = new System.IO.BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                command.WriteTo(writer);
+            }
+
+            Assert.AreEqual(45, stream.Length,
+                "int tick + byte slot + uint seq + 2 sbyte axes + 3 floats + ulong room + int index " +
+                "+ ulong weapon + ushort buttons. A different width means a v9 bump, not a quiet " +
+                "re-frame.");
         }
 
         [Test]
@@ -877,6 +964,264 @@ namespace PFE.Tests.EditMode.Core
             Assert.AreEqual(SimJoinRejectReason.NoControllerSlot,
                 SimReplicationPayloadSerializer.ReadJoinReject(rejects[0].Payload).Reason,
                 "Admitting a peer that can never send intent is indistinguishable from an idle player.");
+        }
+
+        // ── Peer room transitions (v6) ────────────────────────────────────────
+
+        [Test]
+        public void RoomTransitionPayload_RoundTripsThroughTheCodec()
+        {
+            var value = new SimPeerRoomTransition
+            {
+                SessionId = SessionId,
+                PeerId = 1u,
+                RoomId = "room_1_0",
+                WorldPixelX = 123.5f,
+                WorldPixelY = -456.25f,
+            };
+
+            SimPeerRoomTransition restored = SimReplicationPayloadSerializer.ReadPeerRoomTransition(
+                SimReplicationPayloadSerializer.Serialize(value));
+
+            Assert.AreEqual(value, restored,
+                "Room id and both world-pixel coordinates must survive the bytes, not just the struct.");
+        }
+
+        [Test]
+        public void RoomTransitionPayload_RefusesOversizedRoomIdAndNonFinitePosition()
+        {
+            var oversized = new SimPeerRoomTransition
+            {
+                SessionId = SessionId,
+                PeerId = 1u,
+                RoomId = new string('x', SimPeerRoomTransition.MaxRoomIdLength + 1),
+                WorldPixelX = 1f,
+                WorldPixelY = 2f,
+            };
+            Assert.Throws<InvalidDataException>(() =>
+                SimReplicationPayloadSerializer.ReadPeerRoomTransition(
+                    SimReplicationPayloadSerializer.Serialize(oversized)));
+
+            var nan = new SimPeerRoomTransition
+            {
+                SessionId = SessionId,
+                PeerId = 1u,
+                RoomId = "room_1_0",
+                WorldPixelX = float.NaN,
+                WorldPixelY = 2f,
+            };
+            Assert.Throws<InvalidDataException>(() =>
+                SimReplicationPayloadSerializer.ReadPeerRoomTransition(
+                    SimReplicationPayloadSerializer.Serialize(nan)));
+        }
+
+        [Test]
+        public void RoomTransition_ClientRefusesToSendBeforeJoining()
+        {
+            var session = new Session();
+
+            Assert.IsFalse(session.Client.SendRoomTransition("room_1_0", 1f, 2f));
+            Assert.AreEqual(1, session.Client.RejectedRoomTransitionSendCount);
+            Assert.AreEqual(0, session.Client.RoomTransitionsSent);
+            Assert.AreEqual(0, session.TakeToHost().Length, "A refused send must not emit an envelope.");
+        }
+
+        [Test]
+        public void RoomTransition_ClientSendsDeclarationAfterJoin()
+        {
+            var session = new Session();
+            session.Join();
+
+            Assert.IsTrue(session.Client.SendRoomTransition("room_0_0", 100f, 200f));
+
+            SimReplicationEnvelope[] items = session.TakeToHost();
+            Assert.AreEqual(1, items.Length);
+            Assert.AreEqual(SimReplicationMessageKind.PeerRoomTransition, items[0].Kind);
+            Assert.AreEqual(1, session.Client.RoomTransitionsSent);
+
+            SimPeerRoomTransition payload =
+                SimReplicationPayloadSerializer.ReadPeerRoomTransition(items[0].Payload);
+            Assert.AreEqual(SessionId, payload.SessionId);
+            Assert.AreEqual(items[0].PeerId, payload.PeerId, "The declaration must name the host-assigned peer.");
+            Assert.AreEqual("room_0_0", payload.RoomId);
+            Assert.AreEqual(100f, payload.WorldPixelX);
+            Assert.AreEqual(200f, payload.WorldPixelY);
+        }
+
+        [Test]
+        public void RoomTransition_HostAppliesTheAdmittedDeclaration()
+        {
+            var session = new Session();
+            session.Join();
+            Assert.IsTrue(session.Client.SendRoomTransition("room_1_0", 10f, 20f));
+
+            session.Deliver(session.TakeToHost());
+
+            Assert.AreEqual(1, session.Host.AcceptedRoomTransitionCount);
+            Assert.AreEqual(0, session.Host.RejectedRoomTransitionCount);
+            Assert.AreEqual(1, session.TransitionSink.Calls);
+            Assert.AreEqual(1u, session.TransitionSink.LastPeerId);
+            Assert.AreEqual((byte)1, session.TransitionSink.LastSlot,
+                "The sink must receive the host-assigned controller slot, not a locally invented one.");
+            Assert.AreEqual("room_1_0", session.TransitionSink.LastRoomId);
+            Assert.AreEqual(10f, session.TransitionSink.LastX);
+            Assert.AreEqual(20f, session.TransitionSink.LastY);
+        }
+
+        [Test]
+        public void RoomTransition_HostRefusesAnUnknownPeer()
+        {
+            var session = new Session();
+            var envelope = new SimReplicationEnvelope
+            {
+                ProtocolVersion = SimReplicationProtocolRules.CurrentProtocolVersion,
+                SessionId = SessionId,
+                PeerId = 77u,
+                Kind = SimReplicationMessageKind.PeerRoomTransition,
+                Sequence = 1u,
+                Payload = SimReplicationPayloadSerializer.Serialize(new SimPeerRoomTransition
+                {
+                    SessionId = SessionId,
+                    PeerId = 77u,
+                    RoomId = "room_1_0",
+                    WorldPixelX = 1f,
+                    WorldPixelY = 1f,
+                }),
+            };
+
+            session.Deliver(envelope);
+
+            Assert.AreEqual(0, session.Host.AcceptedRoomTransitionCount);
+            Assert.AreEqual(1, session.Host.RejectedEnvelopeCount);
+            Assert.AreEqual(0, session.TransitionSink.Calls);
+        }
+
+        [Test]
+        public void RoomTransition_ADuplicateDeliveryMovesTheBodyOnce()
+        {
+            var session = new Session();
+            session.Join();
+            Assert.IsTrue(session.Client.SendRoomTransition("room_1_0", 5f, 6f));
+            SimReplicationEnvelope[] items = session.TakeToHost();
+            Assert.AreEqual(1, items.Length);
+
+            session.Deliver(items[0]);
+            session.Deliver(items[0]);
+
+            Assert.AreEqual(1, session.Host.AcceptedRoomTransitionCount);
+            Assert.AreEqual(1, session.TransitionSink.Calls,
+                "A re-delivered transition on the ordered channel must not relocate the body twice.");
+        }
+
+        [Test]
+        public void RoomTransition_CommandBatchesUseTheirOwnChannelWatermark()
+        {
+            var session = new Session();
+            session.Join();
+
+            // The command batch is published first, then the transition. On the wire the reliable
+            // transition can arrive before the unreliable batch...
+            SimReplicationEnvelope[] commands = session.Send(Window, 1, 2);
+            Assert.IsTrue(session.Client.SendRoomTransition("room_1_0", 5f, 6f));
+            SimReplicationEnvelope[] transition = session.TakeToHost();
+            Assert.AreEqual(1, transition.Length);
+
+            // ...and committing the reliable watermark first must not age the batch out: the batch
+            // is stamped from the command counter, not the reliable one. (The pre-1A shared
+            // watermark refused it as stale here — the exact mixing failure SendCommands used to
+            // document.)
+            session.Deliver(transition[0]);
+            session.Deliver(commands[0]);
+
+            Assert.AreEqual(1, session.Host.AcceptedRoomTransitionCount);
+            Assert.AreEqual(1, session.Host.AcceptedCommandBatchCount,
+                "A batch on its own channel must be admitted even when a reliable envelope " +
+                "committed the other watermark first.");
+            Assert.AreEqual(0, session.Host.RejectedEnvelopeCount);
+        }
+
+        [Test]
+        public void RoomTransition_HostRefusesMismatchedInnerSessionAndPeer()
+        {
+            var session = new Session();
+            session.Join();
+            Assert.IsTrue(session.Client.SendRoomTransition("room_1_0", 5f, 6f));
+            SimReplicationEnvelope sent = session.TakeToHost()[0];
+
+            var forgedSession = new SimReplicationEnvelope
+            {
+                ProtocolVersion = sent.ProtocolVersion,
+                SessionId = sent.SessionId,
+                PeerId = sent.PeerId,
+                Kind = sent.Kind,
+                Sequence = sent.Sequence + 1u,
+                Payload = SimReplicationPayloadSerializer.Serialize(new SimPeerRoomTransition
+                {
+                    SessionId = SessionId + 1UL,
+                    PeerId = sent.PeerId,
+                    RoomId = "room_1_0",
+                    WorldPixelX = 5f,
+                    WorldPixelY = 6f,
+                }),
+            };
+            var forgedPeer = new SimReplicationEnvelope
+            {
+                ProtocolVersion = sent.ProtocolVersion,
+                SessionId = sent.SessionId,
+                PeerId = sent.PeerId,
+                Kind = sent.Kind,
+                Sequence = sent.Sequence + 2u,
+                Payload = SimReplicationPayloadSerializer.Serialize(new SimPeerRoomTransition
+                {
+                    SessionId = SessionId,
+                    PeerId = sent.PeerId + 1u,
+                    RoomId = "room_1_0",
+                    WorldPixelX = 5f,
+                    WorldPixelY = 6f,
+                }),
+            };
+
+            session.Deliver(sent, forgedSession, forgedPeer);
+
+            Assert.AreEqual(1, session.Host.AcceptedRoomTransitionCount, "Only the honest envelope is admitted.");
+            Assert.AreEqual(2, session.Host.RejectedRoomTransitionCount);
+            Assert.AreEqual(1, session.TransitionSink.Calls);
+        }
+
+        [Test]
+        public void RoomTransition_HostCountsAMalformedPayloadAsARefusedTransition()
+        {
+            var session = new Session();
+            session.Join();
+            var envelope = new SimReplicationEnvelope
+            {
+                ProtocolVersion = SimReplicationProtocolRules.CurrentProtocolVersion,
+                SessionId = SessionId,
+                PeerId = 1u,
+                Kind = SimReplicationMessageKind.PeerRoomTransition,
+                Sequence = 2u,
+                Payload = new byte[] { 1, 2, 3 },
+            };
+
+            session.Deliver(envelope);
+
+            Assert.AreEqual(0, session.Host.AcceptedRoomTransitionCount);
+            Assert.AreEqual(1, session.Host.RejectedRoomTransitionCount);
+            Assert.AreEqual(0, session.TransitionSink.Calls,
+                "A payload that failed to parse must never reach the sink.");
+        }
+
+        [Test]
+        public void RoomTransition_AHostWithoutASinkRefusesTheKind()
+        {
+            var session = new Session(withTransitionSink: false);
+            session.Join();
+            Assert.IsTrue(session.Client.SendRoomTransition("room_1_0", 1f, 2f));
+
+            session.Deliver(session.TakeToHost());
+
+            Assert.AreEqual(0, session.Host.AcceptedRoomTransitionCount);
+            Assert.AreEqual(1, session.Host.RejectedEnvelopeCount);
         }
     }
 }

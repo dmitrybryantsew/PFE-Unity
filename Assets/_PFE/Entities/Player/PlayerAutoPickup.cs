@@ -185,7 +185,11 @@ namespace PFE.Entities.Player
             for (int i = 0; i < live.Count; i++)
             {
                 WorldItemPickup pickup = live[i];
-                if (pickup == null || !pickup.AutoCollect)
+                // A replicated view stands for the host's record: the local bag write plus the host's
+                // retained record would duplicate the item on the next snapshot. Collection over the
+                // wire is the take-request slice; until then replicated loot is look-but-don't-touch
+                // on a client. (Host-side views are never marked replicated.)
+                if (pickup == null || !pickup.AutoCollect || pickup.Replicated)
                 {
                     continue;
                 }

@@ -50,11 +50,24 @@ namespace PFE.Net
                     return;
                 }
 
+                // Per-tick snapshots ride the UNRELIABLE channel on purpose. The protocol repairs loss
+                // at the app layer — the tile journal repeats unacked events until an ack arrives, loot
+                // is a full-replace set, and the receiver admits any newer SnapshotSequence, so a lost
+                // snapshot simply means the next one lands instead. Keeping a 60 Hz multi-KB stream on
+                // FishNet's reliable channel costs a retained copy plus ack bookkeeping per packet per
+                // tick for exactly zero benefit, and it was the prime suspect in the multiplayer FPS
+                // drop. JoinAccept and BaselineChunk stay Reliable: they are one-shot and must arrive,
+                // and a snapshot that overtakes an in-flight baseline is already refused by the
+                // receiver's baseline-pending gate.
+                Channel channel = envelope.Kind == SimReplicationMessageKind.Snapshot
+                    ? Channel.Unreliable
+                    : Channel.Reliable;
+
                 // requireAuthenticated MUST be false. There is no authenticator in this runtime
                 // bootstrap; leaving FishNet's default true drops every client-to-server broadcast
                 // and kicks the sender, which looks exactly like "the client never joined".
                 _manager.ServerManager.Broadcast(connection, message,
-                    requireAuthenticated: false, channel: Channel.Reliable);
+                    requireAuthenticated: false, channel: channel);
             }
             else
             {
@@ -64,7 +77,19 @@ namespace PFE.Net
                     return;
                 }
 
-                _manager.ClientManager.Broadcast(message, Channel.Reliable);
+                // Command batches ride the UNRELIABLE channel, mirroring the host-side snapshot
+                // routing above. A lost batch is repaired at the app layer by the redundant
+                // last-N window (the next batch repeats the missed commands, and the ingress
+                // overlap check makes a repeat harmless), while one dropped datagram on the
+                // reliable channel would head-of-line block every ack and room transition
+                // behind a TCP-style retransmission — the input stutter Wave 1A exists to kill.
+                // The batch carries its own _commandEnvelopeSequence, so it can neither mark a
+                // reliable envelope stale nor be marked stale by one.
+                Channel channel = envelope.Kind == SimReplicationMessageKind.PlayerCommandBatch
+                    ? Channel.Unreliable
+                    : Channel.Reliable;
+
+                _manager.ClientManager.Broadcast(message, channel);
             }
 
             SentCount++;

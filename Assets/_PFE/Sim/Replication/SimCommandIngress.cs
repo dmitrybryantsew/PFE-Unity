@@ -84,10 +84,20 @@ namespace PFE.Sim.Replication
         private readonly int _maxCommands;
         private readonly Func<uint, bool> _isPeerJoined;
         private readonly ISimCommandSink _sink;
+        private readonly ISimInteractSink _interacts;
         private readonly Dictionary<uint, PeerState> _peers = new Dictionary<uint, PeerState>();
 
+        /// <summary>
+        /// <paramref name="interactSink"/> is optional so every existing constructor call and fixture
+        /// keeps its exact shape. When present, admitted interact edges are routed to it from the
+        /// window's fresh suffix — see <see cref="SimInteractRules.Dispatch"/> for why the prefix must
+        /// not fire. A session without one still accepts batches; the container path is then simply
+        /// not driven, which reads in the overlay as zero interact requests rather than as a
+        /// mysterious unopened chest.
+        /// </summary>
         public SimCommandIngress(ulong sessionId, int maxCommandsPerBatch,
-            Func<uint, bool> isPeerJoined, ISimCommandSink sink)
+            Func<uint, bool> isPeerJoined, ISimCommandSink sink,
+            ISimInteractSink interactSink = null)
         {
             if (sessionId == 0UL) throw new ArgumentException("A host session id must be non-zero.", nameof(sessionId));
             if (maxCommandsPerBatch <= 0) throw new ArgumentOutOfRangeException(nameof(maxCommandsPerBatch));
@@ -97,6 +107,7 @@ namespace PFE.Sim.Replication
             _maxCommands = maxCommandsPerBatch;
             _isPeerJoined = isPeerJoined;
             _sink = sink;
+            _interacts = interactSink;
         }
 
         public int AcceptedBatchCount { get; private set; }
@@ -105,6 +116,10 @@ namespace PFE.Sim.Replication
         public int DuplicateCommandCount { get; private set; }
         public int GapBatchCount { get; private set; }
         public SimCommandRejectReason LastRejectReason { get; private set; }
+
+        /// <summary>How many fresh interact edges reached the sink. The readback that separates "the
+        /// player never pressed" from "the host never acted".</summary>
+        public int DispatchedInteractCount { get; private set; }
 
         public int LastAppliedTick(uint peerId)
         {
@@ -218,7 +233,19 @@ namespace PFE.Sim.Replication
             // A window made entirely of duplicates is a legitimate redundant retransmission, but it
             // carries no new intent. Calling the sink with firstNewIndex == length would let a lazy
             // consumer re-run a whole window of edges (jump/dash are one-shot) on every resend.
-            if (fresh > 0) _sink.Apply(envelope.PeerId, slot, commands, firstNew);
+            if (fresh > 0)
+            {
+                _sink.Apply(envelope.PeerId, slot, commands, firstNew);
+
+                // Interact edges are one-shot for the same reason and are routed from the same fresh
+                // suffix. Deliberately after the sink: the command tape is what the body reads, and a
+                // container open must not be observable before the intent that asked for it.
+                if (_interacts != null)
+                {
+                    DispatchedInteractCount += SimInteractRules.Dispatch(
+                        commands, firstNew, envelope.PeerId, slot, _interacts);
+                }
+            }
 
             AcceptedBatchCount++;
             AppliedCommandCount += fresh;

@@ -9,10 +9,12 @@ namespace PFE.Sim.Replication
     ///
     /// <para><b>Why so narrow.</b> §12 D5 says the command/snapshot contract must not bake in a
     /// transport assumption. A FishNet adapter in the view assembly can implement this by mapping an
-    /// envelope to a broadcast/RPC on a reliable channel for joins, baseline chunks and acks, and on
-    /// an unreliable channel for snapshots. Nothing in <c>PFE.Sim</c> needs to know that. A local
-    /// single-process session can instead use <see cref="SimReplicationOutbox"/> — which is what the
-    /// offline wall does.</para>
+    /// envelope to a broadcast/RPC on a reliable channel for joins, baseline chunks, acks and room
+    /// transitions, and on an unreliable channel for snapshots and command batches (Wave 1A:
+    /// batches carry their own envelope sequence, so the loss-tolerant kinds never age out the
+    /// reliable stream). Nothing in <c>PFE.Sim</c> needs to know that. A local single-process
+    /// session can instead use <see cref="SimReplicationOutbox"/> — which is what the offline wall
+    /// does.</para>
     ///
     /// <para><b>By value, on purpose.</b> A transport is free to queue, split or retry; it must never
     /// be able to mutate the endpoint's in-flight envelope. The payload array is shared, but endpoints

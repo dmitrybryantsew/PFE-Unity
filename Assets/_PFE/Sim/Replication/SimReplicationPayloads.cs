@@ -295,6 +295,95 @@ namespace PFE.Sim.Replication
             unchecked(WorldRevision.GetHashCode() * 397 ^ (int)LastEventSequence * 31 ^ (int)SnapshotSequence);
     }
 
+    /// <summary>
+    /// Client → host: one peer's room change. A room transition is a discontinuous teleport —
+    /// intents flowing in command batches integrate continuous motion and cannot say "I stepped
+    /// through a door and am now in room X at this spot". The host simulates the peer's body, so
+    /// without this message the body keeps colliding against the room the peer already left,
+    /// which reads on both screens as a position desync.
+    ///
+    /// <para><c>RoomId</c> is the room's own id (the same string <c>SimSnapshotProjectionRules
+    /// .RoomKey</c> hashes), not the hash: the host must find the live <c>RoomInstance</c>, and a
+    /// hash collision would silently bind the body to the wrong room. The position is WORLD
+    /// pixels — the one space both processes agree on verbatim (the world contract guarantees
+    /// identical geometry), whereas room-local pixels would need the very room lookup the host
+    /// is about to do.</para>
+    ///
+    /// <para>Declared once after join even when the peer never moves: the host builds the peer's
+    /// body from the declaration instead of guessing the host player's own room.</para>
+    /// </summary>
+    [Serializable]
+    public struct SimPeerRoomTransition : IEquatable<SimPeerRoomTransition>
+    {
+        /// <summary>The longest room id the wire admits. Room ids are short coordinate strings;
+        /// a length prefix above this is corruption, not a big room.</summary>
+        public const int MaxRoomIdLength = 128;
+
+        public ulong SessionId;
+        public uint PeerId;
+        public string RoomId;
+        public float WorldPixelX;
+        public float WorldPixelY;
+
+        public readonly void WriteTo(BinaryWriter writer)
+        {
+            writer.Write(SessionId);
+            writer.Write(PeerId);
+            writer.Write(RoomId ?? string.Empty);
+            writer.Write(WorldPixelX);
+            writer.Write(WorldPixelY);
+        }
+
+        /// <summary>Strict read. Refuses a null/oversized room id and non-finite coordinates:
+        /// a NaN arrival position would silently poison the host body's authoritative pixel state.</summary>
+        public static SimPeerRoomTransition ReadFrom(BinaryReader reader)
+        {
+            ulong session = reader.ReadUInt64();
+            uint peer = reader.ReadUInt32();
+            string roomId = reader.ReadString();
+            float px = reader.ReadSingle();
+            float py = reader.ReadSingle();
+
+            if (string.IsNullOrEmpty(roomId) || roomId.Length > MaxRoomIdLength)
+            {
+                throw new InvalidDataException("Peer room transition names no room or an absurd one.");
+            }
+            if (float.IsNaN(px) || float.IsInfinity(px) || float.IsNaN(py) || float.IsInfinity(py))
+            {
+                throw new InvalidDataException("Peer room transition carries a non-finite position.");
+            }
+
+            return new SimPeerRoomTransition
+            {
+                SessionId = session,
+                PeerId = peer,
+                RoomId = roomId,
+                WorldPixelX = px,
+                WorldPixelY = py,
+            };
+        }
+
+        public readonly bool Equals(SimPeerRoomTransition other) =>
+            SessionId == other.SessionId && PeerId == other.PeerId
+            && string.Equals(RoomId, other.RoomId, StringComparison.Ordinal)
+            && WorldPixelX.Equals(other.WorldPixelX) && WorldPixelY.Equals(other.WorldPixelY);
+        public override readonly bool Equals(object obj) => obj is SimPeerRoomTransition other && Equals(other);
+        public override readonly int GetHashCode() =>
+            unchecked(SessionId.GetHashCode() * 397 ^ (int)PeerId * 31 ^ (RoomId?.Length ?? 0));
+    }
+
+    /// <summary>The host-side consumer of admitted peer room transitions. The view layer implements
+    /// this to move the peer's simulated body into the named room; keeping it as one method means
+    /// the pure layer never learns what a <c>MonoBehaviour</c>, a slot or a motor is — the same
+    /// seam shape as <see cref="ISimCommandSink"/>.</summary>
+    public interface ISimRoomTransitionSink
+    {
+        /// <summary>One admitted transition. <paramref name="slot"/> is the host-assigned controller
+        /// slot for the peer; the position is world pixels, matching
+        /// <see cref="SimPeerRoomTransition"/>.</summary>
+        void Apply(uint peerId, byte slot, string roomId, float worldPixelX, float worldPixelY);
+    }
+
     /// <summary>Strict single-payload codecs. Each refuses trailing bytes, so a corrupted kind cannot
     /// be read as a shorter message that happens to parse.</summary>
     public static class SimReplicationPayloadSerializer
@@ -306,6 +395,7 @@ namespace PFE.Sim.Replication
         public static byte[] Serialize(SimSnapshotAck value) => Write(w => value.WriteTo(w));
         public static byte[] Serialize(SimInterestUpdate value) => Write(w => value.WriteTo(w));
         public static byte[] Serialize(SimPlayerCommandBatch value) => Write(w => value.WriteTo(w));
+        public static byte[] Serialize(SimPeerRoomTransition value) => Write(w => value.WriteTo(w));
 
         private static byte[] Write(Action<BinaryWriter> body)
         {
@@ -332,6 +422,8 @@ namespace PFE.Sim.Replication
         public static SimBaselineChunk ReadBaselineChunk(byte[] bytes) => Read(SimBaselineChunk.ReadFrom, bytes);
         public static SimSnapshotAck ReadSnapshotAck(byte[] bytes) => Read(SimSnapshotAck.ReadFrom, bytes);
         public static SimInterestUpdate ReadInterestUpdate(byte[] bytes) => Read(SimInterestUpdate.ReadFrom, bytes);
+        public static SimPeerRoomTransition ReadPeerRoomTransition(byte[] bytes) =>
+            Read(SimPeerRoomTransition.ReadFrom, bytes);
 
         private static T Read<T>(Func<BinaryReader, T> body, byte[] bytes)
         {

@@ -168,7 +168,7 @@ namespace PFE.Net
         public static bool IsKnownKind(SimReplicationMessageKind kind)
         {
             return kind >= SimReplicationMessageKind.JoinRequest
-                && kind <= SimReplicationMessageKind.PlayerCommandBatch;
+                && kind <= SimReplicationMessageKind.PeerRoomTransition;
         }
 
         public static bool IsAdmissible(in SimReplicationEnvelope envelope)

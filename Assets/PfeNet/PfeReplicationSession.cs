@@ -4,8 +4,11 @@ using FishNet.Connection;
 using FishNet.Managing;
 using FishNet.Managing.Object;
 using FishNet.Transporting;
+using PFE.Character;
+using PFE.Character.Animation;
 using PFE.Core;
 using PFE.Core.Input;
+using PFE.Data.Definitions.Campaign;
 using PFE.Entities.Player;
 using PFE.Entities.Units;
 using PFE.Sim.Replication;
@@ -44,7 +47,7 @@ namespace PFE.Net
     /// projector just built. A value above 100 would be skipped whenever the world is paused by the
     /// SimLoop pause gate, silently freezing the network during a UI pause.</para>
     /// </summary>
-    public sealed class PfeReplicationSession : MonoBehaviour, ISimTickable
+    public sealed class PfeReplicationSession : MonoBehaviour, ISimTickable, ISimRoomTransitionSink
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -89,13 +92,32 @@ namespace PFE.Net
         private PfeRemoteCommandSink _sink;
         private PfeReplicationWorldApplier _applier;
         private PfeBaselineViewAssembler _baselineView;
+        private PfeInteractSink _interactSink;
+        private PfeRemoteProjectileDisplay _projectiles;
         private SimReplicationHost _host;
         private SimReplicationClient _client;
         private SimLoop _loop;
         private MapBridge _mapBridge;
+        private PFE.Core.Rng.IWorldSeed _worldSeed;
 
         private readonly List<PfeRemoteBody> _bodies = new List<PfeRemoteBody>(4);
         private readonly Dictionary<byte, PfeRemoteBody> _bodyBySlot = new Dictionary<byte, PfeRemoteBody>();
+
+        // Each peer's own room declaration (SimReplicationMessageKind.PeerRoomTransition), kept as
+        // the room ID string and re-resolved against the live map at every use: a land rebuild
+        // replaces every RoomInstance, and a cached instance would pin streaming to a dead room.
+        // The declared world-pixel position seeds a body that is built before any transition
+        // arrived — otherwise a peer spawns at the HOST player's position in the HOST's room.
+        private readonly Dictionary<byte, string> _peerRoomIds = new Dictionary<byte, string>();
+        private readonly Dictionary<byte, Vector2> _peerRoomWorldPx = new Dictionary<byte, Vector2>();
+        private string _lastTransitionError = "none";
+        private int _roomTransitionsApplied;
+        private int _roomRelocations;
+        private int _roomTransitionUnknownRooms;
+        private int _roomTransitionRefused;
+        private int _roomTransitionsSent;
+        private string _declaredTransitionRoomId;
+
         private byte _localSlot;
         private int _bodiesBuilt;
         private int _bodyFailures;
@@ -201,6 +223,11 @@ namespace PFE.Net
                 return;
             }
 
+            // Display-only bodies ease toward the newest replicated sample at render-frame rate.
+            // Runs before the dead-scope check on purpose: interpolation is a view concern, and
+            // parking a body exactly on its last target is harmless even past a dead game scope.
+            TickDisplayBodyVisuals();
+
             // _scope is a LifetimeScope (MonoBehaviour), so Unity's overloaded == null reports a
             // destroyed one. Count frames rather than latching a flag: a flag cleared at the end of
             // its producer's tick is unreadable on the next one, and a reset flag needs an explicit
@@ -251,10 +278,18 @@ namespace PFE.Net
 
             SimLoop loop;
             SimProjectileSnapshotProjector projector;
+            PFE.Core.Rng.IWorldSeed worldSeed;
             // TryResolve is an EXTENSION method on IObjectResolver; letting the out-parameter infer T
             // is the idiom this project already uses (PfeScenarioTest.cs:921).
             if (!scope.Container.TryResolve(out loop) || !scope.Container.TryResolve(out projector)) return;
             if (loop == null || projector == null) return;
+
+            // The world seed is what the contract compares and what both sides generate from. Resolved
+            // here rather than injected because the session is created before the game scene exists
+            // (see Bootstrap). A missing seed is not fatal — the contract then reports 0 and a peer
+            // with a real seed reads as a mismatch, which is the safe direction.
+            if (!scope.Container.TryResolve(out worldSeed)) worldSeed = null;
+            _worldSeed = worldSeed;
 
             _loop = loop;
             _scope = scope;
@@ -266,12 +301,23 @@ namespace PFE.Net
             _sink = new PfeRemoteCommandSink();
             _applier = new PfeReplicationWorldApplier();
             _baselineView = new PfeBaselineViewAssembler();
+            // Slice 3: the client-side display spawner for the transient set the projector already
+            // emits (rounds, throws, mines). Pure reconcile state — the views themselves are built
+            // per record inside OnClientBroadcast, never on the host path.
+            _projectiles = new PfeRemoteProjectileDisplay();
 
             if (_config.IsHost)
             {
                 ulong sessionId = unchecked((ulong)DateTime.UtcNow.Ticks) | 1UL;
+                // `this` is the room-transition sink: a peer's room change relocates that peer's
+                // simulated body, which is exactly the desync this session exists to prevent.
+                //
+                // The interact sink runs the host-side authoritative container open for a peer's
+                // admitted InteractPressed edge (slice 1: loot sync). It resolves rooms by the same
+                // RoomKey the projector hashes, and bodies from the live slot index.
+                _interactSink = new PfeInteractSink(FindRoomByHash, LookupBodyBySlot);
                 _host = new SimReplicationHost(sessionId, projector, _wire, _config.ChunkSize,
-                    _config.CommandWindow, _sink);
+                    _config.CommandWindow, _sink, this, _interactSink);
 
                 // requireAuthentication MUST be false: there is no authenticator in this bootstrap.
                 // FishNet's default true drops every client-to-server broadcast and kicks the sender.
@@ -284,6 +330,13 @@ namespace PFE.Net
             }
             else
             {
+                // A joined peer never originates authoritative Sim state; it mirrors host truth. This
+                // is the push GameLifetimeScope's comment reserved for a future client — it makes the
+                // ambient write context ClientPrediction for every non-tick path (the suppression
+                // latch in ContainerPropPresenter reads PeerRole too), and HostWriteGuard's debug
+                // tripwires become live on this process.
+                SimAuthorityContext.SetPeerRole(SimPeerRole.Client);
+
                 ulong nonce = _config.ClientNonce != 0UL
                     ? _config.ClientNonce
                     : (ulong)System.Diagnostics.Process.GetCurrentProcess().Id + 1UL;
@@ -333,6 +386,11 @@ namespace PFE.Net
                 // its levels between commands, and the command gate refuses a repeat, so a tick with
                 // no new command changes nothing while a new one lands on the very next tick.
                 DriveBodies();
+                // Rooms follow PLAYERS, not the local transition driver alone: a peer in another
+                // room keeps that room simulated and projected. The legacy ActivateRoom driver
+                // only knows the local player, so presence is re-asserted every tick; the diff
+                // inside ApplyRoomPresence makes the steady state free.
+                ApplyHostRoomPresence();
                 // The world build is asynchronous and may still be empty when a peer joins. Publishing
                 // from the tick (not from the join callback) is what lets a zero-room world be retried
                 // until it exists, instead of sending a contract the client can never match.
@@ -365,6 +423,11 @@ namespace PFE.Net
                 _declaredLocalHash = localHash;
             }
 
+            // The room I stand in is mine alone on this machine — the host simulates my body and
+            // cannot see my local LandMap flip. Declare the room (once after join, then on every
+            // change) or the host body stays in the first room and our positions diverge.
+            PublishLocalRoomTransition();
+
             if (_tickCount % _config.TicksPerSnapshot != 0) return;
             var player = SinglePlayerSlotContext.Current.GetPlayer(0);
             if (player != null) _client.SendCommands(player.CommandBuffer, _config.CommandWindow);
@@ -377,6 +440,14 @@ namespace PFE.Net
         /// local player's own rig rather than looked up by id: the definition and the sprite are the
         /// only two values that must be right for the body to exist on screen, and inventing a
         /// resource id would fail silently at runtime with a body that ticks but never draws.
+        ///
+        /// <para><b>Why the visual is an assembler, not a sprite.</b> The pony is a multi-part
+        /// <c>CharacterSpriteAssembler</c> rig on the player root; the prefab's only static
+        /// <c>SpriteRenderer</c> is the rifle under the Weapon child, and
+        /// <c>GetComponentInChildren&lt;SpriteRenderer&gt;</c> finds depth-first — so the first build
+        /// copied the GUN and drew it as the remote player's whole body (the "I see only a weapon"
+        /// report). The assembler is handed over whole: definition, style, appearance and sorting
+        /// layer, so the body draws the same pony this player's rig draws.</para>
         ///
         /// <para><b>Why the room does NOT come from <c>local.Room</c>.</b> That property is
         /// <c>_tileQuery?.Room</c> on <c>UnitController</c>, and the shipped player is a prefab
@@ -402,7 +473,7 @@ namespace PFE.Net
             // PlayerController derives from UnitController: the rig IS the unit. Searching the
             // children for a separate UnitController found nothing on the shipped player prefab.
             UnitController local = player;
-            RoomInstance room = CurrentRoomInstance();
+            RoomInstance room = ResolveBodyRoom(slot, simulated);
 
             if (local == null || room == null)
             {
@@ -417,8 +488,27 @@ namespace PFE.Net
                 return;
             }
 
-            var renderer = player.GetComponentInChildren<SpriteRenderer>();
+            // The visual source is the rig itself, never a searched renderer: the prefab's only static
+            // SpriteRenderer is the rifle under the Weapon child, and a GetComponentInChildren search
+            // finds it first — the first build drew a floating gun as the remote player's whole body.
+            var visualSource = player.GetComponent<CharacterSpriteAssembler>();
+            // The player's ability sheet (levitation/double-jump/teleport gates). The simulated body
+            // wears a mana-free wrapper around it — see RemoteBodyAbilities.
+            var abilitySource = player.GetComponent<ILocomotionAbilities>();
+            // The animation driver's serialized frame mappings (stay-aim sub-range, jump velocity
+            // mapping) are copied onto the simulated body so the host captures the same poses the
+            // local rig draws; the rig's weapon renderer is the template for the remote body's
+            // weapon child (hold point + sorting).
+            var animationSource = player.GetComponent<CharacterAnimationDriver>();
+            SpriteRenderer weaponVisualSource = FindWeaponRenderer(player.transform);
             SimUnitState localState = local.CaptureSimState();
+
+            // A simulated peer spawns where the PEER declared itself, not at the local player's
+            // position: CaptureSimState reads this machine's own rig, which is the host player —
+            // the only other guess is wrong whenever the peer stands in another room.
+            Vector2 spawnPixel = new Vector2(localState.Px, localState.Py);
+            Vector2 declaredSpawn;
+            if (simulated && _peerRoomWorldPx.TryGetValue(slot, out declaredSpawn)) spawnPixel = declaredSpawn;
 
             var context = new PfeRemoteBodyContext
             {
@@ -428,11 +518,29 @@ namespace PFE.Net
                 Definition = simulated ? local.Stats : null,
                 Clock = _loop != null ? _loop.Clock : null,
                 Loop = _loop,
-                Sprite = renderer != null ? renderer.sprite : null,
-                SortingLayerId = renderer != null ? renderer.sortingLayerID : 0,
-                SortingOrder = renderer != null ? renderer.sortingOrder : 0,
-                SpawnPixel = new Vector2(localState.Px, localState.Py),
+                VisualSource = visualSource,
+                OwnerDefinition = local.Stats,
+                AbilitySource = abilitySource,
+                AnimationSource = animationSource,
+                WeaponVisualSource = weaponVisualSource,
+                SpawnPixel = spawnPixel,
             };
+
+            // The weapon mount's services, resolved from the same container the rest of the body
+            // copies from. Each TryResolve failure leaves the field null; the mount degrades per
+            // service (an unarmed body is a visible overlay fact, not a throw inside a spawn).
+            if (_scope != null && _scope.Container != null)
+            {
+                PFE.Systems.Combat.IProjectileFactory factory;
+                if (_scope.Container.TryResolve(out factory)) context.ProjectileFactory = factory;
+                PFE.Systems.Audio.ISoundService sound;
+                if (_scope.Container.TryResolve(out sound)) context.Sound = sound;
+                PFE.Core.Rng.IRngService rng;
+                if (_scope.Container.TryResolve(out rng)) context.Rng = rng;
+                PfeDebugSettings debug;
+                if (_scope.Container.TryResolve(out debug)) context.Debug = debug;
+                context.Resolver = _scope.Container;
+            }
 
             string error;
             PfeRemoteBody body = PfeRemoteBody.TryCreate(context, out error);
@@ -455,6 +563,39 @@ namespace PFE.Net
             if (_lastError != null && _lastError.StartsWith("body slot ")) _lastError = "none";
         }
 
+        /// <summary>The local rig's held-weapon renderer — the template for a remote body's weapon
+        /// child. Searched by NAME ("Weapon" is the rig-builder convention): a component search would
+        /// find the muzzle's or the body's own renderer first, and the remote gun would inherit the
+        /// wrong position and sorting.</summary>
+        private static SpriteRenderer FindWeaponRenderer(Transform playerRoot)
+        {
+            if (playerRoot == null) return null;
+            Transform weapon = playerRoot.Find("Weapon");
+            return weapon != null ? weapon.GetComponentInChildren<SpriteRenderer>() : null;
+        }
+
+        /// <summary>The room a new body is built in. A simulated peer body prefers the room the peer
+        /// itself declared — the fallback (<see cref="CurrentRoomInstance"/>) is the HOST player's
+        /// room, which is the wrong answer whenever the peer stands elsewhere. Display bodies and
+        /// peers that have not declared yet keep the fallback.</summary>
+        private RoomInstance ResolveBodyRoom(byte slot, bool simulated)
+        {
+            if (simulated)
+            {
+                string declaredRoomId;
+                if (_peerRoomIds.TryGetValue(slot, out declaredRoomId)
+                    && !string.IsNullOrEmpty(declaredRoomId))
+                {
+                    RoomInstance declared = FindRoomById(declaredRoomId);
+                    if (declared != null) return declared;
+
+                    _roomTransitionUnknownRooms++;
+                    _lastTransitionError = "slot " + slot + ": no room '" + declaredRoomId + "' in the host map";
+                }
+            }
+            return CurrentRoomInstance();
+        }
+
         /// <summary>Host only: rebuild any peer body that the one-shot bind callback could not build.
         /// A join can arrive before <c>RoomStreamingManager.CurrentRoom</c> exists; without this the
         /// host reports <c>failed=1</c> forever and never simulates that peer. Once every joined slot
@@ -474,7 +615,9 @@ namespace PFE.Net
         }
 
         /// <summary>Host only: hand each peer body its newest admitted command. The body itself
-        /// refuses a repeat, which is what keeps jump and dash from re-firing every tick.</summary>
+        /// refuses a repeat, which is what keeps jump and dash from re-firing every tick. Weapon
+        /// mounts advance EVERY tick (after the drive attempt), not only on a fresh command: a held
+        /// trigger and a cooling barrel do not freeze between deliveries.</summary>
         private void DriveBodies()
         {
             if (_bodies.Count == 0 || _sink == null) return;
@@ -486,6 +629,289 @@ namespace PFE.Net
 
                 PlayerCommand command;
                 if (_sink.TryGetLatest(body.Slot, out command)) body.Drive(command);
+                body.TickWeapons();
+            }
+        }
+
+        // ── Peer room transitions (the client → host "I changed rooms" declaration) ─────────
+
+        /// <summary>ISimRoomTransitionSink, host side. Every declaration — not just the well-formed
+        /// ones — passes <see cref="SimHostRoomTransitionRules.Admit"/>: the named room must exist
+        /// and the arrival position must lie inside that room's world-pixel bounds (plus the doorway
+        /// margin). A refused packet leaves the peer's recorded room and body untouched — before
+        /// this gate, a bug or an out-of-order packet could teleport the peer across the entire map
+        /// or park its body outside the room it claims to stand in.
+        ///
+        /// <para>One admitted declaration does two things: records the peer's room (the per-tick
+        /// presence pass and later body builds read it) and, when the peer's body already exists,
+        /// relocates it — motor room, authoritative position and tile query in one call, so the
+        /// projector keeps attributing the body to the room it actually stands in.</para></summary>
+        public void Apply(uint peerId, byte slot, string roomId, float worldPixelX, float worldPixelY)
+        {
+            if (!_config.IsHost) return;
+
+            RoomInstance room = FindRoomById(roomId);
+            Vector2 roomMinPx = Vector2.zero;
+            Vector2 roomMaxPx = Vector2.zero;
+            if (room != null)
+            {
+                // RoomOriginPixel is the room's bottom-left world-pixel corner — the land-Y flip
+                // makes lower rows more negative, so adding height * TILE_SIZE reaches the top
+                // edge. width/height are the room's own tile dims, not the 48x25 default a fixed
+                // rect would silently bake in for every prob room.
+                roomMinPx = WorldCoordinates.RoomOriginPixel(room);
+                roomMaxPx = roomMinPx + new Vector2(
+                    room.width * WorldConstants.TILE_SIZE,
+                    room.height * WorldConstants.TILE_SIZE);
+            }
+
+            SimHostRoomTransitionVerdict verdict = SimHostRoomTransitionRules.Admit(
+                room != null, worldPixelX, worldPixelY,
+                roomMinPx.x, roomMinPx.y, roomMaxPx.x, roomMaxPx.y);
+            if (verdict != SimHostRoomTransitionVerdict.Admit)
+            {
+                _roomTransitionRefused++;
+                _lastTransitionError = "slot " + slot + ": " + SimHostRoomTransitionRules.Describe(verdict) +
+                    " (room '" + roomId + "' @ " + worldPixelX + ", " + worldPixelY + ")";
+                return;
+            }
+
+            _roomTransitionsApplied++;
+            _peerRoomIds[slot] = roomId;
+            _peerRoomWorldPx[slot] = new Vector2(worldPixelX, worldPixelY);
+            RelocatePeerBody(slot, roomId, worldPixelX, worldPixelY);
+        }
+
+        private void RelocatePeerBody(byte slot, string roomId, float worldPixelX, float worldPixelY)
+        {
+            PfeRemoteBody body;
+            if (!_bodyBySlot.TryGetValue(slot, out body) || body == null)
+            {
+                // BuildPendingBodies()/BuildBody() consume the recorded declaration instead; a
+                // body that was never built is relocated at build time, not here.
+                return;
+            }
+
+            RoomInstance room = FindRoomById(roomId);
+            if (room == null)
+            {
+                _roomTransitionUnknownRooms++;
+                _lastTransitionError = "slot " + slot + ": no room '" + roomId + "' in the host map";
+                return;
+            }
+
+            // World pixels are the wire space; RepositionForRoom speaks Unity world space. The
+            // same conversion seeds the body at build, so the two hand-offs cannot drift apart.
+            Vector3 worldPos = WorldCoordinates.PixelToUnity(new Vector2(worldPixelX, worldPixelY));
+            body.Relocate(room, worldPos);
+            _roomRelocations++;
+            if (_lastTransitionError.StartsWith("slot " + slot + ":")) _lastTransitionError = "none";
+        }
+
+        /// <summary>Resolve a room id against the LIVE world. Never cached: a land rebuild replaces
+        /// every RoomInstance, and a stale instance would silently bind the body to the old world.
+        /// Prob rooms are registered in the prob context rather than the land map, so the lookup
+        /// covers both registries.</summary>
+        private RoomInstance FindRoomById(string roomId)
+        {
+            LandMap map = CurrentMap();
+            if (!string.IsNullOrEmpty(roomId) && map != null)
+            {
+                foreach (RoomInstance room in map.GetAllRooms())
+                {
+                    if (room != null && string.Equals(room.id, roomId, StringComparison.Ordinal)) return room;
+                }
+            }
+
+            PFE.Systems.Map.Generation.ProbRoomSessions sessions = ProbSessions();
+            if (sessions != null)
+            {
+                for (int i = 0; i < sessions.All.Count; i++)
+                {
+                    RoomInstance room = sessions.All[i].Room;
+                    if (room != null && string.Equals(room.id, roomId, StringComparison.Ordinal)) return room;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>The hash half of <see cref="FindRoomById"/>: the interact sink's requests (and the
+        /// client's command targets) name a room by <c>SimSnapshotProjectionRules.RoomKey</c>, the same
+        /// key the projector stamps into every delta. Resolved per request — container opens are rare,
+        /// and the live-world rule is the same one the id lookup follows.</summary>
+        private RoomInstance FindRoomByHash(ulong roomHash)
+        {
+            if (roomHash == 0UL) return null;
+
+            LandMap map = CurrentMap();
+            if (map != null)
+            {
+                foreach (RoomInstance room in map.GetAllRooms())
+                {
+                    if (room != null && !string.IsNullOrEmpty(room.id)
+                        && SimSnapshotProjectionRules.RoomKey(room.id) == roomHash)
+                    {
+                        return room;
+                    }
+                }
+            }
+
+            PFE.Systems.Map.Generation.ProbRoomSessions sessions = ProbSessions();
+            if (sessions != null)
+            {
+                for (int i = 0; i < sessions.All.Count; i++)
+                {
+                    RoomInstance room = sessions.All[i].Room;
+                    if (room != null && !string.IsNullOrEmpty(room.id)
+                        && SimSnapshotProjectionRules.RoomKey(room.id) == roomHash)
+                    {
+                        return room;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>The interact sink's body lookup: the simulated host body for a slot, or null when
+        /// none exists (the peer has not joined or its body was never built).</summary>
+        private PfeRemoteBody LookupBodyBySlot(byte slot)
+        {
+            PfeRemoteBody body;
+            return _bodyBySlot.TryGetValue(slot, out body) ? body : null;
+        }
+
+        private static PFE.Systems.Map.Generation.ProbRoomSessions ProbSessions()
+        {
+            RoomTransitionManager manager = RoomTransitionManager.Instance;
+            return manager != null ? manager.ProbSessions : null;
+        }
+
+        /// <summary>Whether <paramref name="room"/> still belongs to the live world — the land map
+        /// or the prob registry. A body can outlive the world that built it (land rebuild); keeping
+        /// or relocating into a dead room would pin streaming open against nothing.</summary>
+        private static bool IsRegisteredRoom(LandMap map, RoomInstance room)
+        {
+            if (room == null) return false;
+            if (map != null && MapContainsRoom(map, room)) return true;
+
+            PFE.Systems.Map.Generation.ProbRoomSessions sessions = ProbSessions();
+            if (sessions != null)
+            {
+                for (int i = 0; i < sessions.All.Count; i++)
+                {
+                    if (ReferenceEquals(sessions.All[i].Room, room)) return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool MapContainsRoom(LandMap map, RoomInstance room)
+        {
+            foreach (RoomInstance candidate in map.GetAllRooms())
+            {
+                if (ReferenceEquals(candidate, room)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Host only: reconcile the streaming set with who is actually where — the local
+        /// (host) player plus every simulated peer body. Driven every tick because the legacy
+        /// single-player driver (<c>RoomTransitionManager</c> → <c>ActivateRoom</c>) runs on the
+        /// same manager and only knows the local player; the diff inside
+        /// <see cref="RoomStreamingManager.ApplyRoomPresence"/> makes the steady state free.</summary>
+        private void ApplyHostRoomPresence()
+        {
+            if (_host == null || _host.JoinedPeerCount == 0) return;
+
+            RoomStreamingManager streaming = ResolveStreaming();
+            if (streaming == null) return;
+
+            LandMap map = CurrentMap();
+            var presence = new Dictionary<RoomInstance, int>(8);
+
+            // The presentation room is anchored to the HOST's own player, not resolved fresh from
+            // the LandMap-global currentRoom: that global names "the local player's room", and the
+            // overlay and this pass both trust it. See HostPresentationRoom for the play-test #7
+            // blue void this prevents.
+            RoomInstance localRoom = HostPresentationRoom();
+            if (localRoom != null) presence[localRoom] = 1;
+
+            for (int i = 0; i < _bodies.Count; i++)
+            {
+                PfeRemoteBody body = _bodies[i];
+                if (body == null || !body.IsSimulated) continue;
+
+                RoomInstance room = body.Room;
+                if (room == null) continue;
+                // A body can outlive the world that built it (land rebuild): a room that is no
+                // longer registered anywhere must not pin streaming open.
+                if (!IsRegisteredRoom(map, room)) continue;
+
+                int count;
+                presence.TryGetValue(room, out count);
+                presence[room] = count + 1;
+            }
+
+            streaming.ApplyRoomPresence(presence, localRoom);
+        }
+
+        /// <summary>
+        /// The room that may own THIS machine's presentation layer — the room the local player
+        /// stands in, resolved from the bound player rather than the LandMap-global
+        /// <c>currentRoom</c>. The bind stamps the player's tile query and re-stamps it on every
+        /// local transition (<see cref="EnsureLocalPlayerNetworkIdentity"/> runs earlier in the
+        /// same tick, LandMap-led, so the query follows a door on the very next tick), and nothing
+        /// in the remote relocation chain writes it: <c>PfeRemoteBody.Relocate</c> moves only the
+        /// peer body's motor. Play-test #7's blue void was the host's own room being evicted the
+        /// tick the presence pass named the client's room as local, so the value handed to
+        /// <c>ApplyRoomPresence</c> is anchored to the one identity a remote packet cannot move.
+        /// Falls back to <see cref="CurrentRoomInstance"/> until the player binds at boot.
+        /// </summary>
+        private RoomInstance HostPresentationRoom()
+        {
+            if (_boundPlayer != null && _boundPlayer.Room != null)
+                return _boundPlayer.Room;
+            return CurrentRoomInstance();
+        }
+
+        /// <summary>Client only: declare the local player's room to the host — once right after
+        /// join (the host builds the peer's body from this declaration) and again on every room
+        /// change. The check is id-change based, not transition-event based: every path that
+        /// flips <c>LandMap.currentRoom</c> (door, edge, Z layer, prob entry, restore) is covered
+        /// without subscribing to a scene singleton that dies on scene load.</summary>
+        private void PublishLocalRoomTransition()
+        {
+            RoomInstance room = CurrentRoomInstance();
+            string roomId = room != null && !string.IsNullOrEmpty(room.id) ? room.id : null;
+            if (roomId == null
+                || string.Equals(roomId, _declaredTransitionRoomId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            PlayerController player = SinglePlayerSlotContext.Current.GetPlayer(0);
+            if (player == null) return;
+
+            Vector2 worldPixels = WorldCoordinates.UnityToPixel(player.transform.position);
+            if (!_client.SendRoomTransition(roomId, worldPixels.x, worldPixels.y)) return;
+
+            _declaredTransitionRoomId = roomId;
+            _roomTransitionsSent++;
+        }
+
+        /// <summary>
+        /// Client: ease every display-only body toward its newest replicated sample once per render
+        /// frame. Snapshots arrive on the network's clock (ApplyState re-aims each body's buffer);
+        /// these transform writes happen on the display's clock — that separation is the whole
+        /// point of F-12's interpolation buffer. Simulated host bodies are skipped: they are
+        /// authority and their motor owns the transform every sim tick.
+        /// </summary>
+        private void TickDisplayBodyVisuals()
+        {
+            for (int i = 0; i < _bodies.Count; i++)
+            {
+                PfeRemoteBody body = _bodies[i];
+                if (body != null && !body.IsSimulated) body.TickVisual(Time.deltaTime);
             }
         }
 
@@ -547,6 +973,10 @@ namespace PFE.Net
             if (!_bodyBySlot.TryGetValue(slot, out body)) return;
 
             _bodyBySlot.Remove(slot);
+            // The peer's room declaration dies with the peer: a rejoin must not inherit a room
+            // from a previous session, and presence must drop the room on the next tick.
+            _peerRoomIds.Remove(slot);
+            _peerRoomWorldPx.Remove(slot);
             for (int i = _bodies.Count - 1; i >= 0; i--)
             {
                 if (_bodies[i] == body) _bodies.RemoveAt(i);
@@ -556,9 +986,9 @@ namespace PFE.Net
             _lastError = "removed body slot " + slot + " after disconnect";
         }
 
-        /// <summary>Client side: a stopped connection leaves every display body a statue. Destroy
-        /// them all and clear both indexes so the next accepted snapshot can rebuild the host
-        /// avatar. Also used by <c>OnDestroy</c> so bodies never outlive their session.</summary>
+        /// <summary>Client side: a stopped connection leaves every display body a statue and every
+        /// display round a frozen tracer. Destroy them all and clear both indexes so the next accepted
+        /// snapshot can rebuild. Also used by <c>OnDestroy</c> so views never outlive their session.</summary>
         private void RemoveAllBodies()
         {
             for (int i = 0; i < _bodies.Count; i++)
@@ -569,6 +999,9 @@ namespace PFE.Net
             _bodiesRemoved += _bodies.Count;
             _bodies.Clear();
             _bodyBySlot.Clear();
+            _peerRoomIds.Clear();
+            _peerRoomWorldPx.Clear();
+            if (_projectiles != null) _projectiles.Clear();
         }
 
         // ── Host world/campaign contract (P2) ───────────────────────────────────────────
@@ -604,15 +1037,43 @@ namespace PFE.Net
             string checkpointCode = hasCheckpoint
                 ? campaign.CurrentCheckpoint.Value.code ?? string.Empty : string.Empty;
 
+            // Land layout inputs — exactly what the procedural build read (MapBridge →
+            // WorldBuilder.BuildLand: state.landStage, state.visited, mbase_visited). Authored
+            // layouts ignore all three, so they publish the (0,false,false) sentinel and can never
+            // mismatch on a flag that did not shape their map.
+            int landStage = 0;
+            bool landVisited = false;
+            bool landMbaseVisited = false;
+            LandDefinition landDef = campaign != null && campaign.Catalog != null
+                ? campaign.Catalog.GetLand(landId) : null;
+            if (landDef != null && landDef.isProcedural)
+            {
+                LandRuntimeState landState = campaign.LandStates.Get(landId);
+                landStage = landState.landStage;
+                landVisited = landState.visited;
+                landMbaseVisited = campaign.GetTrigger("mbase_visited").IsGreaterThanZero();
+            }
+
+            // Protocol v2 does not ship the set. Both sides derive it from (world seed, landId,
+            // landStage), so the contract carries the seed — the CAUSE of any difference — and the
+            // fold of the set — the EFFECT. The fold still goes through NormalizeRoomKeys, so a
+            // re-ordered enumeration cannot move it and a duplicated key cannot cancel itself out.
+            ulong[] normalized = PfeWorldContractRules.NormalizeRoomKeys(keys.ToArray());
+
             return new PfeWorldContract
             {
                 Version = PfeWorldContractCodec.CurrentVersion,
-                RoomKeys = PfeWorldContractRules.NormalizeRoomKeys(keys.ToArray()),
+                WorldSeed = _worldSeed != null ? _worldSeed.Value : 0UL,
+                RoomCount = normalized.Length,
+                RoomSetHash = PfeWorldContractRules.RoomSetSignature(normalized),
                 LandId = landId,
                 MissionId = missionId,
                 HasCheckpoint = hasCheckpoint,
                 CheckpointCode = checkpointCode,
                 Difficulty = GlobalDifficulty.Value,
+                LandStage = landStage,
+                LandVisited = landVisited,
+                LandMbaseVisited = landMbaseVisited,
             };
         }
 
@@ -694,7 +1155,7 @@ namespace PFE.Net
 
         private static int RoomCount(PfeWorldContract contract)
         {
-            return contract != null && contract.RoomKeys != null ? contract.RoomKeys.Length : 0;
+            return contract != null ? contract.RoomCount : 0;
         }
 
         // ── FishNet callbacks ─────────────────────────────────────────────────────────────
@@ -815,13 +1276,25 @@ namespace PFE.Net
                     return;
                 }
 
-                _applier.RefreshRooms(map);
-                _applier.Apply(snapshot);
+                // Applying host state is a SnapshotApplication write, not client prediction: the guard
+                // tripwires (HostWriteGuard.CheckRestore) and any authority-derived reads have to see
+                // the mirrored context, or a client that mirrors host truth looks exactly like a client
+                // that originates it.
+                using (SimAuthorityContext.EnterSnapshotApplication())
+                {
+                    _applier.RefreshRooms(map);
+                    _applier.Apply(snapshot);
+                }
 
                 // The host's own player is the remote avatar here. Built lazily on the first accepted
                 // snapshot so the room and the definition are known to exist.
                 BuildBody(PfeRemoteBodyRules.HostSlot, simulated: false);
                 ApplyBodyStates(snapshot);
+
+                // Rounds, thrown objects and mines ride the same room deltas. The room gate inside
+                // is the same hash comparison the body pass uses: positions are host pixels, only
+                // meaningful in the room the record arrived in.
+                _projectiles.Apply(snapshot, CurrentRoomHash());
             }
             catch (Exception ex)
             {
@@ -877,6 +1350,9 @@ namespace PFE.Net
             // A stopped client has no host to replicate from: every display body would stand still
             // forever. Clearing both indexes lets the next accepted snapshot rebuild it lazily.
             RemoveAllBodies();
+
+            // The next host we connect to must receive our room again: it never saw the declaration.
+            _declaredTransitionRoomId = null;
 
             // The verdict belongs to the DEAD host. Keeping a WorldMismatch from it would block every
             // snapshot from the next host we connect to.
@@ -1149,6 +1625,14 @@ namespace PFE.Net
         {
             if (_loop != null) _loop.Unregister(this);
             RemoveAllBodies();
+            SimInteractCommandLatch.Reset();
+            // A client session that dies (return to title, process exit) leaves the process in the
+            // single-player default; the next game's GameLifetimeScope re-pushes Host at build, and
+            // this covers the gap before it.
+            if (_config != null && !_config.IsHost)
+            {
+                SimAuthorityContext.SetPeerRole(SimPeerRole.Host);
+            }
             if (_manager == null) return;
             if (_manager.ServerManager != null)
             {
@@ -1168,9 +1652,10 @@ namespace PFE.Net
         {
             if (_config == null || _config.Role == PfeNetRole.Off) return;
 
-            // Summary rows + three world-contract rows + three projection rows + one row per live
-            // body. A fixed box would clip the last body exactly when there are several peers.
-            float height = 286f + 54f + 54f + 60f + _bodies.Count * 18f;
+            // Summary rows + three world-contract rows + three projection rows + two transition
+            // rows + one projectile row + one row per live body. A fixed box would clip the last
+            // body exactly when there are several peers.
+            float height = 286f + 54f + 54f + 60f + 36f + 18f + 36f + 18f + _bodies.Count * 18f;
             GUI.Box(new Rect(8f, 8f, 460f, height), GUIContent.none);
             GUILayout.BeginArea(new Rect(18f, 14f, 440f, height - 14f));
             GUILayout.Label("<b>PFE replication</b>  ·  protocol v" +
@@ -1203,6 +1688,14 @@ namespace PFE.Net
                 "  id=" + (_projector != null ? _projector.IdentifiedUnitCount : 0) +
                 "  unattr=" + (_projector != null ? _projector.UnattributedUnitCount : 0) +
                 "  fault=" + CurrentProjectionFault());
+            // The projectile readbacks, one row: play-test #7's missing client rounds. captured names
+            // what left the host; skippedNoId names rounds the registry walk dropped as anonymous (a
+            // hash-0 record is malformed on arrival, so one is a round no client can ever draw);
+            // skippedNoRoom names rounds no active room claimed. Without these, "host says shots=3,
+            // client sees nothing" is undiagnosable from the panel.
+            GUILayout.Label("projCaptured=" + (_projector != null ? _projector.ProjectedProjectileCount : 0) +
+                "  projSkippedNoId=" + (_projector != null ? _projector.SkippedNoIdProjectileCount : 0) +
+                "  projSkippedNoRoom=" + (_projector != null ? _projector.UnattributedProjectileCount : 0));
 
             if (_wire != null)
                 GUILayout.Label("wire sent=" + _wire.SentCount + "  undelivered=" + _wire.UndeliveredCount +
@@ -1220,6 +1713,18 @@ namespace PFE.Net
                 GUILayout.Label("sink batches=" + _sink.AppliedBatches +
                     "  commands=" + _sink.AppliedCommands +
                     "  slots=" + _sink.KnownSlotCount);
+                // The loot-sync readbacks: a peer press the host declined is visible HERE, with the
+                // first broken link named, instead of reading as "the client pressed and nothing
+                // happened".
+                GUILayout.Label("interacts applied=" + (_interactSink != null ? _interactSink.AppliedOpens : 0) +
+                    "  refused=" + (_interactSink != null ? _interactSink.RefusedOpens : 0));
+                // The door-sync readbacks: a peer's door press the host declined is visible HERE, with
+                // the first broken link named, instead of reading as "the client pressed E and the
+                // door ignored her".
+                GUILayout.Label("doors applied=" + (_interactSink != null ? _interactSink.AppliedDoorToggles : 0) +
+                    "  refused=" + (_interactSink != null ? _interactSink.RefusedDoorToggles : 0));
+                GUILayout.Label("interactRefusal: " +
+                    (_interactSink != null ? _interactSink.LastRefusal : "no sink"));
             }
             else if (_client != null)
             {
@@ -1236,6 +1741,20 @@ namespace PFE.Net
                     "  unknownRoom=" + _applier.SkippedUnknownRoom +
                     "  rooms=" + _applier.KnownRoomCount +
                     "  badHash=0x" + _applier.LastUnknownRoomHash.ToString("X16"));
+                // The loot-sync readbacks: the client's half of "containers drop loot for both".
+                // spawned stays 0 after a host-opened chest means the drop set never landed here;
+                // unknownContent > 0 means the two builds carry different item tables.
+                GUILayout.Label("drops spawned=" + _applier.SpawnedReplicatedDrops +
+                    "  removed=" + _applier.RemovedReplicatedDrops +
+                    "  updated=" + _applier.UpdatedReplicatedDrops +
+                    "  unknownContent=" + _applier.SkippedUnknownDropContent +
+                    "  badSet=" + _applier.RefusedMalformedDropSets);
+                // The door-sync readbacks: a host-toggled door must move applied on every peer in the
+                // room; noPresenter>0 means the state landed on the record but the visuals were not
+                // built here (a presentation lag the next rebuild clears).
+                GUILayout.Label("doorStates applied=" + _applier.AppliedDoorStates +
+                    "  noPresenter=" + _applier.SkippedDoorNoPresenter +
+                    "  unknownObject=" + _applier.SkippedUnknownObject);
                 GUILayout.Label("rejects env=" + _client.RejectedEnvelopeCount +
                     "  snap=" + _client.RejectedSnapshotCount +
                     "  join=" + _client.LastJoinRejectReason);
@@ -1252,10 +1771,48 @@ namespace PFE.Net
                 if (body == null) continue;
                 GUILayout.Label("  slot " + body.Slot + (body.IsSimulated ? " sim" : " view") +
                     " cmd=" + body.AppliedCommands + " state=" + body.AppliedStates +
+                    " anim=" + body.AnimStatesApplied +
+                    (body.WeaponView != null
+                        ? " wpn=" + body.WeaponView.CurrentHash.ToString("X4") +
+                          " sprites=" + body.WeaponView.SpriteChanges
+                        : "") +
+                    (body.IsSimulated
+                        ? " mount=" + (body.IsWeaponArmed ? "armed" : "none") +
+                          " trig=" + (body.WeaponTriggerHeld ? "1" : "0") +
+                          " shots=" + body.WeaponShotsFired
+                        : "") +
                     " stale=" + body.SkippedStaleCommands +
                     " foreign=" + body.SkippedForeignStates);
             }
             GUILayout.Label("bodyError: " + _lastBodyError);
+
+            // The slice-3 readbacks: a firefight in view must move spawned/updated on the client,
+            // and a round that impacted on the host must move destroyed. stale>0 is expected under
+            // lossy delivery (out-of-order snapshots); live>0 long after the fight ended is a ghost.
+            if (_projectiles != null)
+            {
+                GUILayout.Label("projView spawned=" + _projectiles.Spawned +
+                    "  updated=" + _projectiles.Updated +
+                    "  destroyed=" + _projectiles.Destroyed +
+                    "  live=" + _projectiles.LiveCount +
+                    "  stale=" + _projectiles.RejectedStale +
+                    "  skipRoom=" + _projectiles.SkippedForeignRoom +
+                    "  skipRec=" + _projectiles.SkippedUndisplayable +
+                    "  noDef=" + _projectiles.UnresolvedDefinitions);
+            }
+
+            // The room-transition readbacks: sent>0 with applied=0 on the host names the broken
+            // link (receive, admission or room lookup) instead of "the peer moved and nothing
+            // followed". refused>0 means the Wave 2B bounds gate turned a declaration away — the
+            // named room was unknown or the arrival position sat outside that room's bounds, which
+            // is a world mismatch or a corrupted packet, not a lost one. transitionError names the
+            // exact reason and the offending coordinates.
+            GUILayout.Label("roomTx sent=" + _roomTransitionsSent +
+                "  applied=" + _roomTransitionsApplied +
+                "  relocated=" + _roomRelocations +
+                "  refused=" + _roomTransitionRefused +
+                "  unknownRoom=" + _roomTransitionUnknownRooms);
+            GUILayout.Label("transitionError: " + _lastTransitionError);
 
             // The contract is the only thing that can say "these two processes are in different
             // worlds". Wire and host counters stay healthy in exactly that case.

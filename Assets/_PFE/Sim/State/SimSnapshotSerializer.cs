@@ -12,9 +12,11 @@ namespace PFE.Sim.State
     /// <code>
     ///   [0..3]  magic "PFES"                  — not a snapshot at all if absent
     ///   [4..7]  uint   ProtocolVersion        — reject if != CurrentProtocolVersion
-    ///   [8..]   SimSnapshot body              — header scalars, per-room deltas, then the
-    ///                                          reliable tile-mutation journal (v4)
+    ///   [8..]   SimSnapshot body              — header scalars, per-room deltas (each ending with its
+    ///                                          opened-container set, v7), then the reliable
+    ///                                          tile-mutation journal (v4)
     /// </code>
+    ///
     /// The version is read <i>before</i> any body field, so an incompatible peer is rejected before a
     /// single record is interpreted (Remains <c>ProtocolAdmission</c>). The body is written by the
     /// records' own <c>WriteTo</c>/<c>ReadFrom</c> in declaration order — both ends must agree, which
@@ -65,8 +67,39 @@ namespace PFE.Sim.State
         /// and never send intent; worse, the host would have no way to tell "old build" from "idle
         /// player". Refusing the peer at the handshake is the only honest answer. The snapshot byte
         /// layout is deliberately unchanged, so no record codec was touched.</para>
+        ///
+        /// <para>v6 (2026-11-15): no snapshot field changed. The replication protocol gained the
+        /// client → host <c>PeerRoomTransition</c> kind: a peer's room change is a discontinuous
+        /// teleport that intent-carrying command batches cannot express, and without it the host
+        /// simulates the peer's body against the room it already left. A v5 host would count the
+        /// envelope as refused forever, so the handshake must reject before either side believes
+        /// it is in one session. The snapshot byte layout is deliberately unchanged.</para>
+        ///
+        /// <para>v7 (2026-11-15, containers): <c>SimRoomDelta</c> gained a trailing
+        /// <c>SimObjectState[] LootedObjects</c> — the authoritative opened-container set. A v6 reader
+        /// would finish <c>RemovedEntityHashes</c> and then read this set's length prefix as the
+        /// <b>next room's <c>RoomHash</c></b>, silently misaligning every following room and the tile
+        /// journal, so the version guard must reject before a single room is read. The command batch
+        /// payload also grew (an interact edge plus a <c>(roomHash, spawnIndex)</c> target), which is
+        /// another reason the handshake cannot admit a v6 peer.</para>
+        /// <para>v8 (2026-11-15, avatar): <c>SimUnitState</c> gained two trailing fields —
+        /// <c>WeaponIdHash</c> and <c>AimAngle</c> — so a v7 reader would finish
+        /// <c>PoseSequence</c> and read the <b>next unit's <c>EntityHash</c></b> (or the room
+        /// trailer) as avatar bytes, silently misaligning every following record. The command batch
+        /// payload grew the same commit (<c>PlayerCommand.WeaponIdHash</c>), which a v7 host would
+        /// re-frame as a second <c>TargetRoomHash</c>, so the handshake must reject before either
+        /// side believes it is in one session.</para>
+        ///
+        /// <para>v9 (2026-11-16, doors): <c>SimRoomDelta</c> gained a trailing
+        /// <c>SimDoorState[] DoorStates</c> — the authoritative open/closed set for every door box
+        /// in the room. A v8 reader would finish <c>LootedObjects</c> and read this set's length
+        /// prefix as the <b>next room's <c>RoomHash</c></b>, silently misaligning every following
+        /// room and the tile journal, so the version guard must reject before a single room is
+        /// read. Door state has no command-payload half — the interact edge that toggles a door
+        /// rides the v7 target fields verbatim — but the delta layout change alone forces the
+        /// bump.</para>
         /// </remarks>
-        public const uint CurrentProtocolVersion = 5;
+        public const uint CurrentProtocolVersion = 9;
 
         /// <summary>"PFES" — PFE Snapshot. Rejects a payload that is not a snapshot at all before the
         /// version is even read.</summary>

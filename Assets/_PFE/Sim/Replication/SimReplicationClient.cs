@@ -29,6 +29,7 @@ namespace PFE.Sim.Replication
         private SimSnapshotReceiver _receiver = new SimSnapshotReceiver();
 
         private uint _envelopeSequence;
+        private uint _commandEnvelopeSequence;
         private uint _hostEnvelopeSequence;
         private ulong _sessionId;
         private uint _peerId;
@@ -62,6 +63,8 @@ namespace PFE.Sim.Replication
         public int CommandsSent { get; private set; }
         public int RejectedCommandSendCount { get; private set; }
         public int LastCommandBatchSize { get; private set; }
+        public int RoomTransitionsSent { get; private set; }
+        public int RejectedRoomTransitionSendCount { get; private set; }
 
         public void Join(SimPeerInterest interest)
         {
@@ -102,10 +105,11 @@ namespace PFE.Sim.Replication
         /// so re-stamping does not change what the player asked to do. The local tape is left
         /// untouched — local prediction still uses the local slot.</para>
         ///
-        /// <para><b>One ordered channel.</b> Command batches use the same client envelope counter as
-        /// acks and interest updates. The view adapter must therefore carry all client → host
-        /// envelopes on one reliable ordered channel; mixing a separately ordered unreliable channel
-        /// into this counter would let a fast command packet mark a slower ack stale.</para>
+        /// <para><b>A channel of its own.</b> Command batches ride a separate unreliable channel with a
+        /// dedicated <c>_commandEnvelopeSequence</c>, exactly as the FishNet wire sends them: the
+        /// redundant window repairs a lost batch at the app layer, so a fast batch must never
+        /// advance the reliable counter and mark a slower SnapshotAck or PeerRoomTransition
+        /// stale.</para>
         /// </summary>
         public bool SendCommands(PlayerCommandBuffer buffer, int windowSize)
         {
@@ -156,6 +160,52 @@ namespace PFE.Sim.Replication
             CommandBatchesSent++;
             CommandsSent += take;
             LastCommandBatchSize = take;
+            return true;
+        }
+
+        /// <summary>
+        /// Tell the host the local player crossed into another room. A room change is a
+        /// discontinuous teleport the command stream cannot express: the host simulates this
+        /// player's body, and without the message the body keeps walking against the room we
+        /// already left, which reads on both screens as a position desync.
+        ///
+        /// <para><b>Why a declaration, not just movement news.</b> The host also uses the first
+        /// transition after join to place the peer's body: before it arrives the only room the
+        /// host has seen is its own, and a body built there is a body in the wrong room. The view
+        /// layer therefore sends one transition right after joining even when the player stands
+        /// still.</para>
+        ///
+        /// <para><b>Reliable channel only.</b> Transitions share the client envelope counter with acks
+        /// and interest updates; command batches have their own unreliable counter (see
+        /// <see cref="SendCommands"/>), so a fast batch can neither overtake nor age out this
+        /// declaration.</para>
+        /// </summary>
+        /// <param name="roomId">The entered room's own id — the same string the projector hashes
+        /// into <c>RoomHash</c>.</param>
+        /// <param name="worldPixelX">Arrival position in world pixels, the one coordinate space
+        /// both processes agree on verbatim.</param>
+        public bool SendRoomTransition(string roomId, float worldPixelX, float worldPixelY)
+        {
+            if (!_isJoined || string.IsNullOrEmpty(roomId)
+                || roomId.Length > SimPeerRoomTransition.MaxRoomIdLength
+                || float.IsNaN(worldPixelX) || float.IsInfinity(worldPixelX)
+                || float.IsNaN(worldPixelY) || float.IsInfinity(worldPixelY))
+            {
+                RejectedRoomTransitionSendCount++;
+                return false;
+            }
+
+            SendClient(SimReplicationMessageKind.PeerRoomTransition, _sessionId, _peerId,
+                SimReplicationPayloadSerializer.Serialize(new SimPeerRoomTransition
+                {
+                    SessionId = _sessionId,
+                    PeerId = _peerId,
+                    RoomId = roomId,
+                    WorldPixelX = worldPixelX,
+                    WorldPixelY = worldPixelY,
+                }));
+
+            RoomTransitionsSent++;
             return true;
         }
 
@@ -354,14 +404,29 @@ namespace PFE.Sim.Replication
 
         private void SendClient(SimReplicationMessageKind kind, ulong sessionId, uint peerId, byte[] payload)
         {
-            _envelopeSequence = SimReplicationProtocolRules.NextEnvelopeSequence(_envelopeSequence);
+            // PlayerCommandBatch is the only client envelope on the unreliable channel; it gets its
+            // own counter so it can never advance the reliable high-water mark the host keeps for
+            // acks, interest and transitions.
+            uint seq;
+            if (kind == SimReplicationMessageKind.PlayerCommandBatch)
+            {
+                _commandEnvelopeSequence =
+                    SimReplicationProtocolRules.NextEnvelopeSequence(_commandEnvelopeSequence);
+                seq = _commandEnvelopeSequence;
+            }
+            else
+            {
+                _envelopeSequence = SimReplicationProtocolRules.NextEnvelopeSequence(_envelopeSequence);
+                seq = _envelopeSequence;
+            }
+
             _wire.Send(new SimReplicationEnvelope
             {
                 ProtocolVersion = SimReplicationProtocolRules.CurrentProtocolVersion,
                 SessionId = sessionId,
                 PeerId = peerId,
                 Kind = kind,
-                Sequence = _envelopeSequence,
+                Sequence = seq,
                 Payload = payload,
             });
         }

@@ -104,6 +104,30 @@ namespace PFE.Tests.Editor.Core
         }
 
         [Test]
+        public void ActivateRoom_KeepsRoomsThatStillHaveConnectedPlayers()
+        {
+            // Co-op: the local player's transition must not evict a room a peer still occupies,
+            // otherwise the host's projector drops the peer's room delta and the peer vanishes
+            // from every snapshot. Presence is written by ApplyRoomPresence; the legacy sweep
+            // only has to respect it.
+            string body = SourceLint.MethodBody(
+                Manager(), "public void ActivateRoom(RoomInstance newRoom, RoomInstance oldRoom = null)");
+
+            Assert.That(body, Does.Contain("ReleaseSinglePlayerPresence(oldRoom);"),
+                "the local player leaving oldRoom must drop only THEIR occupancy");
+            Assert.That(body, Does.Contain("if (room != newRoom && !HasPresence(room)) toDrop.Add(room);"),
+                "the sweep must skip rooms whose presence count says someone still stands in them");
+
+            string release = SourceLint.MethodBody(Manager(), "private void ReleaseSinglePlayerPresence(RoomInstance room)");
+            Assert.That(release, Does.Contain("_connectedPlayers[room] = count - 1;"),
+                "a peer still in the room keeps the count above zero");
+
+            string buffer = SourceLint.MethodBody(Manager(), "private void UpdatePreviousRoomBuffer()");
+            Assert.That(buffer, Does.Contain("HasPresence(previousRoom)"),
+                "the previous-room buffer must not deactivate a room another player still occupies");
+        }
+
+        [Test]
         public void ApplyRoomPresence_UsesTheRules_AndDeactivatesBeforeActivating()
         {
             string body = SourceLint.MethodBody(
@@ -119,6 +143,36 @@ namespace PFE.Tests.Editor.Core
             Assert.That(drop, Is.GreaterThanOrEqualTo(0));
             Assert.That(add, Is.GreaterThan(drop),
                 "geometry must be released before it is built, or one room ends up with two chain sets");
+        }
+
+        [Test]
+        public void NonPresentationActivation_NeverTouchesThePresentationLayer()
+        {
+            // Play-test #7 bug 3: when the client enters another room, ApplyRoomPresence activates
+            // that room on the host SOLELY to simulate and collide it. One write of
+            // _presentationRoom (or one visual rebuild) on that path and the host's own room is
+            // torn down around the host player — the blue void. Simulation activation must stay
+            // presentation-invisible.
+            string source = Manager();
+
+            string setActive = SourceLint.MethodBody(source, "private void SetActiveInternal(RoomInstance room)");
+            Assert.That(setActive, Does.Not.Contain("_presentationRoom"),
+                "SetActiveInternal is the presence-driven activation path: one write of " +
+                "_presentationRoom here and a peer's room becomes THIS machine's camera room.");
+            Assert.That(setActive, Does.Contain("OnRoomActivated?.Invoke(room);"),
+                "The simulation-side subscribers (PhysicsWorldService chain geometry) must still " +
+                "fire — activation is invisible to presentation, not to physics.");
+
+            string apply = SourceLint.MethodBody(
+                source, "IReadOnlyDictionary<RoomInstance, int> connectedPlayers,");
+            Assert.That(apply, Does.Not.Contain("ActivateRoomInternal"),
+                "ApplyRoomPresence must route through SetActiveInternal only; ActivateRoomInternal " +
+                "is the single-player driver whose whole job is moving the camera room.");
+            Assert.That(apply, Does.Not.Contain("RoomVisualController"),
+                "Activating a room for simulation must never reach the visual controller — the " +
+                "single visual tilemap follows the local player's room alone.");
+            Assert.That(apply, Does.Not.Contain(".Initialize("),
+                "No visual (re)initialisation may hide inside the presence pass.");
         }
 
         [Test]

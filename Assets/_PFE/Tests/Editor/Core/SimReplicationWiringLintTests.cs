@@ -414,5 +414,118 @@ namespace PFE.Tests.Editor.Core
                 "Both transient kinds resolve against the WEAPON table — a throwable's art is the "
                 + "weapon's own (WThrow.as:38 vBullet = vWeapon), and a mine is placed by a weapon.");
         }
+
+        // ── Play-test #7 bug 1: records froze at the spawn point / world origin ─────────────
+
+        /// <summary>
+        /// Play-test #7: on the client every projectile clustered in the bottom-left. The cause is
+        /// a wiring fact no behavioural fixture can see: <c>CaptureSimState</c> read
+        /// <c>_simPosition</c>, which is only integrated while the low-level flip is active. On the
+        /// legacy (default) path <c>FixedUpdate</c> moves <c>transform.position</c> and the sim
+        /// field stays at the spawn point — or at (0,0) when the spawn bypassed
+        /// <c>PrepareForSpawn</c> — so every record reported the same frozen point forever.
+        /// </summary>
+        [Test]
+        public void ProjectileCaptureReportsTheDrawnPositionOnBothIntegrationPaths()
+        {
+            string capture = SourceLint.MethodBody(Read(ProjectilePath),
+                "public SimProjectileState CaptureSimState(uint sequence)");
+
+            AssertContains(capture, "Vector2 posUnits = DrawnPosition;",
+                "DrawnPosition is the authority on both paths: _simPosition while the sim owns the "
+                + "flight, transform.position on the legacy path. Capturing anything else re-freezes "
+                + "every legacy-path record at the spawn point.");
+            AssertContains(capture, "Px = posUnits.x * toPixels,",
+                "Pin the exact expression: a loose check that a comment mentions DrawnPosition would "
+                + "pass while the record still reads the frozen field.");
+            Assert.That(capture, Does.Not.Contain("_simPosition"),
+                "Absent control: the raw sim field must not appear in the capture at all — any read "
+                + "of it is a frozen position on one of the two integration paths.");
+
+            // Parity pins: ThrownObject's legacy branch already reports the live transform, and the
+            // receiver places records by writing transform.position from world pixels. A future edit
+            // that re-anchors any of the three to a room-local frame re-opens the same bug.
+            string thrown = SourceLint.MethodBody(Read(ThrownObjectPath),
+                "public SimProjectileState CaptureSimState(uint sequence)");
+            AssertContains(thrown, "(Vector2)transform.position * toPixels",
+                "ThrownObject's legacy branch is the reference behaviour: the live transform, not a "
+                + "stored field. Projectile's capture must stay in the same frame.");
+
+            string viewPath = System.IO.Path.Combine(
+                SourceLint.ProjectRoot(), "Assets", "PfeNet", "PfeRemoteProjectileView.cs");
+            string view = SourceLint.StripCommentsAndStrings(System.IO.File.ReadAllText(viewPath));
+            Assert.That(view, Does.Not.Contain("///"),
+                "The stripper did not strip; every assertion below could be satisfied by a comment.");
+            string tickVisual = SourceLint.MethodBody(view, "private void TickVisual(float dt)");
+            AssertContains(tickVisual, "transform.position = WorldCoordinates.PixelToUnity(new Vector2(px, py));",
+                "The receiver writes world units from world pixels; the capture must stay in world "
+                + "pixels or every client-side view lands offset by the room origin.");
+        }
+
+        /// <summary>
+        /// The second half of the play-test #7 failure: a spawn that positioned the transform
+        /// directly, without <c>PrepareForSpawn</c>, was snapped back to (0,0,0) by Initialize —
+        /// because <c>ResetProjectile</c> parks <c>_spawnPosition</c> at Vector3.zero and the pose
+        /// reassert trusted it. The guard adopts an on-stage transform as the spawn pose.
+        /// </summary>
+        [Test]
+        public void ProjectileInitializeAdoptsAnOnStageTransformWhenNoSpawnPoseWasStaged()
+        {
+            string init = SourceLint.MethodBody(Read(ProjectilePath),
+                "public void Initialize(float damage, float speed, Vector2 direction,");
+
+            AssertContains(init, "_spawnPosition == Vector3.zero",
+                "The guard must key on the unstaged pose; without it every legitimate "
+                + "PrepareForSpawn at the world origin would be overwritten by the transform.");
+            AssertContains(init, "(Vector2)transform.position != PoolParkingPosition",
+                "A parked instance has no spawn pose: adopting the pool slot would spawn rounds at "
+                + "the parking position, far from any map.");
+            AssertContains(init, "_spawnPosition = transform.position;",
+                "The adoption must write the spawn pose the reassert below consumes — the transform "
+                + "AND the rigidbody both snap to _spawnPosition.");
+            Assert.That(init.IndexOf("_spawnPosition = transform.position;", System.StringComparison.Ordinal),
+                Is.LessThan(init.IndexOf("transform.position = _spawnPosition;", System.StringComparison.Ordinal)),
+                "Order matters: the adoption must run BEFORE the reassert, or the reassert still "
+                + "snaps the body back to (0,0,0).");
+        }
+
+        // ── Play-test #7 bug 2: dropped rounds were silent on the host ──────────────────────
+
+        /// <summary>
+        /// The host overlay confirmed the client's fire executed (<c>shots=3</c>) while the client
+        /// never drew a round, and the projector offered no readback that separated "captured" from
+        /// "dropped". A transient the registry walk skips for a missing/invalid id is malformed on
+        /// arrival anyway (<c>PfeRemoteProjectileRules.IsDisplayableRecord</c> refuses hash 0), so
+        /// it can never draw on any client — which is exactly why it must be counted, not ignored.
+        /// </summary>
+        [Test]
+        public void ProjectorCountsTransientsDroppedForNoIdInsteadOfSkippingSilently()
+        {
+            string projector = Read(ProjectorPath);
+
+            AssertContains(projector,
+                "public int SkippedNoIdProjectileCount => _lastSkippedNoIdProjectileCount;",
+                "The readback must be exposed on the projector: an anonymous round is invisible on "
+                + "every client, so the host must be able to see it was dropped.");
+
+            string collect = SourceLint.MethodBody(projector, "private void CollectProjectiles()");
+            AssertContains(collect, "!entry.Key.IsValid || transient.SimEntityHash == 0UL",
+                "The drop condition must cover the registry key AND the component's own hash — the "
+                + "receiver-side gate drops EntityHash == 0 as malformed, so a valid key over a "
+                + "cleared component id is still an undrawable round.");
+            AssertContains(collect, "_lastSkippedNoIdProjectileCount++;",
+                "Pin the increment: the walk must count the drop rather than silently continue.");
+            Assert.That(
+                collect.IndexOf("_lastSkippedNoIdProjectileCount++;", System.StringComparison.Ordinal),
+                Is.Not.EqualTo(-1).And.LessThan(
+                    collect.IndexOf("_projectiles.Add(transient);", System.StringComparison.Ordinal)),
+                "The count must sit on the skip path BEFORE the live list takes the record, or a "
+                + "counted round would also be projected.");
+
+            string tick = SourceLint.MethodBody(projector, "public void SimTick(int tickIndex)");
+            AssertContains(tick, "_lastSkippedNoIdProjectileCount = 0;",
+                "The counter is a per-tick readback: without the reset a transient spike lives "
+                + "forever and the row stops meaning anything.");
+        }
     }
 }

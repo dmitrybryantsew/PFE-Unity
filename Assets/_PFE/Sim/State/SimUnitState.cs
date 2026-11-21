@@ -165,18 +165,41 @@ namespace PFE.Sim.State
         [SimReconcile(SimReconcileRule.Snap)]
         public bool AmbushArmed;
 
-        // ── Pose (AS3 frame-driven; separated from motion per F-12) ─────────────
-        /// <summary>The animation pose (AS3 <c>pose</c>) as a content id. Pose is replicated
-        /// separately from motion so a naive transform lerp cannot desync animation from terrain.</summary>
+        // ── Avatar view state (animation / aim / weapon; separated from motion per F-12) ──
+        /// <summary>The body animation state as a compiled-in id from the view-layer
+        /// <c>RemoteAnimStateIds</c> table (the <c>CharacterAnimationDriver</c> state-name vocabulary).
+        /// Replicated separately from motion so a naive transform lerp cannot desync animation from
+        /// terrain. <c>RemoteAnimStateIds.Unknown</c> (255) means "the host's state has no agreed id";
+        /// the receiver keeps its current state rather than guessing.</summary>
         [SimReconcile(SimReconcileRule.HoldPhase)]
         public byte PoseId;
-        /// <summary>Frame within the pose, advancing at the AS3 frame rate.</summary>
+        /// <summary>Frame within the animation state, sampled at the snapshot cadence.</summary>
         [SimReconcile(SimReconcileRule.HoldPhase)]
         public ushort PoseFrame;
         /// <summary>Wrap-safe pose sequence, so a stale pose packet is rejected (Remains
         /// <c>poseSequence</c>).</summary>
         [SimReconcile(SimReconcileRule.RejectIfStale)]
         public uint PoseSequence;
+
+        /// <summary>
+        /// The equipped weapon's content id as <c>SimSnapshotProjectionRules.LootItemKey(id, true)</c>
+        /// (FNV-1a 64 of <c>"weapon:" + weaponId</c>) — the same hash
+        /// <see cref="SimDroppedItem"/> uses, so a held weapon and its dropped twin speak one id
+        /// language. Zero means "nothing equipped" (unarmed). The owning machine is the only
+        /// authority on what is in hand: it flows player→host inside <c>PlayerCommand.WeaponIdHash</c>
+        /// and host→client on this field.
+        /// </summary>
+        [SimReconcile(SimReconcileRule.Snap)]
+        public ulong WeaponIdHash;
+
+        /// <summary>
+        /// Aim facing in degrees, the <c>PlayerCommand.AimAngle</c> convention: world-space
+        /// <c>atan2(dir.y, dir.x)</c>, −90 = straight up, 0 = +X, +90 = straight down. The view
+        /// consumes it directly (weapon barrel rotation, the standing-aim frame sub-range), so it
+        /// interpolates like a position rather than snapping like a flag.
+        /// </summary>
+        [SimReconcile(SimReconcileRule.Interpolate)]
+        public float AimAngle;
 
         // ── Wire serialization (Phase 1.4) ────────────────────────────────────
 
@@ -204,6 +227,8 @@ namespace PFE.Sim.State
             writer.Write(PoseId);
             writer.Write(PoseFrame);
             writer.Write(PoseSequence);
+            writer.Write(WeaponIdHash);
+            writer.Write(AimAngle);
         }
 
         /// <summary>Reads one record from <paramref name="reader"/> in the same order
@@ -234,6 +259,8 @@ namespace PFE.Sim.State
                 PoseId = reader.ReadByte(),
                 PoseFrame = reader.ReadUInt16(),
                 PoseSequence = reader.ReadUInt32(),
+                WeaponIdHash = reader.ReadUInt64(),
+                AimAngle = reader.ReadSingle(),
             };
         }
 
@@ -264,7 +291,9 @@ namespace PFE.Sim.State
                 && AmbushArmed == other.AmbushArmed
                 && PoseId == other.PoseId
                 && PoseFrame == other.PoseFrame
-                && PoseSequence == other.PoseSequence;
+                && PoseSequence == other.PoseSequence
+                && WeaponIdHash == other.WeaponIdHash
+                && AimAngle.Equals(other.AimAngle);
         }
 
         public override readonly bool Equals(object obj) => obj is SimUnitState other && Equals(other);
@@ -302,6 +331,8 @@ namespace PFE.Sim.State
                 hash = (hash * 397) ^ PoseId.GetHashCode();
                 hash = (hash * 397) ^ PoseFrame.GetHashCode();
                 hash = (hash * 397) ^ (int)PoseSequence;
+                hash = (hash * 397) ^ WeaponIdHash.GetHashCode();
+                hash = (hash * 397) ^ AimAngle.GetHashCode();
                 return hash;
             }
         }

@@ -31,6 +31,7 @@ namespace PFE.Tests.Editor.Core
         private const string UnitController = "Entities/Units/UnitController.cs";
         private const string PlayerController = "Entities/Player/PlayerController.cs";
         private const string TilePhysicsController = "Systems/Physics/TilePhysicsController.cs";
+        private const string UnitSpawnerFile = "Systems/Map/Rendering/RoomUnitSpawner.cs";
         private const string GuardFile = "Core/SimAuthorityContext.cs";
         private const string LoopFile = "Core/SimLoop.cs";
         private const string ScopeFile = "Core/Installers/GameLifetimeScope.cs";
@@ -114,6 +115,35 @@ namespace PFE.Tests.Editor.Core
                 Assert.That(body, Does.Not.Contain("HostWriteGuard.Check(SimAuthority.Authoritative)"),
                     signature + " must not be classified as an originating write.");
             }
+        }
+
+        [Test]
+        public void UnitSpawn_DeterministicBuild_IsScopedAsHostClassConstruction()
+        {
+            // The 2026-11-15 two-process play-test: a client boot died inside MapBridge's boot
+            // coroutine at the first ApplyPlacement ([Authoritative] write) — a client process's
+            // ambient context is ClientPrediction, which HostWriteGuard reads as "originating" —
+            // leaving the peer's player unplaced, no RoomStreamingManager and zero NPCs while every
+            // wire counter stayed green. Phase D makes the build a pure function of the shared
+            // seed, so the spawn path must declare itself host-class deterministic construction
+            // (the "load/Awake" class, see SimAuthorityContext).
+            const string scope = "using (SimAuthorityContext.EnterSimulation(SimLoopRole.Host))";
+            string body = SourceLint.MethodBody(
+                SourceLint.ReadStripped(UnitSpawnerFile), "public void RefreshAll()");
+
+            Assert.That(body, Does.Contain(scope),
+                "RoomUnitSpawner.RefreshAll must scope the deterministic unit build in " + scope +
+                " or a client process trips HostWriteGuard at the first unit and the boot coroutine " +
+                "dies halfway (player unplaced, no streaming manager, no NPCs).");
+            Assert.That(
+                body.IndexOf("_spawned[unit] = Spawn(unit)", StringComparison.Ordinal),
+                Is.GreaterThan(body.IndexOf(scope, StringComparison.Ordinal)),
+                "the scope must wrap the spawn loop, not sit after it");
+
+            // Mutation control: the predicate must be able to go false, or a green lint means
+            // nothing.
+            Assert.IsFalse(body.Replace(scope, "").Contains(scope),
+                "Mutation control failed: the scope predicate cannot go false.");
         }
 
         [Test]

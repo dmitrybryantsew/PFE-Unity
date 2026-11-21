@@ -21,6 +21,15 @@ namespace PFE.Sim.Replication
         /// the same session.
         /// </summary>
         PlayerCommandBatch = 8,
+        /// <summary>
+        /// Client → host: the local player crossed into another room (door, edge, Z layer or prob
+        /// entry). The host simulates the peer's body, and a room change is a discontinuous
+        /// teleport the command stream cannot express — intents alone would leave the host body
+        /// walking against the old room's wall forever. Carries the target room id and the
+        /// arrival position in world pixels so both sides place the body at the same spot.
+        /// Admitted on the same ordered per-peer channel as acks, interest and commands.
+        /// </summary>
+        PeerRoomTransition = 9,
     }
 
     /// <summary>Why a join was refused. There is deliberately no "accepted anyway" member.</summary>
@@ -241,15 +250,32 @@ namespace PFE.Sim.Replication
     /// </summary>
     public static class SimReplicationEnvelopeSerializer
     {
+        // Per-thread reusable writer state: Serialize is called on the outgoing packet path many
+        // times per second, and allocating a fresh MemoryStream + BinaryWriter per call was a steady
+        // source of GC pressure. [ThreadStatic] keeps the pooled instances thread-confined without
+        // any lock; the writers are never disposed, only rewound.
+        [ThreadStatic]
+        private static MemoryStream _serializeStream;
+
+        [ThreadStatic]
+        private static BinaryWriter _serializeWriter;
+
         public static byte[] Serialize(in SimReplicationEnvelope envelope)
         {
-            using (var stream = new MemoryStream())
-            using (var writer = new BinaryWriter(stream))
+            MemoryStream stream = _serializeStream;
+            if (stream == null)
             {
-                envelope.WriteTo(writer);
-                writer.Flush();
-                return stream.ToArray();
+                stream = new MemoryStream();
+                _serializeStream = stream;
+                _serializeWriter = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
             }
+            BinaryWriter writer = _serializeWriter;
+
+            stream.Position = 0;
+            stream.SetLength(0);
+            envelope.WriteTo(writer);
+            writer.Flush();
+            return stream.ToArray();
         }
 
         public static SimReplicationEnvelope Deserialize(byte[] bytes)

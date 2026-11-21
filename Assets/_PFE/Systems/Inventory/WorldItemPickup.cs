@@ -159,6 +159,20 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public bool AutoCollect { get; private set; }
 
+        /// <summary>
+        /// Whether this view was spawned by the snapshot applier from a host record
+        /// (<c>SimRoomDelta.DroppedItems</c>), rather than by a local drop. Replicated views are
+        /// <b>display-only on a network client</b>: floor loot is host-authoritative, and a client that
+        /// collected one locally would add it to its own bag while the host kept the record — the item
+        /// would reappear on the next snapshot and exist in two places at once. Until the take-request
+        /// command exists, collection is the host player's job; see the slice-1 loot-sync note.
+        ///
+        /// <para>Both the cursor path (<see cref="CanInteract"/>) and the walk-over path
+        /// (<c>PlayerAutoPickup</c>) refuse a replicated view, so the flag cannot be bypassed by
+        /// "clicking harder".</para>
+        /// </summary>
+        public bool Replicated { get; private set; }
+
         /// <summary>Where it landed, for the overlay's list.</summary>
         public Vector2 Position => transform.position;
 
@@ -441,7 +455,15 @@ namespace PFE.Systems.Inventory
         /// <c>Item.as:460</c>), and a pickup that silently refuses to be picked up is worse than one
         /// that is picked up and over-encumbers.
         /// </summary>
-        public bool CanInteract(GameObject user) => user != null;
+        /// <summary>
+        /// Whether the cursor may select this pickup — the reach test itself lives in the player's
+        /// probe (<c>PlayerController.FindCursorTarget</c>). A <see cref="Replicated"/> view is refused
+        /// outright: it stands for the host's record, and taking it locally would put the item in a
+        /// local bag while the host kept the world copy, so the stack would reappear on the next
+        /// snapshot. Host-side views are never marked replicated, so single-player and the host are
+        /// untouched.
+        /// </summary>
+        public bool CanInteract(GameObject user) => !Replicated && user != null;
 
         /// <summary>
         /// Move this stack into the interacting player's inventory. The object is destroyed only if the
@@ -685,7 +707,8 @@ namespace PFE.Systems.Inventory
                                                  int variant, float condition,
                                                  bool jump, RoomInstance room, string fallSoundId,
                                                  DroppedItemInstance existingRecord = null,
-                                                 bool settled = false)
+                                                 bool settled = false,
+                                                 bool replicated = false)
         {
             var go = new GameObject($"Loot_{id}_{quantity}");
             go.transform.position = position;
@@ -698,6 +721,7 @@ namespace PFE.Systems.Inventory
             pickup.AutoCollect = autoCollect;
             pickup.Variant = variant;
             pickup.Condition = Mathf.Clamp01(condition);
+            pickup.Replicated = replicated;
 
             // A trigger, so loot never blocks movement. AS3's Loot is a world object with no collision
             // against the unit either — it is taken, not bumped into.
@@ -917,9 +941,14 @@ namespace PFE.Systems.Inventory
 
         /// <summary>
         /// Build a view for every record on <paramref name="room"/> that does not already have one.
-        /// Called by <c>RoomVisualController.Initialize</c>, after the props and units are up.
+        /// Called by <c>RoomVisualController.Initialize</c>, after the props and units are up, and by
+        /// the network applier when a replicated drop arrives.
         /// </summary>
         /// <returns>How many pickups were rebuilt.</returns>
+        /// <param name="replicatedViews">Mark the built views <see cref="Replicated"/>. Only the
+        /// snapshot applier passes true: a save/room rebuild constructs LOCAL truth, whereas an applier
+        /// build constructs a mirror of the host's record, which must not be collectable or magnetised
+        /// on this machine.</param>
         /// <remarks>
         /// <para><b>The already-live check is not defensive, it is required.</b> <c>Initialize</c> also
         /// runs when a save is applied to the room the player is standing in, and a pickup dropped in
@@ -931,7 +960,7 @@ namespace PFE.Systems.Inventory
         /// exists. Deleting the record in that window would destroy a save's loot because of a load
         /// order. The record stays on the room and is retried on the next build.</para>
         /// </remarks>
-        public static int RestoreForRoom(RoomInstance room)
+        public static int RestoreForRoom(RoomInstance room, bool replicatedViews = false)
         {
             if (room?.droppedItems == null || room.droppedItems.Count == 0)
             {
@@ -968,7 +997,8 @@ namespace PFE.Systems.Inventory
                                   itemDefinition: null, weaponDefinition: weapon,
                                   variant: record.variant, condition: record.condition,
                                   jump: false, room: room, fallSoundId: null,
-                                  existingRecord: record, settled: true) != null)
+                                  existingRecord: record, settled: true,
+                                  replicated: replicatedViews) != null)
                     {
                         restored++;
                     }
@@ -987,7 +1017,8 @@ namespace PFE.Systems.Inventory
                               itemDefinition: item, weaponDefinition: null,
                               variant: 0, condition: 1f,
                               jump: false, room: room, fallSoundId: null,
-                              existingRecord: record, settled: true) != null)
+                              existingRecord: record, settled: true,
+                              replicated: replicatedViews) != null)
                 {
                     restored++;
                 }
@@ -998,16 +1029,47 @@ namespace PFE.Systems.Inventory
 
         private static bool HasLiveView(DroppedItemInstance record)
         {
+            return FindView(record) != null;
+        }
+
+        /// <summary>The live view standing over <paramref name="record"/>, or false. The network
+        /// applier's handle for moving or despawning a mirror it did not build; a record may have no
+        /// view (content that has not resolved yet), which is a state, not an error.</summary>
+        public static bool TryGetLiveView(DroppedItemInstance record, out WorldItemPickup pickup)
+        {
+            pickup = FindView(record);
+            return pickup != null;
+        }
+
+        private static WorldItemPickup FindView(DroppedItemInstance record)
+        {
             for (int i = 0; i < Live.Count; i++)
             {
                 WorldItemPickup pickup = Live[i];
                 if (pickup != null && ReferenceEquals(pickup.Record, record))
                 {
-                    return true;
+                    return pickup;
                 }
             }
+            return null;
+        }
 
-            return false;
+        /// <summary>
+        /// The applier's direction of the same hand-off <see cref="SyncRecordPosition"/> runs every
+        /// frame: the snapshot said the host's copy of this record moved (a fall in progress, a magnet
+        /// on the host), so the MIRROR view has to follow. Snapped, not interpolated — the host's
+        /// per-snapshot positions are the only truth this machine has.
+        /// </summary>
+        /// <remarks>Only the network applier calls this. A locally dropped pickup owns its position and
+        /// never reads it back from the record.</remarks>
+        public void SyncViewToRecord(RoomInstance room)
+        {
+            if (Record == null || room == null)
+            {
+                return;
+            }
+
+            transform.position = FromRoomLocal(room, Record.position);
         }
 
         // ── Falling ──────────────────────────────────────────────────────────
@@ -1418,6 +1480,12 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public void MagnetToward(Vector2 target)
         {
+            // A replicated view is dragged by the wire, not by local magnets: the host owns the record
+            // position, and a client-side magnet would visually rip the item away from where the host
+            // still reports it. PlayerAutoPickup does not offer replicated views at all; this guard is
+            // the backstop for every other magnet caller (telekinesis-adjacent paths).
+            if (Replicated) return;
+
             // AS3 `Loot.take()` clears `levitPoss` as it magnetises (`Loot.as:316`), which is what makes
             // the caster's hold tick release it (`UnitPlayer.as:1274`). Reproduced rather than special-
             // cased: the two mechanisms would otherwise fight for the position and the pickup would

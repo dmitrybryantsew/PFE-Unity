@@ -293,13 +293,16 @@ namespace PFE.Tests.EditMode.UI
             Assert.That(ItemPickupFeedback.ResolveWeaponMessKey(string.Empty, null), Is.Null);
             Assert.That(ItemPickupFeedback.ResolveWeaponMessKey(string.Empty, string.Empty), Is.Null);
 
-            // A non-empty id with no field DOES reach the mirror, so it must be given a real id only.
-            // The two resolvers read different tables and must not be interchangeable: `screwdriver`
-            // is an `<item>` row and not a `<weapon>` row, which is the control
-            // `WeaponRowMess_ReadsTheWeaponTableAndNotTheItemTable` pins against the shipped file.
-            Assert.That(ItemPickupFeedback.ResolveItemMessKey("screwdriver", null), Is.Null,
-                "Offline there is no Resources system, so the mirror read yields nothing. The point of " +
-                "this line is that the method does not THROW and does not invent a key.");
+            // A non-empty id with no field DOES reach the mirror. Offline the Resources load fails
+            // silently and the read yields null; in the editor AllData.txt resolves and the row's real
+            // @mess value comes back. The contract in both environments is the same: the method does
+            // not THROW and does not INVENT a key — anything that is neither null nor the row's actual
+            // @mess value is a bug. The two resolvers read different tables and must not be
+            // interchangeable: `screwdriver` is an `<item>` row and not a `<weapon>` row, which is
+            // the control `WeaponRowMess_ReadsTheWeaponTableAndNotTheItemTable` pins against the
+            // shipped file.
+            Assert.That(ItemPickupFeedback.ResolveItemMessKey("screwdriver", null),
+                Is.Null.Or.EqualTo("screwdriver"));
         }
 
         // ── The shipped document ──────────────────────────────────────────────
@@ -371,19 +374,19 @@ namespace PFE.Tests.EditMode.UI
         }
 
         [Test]
-        public void Shipped_MessKeysAreMissingTextMoreOftenThanNot()
+        public void Shipped_MessKeysMostlyHaveTextNow()
         {
-            // The measurement the popup's latch placement rests on. 45 of the 500 `<item>` rows carry a
-            // `@mess` key (and 4 of the 213 `<weapon>` rows do), but only 21 of those keys have a
-            // matching `<item id=key><mess>` row in the shipped text_en.xml — the missing ones are the
-            // skill-book and implant tutorials (`melee`, `smallguns`, `sneak`, `repair`, `science`,
-            // `sp_*`, `mod_*`, `impl_*`, `lockpick`, `tele`, …).
+            // The measurement the popup's latch placement originally rested on: 45 of the 500 `<item>`
+            // rows carry a `@mess` key, but the first shipped text_en.xml had matching `<mess>` text
+            // for only 21 of them — which is why `HudBootstrapper.ShowImportantMessage` latches on
+            // success and not at offer time (§10 of the gap ledger): an offer-time latch would have
+            // burned every key whose text the document lacked, permanently.
             //
-            // That is why `HudBootstrapper.ShowImportantMessage` writes the `mess_` latch and
-            // `WorldItemPickup` only reads it: a latch written at offer time would burn every key whose
-            // text the shipped document does not have, permanently, even against a more complete
-            // language file. So this fixture asserts the DIRECTION rather than an exact count — a future
-            // text file that fills them in must not fail the build.
+            // The localisation document that landed with the campaign tables (289b5e05) filled the
+            // rest in: every mess key now resolves. The direction of THIS assertion is the document
+            // fact; it is not the latch design. If a future rewrite prunes the tutorial texts back
+            // below half, this test fails on purpose — re-read §10 before deciding which side to
+            // change.
             string allData = Path.Combine(SourceLint.ProjectRoot(), "Assets", "_PFE", "Data", "Resources",
                 "Loot", "AllData.txt");
             Assert.That(File.Exists(allData), Is.True, "The AllData mirror is missing: " + allData);
@@ -405,10 +408,10 @@ namespace PFE.Tests.EditMode.UI
             Assert.That(keys, Is.GreaterThan(40),
                 "The `<item>` rows carrying `@mess` — measured 45. A smaller count means the mirror " +
                 "or the reader changed, and the popup's coverage changed with it.");
-            Assert.That(withText, Is.LessThan(keys / 2),
-                "More than half the mess keys have text in text_en.xml — the latch placement in " +
-                "ShowImportantMessage (latch on success, not on offer) was chosen because the majority " +
-                "did NOT. Re-read §10 of the gap ledger before changing that.");
+            Assert.That(withText, Is.GreaterThanOrEqualTo(keys / 2),
+                "Fewer than half the mess keys have text in the shipped text_en.xml — that stopped " +
+                "being true when the campaign-table localisation landed, and the direction flip is " +
+                "worth a human look, not a silent edit.");
         }
 
         [Test]

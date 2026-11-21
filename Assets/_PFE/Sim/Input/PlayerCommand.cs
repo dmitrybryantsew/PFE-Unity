@@ -49,6 +49,20 @@ namespace PFE.Core.Input
             DashPressed = 1 << 3,
             /// <summary>Drop-through was triggered this tick (edge; down double-tap).</summary>
             DropThroughPressed = 1 << 4,
+            /// <summary>Teleport key is held this tick (level; the charge releases on the first
+            /// tick without the flag). Forwarded to the body's locomotion separately from the
+            /// move intent because teleport is hold-to-charge, release-to-execute.</summary>
+            TeleportHeld = 1 << 5,
+            /// <summary>The interact key was pressed this tick (edge) — AS3 <c>act()</c>'s entry, the
+            /// verb that opens a container. Meaningful only together with a well-formed
+            /// <see cref="TargetRoomHash"/>/<see cref="TargetObjectIndex"/> pair; a bare edge names
+            /// nothing to act on and is refused rather than defaulted to object 0 of room 0.</summary>
+            InteractPressed = 1 << 6,
+            /// <summary>Attack/fire is held this tick (level) — the host-side weapon mount on the
+            /// peer's simulated body fires while the flag is set. Level, not edge: the weapon's own
+            /// <c>t_attack</c>/<c>t_auto</c> pacing decides how many rounds a held tick produces,
+            /// exactly as it does for the local rig.</summary>
+            FireHeld = 1 << 7,
         }
 
         /// <summary>Monotonic simulation tick this command applies to. The only time source.</summary>
@@ -69,6 +83,41 @@ namespace PFE.Core.Input
         /// <summary>Aim facing in degrees (AS3 pointer precision). Not quantized.</summary>
         public float AimAngle;
 
+        /// <summary>Teleport cursor in world pixels at command build time (AS3 <c>celX/celY</c>) —
+        /// the point the released charge executes at. Zero when no cursor has ever been forwarded;
+        /// a teleport aimed nowhere is refused the same way as locally.</summary>
+        public float CursorWorldX;
+
+        /// <summary>Teleport cursor Y, world pixels. See <see cref="CursorWorldX"/>.</summary>
+        public float CursorWorldY;
+
+        /// <summary>
+        /// The room the interact edge is aimed at, as <c>SimSnapshotProjectionRules.RoomKey</c> hashes
+        /// it — the same key <c>SimRoomDelta.RoomHash</c> and the tile journal use.
+        ///
+        /// <para><b>Why an explicit id and not the cursor position.</b> The host must open the
+        /// <i>same</i> container the client saw selected. Deriving it from <see cref="CursorWorldX"/>
+        /// would make the host's spatial probe the authority, so a one-frame cursor difference — or two
+        /// props overlapping the probe — would open a different chest. The client has already run the
+        /// probe; sending its answer is both smaller than a second position and unambiguous.</para>
+        /// </summary>
+        public ulong TargetRoomHash;
+
+        /// <summary>
+        /// The target container's <c>ObjectInstance.spawnIndex</c> — its stable population index inside
+        /// the room, and the same value <c>LootRuntime.CreateContextForContainer</c> keys the contents
+        /// roll on. Zero is a legitimate index; "no target" is expressed by
+        /// <see cref="TargetRoomHash"/> being zero, never by an index.</summary>
+        public int TargetObjectIndex;
+
+        /// <summary>
+        /// The equipped weapon's content id as <c>SimSnapshotProjectionRules.LootItemKey(id, true)</c>,
+        /// replicated ride-along on every tick. The host cannot derive what the peer holds — equipped
+        /// weapons live in the peer's inventory, not in intent — so the peer states it, idempotently,
+        /// on each command; the host stamps it into <c>SimUnitState.WeaponIdHash</c> for the clients.
+        /// Zero means "nothing equipped".</summary>
+        public ulong WeaponIdHash;
+
         /// <summary>Edge and level buttons for this tick.</summary>
         public Button Buttons;
 
@@ -83,6 +132,9 @@ namespace PFE.Core.Input
         public readonly bool JumpPressed => (Buttons & Button.JumpPressed) != 0;
         public readonly bool DashPressed => (Buttons & Button.DashPressed) != 0;
         public readonly bool DropThroughPressed => (Buttons & Button.DropThroughPressed) != 0;
+        public readonly bool TeleportHeld => (Buttons & Button.TeleportHeld) != 0;
+        public readonly bool InteractPressed => (Buttons & Button.InteractPressed) != 0;
+        public readonly bool FireHeld => (Buttons & Button.FireHeld) != 0;
 
         /// <summary>
         /// Builds a command from the same intent <c>SetIntent</c> receives today. This is the bridge
@@ -90,6 +142,22 @@ namespace PFE.Core.Input
         /// consume it without changing what the intent <i>means</i> — a state-location change, not a
         /// behaviour change.
         /// </summary>
+        /// <param name="teleportHeld">Teleport key level at build time. Optional so the existing
+        /// call sites (fixtures included) keep compiling; production passes it from
+        /// <c>PlayerController</c>.</param>
+        /// <param name="cursorWorldX">Teleport cursor, world pixels — see <see cref="CursorWorldX"/>.</param>
+        /// <param name="cursorWorldY">Teleport cursor Y. See <see cref="CursorWorldX"/>.</param>
+        /// <param name="interactPressed">Interact edge for this tick. Defaults to false so every
+        /// existing call site and fixture keeps compiling and means what it meant.</param>
+        /// <param name="targetRoomHash">The room the interact edge is aimed at — see
+        /// <see cref="TargetRoomHash"/>. Zero means "no target", which is what a caller that never
+        /// resolves an interact target passes.</param>
+        /// <param name="targetObjectIndex">The target container's <c>spawnIndex</c>.</param>
+        /// <param name="weaponIdHash">The equipped weapon's content id — see
+        /// <see cref="WeaponIdHash"/>. Zero means "nothing equipped".</param>
+        /// <param name="fireHeld">Attack/fire level at build time. The host-side weapon mount on the
+        /// peer's simulated body fires while the flag is set; the weapon's own pacing decides the
+        /// round cadence. Defaults to false so every existing call site and fixture keeps its shape.</param>
         public static PlayerCommand FromIntent(
             int tickIndex,
             byte slotIndex,
@@ -101,7 +169,15 @@ namespace PFE.Core.Input
             bool jumpPressed,
             bool dashPressed,
             bool dropThroughPressed,
-            float aimAngle)
+            float aimAngle,
+            bool teleportHeld = false,
+            float cursorWorldX = 0f,
+            float cursorWorldY = 0f,
+            bool interactPressed = false,
+            ulong targetRoomHash = 0UL,
+            int targetObjectIndex = 0,
+            ulong weaponIdHash = 0UL,
+            bool fireHeld = false)
         {
             Button buttons = Button.None;
             if (jumpHeld) buttons |= Button.JumpHeld;
@@ -109,6 +185,9 @@ namespace PFE.Core.Input
             if (jumpPressed) buttons |= Button.JumpPressed;
             if (dashPressed) buttons |= Button.DashPressed;
             if (dropThroughPressed) buttons |= Button.DropThroughPressed;
+            if (teleportHeld) buttons |= Button.TeleportHeld;
+            if (interactPressed) buttons |= Button.InteractPressed;
+            if (fireHeld) buttons |= Button.FireHeld;
 
             return new PlayerCommand
             {
@@ -118,6 +197,11 @@ namespace PFE.Core.Input
                 MoveX = Quantize(moveInputX),
                 MoveY = Quantize(moveInputY),
                 AimAngle = aimAngle,
+                CursorWorldX = cursorWorldX,
+                CursorWorldY = cursorWorldY,
+                TargetRoomHash = targetRoomHash,
+                TargetObjectIndex = targetObjectIndex,
+                WeaponIdHash = weaponIdHash,
                 Buttons = buttons,
             };
         }
@@ -145,6 +229,11 @@ namespace PFE.Core.Input
             writer.Write(MoveX);
             writer.Write(MoveY);
             writer.Write(AimAngle);
+            writer.Write(CursorWorldX);
+            writer.Write(CursorWorldY);
+            writer.Write(TargetRoomHash);
+            writer.Write(TargetObjectIndex);
+            writer.Write(WeaponIdHash);
             writer.Write((ushort)Buttons);
         }
 
@@ -159,6 +248,11 @@ namespace PFE.Core.Input
                 MoveX = reader.ReadSByte(),
                 MoveY = reader.ReadSByte(),
                 AimAngle = reader.ReadSingle(),
+                CursorWorldX = reader.ReadSingle(),
+                CursorWorldY = reader.ReadSingle(),
+                TargetRoomHash = reader.ReadUInt64(),
+                TargetObjectIndex = reader.ReadInt32(),
+                WeaponIdHash = reader.ReadUInt64(),
                 Buttons = (Button)reader.ReadUInt16(),
             };
         }
@@ -171,6 +265,11 @@ namespace PFE.Core.Input
                 && MoveX == other.MoveX
                 && MoveY == other.MoveY
                 && AimAngle.Equals(other.AimAngle)
+                && CursorWorldX.Equals(other.CursorWorldX)
+                && CursorWorldY.Equals(other.CursorWorldY)
+                && TargetRoomHash == other.TargetRoomHash
+                && TargetObjectIndex == other.TargetObjectIndex
+                && WeaponIdHash == other.WeaponIdHash
                 && Buttons == other.Buttons;
         }
 
@@ -186,6 +285,11 @@ namespace PFE.Core.Input
                 hash = (hash * 397) ^ MoveX;
                 hash = (hash * 397) ^ MoveY;
                 hash = (hash * 397) ^ AimAngle.GetHashCode();
+                hash = (hash * 397) ^ CursorWorldX.GetHashCode();
+                hash = (hash * 397) ^ CursorWorldY.GetHashCode();
+                hash = (hash * 397) ^ TargetRoomHash.GetHashCode();
+                hash = (hash * 397) ^ TargetObjectIndex;
+                hash = (hash * 397) ^ WeaponIdHash.GetHashCode();
                 hash = (hash * 397) ^ (int)Buttons;
                 return hash;
             }
@@ -194,7 +298,8 @@ namespace PFE.Core.Input
         public override readonly string ToString()
         {
             return $"PlayerCommand(tick={TickIndex} slot={SlotIndex} seq={Sequence} " +
-                   $"move=({MoveXFloat:F2},{MoveYFloat:F2}) aim={AimAngle:F1} buttons={Buttons})";
+                   $"move=({MoveXFloat:F2},{MoveYFloat:F2}) aim={AimAngle:F1} buttons={Buttons} " +
+                   $"target=({TargetRoomHash:X16},{TargetObjectIndex}) weapon={WeaponIdHash:X16})";
         }
     }
 }

@@ -425,6 +425,13 @@ namespace PFE.Entities.Weapons
         /// canonical Sim space (<c>TileQueryConstants</c>). Converting at the projection boundary rather
         /// than at each field read is what keeps one conversion constant in one place.</para>
         ///
+        /// <para><b>The captured position is <see cref="DrawnPosition"/>, never the raw sim
+        /// field.</b> <c>_simPosition</c> is integrated only while <see cref="FlipActive"/> is true;
+        /// on the legacy path <see cref="FixedUpdate"/> moves <c>transform.position</c> and the sim
+        /// field stays frozen at the spawn point. Reading it directly replicated every round at its
+        /// muzzle — or at (0,0) when the spawn pose was never staged — which is play-test #7's
+        /// "every projectile clusters in the bottom-left on the client".</para>
+        ///
         /// <para><b><paramref name="sequence"/> is passed in, not read from the instance.</b> The sample
         /// number belongs to the projection, so the projector owns the counter; a capture that
         /// incremented it as a side effect would make two calls for the same tick produce two different
@@ -440,6 +447,10 @@ namespace PFE.Entities.Weapons
         {
             const float toPixels = TileQueryConstants.UnitToPixel;
 
+            // DrawnPosition is the authority on BOTH integration paths: _simPosition while the
+            // low-level sim owns the flight, transform.position on the legacy FixedUpdate path.
+            Vector2 posUnits = DrawnPosition;
+
             return new SimProjectileState
             {
                 EntityHash   = EntityId.Hash,
@@ -449,8 +460,8 @@ namespace PFE.Entities.Weapons
                 DefinitionId = DefinitionId,
                 Kind         = SimTransientKind.Projectile,
 
-                Px = _simPosition.x * toPixels,
-                Py = _simPosition.y * toPixels,
+                Px = posUnits.x * toPixels,
+                Py = posUnits.y * toPixels,
                 Vx = _velocity.x * toPixels,
                 Vy = _velocity.y * toPixels,
 
@@ -1100,6 +1111,21 @@ namespace PFE.Entities.Weapons
             _traveledDistancePixels = 0f;
 
             if (_rb == null) _rb = GetComponent<Rigidbody2D>();
+
+            // Adoption guard: a caller that positioned the transform directly without ever calling
+            // PrepareForSpawn would otherwise be snapped back to (0,0,0) here — ResetProjectile
+            // parked _spawnPosition at Vector3.zero and the reassert below trusts it. The pool
+            // parking spot is excluded (a parked instance has no spawn pose) and so is the world
+            // origin handled by the guard itself: only a transform that is ON STAGE is adopted.
+            // Play-test #7: rounds captured at (0,0) on clients because Initialize zeroed a
+            // directly-positioned body.
+            if (_spawnPosition == Vector3.zero
+                && (Vector2)transform.position != Vector2.zero
+                && (Vector2)transform.position != PoolParkingPosition)
+            {
+                _spawnPosition = transform.position;
+                _spawnRotation = transform.rotation;
+            }
 
             // Reassert the intended spawn pose now that the object is active.
             // PrepareForSpawn sets transform.position before SetActive(true), so the body

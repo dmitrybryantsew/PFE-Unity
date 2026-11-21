@@ -12,6 +12,10 @@ namespace PFE.Sim.Replication
         StaleSnapshot = 2,
         CorruptTileJournal = 3,
         CorruptLoot = 4,
+        /// <summary>An opened-container set was malformed — a negative index, a duplicate index, or a
+        /// non-positive loot state. Refused rather than folded, because applying it would either
+        /// address the wrong container or silently re-open one.</summary>
+        CorruptObjectState = 5,
     }
 
     /// <summary>
@@ -21,7 +25,8 @@ namespace PFE.Sim.Replication
     public readonly struct SimSnapshotReceipt
     {
         public SimSnapshotReceipt(bool applied, SimSnapshotRejectReason reason, int tileEventsApplied,
-            int tileEventsDuplicated, int droppedItemsApplied, int lootRoomsReplaced)
+            int tileEventsDuplicated, int droppedItemsApplied, int lootRoomsReplaced,
+            int lootedObjectsApplied)
         {
             Applied = applied;
             RejectReason = reason;
@@ -29,6 +34,7 @@ namespace PFE.Sim.Replication
             TileEventsDuplicated = tileEventsDuplicated;
             DroppedItemsApplied = droppedItemsApplied;
             LootRoomsReplaced = lootRoomsReplaced;
+            LootedObjectsApplied = lootedObjectsApplied;
         }
 
         public bool Applied { get; }
@@ -37,10 +43,13 @@ namespace PFE.Sim.Replication
         public int TileEventsDuplicated { get; }
         public int DroppedItemsApplied { get; }
         public int LootRoomsReplaced { get; }
+        /// <summary>How many opened-container records the snapshot carried. Not a count of changes —
+        /// the set is a full replace, so a repeated snapshot reports the same number again.</summary>
+        public int LootedObjectsApplied { get; }
 
         public static SimSnapshotReceipt Reject(SimSnapshotRejectReason reason)
         {
-            return new SimSnapshotReceipt(false, reason, 0, 0, 0, 0);
+            return new SimSnapshotReceipt(false, reason, 0, 0, 0, 0, 0);
         }
     }
 
@@ -87,10 +96,19 @@ namespace PFE.Sim.Replication
     /// duplicated id is exactly the §10.2 conflation this payload was added to remove, so it is
     /// rejected rather than silently folded into <c>(content id, position)</c>.</para>
     ///
-    /// <para><b>Atomicity.</b> The journal, the loot sets and the admission guards are all validated
-    /// before a single field of receiver state is written. A rejected snapshot leaves
-    /// <see cref="AcceptedSnapshotCount"/>, <see cref="LastEventSequence"/>, <see cref="TileCount"/>
-    /// and every loot readback exactly as they were.</para>
+    /// <para><b>Opened containers.</b> <c>LootedObjects</c> follows the same full-replace contract as
+    /// the loot sets — an absent room means unchanged, a present room's set is the whole truth — and is
+    /// validated as a set rather than as a list: a negative index, a duplicate index or a non-positive
+    /// <c>LootState</c> is refused, because each of those would produce a wrong world (no container,
+    /// an order-dependent container, or a chest that silently re-opens) instead of a missing record.
+    /// This is the field that stops two peers from each emptying the same chest: contents are derived
+    /// on both machines, but "somebody already took it" is not derivable from anything.</para>
+    ///
+    /// <para><b>Atomicity.</b> The journal, the loot sets, the opened-container sets and the admission
+    /// guards are all validated before a single field of receiver state is written. A rejected snapshot
+    /// leaves <see cref="AcceptedSnapshotCount"/>, <see cref="LastEventSequence"/>,
+    /// <see cref="TileCount"/>, every loot readback and every opened-container readback exactly as they
+    /// were.</para>
     /// </summary>
     public sealed class SimSnapshotReceiver
     {
@@ -106,6 +124,9 @@ namespace PFE.Sim.Replication
 
         private readonly Dictionary<ulong, Dictionary<ulong, SimDroppedItem>> _lootByRoom =
             new Dictionary<ulong, Dictionary<ulong, SimDroppedItem>>();
+
+        private readonly Dictionary<ulong, Dictionary<int, SimObjectState>> _openedByRoom =
+            new Dictionary<ulong, Dictionary<int, SimObjectState>>();
 
         private long _worldRevision;
         private uint _snapshotSequence;
@@ -173,6 +194,25 @@ namespace PFE.Sim.Replication
                 }
             }
 
+            // Dry run #3: every opened-container set. Three ways to be corrupt, and each one would
+            // produce a wrong world rather than a missing record: a negative index addresses no
+            // container, a duplicate index makes the set's meaning order-dependent, and a
+            // non-positive loot state contradicts membership in a set of *opened* containers.
+            for (int r = 0; r < rooms.Length; r++)
+            {
+                SimObjectState[] opened = rooms[r].LootedObjects ?? Array.Empty<SimObjectState>();
+                var seenIndices = new HashSet<int>();
+                for (int o = 0; o < opened.Length; o++)
+                {
+                    if (opened[o].ObjectIndex < 0
+                        || opened[o].LootState <= 0
+                        || !seenIndices.Add(opened[o].ObjectIndex))
+                    {
+                        return SimSnapshotReceipt.Reject(SimSnapshotRejectReason.CorruptObjectState);
+                    }
+                }
+            }
+
             // ── Commit. Only reachable when both dry runs passed, so no rejection below. ──────
 
             if (newLifetime)
@@ -199,6 +239,7 @@ namespace PFE.Sim.Replication
             _lastEventSequence = cursor;
 
             int droppedItemsApplied = 0;
+            int lootedObjectsApplied = 0;
             for (int r = 0; r < rooms.Length; r++)
             {
                 SimDroppedItem[] drops = rooms[r].DroppedItems ?? Array.Empty<SimDroppedItem>();
@@ -209,6 +250,19 @@ namespace PFE.Sim.Replication
                 }
                 _lootByRoom[rooms[r].RoomHash] = replacement;
                 droppedItemsApplied += drops.Length;
+
+                // Full replace, for the same reason as the loot set: an absent room means unchanged,
+                // and a present room's set is the whole truth about that room. A container the host
+                // no longer reports as opened is therefore closed again on the client — which is what
+                // makes a re-entered, regenerated room converge instead of keeping a stale flag.
+                SimObjectState[] opened = rooms[r].LootedObjects ?? Array.Empty<SimObjectState>();
+                var openedReplacement = new Dictionary<int, SimObjectState>(opened.Length);
+                for (int o = 0; o < opened.Length; o++)
+                {
+                    openedReplacement[opened[o].ObjectIndex] = opened[o];
+                }
+                _openedByRoom[rooms[r].RoomHash] = openedReplacement;
+                lootedObjectsApplied += opened.Length;
             }
 
             _snapshotSequence = snapshot.SnapshotSequence;
@@ -217,7 +271,8 @@ namespace PFE.Sim.Replication
             AcceptedSnapshotCount++;
 
             return new SimSnapshotReceipt(true, SimSnapshotRejectReason.None,
-                tileEventsApplied, tileEventsDuplicated, droppedItemsApplied, rooms.Length);
+                tileEventsApplied, tileEventsDuplicated, droppedItemsApplied, rooms.Length,
+                lootedObjectsApplied);
         }
 
         /// <summary>The last reliably applied state of one tile cell in this lifetime.</summary>
@@ -238,6 +293,26 @@ namespace PFE.Sim.Replication
         public int LootCount(ulong roomHash)
         {
             return _lootByRoom.TryGetValue(roomHash, out Dictionary<ulong, SimDroppedItem> room)
+                ? room.Count
+                : 0;
+        }
+
+        /// <summary>
+        /// The authoritative opened state of one container, keyed by its <c>spawnIndex</c>. False means
+        /// the host does not report it as opened — either it never was, or the last snapshot for that
+        /// room carried a set without it. The two are the same answer to "may I open this?".
+        /// </summary>
+        public bool TryGetOpenedObject(ulong roomHash, int objectIndex, out SimObjectState state)
+        {
+            state = default;
+            return _openedByRoom.TryGetValue(roomHash, out Dictionary<int, SimObjectState> room)
+                   && room.TryGetValue(objectIndex, out state);
+        }
+
+        /// <summary>How many containers the host reports as opened in a room. An absent room has zero.</summary>
+        public int OpenedObjectCount(ulong roomHash)
+        {
+            return _openedByRoom.TryGetValue(roomHash, out Dictionary<int, SimObjectState> room)
                 ? room.Count
                 : 0;
         }

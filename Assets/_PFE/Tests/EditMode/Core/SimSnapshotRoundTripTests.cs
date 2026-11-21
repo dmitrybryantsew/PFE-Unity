@@ -60,6 +60,9 @@ namespace PFE.Tests.EditMode.Core
                                 IsDead = false, IsDown = false, IsDissolving = false, DissolveProgress = 0f,
                                 Faction = 100, Digger = 0, AmbushArmed = false,
                                 PoseId = 3, PoseFrame = 12, PoseSequence = 9,
+                                // v8 avatar extras: non-default weapon + aim so a codec that skips
+                                // the trailing fields cannot pass the round-trip silently.
+                                WeaponIdHash = 0xEEEE00000000000F, AimAngle = 33.5f,
                             },
                         },
                         Motors = new[]
@@ -121,6 +124,13 @@ namespace PFE.Tests.EditMode.Core
                             },
                         },
                         RemovedEntityHashes = new ulong[] { 0xDEAD000000000001, 0xDEAD000000000002 },
+                        // v9 doors: every door box in the room with its current state, both
+                        // directions — a closed door is state, not the absence of state.
+                        DoorStates = new[]
+                        {
+                            new SimDoorState { ObjectIndex = 4, IsOpen = true },
+                            new SimDoorState { ObjectIndex = 9, IsOpen = false },
+                        },
                     },
                     new SimRoomDelta
                     {
@@ -293,15 +303,58 @@ namespace PFE.Tests.EditMode.Core
         // ── v4 (§10.2 gaps 1 and 2) ───────────────────────────────────────────
 
         [Test]
-        public void V5ProtocolVersion_IsFive()
+        public void V9ProtocolVersion_IsNine()
         {
             // The literal, not the symbol: a test that compares CurrentProtocolVersion against itself
-            // stays green through a silent rollback to v4, which is precisely the change this pins.
-            // v5 changed no snapshot byte; it added the mandatory PlayerCommandBatch kind to the
-            // handshake. A v4 number would admit a peer that can receive state but never send intent.
-            Assert.AreEqual(5u, SimSnapshotSerializer.CurrentProtocolVersion,
-                "The replication handshake shares this constant. Rolling back to 4 would let a v4 peer " +
-                "join a session whose host expects a command uplink it can never send.");
+            // stays green through a silent rollback to v8, which is precisely the change this pins.
+            // v8 appended SimUnitState's avatar fields; v9 appended SimRoomDelta.DoorStates, so a v8
+            // reader would finish LootedObjects and read the new set's length prefix as the NEXT
+            // room's RoomHash — every following room and the tile journal silently misaligned, with
+            // no exception anywhere.
+            Assert.AreEqual(9u, SimSnapshotSerializer.CurrentProtocolVersion,
+                "The replication handshake shares this constant. Rolling back to 8 would let a v8 peer " +
+                "join and then misparse every room delta after the first.");
+        }
+
+        [Test]
+        public void V9DoorStates_SurviveTheWireAndMoveTheHash()
+        {
+            SimSnapshot source = BuildRepresentativeSnapshot();
+            SimSnapshot restored = SimSnapshotSerializer.Deserialize(
+                SimSnapshotSerializer.Serialize(in source));
+
+            SimDoorState[] before = source.Rooms[0].DoorStates;
+            SimDoorState[] after = restored.Rooms[0].DoorStates;
+
+            Assert.AreEqual(before.Length, after.Length, "The door array lost a record on the wire.");
+            for (int i = 0; i < before.Length; i++)
+            {
+                Assert.AreEqual(before[i], after[i],
+                    "Record " + i + " changed across serialize -> deserialize.");
+            }
+
+            // The closed-door record (index 9) is the one a "only opened doors" reading would drop:
+            // flipping it must move the state hash, or a receiver could not tell it from "no door".
+            SimSnapshot changed = CloneWithDoorFlip(source);
+            Assert.AreNotEqual(source.ComputeStateHash(), changed.ComputeStateHash(),
+                "SimDoorState.IsOpen is not mixed into ComputeStateHash.");
+        }
+
+        private static SimSnapshot CloneWithDoorFlip(SimSnapshot source)
+        {
+            // A hand copy of the one field under test — the records are structs, so a memberwise
+            // clone of the first room's door array is enough; nothing else may move.
+            SimSnapshot changed = source;
+            SimRoomDelta room = source.Rooms[0];
+            SimDoorState[] doors = new SimDoorState[room.DoorStates.Length];
+            for (int i = 0; i < doors.Length; i++) doors[i] = room.DoorStates[i];
+            doors[1].IsOpen = !doors[1].IsOpen;
+            room.DoorStates = doors;
+            SimRoomDelta[] rooms = new SimRoomDelta[source.Rooms.Length];
+            for (int i = 0; i < rooms.Length; i++) rooms[i] = source.Rooms[i];
+            rooms[0] = room;
+            changed.Rooms = rooms;
+            return changed;
         }
 
         [Test]

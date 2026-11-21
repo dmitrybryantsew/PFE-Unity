@@ -192,6 +192,22 @@ namespace PFE.Sim.State
             hash = HashArray(hash, prime, room.Projectiles, HashProjectile);
             hash = HashArray(hash, prime, room.DroppedItems, HashDroppedItem);
             hash = HashArray(hash, prime, room.RemovedEntityHashes, (ulong h, ulong p, in ulong v) => Mix(h, p, v));
+            hash = HashArray(hash, prime, room.LootedObjects, HashObjectState);
+            hash = HashArray(hash, prime, room.DoorStates, HashDoorState);
+            return hash;
+        }
+
+        private static ulong HashDoorState(ulong hash, ulong prime, in SimDoorState d)
+        {
+            hash = Mix(hash, prime, unchecked((ulong)d.ObjectIndex));
+            hash = Mix(hash, prime, d.IsOpen);
+            return hash;
+        }
+
+        private static ulong HashObjectState(ulong hash, ulong prime, in SimObjectState o)
+        {
+            hash = Mix(hash, prime, unchecked((ulong)o.ObjectIndex));
+            hash = Mix(hash, prime, unchecked((ulong)o.LootState));
             return hash;
         }
 
@@ -219,6 +235,8 @@ namespace PFE.Sim.State
             hash = Mix(hash, prime, u.PoseId);
             hash = Mix(hash, prime, u.PoseFrame);
             hash = Mix(hash, prime, u.PoseSequence);
+            hash = Mix(hash, prime, u.WeaponIdHash);
+            hash = Mix(hash, prime, u.AimAngle);
             return hash;
         }
 

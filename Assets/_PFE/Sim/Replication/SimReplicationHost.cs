@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using PFE.Sim.State;
 
 namespace PFE.Sim.Replication
@@ -42,6 +43,12 @@ namespace PFE.Sim.Replication
 
             public uint EnvelopeSequence;
             public uint ClientEnvelopeSequence;
+
+            /// <summary>High-water mark of the peer's unreliable command stream. Deliberately separate
+            /// from <see cref="ClientEnvelopeSequence"/>: batches ride their own channel and counter,
+            /// so a fast batch can never mark a reliable ack or transition stale.</summary>
+            public uint ClientCommandEnvelopeSequence;
+
             public uint SnapshotSequence;
 
             public uint NextLocalEventSequence;
@@ -64,6 +71,7 @@ namespace PFE.Sim.Replication
         private readonly ISimReplicationWire _wire;
         private readonly int _chunkSize;
         private readonly SimCommandIngress _commands;
+        private readonly ISimRoomTransitionSink _roomTransitions;
 
         private readonly Dictionary<uint, PeerState> _peers = new Dictionary<uint, PeerState>();
         private readonly Dictionary<ulong, uint> _peerByNonce = new Dictionary<ulong, uint>();
@@ -79,11 +87,21 @@ namespace PFE.Sim.Replication
         /// a window without a sink still parses and orders batches but refuses them with
         /// <c>NoConsumer</c> rather than silently discarding intent. A session with
         /// <c>commandWindow == 0</c> has no uplink at all and refuses the kind before touching the
-        /// peer's ordered high-water mark.
+        /// peer's command high-water mark.
         /// </summary>
+        /// <param name="roomTransitionSink">The consumer of admitted
+        /// <see cref="SimReplicationMessageKind.PeerRoomTransition"/> envelopes, or null to refuse
+        /// the kind. Optional so the Phase 4/5 constructor shapes keep working; a net session that
+        /// admits peers but cannot move their bodies strands every peer in the first room, which
+        /// reads on both screens as a position desync.</param>
+        /// <param name="interactSink">The consumer of admitted interact edges carried in command
+        /// batches, or null when the session does not drive containers. Optional for the same reason
+        /// as the two sinks above: a host that admits intent but cannot act on the container half
+        /// leaves every chest closed on both screens while the client believes it pressed the key.</param>
         public SimReplicationHost(ulong sessionId, ISimReplicationSnapshotSource source,
             ISimReplicationWire wire, int chunkSize, int commandWindow = 0,
-            ISimCommandSink commandSink = null)
+            ISimCommandSink commandSink = null, ISimRoomTransitionSink roomTransitionSink = null,
+            ISimInteractSink interactSink = null)
         {
             if (sessionId == 0UL) throw new ArgumentException("A host session id must be non-zero.", nameof(sessionId));
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -95,11 +113,12 @@ namespace PFE.Sim.Replication
             _source = source;
             _wire = wire;
             _chunkSize = chunkSize;
+            _roomTransitions = roomTransitionSink;
 
             if (commandWindow > 0)
             {
                 _commands = new SimCommandIngress(sessionId, commandWindow,
-                    peerId => _peers.ContainsKey(peerId), commandSink);
+                    peerId => _peers.ContainsKey(peerId), commandSink, interactSink);
             }
         }
 
@@ -111,10 +130,12 @@ namespace PFE.Sim.Replication
         public int RejectedEnvelopeCount { get; private set; }
         public int AcceptedCommandBatchCount { get; private set; }
         public int RejectedCommandBatchCount { get; private set; }
+        public int AcceptedRoomTransitionCount { get; private set; }
+        public int RejectedRoomTransitionCount { get; private set; }
 
         /// <summary>The live ingress, or null when this host was built without a command window.
         /// Exposed for readbacks, not for callers to drive: only <see cref="Receive"/> may admit a
-        /// batch, because the ordered-channel high-water mark lives here.</summary>
+        /// batch, because the command channel's high-water mark lives here.</summary>
         public SimCommandIngress Commands => _commands;
 
         /// <summary>The producer's unacknowledged reliable events. The readback that proves an ack
@@ -217,6 +238,10 @@ namespace PFE.Sim.Replication
 
                 case SimReplicationMessageKind.PlayerCommandBatch:
                     HandleCommandBatch(envelope);
+                    break;
+
+                case SimReplicationMessageKind.PeerRoomTransition:
+                    HandlePeerRoomTransition(envelope);
                     break;
 
                 default:
@@ -365,13 +390,41 @@ namespace PFE.Sim.Replication
         }
 
         /// <summary>
-        /// Phase 5: admit a client → host command window. The ordered high-water mark is <b>shared</b>
-        /// with acks and interest updates: one per-peer channel, one sequence space, so a duplicate
-        /// batch cannot be revived by claiming a lower private watermark. A session built without an
-        /// ingress refuses before that mark moves — otherwise packets nobody can read would burn the
-        /// channel that acks still need.
+        /// Phase 5: admit a client → host command window. Batches arrive on the peer's unreliable
+        /// channel and are gated by the dedicated <see cref="PeerState.ClientCommandEnvelopeSequence"/>
+        /// high-water mark, NOT the reliable mark acks and transitions use — a fast batch commits
+        /// only its own watermark, so it cannot age out a slower SnapshotAck or room transition
+        /// (the head-of-line stutter Wave 1A splits this channel to fix). Contiguity and overlap
+        /// integrity inside the window are the ingress's job, on TickIndex, not on this counter.
+        /// A session built without an ingress refuses before that mark moves — otherwise packets
+        /// nobody can read would still burn the command channel.
         /// </summary>
         private void HandleCommandBatch(SimReplicationEnvelope envelope)
+        {
+            PeerState peer;
+            if (!_peers.TryGetValue(envelope.PeerId, out peer)) { RejectedEnvelopeCount++; return; }
+
+            if (!SimReplicationProtocolRules.AcceptEnvelope(envelope.Sequence,
+                    peer.ClientCommandEnvelopeSequence))
+            {
+                RejectedEnvelopeCount++;
+                return;
+            }
+
+            if (_commands == null) { RejectedEnvelopeCount++; return; }
+            peer.ClientCommandEnvelopeSequence = envelope.Sequence;
+
+            SimCommandReceipt receipt = _commands.Receive(envelope);
+            if (receipt.Applied) AcceptedCommandBatchCount++;
+            else RejectedCommandBatchCount++;
+        }
+
+        /// <summary>
+        /// A peer's room change. Shares the per-peer reliable high-water mark with acks and interest
+        /// updates; command batches keep their own mark, so an overtaking batch can neither
+        /// re-admit nor refuse this declaration.
+        /// </summary>
+        private void HandlePeerRoomTransition(SimReplicationEnvelope envelope)
         {
             PeerState peer;
             if (!_peers.TryGetValue(envelope.PeerId, out peer)) { RejectedEnvelopeCount++; return; }
@@ -382,12 +435,43 @@ namespace PFE.Sim.Replication
                 return;
             }
 
-            if (_commands == null) { RejectedEnvelopeCount++; return; }
+            if (_roomTransitions == null) { RejectedEnvelopeCount++; return; }
             peer.ClientEnvelopeSequence = envelope.Sequence;
 
-            SimCommandReceipt receipt = _commands.Receive(envelope);
-            if (receipt.Applied) AcceptedCommandBatchCount++;
-            else RejectedCommandBatchCount++;
+            SimPeerRoomTransition transition;
+            try
+            {
+                transition = SimReplicationPayloadSerializer.ReadPeerRoomTransition(envelope.Payload);
+            }
+            catch (Exception e) when (e is InvalidDataException || e is EndOfStreamException
+                                      || e is IOException || e is ArgumentException
+                                      || e is FormatException)
+            {
+                RejectedRoomTransitionCount++;
+                return;
+            }
+
+            if (transition.SessionId != envelope.SessionId)
+            {
+                RejectedRoomTransitionCount++;
+                return;
+            }
+            if (transition.PeerId != envelope.PeerId)
+            {
+                RejectedRoomTransitionCount++;
+                return;
+            }
+
+            byte slot;
+            if (!SimCommandAdmissionRules.TrySlotForPeer(envelope.PeerId, out slot))
+            {
+                RejectedRoomTransitionCount++;
+                return;
+            }
+
+            _roomTransitions.Apply(envelope.PeerId, slot, transition.RoomId,
+                transition.WorldPixelX, transition.WorldPixelY);
+            AcceptedRoomTransitionCount++;
         }
 
         /// <summary>
