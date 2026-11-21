@@ -137,7 +137,11 @@ namespace PFE.Tests.Editor.Map.Serialization
             Assert.IsNotNull(loaded);
 
             Assert.AreEqual(original.saveId, loaded.saveId);
-            Assert.AreEqual(1, loaded.saveFormatVersion);
+            // The original is deliberately written as a v1 file, but DeserializeFromJson runs the
+            // migration chain — a loaded save always comes back at CurrentFormatVersion. The literal
+            // 1 here pinned the pre-v2 contract and broke the moment v2 landed (same lesson as
+            // SaveMigration_V0ToV1 below).
+            Assert.AreEqual(SaveMigrationChain.CurrentFormatVersion, loaded.saveFormatVersion);
             Assert.AreEqual(original.player.posX, loaded.player.posX);
             Assert.AreEqual(original.player.posY, loaded.player.posY);
             Assert.AreEqual(original.player.equippedWeaponId, loaded.player.equippedWeaponId);

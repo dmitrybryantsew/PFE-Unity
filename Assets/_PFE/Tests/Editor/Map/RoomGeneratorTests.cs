@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using PFE.Systems.Campaign;
 using PFE.Systems.Map;
 using System.Collections.Generic;
 
@@ -119,16 +120,29 @@ namespace PFE.Tests.Editor.Map
         [Test]
         public void GenerateRoom_SetsDifficulty()
         {
-            RoomGenerator generator = new RoomGenerator();
-            List<RoomTemplate> templates = CreateTestTemplates();
+            // AS3 does NOT read a room's difficulty from the room's own `lvl` — `lvl` only gates
+            // selection (Land.as:918). The difficulty is the LAND's: `locDifLevel = landDifLevel +
+            // depthOffset`, `enemyLevel = locDifLevel` (Land.as:982-987), so the fixture builds the
+            // room against a land context whose landDifLevel is 5 and expects the room to carry it.
+            try
+            {
+                GlobalDifficulty.Seed(2);   // Normal: the `enemyLevel` bonus (Land.as:992-995) stays 0
 
-            templates[0].difficultyLevel = 5;
+                RoomGenerator generator = new RoomGenerator();
+                List<RoomTemplate> templates = CreateTestTemplates();
+                generator.Initialize(templates);
 
-            generator.Initialize(templates);
-            RoomInstance room = generator.GenerateRoom(templates[0], new Vector3Int(0, 0, 0));
+                var land = new LocationBuildContext(
+                    biome: 0, landConfig: -1, landDifLevel: 5f, difficultyOffset: 0f);
+                RoomInstance room = generator.GenerateRoom(templates[0], new Vector3Int(0, 0, 0), land);
 
-            Assert.AreEqual(5, room.difficulty.baseDifficulty);
-            Assert.AreEqual(5, room.difficulty.enemyLevel);
+                Assert.AreEqual(5f, room.difficulty.baseDifficulty);
+                Assert.AreEqual(5f, room.difficulty.enemyLevel);
+            }
+            finally
+            {
+                GlobalDifficulty.ResetForTests();
+            }
         }
 
         [Test]
@@ -199,9 +213,17 @@ namespace PFE.Tests.Editor.Map
             // Verify it was counted
             Assert.AreEqual(1, generator.GetUsageCount("room_template_0"));
 
-            // Second selection should return null (template_0 is used up, others are too difficult)
+            // Second selection: template_0 is used up and the others are above maxDifficulty, so the
+            // primary pool is empty — and AS3 does NOT leave the cell a hole: Land.as:926-935 re-pools
+            // on `rnd` alone (ignoring kol and lvl) and draws from that. The instance limit is
+            // honoured by the primary pool; the exhaustion fallback is the oracle's own answer and it
+            // can draw any rnd template, not just the exhausted one.
             RoomTemplate selected2 = generator.SelectRandomRoom(maxDifficulty: 5);
-            Assert.IsNull(selected2);
+            Assert.IsNotNull(selected2,
+                "the exhaustion fallback (Land.as:926-935) draws any rnd room rather than null");
+            Assert.Contains(selected2.id, new[] { "room_template_0", "room_template_1", "room_template_2" });
+            Assert.AreEqual(1, generator.GetUsageCount(selected2.id),
+                "the fallback draw counts the template it picked");
         }
 
         [Test]
@@ -310,17 +332,21 @@ namespace PFE.Tests.Editor.Map
         [Test]
         public void SelectRandomRoom_NoValidTemplates_ReturnsNull()
         {
+            // The one AS3 case that yields no room: the exhaustion re-pool (Land.as:926-935) is gated
+            // on `rnd` alone, so a template pool where every room opts out of random selection gives
+            // an empty fallback pool — which is where the port answers null (AS3 would index an empty
+            // array and throw). Difficulty and instance exhaustion do NOT produce null; they fall
+            // into the exhaustion fallback.
             RoomGenerator generator = new RoomGenerator();
             List<RoomTemplate> templates = CreateTestTemplates();
 
-            // Set max difficulty lower than all templates
             foreach (var t in templates)
             {
-                t.difficultyLevel = 10;
+                t.allowRandom = false;
             }
 
             generator.Initialize(templates);
-            RoomTemplate selected = generator.SelectRandomRoom(maxDifficulty: 0);
+            RoomTemplate selected = generator.SelectRandomRoom(maxDifficulty: 5);
 
             Assert.IsNull(selected);
         }

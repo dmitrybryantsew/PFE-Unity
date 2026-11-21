@@ -504,6 +504,16 @@ namespace PFE.Systems.Map.Rendering
         public bool IsDoorBox => _objectInstance != null && _objectInstance.IsDoorBox();
 
         /// <summary>
+        /// Whether this object carries the <c>comein</c> <c>allact</c> — a Z door. The network
+        /// suppression in <see cref="Interact"/> exempts it: the layer toggle is local-only truth
+        /// (see the comment there), so a joined client must run it, not latch it.
+        /// </summary>
+        private bool IsComeInAction =>
+            string.Equals(_objectInstance?.GetAllAct(),
+                PFE.Systems.Map.Actions.ComeInAction.Id,
+                StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Whether this object is AS3's <b>"button pressed by bullets"</b> — a definition that authors
         /// <c>actdam</c>, which makes <c>Box</c> bind a <c>VirtualUnit</c> to itself
         /// (<c>Box.as:410-419</c>). <c>knop2</c> is the only such row in the shipped data
@@ -993,7 +1003,10 @@ namespace PFE.Systems.Map.Rendering
             // work `Die()` has always paid.
             if (_room != null)
             {
-                _room.NotifyTilesMutated(CoveredTileRegion());
+                // relight: open — the notification's mirror refresh happens in both directions, but
+                // AS3's setDoor buys the full light pass only when OPENING (Box.as:688-692); a close
+                // relies on the camera-movement trigger like the oracle does.
+                _room.NotifyTilesMutated(CoveredTileRegion(), relight: open);
             }
 
             UpdateVisualFrame();
@@ -1011,6 +1024,68 @@ namespace PFE.Systems.Map.Rendering
             // frame animation and reporting success for an object that has no open state at all.
             if (!IsDoorBox || !IsInteractableDoor) return;
             SetOpen(!IsOpen);
+        }
+
+        /// <summary>
+        /// The host-side network entry: run the authoritative toggle for a peer's admitted interact
+        /// edge. The sink has already refused everything this could trip on (unknown room, wrong
+        /// room, missing object, not a door, locked, no presenter); the re-check of
+        /// <see cref="IsInteractableDoor"/> is the idempotency guard that keeps a duplicated edge from
+        /// double-toggling a door a frame after the first one landed.
+        ///
+        /// <para><b>There is no local user.</b> The press takes the same path a bullet press takes
+        /// (<see cref="RunActOsn"/> with a null user): the security gate runs with no picker, so a
+        /// locked door simply does not open — the same documented gap as remote container opens, not
+        /// papered over with the host player's skills. Returns whether the toggle ran, so the sink's
+        /// counters stay honest.</para>
+        /// </summary>
+        public bool InteractHost()
+        {
+            if (!IsInteractableDoor) return false;
+            if (IsDestroyed) return false;
+
+            RunActOsn(null);
+            return true;
+        }
+
+        /// <summary>
+        /// Apply a replicated open state to this door's presenter — the receiving half of
+        /// <c>SimRoomDelta.DoorStates</c>. Presentation only: writes the record, re-derives the
+        /// solid collider and seeks the sprite. It deliberately does NOT restamp tiles (the reliable
+        /// journal carries geometry to the same snapshot), eject units (that is the host's sim
+        /// decision when it closes authoritatively), poke triggers, or request a relight.
+        /// Idempotent: a state that already matches returns false and touches nothing.
+        /// </summary>
+        public bool ApplyNetworkState(bool open)
+        {
+            if (_objectInstance?.runtimeState == null) return false;
+            if (IsDestroyed) return false;
+            if (_objectInstance.runtimeState.isOpen == open) return false;
+
+            _objectInstance.runtimeState.isOpen = open;
+            RefreshSolidCollider();
+            UpdateVisualFrame();
+            return true;
+        }
+
+        /// <summary>Find the live presenter for <paramref name="obj"/>, or false when the door's
+        /// visuals were never built on this machine (streamed-out room). The same lookup shape as
+        /// <c>ContainerPropPresenter.TryGetPresenter</c>, over this class's active-presenter
+        /// registry.</summary>
+        public static bool TryGetPresenter(ObjectInstance obj, out DoorPropPresenter presenter)
+        {
+            for (int i = 0; i < _activePresenters.Count; i++)
+            {
+                DoorPropPresenter candidate = _activePresenters[i];
+                if (candidate != null && ReferenceEquals(candidate._objectInstance, obj))
+                {
+                    presenter = candidate;
+                    return true;
+                }
+            }
+
+            presenter = null;
+            return false;
         }
 
         public void GetDoorTileDimensions(out int widthTiles, out int heightTiles)
@@ -2100,6 +2175,12 @@ namespace PFE.Systems.Map.Rendering
              (_objectInstance.definition != null &&
               _objectInstance.definition.family == MapObjectFamily.Checkpoint));
 
+        /// <summary>Whether this door is a checkpoint object — exposed for the host's network admission
+        /// gate (<c>SimHostDoorRules.RefuseCheckpoint</c>): a peer's press must not turn a story
+        /// trigger into a plain toggle. One question, one answer; the network gate reads this rather
+        /// than re-deriving the family test and drifting from the presenter.</summary>
+        public bool IsCheckpoint => IsCheckpointObject;
+
         /// <summary>
         /// Whether this checkpoint is AS3's <c>main</c> one — <c>xml.@main</c>
         /// (<c>CheckPoint.as:95-98</c>), which re-points the button at <c>teleport</c> and clears the
@@ -2352,6 +2433,37 @@ namespace PFE.Systems.Map.Rendering
 
             if (Time.frameCount == _lastInteractFrame) return;
             _lastInteractFrame = Time.frameCount;
+
+            // ── A joined client does not toggle locally ──────────────────────────────────────────
+            //
+            // Same suppression contract as ContainerPropPresenter.Interact: on a network client the
+            // press is recorded on SimInteractCommandLatch and rides the next PlayerCommand as the
+            // InteractPressed edge; the host runs the one authoritative toggle and the door state
+            // comes back through SimRoomDelta.DoorStates (presenter state) and the reliable tile
+            // journal (geometry). Running the toggle here too would flip this peer's door against
+            // the host's truth — the "I closed it, the host walked through it" desync.
+            //
+            // Suppression requires a wire-addressable door: the host keys objects by
+            // (RoomKey(room.id), spawnIndex); a negative spawnIndex never went through
+            // RoomInstance.AddObject and keeps its local behaviour rather than eating the press.
+            //
+            // A `comein` Z door is the documented exception: the layer toggle is LOCAL-ONLY truth —
+            // each peer's LandMap is its own, and the host cannot step this peer's world for it
+            // (the host-side gate would refuse the edge anyway: a comein object authors no `door=`,
+            // so IsDoorBox() is false). The press must run here, flipping this peer's own map; the
+            // host learns the peer's new room through the id-change-based PeerRoomTransition
+            // declaration the flip itself triggers. Swallowing it into the latch is how a joined
+            // client got a Z door that never fired.
+            if (SimAuthorityContext.PeerRole == SimPeerRole.Client
+                && _room != null && !string.IsNullOrEmpty(_room.id)
+                && _objectInstance != null && _objectInstance.spawnIndex >= 0
+                && !IsComeInAction)
+            {
+                SimInteractCommandLatch.Raise(
+                    PFE.Sim.State.SimSnapshotProjectionRules.RoomKey(_room.id),
+                    _objectInstance.spawnIndex);
+                return;
+            }
 
             // ── The lock, before anything else ───────────────────────────────────────────────────
             //

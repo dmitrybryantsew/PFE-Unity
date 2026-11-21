@@ -31,8 +31,10 @@ namespace PFE.Systems.Map.Streaming
     /// the current room, buffers the previous one, activates exactly one room and leaves
     /// <see cref="CurrentRoom"/> pointing at it. The 23 consumers of <c>CurrentRoom</c> need no edit.
     /// <see cref="ApplyRoomPresence"/> is the multiplayer entry point and is the only path that can
-    /// make <see cref="ActiveRooms"/> hold more than one room. Do not mix the two drivers in one
-    /// session.</para>
+    /// make <see cref="ActiveRooms"/> hold more than one room. A co-op session runs BOTH drivers:
+    /// <c>ActivateRoom</c> for the local player's transitions and <c>ApplyRoomPresence</c> for
+    /// everyone's, so the legacy sweep and the previous-room buffer keep rooms that still have
+    /// connected players instead of evicting them.</para>
     ///
     /// <para><b>The decisions, not the bookkeeping, live in <see cref="ActiveRoomSetRules"/>.</b> This
     /// is a <c>MonoBehaviour</c> with <c>Update()</c>-frame state, which no offline harness can
@@ -205,11 +207,13 @@ namespace PFE.Systems.Map.Streaming
         }
 
         /// <summary>
-        /// Activate a new room and deactivate the current one. Single-player driver; unchanged in
-        /// behaviour from before Phase 3.1.
+        /// Activate a new room and deactivate the current one. Single-player driver; behaviour
+        /// unchanged from before Phase 3.1 except that a room which still has connected players
+        /// (a co-op peer, via presence written by <see cref="ApplyRoomPresence"/>) survives the
+        /// sweep — the local player's transition must not evict somebody else's room.
         /// </summary>
         /// <param name="newRoom">The room to activate</param>
-        /// <param name="oldRoom">The room to deactivate (can be null)</param>
+        /// <param name="oldRoom">The room the local player is leaving (can be null)</param>
         public void ActivateRoom(RoomInstance newRoom, RoomInstance oldRoom = null)
         {
             if (newRoom == null)
@@ -229,16 +233,19 @@ namespace PFE.Systems.Map.Streaming
 
             Debug.Log($"RoomStreamingManager: Activating {newRoom.id}");
 
-            // One local player is present in the room the camera follows. This is bookkeeping only:
-            // no events are raised and no set is reconciled here.
+            // The local player leaves oldRoom and enters newRoom. Bookkeeping only — no events are
+            // raised here — but the counts decide which rooms the sweep below may drop, so the
+            // release must come first: a vacated room with no other players becomes droppable,
+            // while one a co-op peer still occupies stays.
+            ReleaseSinglePlayerPresence(oldRoom);
             SetSinglePlayerPresence(newRoom);
 
-            // Deactivate current room(s). In single-player this is exactly the one previous call to
-            // DeactivateRoomInternal(_presentationRoom) the old code made.
+            // Deactivate current room(s) nobody stands in. In single-player this is exactly the one
+            // previous call to DeactivateRoomInternal(_presentationRoom) the old code made.
             var toDrop = new List<RoomInstance>();
             foreach (RoomInstance room in _activeRooms)
             {
-                if (room != newRoom) toDrop.Add(room);
+                if (room != newRoom && !HasPresence(room)) toDrop.Add(room);
             }
             foreach (RoomInstance room in toDrop)
             {
@@ -334,8 +341,31 @@ namespace PFE.Systems.Map.Streaming
 
         private void SetSinglePlayerPresence(RoomInstance room)
         {
-            _connectedPlayers.Clear();
-            if (room != null) _connectedPlayers[room] = 1;
+            // Increment rather than replace: a co-op peer already standing in the room shares the
+            // occupancy count. Single-player sequences stay exact — ReleaseSinglePlayerPresence
+            // removes the entry the moment the local player leaves, and ApplyRoomPresence
+            // rewrites the whole table each call anyway.
+            if (room == null) return;
+            _connectedPlayers.TryGetValue(room, out int count);
+            _connectedPlayers[room] = count + 1;
+        }
+
+        /// <summary>The local player is leaving <paramref name="room"/> (a transition's
+        /// <c>oldRoom</c>): drop their occupancy, but only theirs — peers keep theirs.</summary>
+        private void ReleaseSinglePlayerPresence(RoomInstance room)
+        {
+            if (room == null) return;
+            if (!_connectedPlayers.TryGetValue(room, out int count) || count <= 1)
+            {
+                _connectedPlayers.Remove(room);
+                return;
+            }
+            _connectedPlayers[room] = count - 1;
+        }
+
+        private bool HasPresence(RoomInstance room)
+        {
+            return _connectedPlayers.TryGetValue(room, out int players) && players > 0;
         }
 
         private void ActivateRoomInternal(RoomInstance room)
@@ -418,6 +448,15 @@ namespace PFE.Systems.Map.Streaming
             // Check if buffer time is over
             if (previousRoomFrameCount >= previousRoomBufferFrames)
             {
+                if (HasPresence(previousRoom))
+                {
+                    // Co-op: another player still stands in the room the local player left. The
+                    // buffer exists to retire the local player's old room, not to evict someone
+                    // else's — stop tracking and let ApplyRoomPresence own the lifecycle.
+                    previousRoom = null;
+                    return;
+                }
+
                 Debug.Log($"RoomStreamingManager: Previous room {previousRoom.id} buffer expired");
                 DeactivateRoomInternal(previousRoom);
                 previousRoom = null;

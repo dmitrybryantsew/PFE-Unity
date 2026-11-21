@@ -304,17 +304,30 @@ namespace PFE.Systems.Map
         /// Announces that tiles changed. Called by tile destruction and forwarded by
         /// <see cref="ITileQueryService.NotifyTilesMutated"/>. Safe to call with no listeners.
         ///
-        /// <para><b>It also raises the relight request.</b> AS3 sets <c>isRebuild</c> when a solid
-        /// tile changes (<c>Location.as:2525</c>, <c>:2586</c>) and the room's step gate ORs
-        /// <c>isRebuild</c> into the condition that runs the full <c>lighting()</c> pass
-        /// (<c>Location.as:3398</c>) — so destroying a wall re-lights the room. The port raises this
-        /// notification from exactly those paths (tile destruction in <c>TileCollider</c>, the
-        /// damage path in <c>UnifiedTileQueryService</c>), so it is the same trigger, fed to the
-        /// same request the door raises.</para>
+        /// <para><b>It also raises the relight request, unless <paramref name="relight"/> says
+        /// otherwise.</b> AS3 sets <c>isRebuild</c> when a solid tile changes (<c>Location.as:2525</c>,
+        /// <c>:2586</c>) and the room's step gate ORs <c>isRebuild</c> into the condition that runs
+        /// the full <c>lighting()</c> pass (<c>Location.as:3398</c>) — so destroying a wall re-lights
+        /// the room. The port raises this notification from exactly those paths (tile destruction in
+        /// <c>TileCollider</c>, the damage path in <c>UnifiedTileQueryService</c>), so it is the same
+        /// trigger, fed to the same request the door raises.</para>
+        ///
+        /// <para><b>The door is the exception, and the parameter exists for it.</b> AS3's
+        /// <c>Box.setDoor</c> sets <c>isRebuild</c>/<c>isRelight</c> only when the door is OPENING
+        /// (<c>Box.as:688-692</c> guards both with <c>if(param1)</c>) — closing a door deliberately
+        /// buys no full light pass. But the port's chain mirror goes stale in BOTH directions (the
+        /// door writes <c>phis</c> on every covered cell either way), so <c>DoorPropPresenter.SetOpen</c>
+        /// and the script path must still notify on a close — with <c>relight: false</c>.</para>
         /// </summary>
-        public void NotifyTilesMutated(RectInt tileRegion)
+        /// <param name="relight">Whether this mutation also requests the full light pass. Destruction
+        /// and damage paths leave the default (<c>true</c>); door toggles pass <c>open</c>.</param>
+        public void NotifyTilesMutated(RectInt tileRegion, bool relight = true)
         {
-            RequestRelight();
+            if (relight)
+            {
+                RequestRelight();
+            }
+
             TilesMutated?.Invoke(this, tileRegion);
         }
 
@@ -374,6 +387,15 @@ namespace PFE.Systems.Map
             }
 
             obj.EnsureStructuredData();
+
+            // Assigned once, here, so it is a function of population order and never of list position.
+            // Every add path (authored table, prob room, runtime spawn) funnels through this method,
+            // which is why a single line is enough to give every object a stable identity.
+            if (obj.spawnIndex < 0)
+            {
+                obj.spawnIndex = objects.Count;
+            }
+
             objects.Add(obj);
             ObjectPhysicsLayer.Register(obj);
             RefreshMovingPlatforms();
@@ -1164,6 +1186,27 @@ namespace PFE.Systems.Map
         public MapObjectDefinition definition;
         public string code = "";
         public string uid = "";
+
+        /// <summary>
+        /// This object's position in <see cref="RoomInstance.objects"/> at the moment it was added, or
+        /// <c>-1</c> if it was never added through <see cref="RoomInstance.AddObject"/>.
+        ///
+        /// <para><b>Why a stored index and not the list position.</b> The list position is not stable:
+        /// <see cref="RoomInstance.RemoveObject"/> closes the gap and every later object shifts down.
+        /// A container's identity has to survive that, because it decides what the container holds —
+        /// a shifted index would silently give the chest a different inventory the next time the room
+        /// streams in.</para>
+        ///
+        /// <para><b>Why it is a valid identity at all.</b> <c>room.objects</c> is filled by
+        /// <c>RoomPopulator</c> walking the template's authored object table in order, so two peers
+        /// generating the same room produce the same object at the same index. That is what makes
+        /// <c>(roomKey, spawnIndex)</c> a key two machines can agree on without a handshake.</para>
+        ///
+        /// <para><b>Serialized, deliberately.</b> It is content identity, not runtime state: a loaded
+        /// save must keep the same index or its containers roll different contents than the run that
+        /// wrote it.</para>
+        /// </summary>
+        public int spawnIndex = -1;
         public List<MapObjectAttributeData> attributes = new List<MapObjectAttributeData>();
         public List<MapObjectItemData> items = new List<MapObjectItemData>();
         public List<MapObjectScriptData> scripts = new List<MapObjectScriptData>();
@@ -1787,9 +1830,32 @@ namespace PFE.Systems.Map
         /// rectangle), so its art size carries no physical meaning. Passing <c>zero</c> here is what
         /// keeps <c>visArea</c>'s 100x100 frame from becoming a 100x100 collider.</para>
         /// </summary>
+        /// <summary>
+        /// Cache for <see cref="GetApproximatePixelSize"/>. Every input the resolution reads —
+        /// the runtime attributes, the definition, and <see cref="objectType"/> — is fixed for the
+        /// object's life: the migration in <see cref="EnsureStructuredData"/> REPLACES the
+        /// <c>attributes</c> list rather than mutating it, so keying on the references invalidates
+        /// exactly when an input changes. Without this, the physics layer re-parses <c>scx</c>/<c>scy</c>
+        /// and re-runs the footprint math several times per prop per substep
+        /// (<c>HasCollision</c> asks for bounds twice per call; the shelf scans ask per candidate),
+        /// which is most of what <c>phys.objects.step</c> self cost after the drawn-footprint work made
+        /// this method resolve art bounds and definition fallbacks too.
+        /// </summary>
+        private List<MapObjectAttributeData> _pixelSizeCacheForAttributes;
+        private MapObjectDefinition _pixelSizeCacheForDefinition;
+        private string _pixelSizeCacheForObjectType;
+        private Vector2 _pixelSizeCache;
+
         public Vector2 GetApproximatePixelSize()
         {
             EnsureStructuredData();
+
+            if (ReferenceEquals(attributes, _pixelSizeCacheForAttributes) &&
+                ReferenceEquals(definition, _pixelSizeCacheForDefinition) &&
+                ReferenceEquals(objectType, _pixelSizeCacheForObjectType))
+            {
+                return _pixelSizeCache;
+            }
 
             float widthPixels = TryParseFloatAttribute("scx", 0f);
             float heightPixels = TryParseFloatAttribute("scy", 0f);
@@ -1802,8 +1868,14 @@ namespace PFE.Systems.Map
             int widthTiles = definition != null ? Mathf.Max(1, definition.size) : TryParseIntAttribute("size", 1);
             int heightTiles = definition != null ? Mathf.Max(1, definition.width) : TryParseIntAttribute("wid", 1);
 
-            return PropFootprintMath.ResolvePixelSize(
+            Vector2 resolved = PropFootprintMath.ResolvePixelSize(
                 widthPixels, heightPixels, artPixels, widthTiles, heightTiles);
+
+            _pixelSizeCacheForAttributes = attributes;
+            _pixelSizeCacheForDefinition = definition;
+            _pixelSizeCacheForObjectType = objectType;
+            _pixelSizeCache = resolved;
+            return resolved;
         }
 
         /// <summary>

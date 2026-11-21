@@ -149,6 +149,17 @@ namespace PFE.Systems.Map
             => soundOn && !string.IsNullOrEmpty(soundId) && DownwardSpeedPerFrame(velocityYPerSecond) > LandingSoundMinDy;
 
         /// <summary>
+        /// The speed half of the landing gate on its own — <c>dy &gt; 5</c> (<c>Box.as:1074</c>).
+        /// Exists so a caller can gate on the cheap velocity test BEFORE resolving <c>@fall</c> from
+        /// the attribute list: a resting prop passes through the landing branch on every tick
+        /// (gravity → refused move → landing), and resolving the sound id first would scan the row
+        /// per prop per tick for a sample the gate then rejects. The full predicate is a pure
+        /// conjunction, so splitting it this way changes the cost, not the answer.
+        /// </summary>
+        public static bool PassesLandingSpeedGate(float velocityYPerSecond)
+            => DownwardSpeedPerFrame(velocityYPerSecond) > LandingSoundMinDy;
+
+        /// <summary>
         /// The landing sample's volume scale — <c>dy / 15</c> (<c>Box.as:1076</c>), with <c>dy</c> derived
         /// the same way <see cref="PlaysOnLanding"/> derives it.
         /// </summary>

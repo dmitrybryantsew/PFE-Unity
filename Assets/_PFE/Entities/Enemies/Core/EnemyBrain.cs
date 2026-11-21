@@ -2074,8 +2074,15 @@ namespace PFE.Entities.Enemies
             // The three `continue`s are the oracle's own skip list, in its order: itself (AS3 never
             // considers `this`, since `findCel` compares factions and a unit's own faction always
             // matches), `sost > 1` (dead — `IsAlive`), and `doop` (`IsNonLiving`).
-            var units = FindObjectsByType<UnitController>(FindObjectsSortMode.None);
-            for (int i = 0; i < units.Length; i++)
+            //
+            // The candidate pool is UnitViewRegistry, not FindObjectsByType: the registry is the
+            // same flat lifecycle list the snapshot projector uses, maintained by OnEnable/OnDisable,
+            // so reading it here costs a list walk instead of a whole-scene object scan PER BRAIN
+            // PER TICK (measured 2026-11-18: ~0.4 ms per brain per tick, 8+ brains per tick — the
+            // dominant line of the whole sim tick). Membership is active-only, which is exactly what
+            // FindObjectsByType returned.
+            IReadOnlyList<UnitController> units = UnitViewRegistry.Live;
+            for (int i = 0; i < units.Count; i++)
             {
                 UnitController candidate = units[i];
                 if (candidate == null || ReferenceEquals(candidate, _controller))

@@ -296,7 +296,10 @@ namespace PFE.Tests.Editor.Map
         {
             RoomInstance room = CreateTestRoom();
 
-            room.difficulty.SetEnemyCount(1, 2, 5);
+            // The spawn stream is required (no default — a default would make the count depend on
+            // population order), so the fixture brings its own seeded service.
+            room.difficulty.SetEnemyCount(1, 2, 5,
+                rng: new PFE.Core.Rng.PcgRngService(0x5eedu).GetStream(PFE.Core.Rng.RngStream.Spawn));
 
             int count = room.difficulty.GetEnemyCount(1);
             Assert.GreaterOrEqual(count, 2);

@@ -9,6 +9,7 @@ using PFE.Systems.Campaign;
 using PFE.Systems.Interaction;
 using PFE.Systems.Inventory;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.Scripting;
 using PFE.Sim.Units;
 using PFE.Systems.Map.TileQuery;
@@ -1483,6 +1484,38 @@ namespace PFE.Entities.Units
 
             _npcBubble = bubbleGo.AddComponent<SpriteRenderer>();
             _npcBubble.enabled = false;
+
+            // ── The unlit presenter material: without it the bubble is drawn PURE BLACK ──────────────
+            //
+            // This project renders 2D through URP's Renderer2D, whose DEFAULT sprite material is
+            // `Sprite-Lit-Default` (`Assets/Settings/Renderer2D.asset` has `m_DefaultMaterialType: 0`,
+            // i.e. Lit). A lit sprite's output is `texture × (sum of the Light2Ds that apply to its
+            // sorting layer)`, and units are drawn on `BackgroundPhysicalObjects`, which is not in
+            // `Global Light 2D`'s apply list — so the icon is multiplied by zero: the correct
+            // silhouette, the correct alpha, no colour. That is exactly what "vendor talk bubbles and
+            // icons are dark grey" looked like; the mint-green line art in the PNGs was intact all
+            // along, and the same frame is bright in the importer preview.
+            //
+            // Every other map presenter already asks `SpritePresenterMaterial.Get()` for the unlit
+            // shader — including the body itself (`UnitController:5970`), which is why the NPC stayed
+            // bright while its own child icon went black. This renderer was the one that forgot.
+            //
+            // `sharedMaterial`, not `.material`: the latter instantiates a copy per NPC and drops the
+            // icon out of the body's batch. Do NOT "fix" this by adding the sorting layer to Global
+            // Light 2D — the convention here is that map presenters are unlit, and a presenter that
+            // depends on a scene light goes black the day the light is retuned.
+            Material presenterMaterial = SpritePresenterMaterial.Get();
+            if (presenterMaterial != null)
+            {
+                _npcBubble.sharedMaterial = presenterMaterial;
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "[UnitNPCController] No unlit sprite shader resolved (URP 2D sprite or " +
+                    "Sprites/Default); the overhead icon will use the default material, which " +
+                    "renders black on an unlit sorting layer.");
+            }
 
             // The icon fades in with the body: AS3's reveal lerps `vis.alpha`, and `ico` is a child of
             // `vis`, so it is inside that fade rather than alongside it.

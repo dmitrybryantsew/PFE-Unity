@@ -1259,28 +1259,16 @@ namespace PFE.Systems.Map.Scripting
 
             // The chain mirror (bullet/round collision) is built from this grid and refreshed only
             // from `RoomInstance.TilesMutated` — so writing `physicsType` above without saying so left
-            // it describing the door's OPPOSITE state. `DoorPropPresenter.SetOpen` has always
-            // notified; this, the script/Lua path, did not, so a door a script opened still stopped
-            // rounds at a phantom surface in the doorway. Same one-line contract, both paths.
-            room.NotifyTilesMutated(new RectInt(txMin, tyMin, txMax - txMin + 1, tyMax - tyMin + 1));
-
-            // AS3 `Box.setDoor()` force-relights the room when the door is *opened* — and only then:
-            // `if(param1) { loc.isRelight = true; loc.isRebuild = true; }` (Box.as:688-692, param1 =
-            // the new open state). The room's per-frame gate (Location.as:3398) then runs the full
-            // light pass on the next frame regardless of camera motion.
+            // it describing the door's OPPOSITE state. `DoorPropPresenter.SetOpen` notifies in both
+            // directions; this, the script/Lua path, did not, so a door a script opened still stopped
+            // rounds at a phantom surface in the doorway. Same contract, both paths.
             //
-            // This method is the port of `Box.setDoor` for the **script** and **Lua** paths
-            // (ExecuteAction "open"/"close" above, and LuaTriggerBridge); DoorPropPresenter is the
-            // same port for the player-interact path and requests it in SetOpen. Both must, or a door
-            // a script opens leaves the room behind it dark until the player happens to move.
-            //
-            // The relight is now already raised by NotifyTilesMutated above (which calls
-            // RequestRelight unconditionally, matching SetOpen's "both directions" reasoning), so this
-            // is kept only as the documented statement of intent — it is idempotent, not a second pass.
-            if (isOpen)
-            {
-                room.RequestRelight();
-            }
+            // relight: isOpen — the mirror refresh happens in both directions, but AS3's setDoor buys
+            // the full light pass only when OPENING (`if(param1) { loc.isRelight = true;
+            // loc.isRebuild = true; }`, Box.as:688-692). DoorPropPresenter.SetOpen passes the same
+            // flag; a script-driven close, like a player-driven one, waits for camera movement.
+            room.NotifyTilesMutated(new RectInt(txMin, tyMin, txMax - txMin + 1, tyMax - tyMin + 1),
+                relight: isOpen);
         }
 
         private static void EjectPlayerIfOverlappingDoor(

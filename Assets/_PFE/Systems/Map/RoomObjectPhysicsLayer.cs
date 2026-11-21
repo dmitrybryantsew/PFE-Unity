@@ -1410,17 +1410,22 @@ namespace PFE.Systems.Map
         /// </summary>
         void PlayLandingSound(RoomInstance room, ObjectInstance obj, MapObjectDynamicStateData state)
         {
-            // The gate, the conversion and the volume all live in MapObjectSoundRule so an offline
-            // fixture can pin them; this method only supplies the velocity, the row and the position.
-            string soundId = MapObjectSoundRule.FallSound(obj?.definition?.legacyAttributes);
-
-            if (MapObjectSoundRule.PlaysOnLanding(state.velocity.y, soundId, state.soundOn))
+            // The speed gate runs BEFORE @fall is resolved. A resting prop passes through this
+            // landing branch on every tick (gravity → refused move → landing), and resolving the
+            // attribute list first would scan it per prop per tick for a sample the full gate then
+            // rejects. The final decision still goes through PlaysOnLanding — the pinned predicate —
+            // so the px/s → px/frame conversion and the sign live in one testable place.
+            if (MapObjectSoundRule.PassesLandingSpeedGate(state.velocity.y))
             {
-                Vector2 origin = WorldCoordinates.RoomOriginPixel(room);
-                SoundBus.Current?.Play(
-                    soundId,
-                    WorldCoordinates.PixelToUnity(obj.position + origin),
-                    MapObjectSoundRule.LandingVolume(state.velocity.y));
+                string soundId = MapObjectSoundRule.FallSound(obj?.definition?.legacyAttributes);
+                if (MapObjectSoundRule.PlaysOnLanding(state.velocity.y, soundId, state.soundOn))
+                {
+                    Vector2 origin = WorldCoordinates.RoomOriginPixel(room);
+                    SoundBus.Current?.Play(
+                        soundId,
+                        WorldCoordinates.PixelToUnity(obj.position + origin),
+                        MapObjectSoundRule.LandingVolume(state.velocity.y));
+                }
             }
 
             // `this.sndOn = true;` (`Box.as:1108`) — the last statement of the landing branch, and it runs

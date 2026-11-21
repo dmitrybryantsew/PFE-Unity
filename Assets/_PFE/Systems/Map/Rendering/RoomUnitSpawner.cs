@@ -1125,59 +1125,80 @@ namespace PFE.Systems.Map.Rendering
         /// has. Mirrors <c>RoomObjectVisualManager.SyncPresenters</c>, because a room's unit list is
         /// mutable (units die, save data is restored).
         /// </summary>
+        /// <remarks>
+        /// <b>The whole body runs under <see cref="SimAuthorityContext.EnterSimulation"/>
+        /// (<see cref="SimLoopRole.Host"/>).</b> Phase D makes every unit record a pure function of the
+        /// shared world seed, so a joined peer builds exactly the units the host does — each machine
+        /// builds its own world (<c>docs/multiplayer/PHASE_DETERMINISM_TASK.md</c>). Applying a
+        /// placement writes <c>[Authoritative]</c> state (hero tier, faction, the hp ceiling), and a
+        /// client process's ambient context is <see cref="SimWriteContext.ClientPrediction"/>: left
+        /// unscoped, <see cref="HostWriteGuard"/> reads the spawn as a client originating state and
+        /// throws — which unwound <c>MapBridge</c>'s boot coroutine at the very first unit, leaving
+        /// the peer's player unplaced, with no <c>RoomStreamingManager</c> and no NPCs (play-test
+        /// 2026-11-15). This build is neither prediction nor a snapshot mirror; it is the deterministic
+        /// construction the host process runs under ambient <see cref="SimWriteContext.HostSimulation"/>
+        /// (the "load/Awake" class, see <c>SimAuthorityContext</c>). All callers are synchronous, so
+        /// the scope cannot leak across a suspension; the guard stays live for every genuinely
+        /// client-originated write everywhere else.
+        /// </remarks>
         public void RefreshAll()
         {
-            if (_room?.units == null)
+            // See the remarks: the deterministic derived build is legal on any peer. HostWriteGuard
+            // would otherwise read a client process's ambient ClientPrediction as "originating".
+            using (SimAuthorityContext.EnterSimulation(SimLoopRole.Host))
             {
-                DestroyAll();
-                return;
-            }
-
-            // AS3 `Location.reactivate` ends with `resetUnits()` (`Location.as:2243`) — corpses leave the
-            // room's list when it is re-entered. `Initialize` calls this method on every room build, so
-            // this is the port's reactivate moment; see RoomInstance.PruneDeadUnits for why the timing
-            // is not "when the unit dies".
-            //
-            // It also means the loop below cannot meet a dead record, which is why it has no `IsDead`
-            // test: the prune is the single owner of that decision, and a second guard here would be a
-            // line no test could ever reach.
-            _room.PruneDeadUnits();
-
-            _stale.Clear();
-            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
-            {
-                _stale.Add(pair.Key);
-            }
-
-            for (int i = 0; i < _room.units.Count; i++)
-            {
-                UnitInstance unit = _room.units[i];
-                if (unit == null)
+                if (_room?.units == null)
                 {
-                    continue;
+                    DestroyAll();
+                    return;
                 }
 
-                _stale.Remove(unit);
+                // AS3 `Location.reactivate` ends with `resetUnits()` (`Location.as:2243`) — corpses leave the
+                // room's list when it is re-entered. `Initialize` calls this method on every room build, so
+                // this is the port's reactivate moment; see RoomInstance.PruneDeadUnits for why the timing
+                // is not "when the unit dies".
+                //
+                // It also means the loop below cannot meet a dead record, which is why it has no `IsDead`
+                // test: the prune is the single owner of that decision, and a second guard here would be a
+                // line no test could ever reach.
+                _room.PruneDeadUnits();
 
-                if (!_spawned.ContainsKey(unit))
+                _stale.Clear();
+                foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
                 {
-                    _spawned[unit] = Spawn(unit);
-
-                    // Phase 3.2 (F-05): register the RECORD, not the controller. RefreshAll destroys
-                    // and rebuilds the view on every room entry, so controller-scoped registration
-                    // would leave a stale entry after a transition. An empty `entityId` is answered
-                    // inside the context with a host-assigned runtime id, so no live unit is
-                    // anonymous to the replication layer.
-                    RuntimeEntityIdContext.TryRegister(unit, unit.entityId);
+                    _stale.Add(pair.Key);
                 }
-            }
 
-            for (int i = 0; i < _stale.Count; i++)
-            {
-                DestroyUnit(_stale[i]);
-            }
+                for (int i = 0; i < _room.units.Count; i++)
+                {
+                    UnitInstance unit = _room.units[i];
+                    if (unit == null)
+                    {
+                        continue;
+                    }
 
-            _stale.Clear();
+                    _stale.Remove(unit);
+
+                    if (!_spawned.ContainsKey(unit))
+                    {
+                        _spawned[unit] = Spawn(unit);
+
+                        // Phase 3.2 (F-05): register the RECORD, not the controller. RefreshAll destroys
+                        // and rebuilds the view on every room entry, so controller-scoped registration
+                        // would leave a stale entry after a transition. An empty `entityId` is answered
+                        // inside the context with a host-assigned runtime id, so no live unit is
+                        // anonymous to the replication layer.
+                        RuntimeEntityIdContext.TryRegister(unit, unit.entityId);
+                    }
+                }
+
+                for (int i = 0; i < _stale.Count; i++)
+                {
+                    DestroyUnit(_stale[i]);
+                }
+
+                _stale.Clear();
+            }
         }
 
         /// <summary>

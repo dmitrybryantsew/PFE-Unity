@@ -23,6 +23,7 @@ using PFE.Systems.Weapons;
 using PFE.Core.Rng;
 using PFE.Core.Ids;
 using PFE.Core.Scripting;
+using PFE.Sim.State;
 using PFE.Systems.Campaign;
 using PFE.Systems.Trade;
 using PFE.UI.Common;
@@ -160,13 +161,19 @@ public class GameLifetimeScope : LifetimeScope
         // === Time System ===
         builder.Register<ITimeProvider, UnityTimeProvider>(Lifetime.Singleton);
 
-        // === Deterministic PRNG System (P3) ===
-        ulong masterSeed = 0x853c49e6748fea9bUL;
+        // === Deterministic PRNG System (P3, extended by Phase D) ===
+        // The world seed is world STATE, not a compile-time constant: it must come from the save and
+        // be published by the host on join, or two machines only agree by accident of building the
+        // same binary. Until the save/join path supplies one, it falls back to the historical
+        // constant, and RngSeedOverride stays the operator's way to reproduce a run.
+        ulong masterSeed = WorldSeed.DefaultValue;
         if (_debugSettings != null && _debugSettings.RngSeedOverride != 0)
         {
             masterSeed = (ulong)_debugSettings.RngSeedOverride;
         }
-        builder.RegisterInstance<IRngService>(new PcgRngService(masterSeed));
+        var worldSeed = new WorldSeed(masterSeed);
+        builder.RegisterInstance<IWorldSeed>(worldSeed);
+        builder.RegisterInstance<IRngService>(new PcgRngService(worldSeed.Value));
 
         // === Entity Registry (P3) ===
         builder.Register<IEntityRegistry, EntityRegistry>(Lifetime.Singleton);
@@ -206,9 +213,34 @@ public class GameLifetimeScope : LifetimeScope
             // rest of the session. The first access is a spawn path, which cannot run before its
             // definition exists. See ContentInternContext.
             ContentRegistry contentRegistry = container.Resolve<ContentRegistry>();
+            // BARE ids, not qualified: every producer that stamps a record reads the bare oracle id
+            // off the asset/placement (RoomUnitSpawner stamps unit.unitType, ProjectileFactory and
+            // ProjectileSpawner stamp weapon.weaponId), and the client's only consumer resolves the
+            // id back through PfeRemoteWeaponCatalog, whose index is keyed by the same bare
+            // weapon.weaponId. Keying these tables on GetAllIds (qualified "pfe.base.<id>") made
+            // every GetKeyOrDefault miss, so every projected DefinitionId was Uninterned (0) and
+            // the client's projectile display could never resolve a weapon — noDef climbing for
+            // every round while the wire stayed healthy.
             ContentInternContext.SetSources(
-                () => contentRegistry.GetAllIds(PFE.ModAPI.ContentType.Unit),
-                () => contentRegistry.GetAllIds(PFE.ModAPI.ContentType.Weapon));
+                () => contentRegistry.GetAllBareIds(PFE.ModAPI.ContentType.Unit),
+                () => contentRegistry.GetAllBareIds(PFE.ModAPI.ContentType.Weapon));
+
+            // Slice 1 (loot sync): the reverse lookup that turns a replicated drop's interned
+            // content hash back into an id, so the client can rebuild the host's floor loot. Same
+            // lazy-sources shape as the intern tables above: the registry is empty at build time, so
+            // the hash → id map materializes on first use, which is always a drop spawn.
+            //
+            // BOTH the qualified and the bare form of every id are published. The registry stores
+            // qualified keys ("pfe.base.medkit") with bare aliases ("medkit"), and the two producer
+            // classes hash whatever the game data carries: loot tables and authored <item> children
+            // name the BARE oracle id, while a definition-driven path (an equipped weapon's id, a
+            // player drop resolved through the definition) can carry the QUALIFIED one. Keying the
+            // map on only one form makes every drop from the other form unresolvable on the peer —
+            // the fourth play-test read that as unknownContent growing every snapshot with
+            // spawned=0. Each form hashes to its own key; both resolve.
+            SimLootHashContext.SetSources(
+                () => IdsInBothForms(contentRegistry, PFE.ModAPI.ContentType.Item),
+                () => IdsInBothForms(contentRegistry, PFE.ModAPI.ContentType.Weapon));
         });
 
         // === Lua Scripting Engine & Developer Console ===
@@ -867,5 +899,19 @@ public class GameLifetimeScope : LifetimeScope
             }
         }
     }
+
+    /// <summary>
+    /// Every content id of <paramref name="type"/> in BOTH registry vocabularies — the qualified
+    /// store key first, then the bare oracle form. See the <c>SimLootHashContext.SetSources</c> call
+    /// in <see cref="GameLifetimeScope.Configure"/> for why both are needed: the wire hash is
+    /// computed from whichever form the producing path carried, and the receiver must answer both.
+    /// </summary>
+    private static System.Collections.Generic.IEnumerable<string> IdsInBothForms(
+        ContentRegistry contentRegistry, PFE.ModAPI.ContentType type)
+    {
+        foreach (string id in contentRegistry.GetAllIds(type)) yield return id;
+        foreach (string bareId in contentRegistry.GetAllBareIds(type)) yield return bareId;
+    }
+
     
 }
