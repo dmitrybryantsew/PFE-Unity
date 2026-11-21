@@ -8,10 +8,18 @@ namespace PFE.Core.Rng
     /// Uses 64-bit internal state and integer-only bit manipulations to ensure
     /// cross-platform determinism without floating-point transcendental drift.
     /// </summary>
-    public sealed class PcgRngService : IRngService
+    public sealed class PcgRngService : IRngService, IKeyedRng
     {
         private ulong _state;
         private readonly ulong _inc;
+
+        /// <summary>
+        /// The seed this instance was constructed with. Kept because <see cref="Derive"/> must produce
+        /// the same child for the same key no matter how many draws this instance has already made.
+        /// <see cref="_state"/> cannot serve that purpose — it is the live cursor.
+        /// </summary>
+        private readonly ulong _rootSeed;
+
         private readonly IRngService[] _childStreams;
 
         private const ulong Multiplier = 6364136223846793005UL;
@@ -23,6 +31,7 @@ namespace PFE.Core.Rng
         /// <param name="streamSequence">Stream selector (determines sequence trajectory).</param>
         public PcgRngService(ulong seed = 0x853c49e6748fea9bUL, ulong streamSequence = 0xda3e39cb94b95bdbUL)
         {
+            _rootSeed = seed;
             _inc = (streamSequence << 1) | 1UL;
             _state = 0UL;
             NextUInt();
@@ -124,6 +133,38 @@ namespace PFE.Core.Rng
             }
 
             return _childStreams[streamIndex];
+        }
+
+        /// <summary>
+        /// The seed this instance was constructed with, not the live cursor. A child produced by
+        /// <see cref="Derive"/> carries its own derived seed here, so chained derivation
+        /// (<c>world → land → room</c>) stays a pure function of the chain.
+        /// </summary>
+        public ulong Seed => _rootSeed;
+
+        /// <summary>
+        /// A child stream that is a pure function of <c>(this.Seed, stream, key0, key1)</c>.
+        ///
+        /// <para><b>Why this exists next to <see cref="GetStream"/>.</b> <c>GetStream</c> hashes the
+        /// live <c>_state</c>, so the stream a caller receives depends on how many draws every
+        /// previous caller made. That is correct for a single-machine game and fatal for replication:
+        /// two processes that populate rooms in a different order would get different enemies in the
+        /// same room. <c>Derive</c> never reads <c>_state</c>.</para>
+        ///
+        /// <para><b>What the keys are for.</b> <paramref name="key0"/> is the identity being
+        /// generated (a land key, a room key, a spawn-point index). <paramref name="key1"/> is a
+        /// sub-index within that identity, so one room can have independent tile, enemy and loot
+        /// streams without those streams being ordered against each other.</para>
+        /// </summary>
+        public IRngService Derive(RngStream stream, ulong key0, ulong key1 = 0UL)
+        {
+            ulong domain = (ulong)stream;
+            ulong seed = Hash64(Hash64(_rootSeed, domain), Hash64(key0, key1));
+
+            // A per-key trajectory, not one shared trajectory with different starting points: PCG32
+            // mixes _inc as well as _state, and giving every key its own _inc removes any question of
+            // two keys landing on correlated subsequences.
+            return new PcgRngService(seed, Hash64(domain, key0));
         }
 
         /// <summary>

@@ -73,8 +73,6 @@ namespace PFE.Systems.Map
         /// </summary>
         public float earMult = 1f;
 
-        private static PFE.Core.Rng.IRngService s_spawnRng;
-
         /// <summary>
         /// Set one enemy-group count, or the alarm spawn count.
         /// Port of AS3 <c>Location.setKolEn(param1, param2, param3, param4 = 0)</c>
@@ -105,6 +103,13 @@ namespace PFE.Systems.Map
         /// ignored — AS3 would write past the array, which is not behaviour worth reproducing.
         /// </param>
         /// <param name="bonus">AS3 <c>param4</c>: a 20 %-chance addition. <c>0</c> means "no second draw".</param>
+        /// <param name="rng">
+        /// The land stream. <b>Required.</b> The old fallback was a process-wide cursor built from a
+        /// compile-time seed: every room then drew from one sequence in population order, so which
+        /// counts a room got depended on how many rooms had been built before it. It is not replaced
+        /// with a default because a default here is indistinguishable from a correct answer — the room
+        /// gets plausible numbers and no one can tell they are not the world's.
+        /// </param>
         public void SetEnemyCount(
             int enemyType,
             int minCount,
@@ -112,7 +117,9 @@ namespace PFE.Systems.Map
             int bonus = 0,
             PFE.Core.Rng.IRngService rng = null)
         {
-            var r = rng ?? (s_spawnRng ??= new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Spawn));
+            if (rng == null) throw new ArgumentNullException(nameof(rng), "SetEnemyCount needs the land's spawn stream; a default would make room contents depend on population order.");
+
+            var r = rng;
 
             if (enemyType == SpawnCountSlot)
             {

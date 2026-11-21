@@ -47,9 +47,42 @@ namespace PFE.Systems.Map.Generation
         public static LandLayoutPlan Plan(LandDefinition land, int landStage, bool visited,
             IRngService rng, bool mbaseVisited = false)
         {
+            return Plan(ToRequest(land, landStage, visited, mbaseVisited), rng);
+        }
+
+        /// <summary>
+        /// The deterministic entry point: the plan is a pure function of
+        /// <c>(world seed, landId, landStage)</c> and the two campaign flags.
+        ///
+        /// <para><b>Why this is the entry point and not an option.</b> The <c>IRngService</c> overload
+        /// above accepts whatever stream the caller happens to hold, and the caller used to hold a
+        /// process-wide cursor. That made a land's layout depend on which land was built before it —
+        /// so two peers, or the same peer after a different route, produced different room sets from
+        /// the same save. Deriving the stream from the world seed here removes the choice.</para>
+        ///
+        /// <para><b>Not named <c>Plan</c>.</b> An <c>IWorldSeed</c> overload beside the
+        /// <c>IRngService</c> one makes <c>Plan(req, null)</c> ambiguous, and the existing fixtures
+        /// call exactly that to pin the null guard.</para>
+        /// </summary>
+        public static LandLayoutPlan PlanSeeded(LandDefinition land, int landStage, bool visited,
+            IWorldSeed seed, bool mbaseVisited = false)
+        {
+            return PlanSeeded(ToRequest(land, landStage, visited, mbaseVisited), seed);
+        }
+
+        /// <inheritdoc cref="PlanSeeded(LandDefinition,int,bool,IWorldSeed,bool)"/>
+        public static LandLayoutPlan PlanSeeded(LandLayoutRequest req, IWorldSeed seed)
+        {
+            if (seed == null) throw new ArgumentNullException(nameof(seed));
+            return Plan(req, WorldRng.ForLand(seed, req.LandId, req.LandStage));
+        }
+
+        private static LandLayoutRequest ToRequest(LandDefinition land, int landStage, bool visited,
+            bool mbaseVisited)
+        {
             if (land == null) throw new ArgumentNullException(nameof(land));
 
-            return Plan(new LandLayoutRequest
+            return new LandLayoutRequest
             {
                 LandId = land.landId,
                 Conf = land.configId,
@@ -59,7 +92,7 @@ namespace PFE.Systems.Map.Generation
                 EntryCell = land.entryCoordinates,
                 Visited = visited,
                 MbaseVisited = mbaseVisited,
-            }, rng);
+            };
         }
 
         public static LandLayoutPlan Plan(LandLayoutRequest req, IRngService rng)

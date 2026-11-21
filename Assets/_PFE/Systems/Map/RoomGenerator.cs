@@ -29,6 +29,30 @@ namespace PFE.Systems.Map
 
         private readonly PFE.Core.Rng.IRngService _rng;
 
+        /// <summary>
+        /// The current land's stream, set by <see cref="ConfigureLandStream"/>. Null until a land binds
+        /// this generator — it is a singleton shared by every land, so its constructor cursor would
+        /// otherwise carry across a land boundary and make template choice depend on the previous land.
+        /// </summary>
+        private PFE.Core.Rng.IRngService _landRng;
+
+        /// <summary>
+        /// What this generator draws from. The land stream when one is bound, otherwise the
+        /// constructor's cursor — which is the correct fallback for a tool or fixture that builds one
+        /// room in isolation, and wrong for anything that builds a world.
+        /// </summary>
+        private PFE.Core.Rng.IRngService ActiveStream => _landRng ?? _rng;
+
+        /// <summary>
+        /// Bind this generator to one land's stream. Called once per land build, before any template is
+        /// selected, so the whole land's room choice is a function of <c>(world seed, landId,
+        /// landStage)</c> plus the fixed cell order — not of the previous land.
+        /// </summary>
+        public void ConfigureLandStream(PFE.Core.Rng.IRngService landStream)
+        {
+            _landRng = landStream;
+        }
+
         [Inject]  // Add this constructor
         public RoomGenerator(TileFormDatabase formDb = null, PFE.Core.Rng.IRngService rng = null)
         {
@@ -191,7 +215,7 @@ namespace PFE.Systems.Map
                     // oracle, so a mid-run `changeDif` affects every room built after it and no room
                     // built before it. See GlobalDifficulty for why the static is the right owner.
                     globalDifficulty: GlobalDifficulty.Value),
-                _rng);
+                ActiveStream);
 
             // Set environment
             room.environment = new RoomEnvironment
@@ -418,7 +442,7 @@ namespace PFE.Systems.Map
             int totalWeight = 0;
             foreach (int w in weights) totalWeight += w;
 
-            int random = _rng.Range(0, totalWeight);
+            int random = ActiveStream.Range(0, totalWeight);
             int cumulative = 0;
             for (int i = 0; i < candidates.Count; i++)
             {
@@ -495,7 +519,7 @@ namespace PFE.Systems.Map
             }
 
             if (pool.Count == 0) return null;
-            return pool[_rng.Range(0, pool.Count)];
+            return pool[ActiveStream.Range(0, pool.Count)];
         }
 
         /// <summary>
@@ -551,7 +575,7 @@ namespace PFE.Systems.Map
             }
 
             // Select random candidate
-            RoomTemplate selected = candidates[_rng.Range(0, candidates.Count)];
+            RoomTemplate selected = candidates[ActiveStream.Range(0, candidates.Count)];
 
             // Increment usage count
             string selectedKey = selected.GetContentId();

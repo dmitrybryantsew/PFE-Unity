@@ -33,6 +33,19 @@ namespace PFE.Systems.Map
         private PFE.Core.Rng.IRngService _rng;
 
         /// <summary>
+        /// The world's generation root. Every land stream is derived from it, so the map a peer builds
+        /// is a function of the save's seed rather than of the build order in this process.
+        /// </summary>
+        private readonly PFE.Core.Rng.IWorldSeed _worldSeed;
+
+        /// <summary>
+        /// The synthetic land id the legacy <see cref="BuildRandomWorld"/> path keys its stream with.
+        /// Deliberately not a real land id: the boot-time builder draws from every loaded template, so
+        /// its map is a different shape from any land's and must not share that land's stream.
+        /// </summary>
+        public const string RandomWorldLandId = "random-world";
+
+        /// <summary>
         /// Prob rooms already built this run, by id — AS3 <c>this.probs[id] != null</c>
         /// (<c>Land.as:821</c>). Reset per land build, because AS3's <c>probs</c> map is per
         /// <c>Land</c> instance and a land is rebuilt on every descent.
@@ -53,8 +66,10 @@ namespace PFE.Systems.Map
         public IProbDoorContext ProbContext { get; set; }
 
         [VContainer.Inject]
-        public WorldBuilder(PFE.Core.Rng.IRngService rng = null)
+        public WorldBuilder(PFE.Core.Rng.IRngService rng = null,
+            PFE.Core.Rng.IWorldSeed worldSeed = null)
         {
+            _worldSeed = worldSeed ?? PFE.Core.Rng.WorldSeed.Default;
             _rng = rng != null ? rng.GetStream(PFE.Core.Rng.RngStream.Spawn) : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Spawn);
         }
 
@@ -106,6 +121,14 @@ namespace PFE.Systems.Map
             }
 
             roomGenerator.ConfigureLocation(locationContext ?? LocationBuildContext.None);
+
+            // This path has no LandDefinition, so it has no land id — but it still builds a whole
+            // world, and a whole world still has to agree between two machines. A fixed synthetic land
+            // id keyed by the stage gives it the same determinism a real land gets, instead of leaving
+            // it on the constructor's shared cursor.
+            _rng = PFE.Core.Rng.WorldRng.ForLand(_worldSeed, RandomWorldLandId, stage);
+            roomGenerator.ConfigureLandStream(_rng);
+            LootRuntime.LandRng = _rng;
 
             // Apply custom bounds if provided
             minBounds = customMin ?? minBounds;
@@ -160,7 +183,7 @@ namespace PFE.Systems.Map
 
             // Build door connections
             BuildDoorConnections();
-            RoomSetup.FinalizeAllRooms(landMap, allTemplates, _debugSettings);
+            RoomSetup.FinalizeAllRooms(landMap, allTemplates, _debugSettings, _rng);
             // Activate starting room
             if (landMap.HasRoom(startPosition))
             {
@@ -314,7 +337,7 @@ namespace PFE.Systems.Map
 
             // Build door connections for fixed/authored rooms (NO synthetic fallback doors through solid walls, connect all authored matching doors)
             BuildDoorConnections(allowFallback: false, connectAllMatching: true);
-            RoomSetup.FinalizeSpecificAllRooms(landMap, allTemplates, _debugSettings);
+            RoomSetup.FinalizeSpecificAllRooms(landMap, allTemplates, _debugSettings, _rng);
             // Activate starting room
             if (landMap.HasRoom(startPosition))
             {
@@ -665,7 +688,7 @@ namespace PFE.Systems.Map
             if (backPos.z + 1 > landMap.maxBounds.z) landMap.maxBounds.z = backPos.z + 1;
 
             // AS3's setObjects()/mainFrame() on the z = 1 layer — and nothing that carves.
-            RoomSetup.FinalizeSpecificRoom(backRoom, backTemplate, debugSettings);
+            RoomSetup.FinalizeSpecificRoom(backRoom, backTemplate, debugSettings, _rng);
 
             room.backgroundRoom = backRoom;
             room.hasBackgroundLayer = true;
@@ -953,6 +976,23 @@ namespace PFE.Systems.Map
             LocationBuildContext landContext = EnterLand(land, runDifficulty);
 
             this.landStage = landStage;
+
+            // ── One stream per land, derived from the world seed ─────────────────────────────────
+            //
+            // Everything below this line draws from _rng: the layout plan, door carving, prob-room
+            // selection, checkpoint teleports, template choice and every room's difficulty. It is a
+            // pure function of (world seed, landId, landStage), so a land built on another machine —
+            // or rebuilt here after a different route through the campaign — produces the same map.
+            //
+            // The injected cursor from the constructor is deliberately discarded here. It is shared by
+            // every land in the process, which is exactly why the room sets never matched: the same
+            // land produced a different map depending on which land had been built before it.
+            _rng = PFE.Core.Rng.WorldRng.ForLand(_worldSeed, land.landId, landStage);
+            roomGenerator.ConfigureLandStream(_rng);
+
+            // The loot stream descends from the same land stream rather than from a compile-time
+            // default, so a world seed actually controls what a chest can contain.
+            LootRuntime.LandRng = _rng;
 
             // Re-point the shared selection pool at THIS land's collection. The generator is injected as a
             // singleton, and a procedural land must never draw a room out of another land's file.
@@ -1439,7 +1479,7 @@ namespace PFE.Systems.Map
                 return;
             }
 
-            RoomInstance probRoom = ProbRoomBuilder.Build(roomGenerator, template, probId);
+            RoomInstance probRoom = ProbRoomBuilder.Build(roomGenerator, template, probId, _rng);
             if (probRoom != null)
             {
                 ProbContext.RegisterProbRoom(probId, probRoom);

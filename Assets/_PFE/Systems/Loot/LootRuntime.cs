@@ -41,15 +41,43 @@ namespace PFE.Systems.Loot
         private static ILootItemCatalog _catalog;
 
         private static IRngService _lootRng;
+        private static IRngService _landRng;
+
+        /// <summary>
+        /// The current land's generation stream, published by <c>WorldBuilder.BuildLand</c>. The loot
+        /// stream descends from it, so a world seed actually controls what a container can hold.
+        ///
+        /// <para><b>Why the setter clears <see cref="_lootRng"/>.</b> A land is rebuilt on every
+        /// descent; keeping the previous land's cursor would make this land's first chest depend on
+        /// how much loot the last land rolled. Setting the land is the boundary, so the boundary is
+        /// where the cursor is dropped.</para>
+        /// </summary>
+        public static IRngService LandRng
+        {
+            get => _landRng;
+            set
+            {
+                _landRng = value;
+                _lootRng = null;
+            }
+        }
 
         /// <summary>
         /// The loot RNG stream. Settable so a boot pass (or a test) can push the seeded instance;
-        /// otherwise a fresh <c>PcgRngService</c> <see cref="RngStream.Loot"/> stream, exactly as
-        /// <c>RoomPopulator.GetSpawnRng</c> does for spawns.
+        /// otherwise a child of <see cref="LandRng"/>, or — for a process that never entered a land,
+        /// such as a fixture — a default-seeded <see cref="RngStream.Loot"/> stream.
+        ///
+        /// <para><b>What this still does not fix.</b> The stream is a cursor, so two peers that open
+        /// containers in a different order roll different contents. Making a container's roll a
+        /// function of its identity needs a stable per-object id, which the container presenter does
+        /// not have — see <c>PHASE_DETERMINISM_TASK.md</c> §5. Until then the land boundary is the
+        /// strongest scope available: it removes the cross-land leak and the compile-time default.</para>
         /// </summary>
         public static IRngService Rng
         {
-            get => _lootRng ??= new PcgRngService().GetStream(RngStream.Loot);
+            get => _lootRng ??= _landRng != null
+                ? _landRng.Derive(RngStream.Loot, 0UL, RngKeys.LootSubStream)
+                : new PcgRngService().GetStream(RngStream.Loot);
             set => _lootRng = value;
         }
 
@@ -198,11 +226,45 @@ namespace PFE.Systems.Loot
         /// </summary>
         public static LootContext CreateContext(string tableKey)
         {
+            return BuildContext(tableKey, 0UL, -1);
+        }
+
+        /// <summary>
+        /// A context whose stream is a function of <b>this container's identity</b> rather than of the
+        /// order containers were opened in.
+        ///
+        /// <para><b>Why this is the right fix and "roll on the host" is not.</b> Contents are
+        /// generation-time content: for a given world seed, room and object they are fixed at build.
+        /// Deriving them costs nothing and needs no message. Rolling on the host would put an RTT in
+        /// front of every chest and add a command plus a pending-request state machine — and would
+        /// still have to replicate the result. With derivation, the only thing that has to cross the
+        /// wire is "this container is empty", which is state, not content.</para>
+        ///
+        /// <para><b>What this does not fix.</b> The looted flag. Two peers can still each empty the
+        /// same chest, because <c>runtimeState.lootState</c> is not replicated at all. That is a
+        /// host-authority gap (a reliable object-mutation event plus an interact command), not a
+        /// determinism gap — see <c>PHASE_DETERMINISM_TASK.md</c> §5.</para>
+        /// </summary>
+        /// <param name="roomKey"><c>SimSnapshotProjectionRules.RoomKey(room.id)</c>.</param>
+        /// <param name="objectIndex"><c>ObjectInstance.spawnIndex</c>; negative falls back to the
+        /// land cursor, which is what a hand-built room in a fixture gets.</param>
+        public static LootContext CreateContextForContainer(string tableKey, ulong roomKey,
+            int objectIndex)
+        {
+            return BuildContext(tableKey, roomKey, objectIndex);
+        }
+
+        private static LootContext BuildContext(string tableKey, ulong roomKey, int objectIndex)
+        {
             if (!TryEnsureLoaded(out _)) return null;
+
+            IRngService rng = _landRng != null && objectIndex >= 0
+                ? WorldRng.ForObject(_landRng, roomKey, objectIndex, RngKeys.LootSubStream)
+                : Rng;
 
             return new LootContext
             {
-                Rng = Rng,
+                Rng = rng,
                 Pools = _pools,
                 Catalog = _catalog,
                 TableKey = tableKey ?? string.Empty,
@@ -221,6 +283,7 @@ namespace PFE.Systems.Loot
             _pools = null;
             _catalog = null;
             _lootRng = null;
+            _landRng = null;
             LandGameStage = 0;
             LandLootLimit = 0;
             LandActId = string.Empty;

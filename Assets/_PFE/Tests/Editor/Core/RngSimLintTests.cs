@@ -84,8 +84,10 @@ namespace PFE.Tests.Editor.Core
         }
 
         /// <summary>
-        /// The complete, source-verified (2026-11-04) inventory of non-test files containing live
-        /// <see cref="UnityEngine.Random"/> calls, each with its F-08 classification. 40 files.
+        /// The complete, source-verified inventory of non-test files containing live
+        /// <see cref="UnityEngine.Random"/> calls, each with its F-08 classification. 40 files at the
+        /// 2026-11-04 readiness pass; <c>BossEnclBrain.cs</c> (the enclosure boss's brain, same draw
+        /// class as the other boss brains) is the 41st, added when the boss landed.
         /// The set AND the count are asserted. Adding a draw fails the lint; removing one fails it
         /// too (delete the entry). Classification rationale follows readiness §6.8: enemy brains and
         /// UnitController/PlayerController gameplay draws are Authoritative; audio/animation/UI/
@@ -111,6 +113,7 @@ namespace PFE.Tests.Editor.Core
             { "Entities/Enemies/Archetypes/Trap/TrapBrain.cs", RngClass.Authoritative },
             { "Entities/Enemies/Archetypes/Trap/TrapController.cs", RngClass.Authoritative },
             { "Entities/Enemies/Bosses/BossAlicornBrain.cs", RngClass.Authoritative },
+            { "Entities/Enemies/Bosses/BossEnclBrain.cs", RngClass.Authoritative },
             { "Entities/Enemies/Bosses/BossNecrBrain.cs", RngClass.Authoritative },
             { "Entities/Enemies/Bosses/BossRaiderBrain.cs", RngClass.Authoritative },
             { "Entities/Enemies/Bosses/BossSummonSpawner.cs", RngClass.Authoritative },
@@ -223,9 +226,10 @@ namespace PFE.Tests.Editor.Core
         [Test]
         public void ClassifiedInventory_HasExpectedCount()
         {
-            Assert.That(ClassifiedRngFiles.Count, Is.EqualTo(40),
-                "Readiness §6.8 source-verified 40 non-test files with live RNG calls on 2026-11-04. " +
-                "The inventory count drifted — re-run discovery and re-classify.");
+            Assert.That(ClassifiedRngFiles.Count, Is.EqualTo(41),
+                "Readiness §6.8 source-verified 40 non-test files with live RNG calls on 2026-11-04; " +
+                "BossEnclBrain.cs (the enclosure boss brain) is the 41st, classified Authoritative like " +
+                "the other boss brains. The inventory count drifted — re-run discovery and re-classify.");
         }
 
         // ── 5. Mutation control: removing a routed draw is detected ────────────

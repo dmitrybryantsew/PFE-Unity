@@ -86,7 +86,8 @@ namespace PFE.Systems.Map.Generation
         /// every prob room <i>look</i> finished while closing nothing. The room, its return door and its
         /// identity are what make the door's target real; the driver is a separate workstream.
         /// </remarks>
-        public static RoomInstance Build(RoomGenerator generator, RoomTemplate template, string probId)
+        public static RoomInstance Build(RoomGenerator generator, RoomTemplate template, string probId,
+            PFE.Core.Rng.IRngService rng = null)
         {
             if (generator == null) throw new ArgumentNullException(nameof(generator));
             if (template == null) return null;
@@ -110,7 +111,7 @@ namespace PFE.Systems.Map.Generation
             //
             // Order is the oracle's, not a preference: the `doorout` is created inside buildProb
             // (:797-800), so it precedes the template's objects in `objs`.
-            RoomPopulator.PopulateRoom(room, template, room.difficulty);
+            RoomPopulator.PopulateRoom(room, template, room.difficulty, rng);
 
             return room;
         }

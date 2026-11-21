@@ -29,7 +29,7 @@ namespace PFE.Systems.Map
         /// Finalize a single room (carve doors, apply borders, populate).
         /// Call this after door connections have been built by WorldBuilder.
         /// </summary>
-        public static void FinalizeRoom(RoomInstance room, RoomTemplate template, int borderTypeOverride = -1, PfeDebugSettings debugSettings = null)
+        public static void FinalizeRoom(RoomInstance room, RoomTemplate template, int borderTypeOverride = -1, PfeDebugSettings debugSettings = null, PFE.Core.Rng.IRngService rng = null)
         {
             if (room == null || template == null) return;
 
@@ -63,7 +63,7 @@ namespace PFE.Systems.Map
             // trap, most of the loot), and 1515 placements across 335 of the 550 shipped rooms went the
             // same way. The marking now lives in DoorCarver.CarveDoor, fused to the geometry that defines
             // it, so a door cannot be carved without its slot being marked.
-            RoomPopulator.PopulateRoom(room, template, room.difficulty);
+            RoomPopulator.PopulateRoom(room, template, room.difficulty, rng);
 
             if (debugSettings != null && debugSettings.LogMapIntegrityDiagnostics)
             {
@@ -79,7 +79,13 @@ namespace PFE.Systems.Map
         /// Finalize all rooms in a LandMap.
         /// Call this after random-world door connections have been built.
         /// </summary>
-        public static void FinalizeAllRooms(LandMap landMap, List<RoomTemplate> templates, PfeDebugSettings debugSettings = null)
+        /// <param name="rng">
+        /// The LAND's stream, forwarded to <c>RoomPopulator</c> so every room's enemies derive from
+        /// <c>(world seed, room key)</c>. Passing <c>null</c> falls back to a default-seeded root,
+        /// which is deterministic but ignores the world seed — the two machines still agree, the world
+        /// seed just stops controlling content. <c>WorldBuilder.BuildLand</c> always passes one.
+        /// </param>
+        public static void FinalizeAllRooms(LandMap landMap, List<RoomTemplate> templates, PfeDebugSettings debugSettings = null, PFE.Core.Rng.IRngService rng = null)
         {
             if (landMap == null || templates == null) return;
 
@@ -116,7 +122,7 @@ namespace PFE.Systems.Map
 
                 if (template != null)
                 {
-                    FinalizeRoom(room, template, debugSettings: debugSettings);
+                    FinalizeRoom(room, template, debugSettings: debugSettings, rng: rng);
                 }
                 else
                 {
@@ -139,7 +145,7 @@ namespace PFE.Systems.Map
         /// AS3 buildSpecifLand() does not run random-land door matching, setDoor(),
         /// or mainFrame(); authored tiles already contain the intended edge material.
         /// </summary>
-        public static void FinalizeSpecificAllRooms(LandMap landMap, List<RoomTemplate> templates, PfeDebugSettings debugSettings = null)
+        public static void FinalizeSpecificAllRooms(LandMap landMap, List<RoomTemplate> templates, PfeDebugSettings debugSettings = null, PFE.Core.Rng.IRngService rng = null)
         {
             if (landMap == null || templates == null) return;
 
@@ -171,7 +177,7 @@ namespace PFE.Systems.Map
 
                 if (template != null)
                 {
-                    FinalizeSpecificRoom(room, template, debugSettings);
+                    FinalizeSpecificRoom(room, template, debugSettings, rng);
                 }
                 else
                 {
@@ -196,7 +202,7 @@ namespace PFE.Systems.Map
             }
         }
 
-        public static void FinalizeSpecificRoom(RoomInstance room, RoomTemplate template, PfeDebugSettings debugSettings = null)
+        public static void FinalizeSpecificRoom(RoomInstance room, RoomTemplate template, PfeDebugSettings debugSettings = null, PFE.Core.Rng.IRngService rng = null)
         {
             if (room == null || template == null) return;
 
@@ -207,7 +213,7 @@ namespace PFE.Systems.Map
                 DoorCarver.ApplyWaterLevel(room, template.environment.waterLevel);
             }
 
-            RoomPopulator.PopulateRoom(room, template, room.difficulty);
+            RoomPopulator.PopulateRoom(room, template, room.difficulty, rng);
 
             if (debugSettings != null && debugSettings.LogMapIntegrityDiagnostics)
             {

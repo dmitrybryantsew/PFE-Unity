@@ -3,6 +3,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Globalization;
 using PFE.Core.Ids;
+using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Campaign;
@@ -26,9 +27,39 @@ namespace PFE.Systems.Map
     /// </summary>
     public class RoomPopulator
     {
-        private static PFE.Core.Rng.IRngService s_spawnRng;
-        private static PFE.Core.Rng.IRngService GetSpawnRng(PFE.Core.Rng.IRngService rng) =>
-            rng?.GetStream(PFE.Core.Rng.RngStream.Spawn) ?? (s_spawnRng ??= new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Spawn));
+        /// <summary>
+        /// The root the fallback stream descends from. It exists so a caller that passes no RNG (every
+        /// EditMode fixture, and any boot path that has not resolved one) still gets a stream that is a
+        /// function of the room and nothing else. It is a <b>root</b>, never a cursor: nothing draws
+        /// from it directly, so its state never advances and it cannot make one room depend on another.
+        /// </summary>
+        private static readonly PFE.Core.Rng.IRngService s_fallbackRoot = new PFE.Core.Rng.PcgRngService();
+
+        /// <summary>
+        /// The stream every draw in one room comes from.
+        ///
+        /// <para><b>Why the room key and not the parent stream.</b> The old body was
+        /// <c>rng?.GetStream(Spawn) ?? (s_spawnRng ??= …)</c>: a single process-wide cursor consumed in
+        /// population order. That is why which enemy family a room contains depended on how many rooms
+        /// had been populated before it — so two machines, or the same machine after a different route
+        /// through the land, produced different enemies in the same room. <c>Derive</c> hashes
+        /// <c>(root seed, domain, roomKey, sub-stream)</c> and never reads a cursor, so the room's
+        /// contents are fixed by its identity.</para>
+        ///
+        /// <para><b>Why <c>RoomKey(room.id)</c> specifically.</b> It is the same function
+        /// <c>SimProjectileSnapshotProjector</c> uses for <c>SimRoomDelta.RoomHash</c>, so the number
+        /// that decides a room's <i>content</i> and the number that names it <i>on the wire</i> cannot
+        /// drift apart.</para>
+        /// </summary>
+        private static PFE.Core.Rng.IRngService ResolveSpawnRng(
+            RoomInstance room, PFE.Core.Rng.IRngService rng)
+        {
+            ulong roomKey = PFE.Sim.State.SimSnapshotProjectionRules.RoomKey(room != null ? room.id : null);
+            PFE.Core.Rng.IRngService root = rng ?? s_fallbackRoot;
+
+            return root.Derive(PFE.Core.Rng.RngStream.Spawn, roomKey,
+                PFE.Core.Rng.RngKeys.PopulateSubStream);
+        }
 
         /// <summary>The object a prob room's return door is placed as (AS3 <c>doorout</c>).</summary>
         public const string ProbReturnObjectId = "doorout";
@@ -65,7 +96,7 @@ namespace PFE.Systems.Map
         {
             if (room == null || template == null) return;
 
-            var r = GetSpawnRng(rng);
+            var r = ResolveSpawnRng(room, rng);
             var spawnCounters = new Dictionary<string, int>();
 
             // Phase 0: split the authored object table exactly the way AS3 Location.buildLoc() does.
