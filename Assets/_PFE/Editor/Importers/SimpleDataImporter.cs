@@ -25,7 +25,6 @@ namespace PFE.Editor
         {
             ImportAmmo();
             ImportItems();
-            ImportPerks();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Simple import complete. Run 'PFE > Data > Fix Imported Data IDs' to set IDs.");
@@ -333,36 +332,6 @@ namespace PFE.Editor
             item.basePrice = WeaponXmlAttrs.AttrI(tagContent, "price", item.basePrice);
 
             item.spellData = SpellItemXml.Read(tagContent);
-        }
-
-        private static void ImportPerks()
-        {
-            string outputPath = "Assets/_PFE/Data/Resources/Perks";
-            Directory.CreateDirectory(outputPath);
-
-            string content = File.ReadAllText(SourceFilePath);
-            var matches = System.Text.RegularExpressions.Regex.Matches(content,
-                "<perk\\s+([^>]*?)>(.*?)</perk>",
-                System.Text.RegularExpressions.RegexOptions.Singleline);
-
-            int imported = 0;
-            foreach (System.Text.RegularExpressions.Match match in matches)
-            {
-                string tagContent = match.Groups[1].Value;
-                string id = ExtractAttribute(tagContent, "id");
-
-                if (!string.IsNullOrEmpty(id))
-                {
-                    string assetPath = $"{outputPath}/{id}.asset";
-                    if (AssetDatabase.LoadAssetAtPath<PerkDefinition>(assetPath) == null)
-                    {
-                        var perk = ScriptableObject.CreateInstance<PerkDefinition>();
-                        AssetDatabase.CreateAsset(perk, assetPath);
-                        imported++;
-                    }
-                }
-            }
-            Debug.Log($"Perks: {imported} created");
         }
 
         private static string ExtractAttribute(string tag, string attributeName)

@@ -133,6 +133,8 @@ namespace PFE.Editor.Importers.SWF
             new(4168, "SATS_Reticle.png",        "satsRadius — S.A.T.S. targeting circle"),
             new(4162, "SATS_Cell.png",           "satsCel — S.A.T.S. per-unit target cell"),
             new(1129, "PipBuck_MonitorRow.png",  "visPipRItem — right-side monitor row template"),
+            new(392,  "LoadScreen_Plate.png",    "visualWait — the live wait/load plate (vwait)"),
+            new(391,  "LoadScreen_StoryCard.png","vwait.story — numbered story card; DEAD in AS3, art only"),
             new(990,  "PipBuck_InfoMap.png",     "visPipMap — information page map window (page 3)"),
             new(834,  "PipBuck_InfoWorldMap.png","visPipWMap — information page travel map (page 3)"),
             new(833,  "PipBuck_InfoLandNode.png","sim_wmap — travel node backdrop (page 3)"),
@@ -226,6 +228,14 @@ namespace PFE.Editor.Importers.SWF
             new(1112, "Icons/Items",      47,  0, "itemIco — item category icons (positional id contract)"),
             new(4453, "Icons/Effects",    56,  0, "_effectIco_174 — status effect icons"),
             new(4844, "Icons/Portraits",  31,  0, "visNPCIco — the NPC overhead dialogue indicator, NOT the dialogue portrait"),
+            // NOTE: the SHIPPED 70 frames are the 1.04 Graphic update redraws from
+            // Steam `DLC/pfeUI.swf` (sprite 4796), composited onto the Oracle's
+            // 389x325 canvas by `.workbuddy-ai/tmp/build_104_atlas.py`. `CopyIfNewer`
+            // only copies when the SOURCE is newer, so a normal Import leaves these
+            // files alone. But if the PNGs are DELETED (or a fresh clone checks them
+            // out with old timestamps), Import restores the PRE-1.04 Oracle art from
+            // `pfe/sprites/DefineSprite_4638`. Recovery: run
+            // `.workbuddy-ai/tmp/restore_ui_art.py` (or build_104_atlas.py --apply).
             new(4638, "Icons/DialoguePortraits", 70, 0, "portret — the dialogue speaker portraits (60 named frame labels)"),
             new(876,  "Icons/Monitor",    15, 15, "trol — right-side monitor row icons (first 15 of 39)"),
             new(383,  "Icons/Skills",     16, 16, "vskill frames 1..16 — the 16 skill icons", skipFrames: 0),
@@ -406,6 +416,15 @@ namespace PFE.Editor.Importers.SWF
             def.bossBar = Load($"{InterfaceRoot}/HUD_BossBar.png", "bossBar");
             def.satsRadius = Load($"{InterfaceRoot}/SATS_Reticle.png", "satsRadius");
             def.satsCell = Load($"{InterfaceRoot}/SATS_Cell.png", "satsCell");
+            def.loadScreenPlate = Load($"{InterfaceRoot}/LoadScreen_Plate.png", "loadScreenPlate");
+            def.loadScreenStoryCard = Load($"{InterfaceRoot}/LoadScreen_StoryCard.png", "loadScreenStoryCard");
+
+            // The 1.04 Graphic Update dialogue casing (1712x332). Loaded, never copied: it lives only in
+            // `DLC/pfeUI.swf`, so there is no `DefineSprite_*` export folder for Import() to read. Same
+            // deal as the 1.04 portraits — regenerate it with
+            // `.workbuddy-ai/tmp/stage_dialogue_window.py`, which decodes bitmap 5006 out of the SWF.
+            // A null here is not an error: the window falls back to the flat 1200x225 plate.
+            def.dialogueWindow = Load($"{InterfaceRoot}/Dialogue_Window.png", "dialogueWindow");
 
             // Inventory-page chrome. These four PNGs are HAND-AUTHORED, not exported: they are loaded
             // here so a re-import of this composition does not null them out, but the Import() half of
@@ -1042,7 +1061,16 @@ namespace PFE.Editor.Importers.SWF
         static string FindSymbolFolder(string spritesRoot, int symbolId)
         {
             var dirs = Directory.GetDirectories(spritesRoot, $"DefineSprite_{symbolId}_*");
-            return dirs.Length > 0 ? dirs[0] : null;
+            if (dirs.Length > 0) return dirs[0];
+
+            // Some JPEXS exports omit the class-name suffix entirely and name the folder
+            // after the bare symbol id. `pfe/sprites/DefineSprite_4638` is exactly that:
+            // the 70-frame `dial.portret` clip, byte-identical to the suffixed copy in
+            // `pfe/scripts/_assets/sprites/`. Without this fallback the importer logged
+            // "no DefineSprite folder found" for symbol 4638 and silently shipped a
+            // composition with an empty dialoguePortraits array.
+            string bare = Path.Combine(spritesRoot, $"DefineSprite_{symbolId}");
+            return Directory.Exists(bare) ? bare : null;
         }
 
         /// <summary>

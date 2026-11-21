@@ -33565,11 +33565,6 @@ MonoBehaviour:
         localRotation: -50.113026
         localScale: {x: 0.9983198, y: 0.9864658}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.069, y: 0.1145}
-        localRotation: 173.70566
-        localScale: {x: 0.21266198, y: -0.20708072}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.084, y: 0.03}
         localRotation: 43.625793
@@ -33705,11 +33700,6 @@ MonoBehaviour:
         localPosition: {x: -0.1005, y: 0.0505}
         localRotation: -48.888798
         localScale: {x: 0.9982967, y: 0.9868286}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.0695, y: 0.116000004}
-        localRotation: 170.98718
-        localScale: {x: 0.21263202, y: -0.20703904}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.088, y: 0.0305}
@@ -33983,11 +33973,6 @@ MonoBehaviour:
         localRotation: -46.62639
         localScale: {x: 0.99828845, y: 0.9875603}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.071, y: 0.1195}
-        localRotation: 165.93283
-        localScale: {x: 0.21256657, y: -0.20698725}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.096999995, y: 0.0315}
         localRotation: 44.60363
@@ -34123,11 +34108,6 @@ MonoBehaviour:
         localPosition: {x: -0.1095, y: 0.0665}
         localRotation: -45.40129
         localScale: {x: 0.99827766, y: 0.9879393}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.072, y: 0.1205}
-        localRotation: 163.2133
-        localScale: {x: 0.21254864, y: -0.20696302}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.101, y: 0.032}
@@ -34265,11 +34245,6 @@ MonoBehaviour:
         localRotation: -44.364006
         localScale: {x: 0.9982823, y: 0.988296}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.0725, y: 0.1225}
-        localRotation: 160.68045
-        localScale: {x: 0.21252947, y: -0.20692345}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.106000006, y: 0.032}
         localRotation: 45.131
@@ -34405,11 +34380,6 @@ MonoBehaviour:
         localPosition: {x: -0.1145, y: 0.077}
         localRotation: -43.138813
         localScale: {x: 0.9982943, y: 0.9886677}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.0735, y: 0.1245}
-        localRotation: 157.96404
-        localScale: {x: 0.21249907, y: -0.2069012}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.1095, y: 0.0325}
@@ -34547,11 +34517,6 @@ MonoBehaviour:
         localRotation: -42.101257
         localScale: {x: 0.9982897, y: 0.9890403}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.074499995, y: 0.1265}
-        localRotation: 155.43005
-        localScale: {x: 0.2124761, y: -0.20687705}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.11399999, y: 0.033}
         localRotation: 45.657265
@@ -34687,11 +34652,6 @@ MonoBehaviour:
         localPosition: {x: -0.12, y: 0.0875}
         localRotation: -40.87657
         localScale: {x: 0.99830174, y: 0.98943824}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.074499995, y: 0.1285}
-        localRotation: 152.70987
-        localScale: {x: 0.21245985, y: -0.20686054}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.118999995, y: 0.0335}
@@ -34829,11 +34789,6 @@ MonoBehaviour:
         localRotation: -39.838535
         localScale: {x: 0.9983307, y: 0.9898132}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.075500004, y: 0.131}
-        localRotation: 150.17754
-        localScale: {x: 0.21244489, y: -0.20683402}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.1225, y: 0.034}
         localRotation: 46.371986
@@ -34970,11 +34925,6 @@ MonoBehaviour:
         localRotation: -38.61372
         localScale: {x: 0.9983414, y: 0.990199}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.076, y: 0.133}
-        localRotation: 147.6456
-        localScale: {x: 0.2124208, y: -0.20682858}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.1275, y: 0.034}
         localRotation: 46.635197
@@ -35110,11 +35060,6 @@ MonoBehaviour:
         localPosition: {x: -0.128, y: 0.1035}
         localRotation: -37.577137
         localScale: {x: 0.99835485, y: 0.9905769}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.0775, y: 0.1355}
-        localRotation: 144.92166
-        localScale: {x: 0.21240851, y: -0.20682137}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.13149999, y: 0.034}
@@ -35660,11 +35605,6 @@ MonoBehaviour:
         localRotation: -32.599125
         localScale: {x: 0.99846953, y: 0.9910323}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.0775, y: 0.155}
-        localRotation: 144.9274
-        localScale: {x: 0.21241224, y: -0.20682491}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.12100001, y: 0.044}
         localRotation: 37.125275
@@ -35800,11 +35740,6 @@ MonoBehaviour:
         localPosition: {x: -0.129, y: 0.1275}
         localRotation: -31.348919
         localScale: {x: 0.9985041, y: 0.9910754}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.0765, y: 0.16}
-        localRotation: 145.89784
-        localScale: {x: 0.21241514, y: -0.20682412}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.1165, y: 0.0465}
@@ -36078,11 +36013,6 @@ MonoBehaviour:
         localRotation: -28.847963
         localScale: {x: 0.9985683, y: 0.99112904}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.075500004, y: 0.172}
-        localRotation: 147.65475
-        localScale: {x: 0.21241738, y: -0.20683312}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.1065, y: 0.0515}
         localRotation: 27.091158
@@ -36218,11 +36148,6 @@ MonoBehaviour:
         localPosition: {x: -0.129, y: 0.1415}
         localRotation: -27.596008
         localScale: {x: 0.9985993, y: 0.99116576}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.075500004, y: 0.1765}
-        localRotation: 148.437
-        localScale: {x: 0.21242481, y: -0.20683523}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.102, y: 0.0545}
@@ -36360,11 +36285,6 @@ MonoBehaviour:
         localRotation: -26.34698
         localScale: {x: 0.9986496, y: 0.9912179}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.075, y: 0.1825}
-        localRotation: 149.41031
-        localScale: {x: 0.21244128, y: -0.20683719}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.096999995, y: 0.056999996}
         localRotation: 20.529167
@@ -36500,11 +36420,6 @@ MonoBehaviour:
         localPosition: {x: -0.1285, y: 0.15100001}
         localRotation: -25.097174
         localScale: {x: 0.9986903, y: 0.991237}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.074499995, y: 0.188}
-        localRotation: 150.19234
-        localScale: {x: 0.2124486, y: -0.20684497}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.092, y: 0.06}
@@ -36642,11 +36557,6 @@ MonoBehaviour:
         localRotation: -24.034483
         localScale: {x: 0.9987292, y: 0.991285}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.074, y: 0.19399999}
-        localRotation: 151.16522
-        localScale: {x: 0.21245256, y: -0.20684975}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.087, y: 0.063}
         localRotation: 13.785382
@@ -36782,11 +36692,6 @@ MonoBehaviour:
         localPosition: {x: -0.1275, y: 0.16}
         localRotation: -22.785505
         localScale: {x: 0.99878114, y: 0.99135274}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.074, y: 0.2}
-        localRotation: 151.94785
-        localScale: {x: 0.2124598, y: -0.20685533}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.0825, y: 0.0655}
@@ -36924,11 +36829,6 @@ MonoBehaviour:
         localRotation: -21.53485
         localScale: {x: 0.9988316, y: 0.991395}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.073, y: 0.205}
-        localRotation: 152.9197
-        localScale: {x: 0.2124719, y: -0.20685932}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.078, y: 0.0685}
         localRotation: 7.044149
@@ -37065,11 +36965,6 @@ MonoBehaviour:
         localRotation: -20.285503
         localScale: {x: 0.9988899, y: 0.99145585}
         visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.0725, y: 0.21100001}
-        localRotation: 153.7036
-        localScale: {x: 0.2124793, y: -0.20686255}
-        visible: 1
       - partIndex: 27
         localPosition: {x: 0.073, y: 0.071}
         localRotation: 3.7700808
@@ -37205,11 +37100,6 @@ MonoBehaviour:
         localPosition: {x: -0.1275, y: 0.174}
         localRotation: -19.035534
         localScale: {x: 0.99893045, y: 0.99148834}
-        visible: 1
-      - partIndex: 23
-        localPosition: {x: -0.072, y: 0.2165}
-        localRotation: 154.67339
-        localScale: {x: 0.21248564, y: -0.20686442}
         visible: 1
       - partIndex: 27
         localPosition: {x: 0.068, y: 0.074}

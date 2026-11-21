@@ -673,6 +673,19 @@ namespace PFE.Editor.Importers.SWF
                         if (!partIndexLookup.TryGetValue(placement.CharacterId, out int partIndex))
                             continue;
 
+                        // ── 'mark' instances and empty head-slot anchors are not body art ──
+                        // sitjump's dust track (depths 58-62) is a frame-by-frame symbol swap
+                        // that parks the EMPTY helm sprite(31) named "mark" at depth 59 for most
+                        // of the clip. AS3 never shows a mark instance — the body_* classes hide
+                        // each one (`sleg1.mark.visible = false`) — and the sprite itself is 1x1
+                        // (see noBaseSpriteIds). Composed as a body-level 'helm' placement it drew
+                        // the armour's helmet sprite at the marker position during sit-jump.
+                        // helm(31), konec(240), shell(242), morda_base_back(262) and helm2(266)
+                        // ship empty and are placed only by the head walk below, so a body frame
+                        // that appears to place one of them is always an authoring marker.
+                        if (placement.InstanceName == "mark" || EmptyHeadAnchorIds.Contains(placement.CharacterId))
+                            continue;
+
                         // ── The PipBuck rides a foreleg; the frame does not place it ────────
                         // UnitPlayer.as:4828-4849:
                         //
@@ -1083,6 +1096,14 @@ namespace PFE.Editor.Importers.SWF
             ("shell", 242, 3),
             ("helm2", 266, 27),
         };
+
+        /// <summary>
+        /// Head sub-part symbols that ship empty (see <see cref="HeadSubPartIds"/> and
+        /// <see cref="ExtraHeadSlots"/>) and are therefore placed only by the head walk — a body
+        /// frame that appears to place one is carrying an authoring marker (e.g. sitjump's
+        /// 'mark' track), not art. Skipped in the body walk.
+        /// </summary>
+        static readonly HashSet<int> EmptyHeadAnchorIds = new() { 31, 240, 242, 262, 266 };
 
         /// <summary>
         /// Result of scanning morda_armor(273) frames for per-armor head sub-part variants.

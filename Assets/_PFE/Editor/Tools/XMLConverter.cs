@@ -32,7 +32,6 @@ namespace PFE.Editor.Tools
         private int unitsProcessed = 0;
         private int weaponsProcessed = 0;
         private int itemsProcessed = 0;
-        private int perksProcessed = 0;
         private int errorsCount = 0;
 
         private Vector2 scrollPosition;
@@ -73,7 +72,6 @@ namespace PFE.Editor.Tools
             EditorGUILayout.LabelField($"Units Processed: {unitsProcessed}");
             EditorGUILayout.LabelField($"Weapons Processed: {weaponsProcessed}");
             EditorGUILayout.LabelField($"Items Processed: {itemsProcessed}");
-            EditorGUILayout.LabelField($"Perks Processed: {perksProcessed}");
             EditorGUILayout.LabelField($"Errors: {errorsCount}");
 
             EditorGUILayout.Space();
@@ -120,7 +118,6 @@ namespace PFE.Editor.Tools
             unitsProcessed = 0;
             weaponsProcessed = 0;
             itemsProcessed = 0;
-            perksProcessed = 0;
             errorsCount = 0;
 
             // Ensure output directory exists
@@ -178,14 +175,13 @@ namespace PFE.Editor.Tools
                 ProcessUnitDefinitions(allDataNode);
                 ProcessWeaponDefinitions(allDataNode);
                 ProcessItemDefinitions(allDataNode);
-                ProcessPerkDefinitions(allDataNode);
 
                 // Save and refresh
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
 
                 statusMessage = $"Conversion complete!\n" +
-                               $"Units: {unitsProcessed}, Weapons: {weaponsProcessed}, Items: {itemsProcessed}, Perks: {perksProcessed}\n" +
+                               $"Units: {unitsProcessed}, Weapons: {weaponsProcessed}, Items: {itemsProcessed}\n" +
                                $"Errors: {errorsCount}";
 
                 Debug.Log($"[XMLConverter] {statusMessage}");
@@ -304,43 +300,6 @@ namespace PFE.Editor.Tools
                 catch (System.Exception ex)
                 {
                     Debug.LogError($"[XMLConverter] Error processing item: {ex.Message}");
-                    errorsCount++;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Process perk (<perk>) elements from XML.
-        /// </summary>
-        private void ProcessPerkDefinitions(XmlNode root)
-        {
-            XmlNodeList perkNodes = root.SelectNodes(".//perk");
-
-            foreach (XmlNode perkNode in perkNodes)
-            {
-                try
-                {
-                    string perkId = GetAttribute(perkNode, "id");
-
-                    if (string.IsNullOrEmpty(perkId))
-                    {
-                        continue;
-                    }
-
-                    // Create ScriptableObject asset
-                    PerkDefinition perkDef = ScriptableObject.CreateInstance<PerkDefinition>();
-                    PopulatePerkData(perkDef, perkNode);
-
-                    // Save asset
-                    string assetPath = $"{OutputPath}/Perks/{perkId}.asset";
-                    EnsureDirectoryExists(assetPath);
-                    AssetDatabase.CreateAsset(perkDef, assetPath);
-
-                    perksProcessed++;
-                }
-                catch (System.Exception ex)
-                {
-                    Debug.LogError($"[XMLConverter] Error processing perk: {ex.Message}");
                     errorsCount++;
                 }
             }
@@ -472,62 +431,6 @@ namespace PFE.Editor.Tools
         }
 
         /// <summary>
-        /// Populate PerkDefinition from XML <perk> node.
-        /// </summary>
-        private void PopulatePerkData(PerkDefinition def, XmlNode node)
-        {
-            // Core identity
-            def.perkId = GetAttribute(node, "id");
-
-            // Perk type
-            string tipStr = GetAttribute(node, "tip");
-            if (!string.IsNullOrEmpty(tipStr))
-            {
-                def.type = (PerkType)int.Parse(tipStr);
-            }
-
-            // Max ranks
-            def.maxRanks = ParseInt(GetAttribute(node, "lvl"));
-            if (def.maxRanks == 0) def.maxRanks = 1;
-
-            // Requirements
-            XmlNodeList reqNodes = node.SelectNodes(".//req");
-            if (reqNodes.Count > 0)
-            {
-                def.requirements = new PerkRequirement[reqNodes.Count];
-                for (int i = 0; i < reqNodes.Count; i++)
-                {
-                    def.requirements[i] = ParsePerkRequirement(reqNodes[i]);
-                }
-            }
-
-            // Effects (skill modifiers)
-            XmlNodeList skNodes = node.SelectNodes(".//sk");
-            if (skNodes.Count > 0)
-            {
-                def.effects = new SkillModifier[skNodes.Count];
-                for (int i = 0; i < skNodes.Count; i++)
-                {
-                    def.effects[i] = ParseSkillModifier(skNodes[i]);
-                }
-            }
-
-            // Display values (textvar elements)
-            XmlNodeList textVarNodes = node.SelectNodes(".//textvar");
-            if (textVarNodes.Count > 0)
-            {
-                def.displayValues = new string[textVarNodes.Count];
-                for (int i = 0; i < textVarNodes.Count; i++)
-                {
-                    def.displayValues[i] = textVarNodes[i].InnerText;
-                }
-            }
-
-            // Display name
-            def.displayName = GeneratePerkDisplayName(def.perkId);
-            def.description = $"Perk: {def.perkId}";
-        }
-
         /// <summary>
         /// Parse item type from tip attribute.
         /// tip='a' = Ammo, 'm' = Medical, 'b' = Book, 'c' = Component, 'e' = Equipment
@@ -551,34 +454,6 @@ namespace PFE.Editor.Tools
         }
 
         /// <summary>
-        /// Parse perk requirement from XML <req> node.
-        /// </summary>
-        private PerkRequirement ParsePerkRequirement(XmlNode reqNode)
-        {
-            PerkRequirement req = new PerkRequirement();
-
-            string id = GetAttribute(reqNode, "id");
-            req.skillId = id;
-            req.level = ParseInt(GetAttribute(reqNode, "lvl"));
-            req.levelDelta = ParseInt(GetAttribute(reqNode, "dlvl"));
-
-            // Determine requirement type from id
-            if (id == "level")
-            {
-                req.type = RequirementType.Level;
-            }
-            else if (id == "guns" || id == "energy" || id == "melee" || id == "explosives")
-            {
-                req.type = RequirementType.Guns;
-            }
-            else
-            {
-                req.type = RequirementType.Skill;
-            }
-
-            return req;
-        }
-
         /// <summary>
         /// Parse skill modifier from XML <sk> node.
         /// </summary>
@@ -610,17 +485,6 @@ namespace PFE.Editor.Tools
             if (string.IsNullOrEmpty(itemId)) return "Unknown Item";
 
             return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(itemId.Replace("_", " ").ToLower());
-        }
-
-        /// <summary>
-        /// Generate display name for perk from ID.
-        /// </summary>
-        private string GeneratePerkDisplayName(string perkId)
-        {
-            // Capitalize first letter and replace underscores
-            if (string.IsNullOrEmpty(perkId)) return "Unknown Perk";
-
-            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(perkId.Replace("_", " ").ToLower());
         }
 
         /// <summary>

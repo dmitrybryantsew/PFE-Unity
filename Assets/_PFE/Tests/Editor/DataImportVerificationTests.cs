@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using PFE.Data.Definitions;
 using UnityEngine;
+using RPGPerkDefinition = PFE.Systems.RPG.Data.PerkDefinition;
 
 namespace PFE.Tests.Editor
 {
@@ -41,19 +42,24 @@ namespace PFE.Tests.Editor
         [Test]
         public void PerksImport_VerifyCount()
         {
-            PerkDefinition[] perks = Resources.LoadAll<PerkDefinition>("Perks");
+            // The live perk type is PFE.Systems.RPG.Data.PerkDefinition, imported by
+            // SkillAndPerkDataImporter into Resources/RPG/Perks. The old Resources/Perks
+            // folder held SimpleDataImporter placeholder shells (PFE.Data.Definitions.PerkDefinition,
+            // every field default) and has been removed.
+            RPGPerkDefinition[] perks = Resources.LoadAll<RPGPerkDefinition>("RPG/Perks");
             Assert.AreEqual(84, perks.Length, $"Expected 84 perks, got {perks.Length}");
         }
 
         [Test]
         public void TotalAssets_VerifyCount()
         {
-            // Note the type mix: Ammo/ holds AmmoDefinition, Perks/ and Items/ hold the
-            // PFE.Data.Definitions types. The sum is 500 + 84 + 75 = 659. The old 582 was
-            // 451 + 84 + 47 — i.e. it inherited both stale counts.
+            // Note the type mix: Ammo/ holds AmmoDefinition, Items/ holds ItemDefinition, and the
+            // perk count comes from RPG/Perks (PFE.Systems.RPG.Data.PerkDefinition). The sum is
+            // 500 + 84 + 75 = 659. The old 582 was 451 + 84 + 47 — i.e. it inherited both stale
+            // counts.
             int total = Resources.LoadAll<AmmoDefinition>("Ammo").Length +
                        Resources.LoadAll<ItemDefinition>("Items").Length +
-                       Resources.LoadAll<PerkDefinition>("Perks").Length;
+                       Resources.LoadAll<RPGPerkDefinition>("RPG/Perks").Length;
             Assert.AreEqual(659, total, $"Expected total 659 assets, got {total}");
         }
 
@@ -134,19 +140,19 @@ namespace PFE.Tests.Editor
         [Test]
         public void Perks_ContainsEssentialPerks()
         {
-            var levitation = Resources.Load<PerkDefinition>("Perks/levitation");
+            var levitation = Resources.Load<RPGPerkDefinition>("RPG/Perks/levitation");
             Assert.IsNotNull(levitation, "levitation perk should exist");
 
-            var oak = Resources.Load<PerkDefinition>("Perks/oak");
+            var oak = Resources.Load<RPGPerkDefinition>("RPG/Perks/oak");
             Assert.IsNotNull(oak, "oak perk should exist");
 
-            var pistol = Resources.Load<PerkDefinition>("Perks/pistol");
+            var pistol = Resources.Load<RPGPerkDefinition>("RPG/Perks/pistol");
             Assert.IsNotNull(pistol, "pistol perk should exist");
 
-            var acute = Resources.Load<PerkDefinition>("Perks/acute");
+            var acute = Resources.Load<RPGPerkDefinition>("RPG/Perks/acute");
             Assert.IsNotNull(acute, "acute perk should exist");
 
-            var shot = Resources.Load<PerkDefinition>("Perks/shot");
+            var shot = Resources.Load<RPGPerkDefinition>("RPG/Perks/shot");
             Assert.IsNotNull(shot, "shot perk should exist");
         }
 
@@ -174,7 +180,7 @@ namespace PFE.Tests.Editor
         [Test]
         public void Perks_AllHaveValidIds()
         {
-            var perks = Resources.LoadAll<PerkDefinition>("Perks");
+            var perks = Resources.LoadAll<RPGPerkDefinition>("RPG/Perks");
             foreach (var perk in perks)
             {
                 Assert.IsFalse(string.IsNullOrEmpty(perk.perkId), $"Perk has null/empty ID: {perk.name}");
@@ -186,7 +192,7 @@ namespace PFE.Tests.Editor
         {
             var ammo = Resources.LoadAll<AmmoDefinition>("Ammo");
             var items = Resources.LoadAll<ItemDefinition>("Items");
-            var perks = Resources.LoadAll<PerkDefinition>("Perks");
+            var perks = Resources.LoadAll<RPGPerkDefinition>("RPG/Perks");
 
             var ammoIds = new System.Collections.Generic.HashSet<string>();
             var itemIds = new System.Collections.Generic.HashSet<string>();

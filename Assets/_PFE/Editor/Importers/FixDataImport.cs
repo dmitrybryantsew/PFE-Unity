@@ -17,7 +17,6 @@ namespace PFE.Editor.Importers
         {
             FixAmmoIds();
             FixItemIds();
-            FixPerkIds();
             AssetDatabase.SaveAssets();
             Debug.Log("Fixed all imported data IDs");
         }
@@ -171,38 +170,6 @@ namespace PFE.Editor.Importers
                 case "spawnpoint":
                 default: return PFE.Data.Definitions.ItemType.Misc;
             }
-        }
-
-        private static void FixPerkIds()
-        {
-            string path = "Assets/_PFE/Data/Resources/Perks";
-            string[] guids = AssetDatabase.FindAssets("t:PerkDefinition", new[] { path });
-
-            foreach (string guid in guids)
-            {
-                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                PerkDefinition perk = AssetDatabase.LoadAssetAtPath<PerkDefinition>(assetPath);
-
-                if (perk != null && string.IsNullOrEmpty(perk.perkId))
-                {
-                    perk.perkId = Path.GetFileNameWithoutExtension(assetPath);
-                    if (string.IsNullOrEmpty(perk.displayName))
-                        perk.displayName = GenerateDisplayName(perk.perkId);
-                    EditorUtility.SetDirty(perk);
-                }
-            }
-
-            Debug.Log($"Fixed {guids.Length} perks");
-        }
-
-        private static string GenerateDisplayName(string id)
-        {
-            if (string.IsNullOrEmpty(id)) return "Unknown";
-
-            string name = id;
-            name = System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
-            name = System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(name);
-            return name;
         }
     }
 }
