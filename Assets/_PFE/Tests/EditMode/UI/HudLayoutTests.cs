@@ -242,6 +242,33 @@ namespace PFE.Tests.EditMode.UI
             Assert.AreEqual(0, scaler.RegisteredCount);
         }
 
+        [Test]
+        public void Scaler_DialogueWindow_StaysCentredOnAnyCanvasWidth()
+        {
+            // The regression gate for the "interface frame drifted right" report: whatever the
+            // canvas size, the dialogue window's pivot-centred anchor keeps it centred — the old
+            // code added (width - 1200) / 2 on top of the centred anchor and shoved the window
+            // right by that whole amount.
+            var scalerGo = new GameObject("HUD Canvas", typeof(RectTransform));
+            _created.Add(scalerGo);
+            var scaler = scalerGo.AddComponent<HudLayoutScaler>();
+            ((RectTransform)scalerGo.transform).sizeDelta = new Vector2(1416f, 682f);
+
+            RectTransform window = MakeRect("Script Dialogue", new Vector2(1200f, 225f));
+            scaler.Register(HudSlot.Dialogue, window);
+            scaler.DialogueWindow = window;
+
+            scaler.ApplyAll();
+
+            Assert.AreEqual(0f, window.anchoredPosition.x, 0.0001f,
+                "centred anchor, zero offset — no drift at any canvas width");
+            Assert.AreEqual(0f, window.anchoredPosition.y, 0.0001f,
+                "top edge pinned to the canvas top");
+            // No Canvas component in this harness, so the scale-factor fallback is 1 and a
+            // 1416-unit-wide canvas (wider than the authored 1200) keeps the Oracle's unit scale.
+            Assert.AreEqual(1f, window.localScale.x, 0.0001f);
+        }
+
         // ── The pure resizeScreen helpers ─────────────────────────────────────
 
         [Test]
@@ -285,6 +312,39 @@ namespace PFE.Tests.EditMode.UI
                 "0 is the authored `dial.y`; a negative offset insets the plate and a positive one pushes it off-screen");
             Assert.AreEqual(0f, HudLayout.DialogueTopOffset, 0.0001f,
                 "the constant the scaler writes must agree with the table");
+        }
+
+        [Test]
+        public void DialogueWindow_IsHorizontallyCentred_ZeroXOffset()
+        {
+            // GUI.as:339,344 `dial.x = (screenX - 1200) / 2` is the inset of the window's LEFT edge
+            // from the stage's left edge — equal margins on both sides, i.e. the 1200-wide window is
+            // CENTRED on the stage. A pivot-centred uGUI anchor already centres it, so the row's x
+            // offset must be 0: adding the Oracle's value on top of the centred anchor double-counts
+            // the centring and shoves the frame right by (screenX - 1200) / 2 — the reported
+            // "interface frame drifted right".
+            HudAnchor anchor = HudLayout.AnchorFor(HudSlot.Dialogue);
+
+            Assert.AreEqual(new Vector2(0.5f, 1f), anchor.Point, "centred anchor");
+            Assert.AreEqual(0f, anchor.Offset.x, 0.0001f,
+                "centring is the anchor's job; a non-zero offset drifts the frame right");
+        }
+
+        [Test]
+        public void DialogueLocalScale_DividesOracleScaleByCanvasScaleFactor()
+        {
+            // The Oracle measures the window in stage pixels (GUI.as:336-345); the CanvasScaler's
+            // factor s maps canvas units to stage pixels, so the uGUI localScale is the Oracle's
+            // scale divided by s. Without the division the frame is 1200·s px wide (7% narrow at
+            // s=0.93) — and with it, a 1316-wide stage puts the frame's left edge at 58 px, exactly
+            // the Oracle's (1316 - 1200) / 2.
+            Assert.AreEqual(1f, HudLayout.DialogueLocalScale(1316f, 1f), 0.0001f);
+            Assert.AreEqual(1f / 0.9f, HudLayout.DialogueLocalScale(1316f, 0.9f), 0.0001f);
+            Assert.AreEqual(1000f / 1200f, HudLayout.DialogueLocalScale(1000f, 1f), 0.0001f,
+                "below 1200 the Oracle shrinks the window to the stage width");
+            Assert.AreEqual(1000f / 1200f / 0.9f, HudLayout.DialogueLocalScale(1000f, 0.9f), 0.0001f);
+            Assert.AreEqual(1f, HudLayout.DialogueLocalScale(800f, 0f), 0.0001f,
+                "a non-positive scale factor falls back to 1 rather than dividing by zero");
         }
 
         [Test]

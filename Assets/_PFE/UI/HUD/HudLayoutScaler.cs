@@ -46,6 +46,7 @@ namespace PFE.UI.HUD
         public RectTransform DialogueWindow;
 
         private RectTransform _self;
+        private Canvas _canvas;
 
         /// <summary>The canvas rect this scaler lays out against. Null before <c>Awake</c>.</summary>
         public RectTransform CanvasRect => _self;
@@ -62,6 +63,10 @@ namespace PFE.UI.HUD
         private void Awake()
         {
             _self = GetComponent<RectTransform>();
+            // The CanvasScaler's factor between canvas units and stage pixels — needed to express
+            // the Oracle's stage-pixel dialogue size (GUI.as:336-345) in canvas units. Absent in
+            // edit-mode tests that build the scaler on a bare RectTransform; those fall back to 1.
+            _canvas = GetComponent<Canvas>();
         }
 
         private void OnEnable()
@@ -182,14 +187,29 @@ namespace PFE.UI.HUD
 
             if (DialogueWindow != null)
             {
-                float scale = HudLayout.DialogueScale(width);
-                DialogueWindow.localScale = new Vector3(scale, scale, 1f);
+                // The Oracle's numbers are stage pixels, not canvas units (GUI.as:336-345): the
+                // window is 1200 stage px wide, centred on the stage, shrinking only below a
+                // 1200-wide stage. Two conversions follow:
+                //   * size — width * scaleFactor is the real stage width; the localScale is the
+                //     Oracle's scale divided by the scale factor (see HudLayout.DialogueLocalScale),
+                //     so the window is exactly 1200 stage px wide. Without the division it is
+                //     1200·s px — 7% narrow on a 1316x630 window.
+                //   * x — a centred window needs NO offset: the anchor point IS the canvas centre.
+                //     The old code added (width - 1200) / 2 on top of the centred anchor, which
+                //     pushed the frame right by that whole amount — the reported "interface frame
+                //     drifted right". (It also mixed unit spaces: width is canvas units, the Oracle
+                //     value is stage pixels.)
+                float scaleFactor = _canvas != null ? _canvas.scaleFactor : 1f;
+                float screenWidth = width * scaleFactor;
+                float localScale = HudLayout.DialogueLocalScale(screenWidth, scaleFactor);
+                DialogueWindow.localScale = new Vector3(localScale, localScale, 1f);
 
-                // The element's pivot is TopCentre (see HudLayout's table row for HudSlot.Dialogue), so
-                // an anchoredPosition of (dx, 0) puts its top edge on the screen's top edge. The Oracle
-                // only ever writes `dial.x`; `dial.y` stays at the SWF's authored 0 (GUI.as:336-345).
+                // Pivot is TopCentre (see HudLayout's table row for HudSlot.Dialogue), so an
+                // anchoredPosition of (0, 0) centres the window horizontally and pins its top edge
+                // to the screen's top edge — the Oracle writes dial.x only to centre, and dial.y
+                // stays at the SWF's authored 0 (GUI.as:336-345).
                 DialogueWindow.anchoredPosition =
-                    new Vector2(HudLayout.DialogueCentreOffset(width), HudLayout.DialogueTopOffset);
+                    new Vector2(0f, HudLayout.DialogueTopOffset);
             }
         }
 

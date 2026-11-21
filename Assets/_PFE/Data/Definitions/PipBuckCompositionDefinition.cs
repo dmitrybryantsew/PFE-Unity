@@ -54,6 +54,23 @@ namespace PFE.Data.Definitions
                  "per-row icon is a child clip (trol, symbol 876), not a frame of this timeline.")]
         public Sprite monitorRowTemplate;
 
+        // ── Load screen ───────────────────────────────────────────────────────
+        // Art only: no load-screen VIEW exists yet. `LandDefinition.loadScreenIndex`
+        // parses the Oracle's `loadscr` attribute and the debug overlay prints it,
+        // but nothing draws a card. These fields make the art addressable without
+        // inventing behaviour the Oracle does not have.
+
+        [Header("Load Screen")]
+        [Tooltip("visualWait (symbol 392), 1486x1009 — the wasteland wait plate shown by " +
+                 "World.setLoadScreen. This is the ONLY live load-screen art: getLoadScreen() " +
+                 "returns -1 unconditionally, so the numbered story branch never runs.")]
+        public Sprite loadScreenPlate;
+
+        [Tooltip("vwait.story (symbol 391), 1350x900 — the numbered `История N` card. " +
+                 "REFERENCE ONLY: World.as:1543-1547 makes this branch unreachable. Do not build a " +
+                 "per-land story card on top of it.")]
+        public Sprite loadScreenStoryCard;
+
         // ── Inventory page — the row clip the Oracle builds 19 of ─────────────
         //
         // `PipPageInv` sets `itemClass = visPipInvItem` (PipPageInv.as:30) and `PipPage`'s constructor
@@ -196,6 +213,15 @@ namespace PFE.Data.Definitions
                  "one is `visNPCIco` (4844), the speech-bubble icon UnitNPC hangs above its head " +
                  "(UnitNPC.as:157), which has two frames, not seventy.")]
         public Sprite[] dialoguePortraits = Array.Empty<Sprite>();
+
+        [Tooltip("The 1.04 Graphic Update dialogue casing — 1712x332, the PipBuck-style bezel " +
+                 "that replaced the pre-1.04 flat 1200x225 black plate. Its inner screen is " +
+                 "1193x200 at (221,29), which is why the screen — not the art's top-left — is " +
+                 "where the text starts. Extract: DLC/pfeUI.swf shape 4678 -> bitmap 5006, " +
+                 "inside sprite 4797 (which also places the 70-frame portrait clip at (32,32)). " +
+                 "Null means 'pre-1.04 art': the window then falls back to the flat plate plus " +
+                 "the 1 px #33CC99 border. See .workbuddy-ai/tmp/stage_dialogue_window.py.")]
+        public Sprite dialogueWindow;
 
         // ── Skill / perk icons ────────────────────────────────────────────────
         // ONE SWF symbol (`vskill`) split into its two id spaces. The Oracle's export of this symbol

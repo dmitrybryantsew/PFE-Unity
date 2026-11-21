@@ -201,6 +201,8 @@ namespace PFE.Core
         {
             if (_viewModel == null) return;
 
+            using (PFE.Core.Profiling.PfeViewMarkers.HudUpdate.Auto())
+            {
             // Refreshed every frame, and deliberately ABOVE the early-outs below: the steady state
             // returns as soon as the weapon and the stats are bound, so a prompt driven from the
             // rebind path would freeze over the first object the player ever pointed at.
@@ -254,6 +256,7 @@ namespace PFE.Core
             // was equipped). The cost of recording it afterwards is that a genuinely repeatable failure
             // re-logs each frame — which is the honest signal, not noise.
             _boundController = controller;
+            }
         }
 
         // ── Construction ──────────────────────────────────────────────────────
@@ -1379,6 +1382,13 @@ namespace PFE.Core
         /// on resize. The panel's 760 × 420 is the port's — the Oracle's <c>inform</c> symbol carries its
         /// own size in the SWF, which the importer flattens, the same gap <see cref="HudLayout"/> marks for
         /// the stat cluster.</para>
+        ///
+        /// <para><b>The 1200 × 225 window rect is the pre-1.04 plate, deliberately kept.</b> The 1.04
+        /// Graphic Update wrapped the same window in a 1712 × 332 casing, but it did <i>not</i> move the
+        /// children: the portrait is still at (32,32) and the text still starts at ~218. Only the screen
+        /// moved, to (221,29), to clear the portrait. So the casing can be drawn at 1:1 over the existing
+        /// rect without touching one layout constant — and keeping the rect means the scale rule stays
+        /// the one the AS3 actually documents. See <c>PipBuckComposition.dialogueWindow</c>.</para>
         /// </summary>
         private ScriptDialogueView BuildDialogue(Transform parent)
         {
@@ -1396,11 +1406,38 @@ namespace PFE.Core
             Stretch(windowPlate.rectTransform);
             windowPlate.raycastTarget = false;
 
-            // The 1 px #33CC99 frame (shape 4520's LINESTYLE2). Drawn over the plate, and built before
-            // the text so the text sits on top of it in the sibling order.
-            CreateBorder(window, HudLayout.DialogueBorderColor,
-                HudLayout.DialogueAuthoredWidth, HudLayout.DialogueAuthoredHeight,
-                HudLayout.DialogueBorderThickness);
+            // The 1.04 Graphic Update casing, when its art is present. It replaces BOTH pre-1.04
+            // stand-ins, and that is correctness rather than tidiness:
+            //   * the plate has to go, because the casing is not a solid rectangle — its left shoulder
+            //     and the notch under the portrait are transparent, so a black plate behind them would
+            //     paint the world out exactly where the Steam build shows it through;
+            //   * the 1 px #33CC99 border has to go, because it was a reconstruction of the OLD plate's
+            //     LINESTYLE2 and would draw a green rectangle inside the new screen.
+            // The casing is drawn at 1:1 with its top-left on the window's top-left, so its 1193x200
+            // screen at (221,29) lands where the text field already starts (218,30 — the authored 3 px
+            // overlap is covered by the casing's own lip). It overflows the 1200x225 window rect to the
+            // right and bottom exactly as the Oracle's art does; the window is not masked, so the
+            // screen edge is what clips it.
+            Sprite dialogueWindowArt = _composition != null ? _composition.dialogueWindow : null;
+            if (dialogueWindowArt != null)
+            {
+                windowPlate.enabled = false;
+
+                Image bezel = CreateRectImage("Bezel", window, Color.white,
+                    anchor: new Vector2(0f, 1f), pivot: new Vector2(0f, 1f),
+                    anchoredPosition: Vector2.zero,
+                    size: new Vector2(dialogueWindowArt.rect.width, dialogueWindowArt.rect.height));
+                bezel.sprite = dialogueWindowArt;
+                bezel.preserveAspect = false;
+            }
+            else
+            {
+                // The 1 px #33CC99 frame (shape 4520's LINESTYLE2). Drawn over the plate, and built
+                // before the text so the text sits on top of it in the sibling order.
+                CreateBorder(window, HudLayout.DialogueBorderColor,
+                    HudLayout.DialogueAuthoredWidth, HudLayout.DialogueAuthoredHeight,
+                    HudLayout.DialogueBorderThickness);
+            }
 
             // Child `txt` (4521): a 944x172 field at (218,30) inside the 1200x225 plate, 16 px
             // `_sans` in #00FF99, left-aligned, multiline, word-wrapped.

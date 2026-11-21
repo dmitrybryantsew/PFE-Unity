@@ -279,6 +279,11 @@ namespace PFE.UI.HUD
         /// Oracle: <c>dial.scaleX = dial.scaleY = screenX &lt; 1200 ? screenX / 1200 : 1</c>
         /// (<c>GUI.as:336-345</c>). The window <b>shrinks</b> below 1200 and never grows — it is
         /// centred at 1:1 on anything wider.
+        ///
+        /// <para><b><c>screenX</c> is the real stage width in pixels, not a canvas width.</b> The
+        /// CanvasScaler's scale factor <c>s</c> maps canvas units to stage pixels, so a unit-scale
+        /// 1200-unit rect is 1200·s px wide — the window must be scaled by
+        /// <see cref="DialogueLocalScale"/> to actually occupy 1200 stage px.</para>
         /// </summary>
         public static float DialogueScale(float screenX)
         {
@@ -286,12 +291,16 @@ namespace PFE.UI.HUD
         }
 
         /// <summary>
-        /// Oracle: <c>dial.x = screenX &lt; 1200 ? 0 : (screenX - 1200) / 2</c> (<c>GUI.as:339,344</c>).
-        /// Expressed as an offset from a centred anchor, which is the same position.
+        /// The dialogue window's uGUI <c>localScale</c> that makes it exactly
+        /// <see cref="DialogueScale"/> × 1200 <b>stage pixels</b> wide: the Oracle's scale divided by
+        /// the canvas scale factor (<c>GUI.as:336-345</c> measures in stage pixels; the HUD canvas
+        /// is not 1:1 with them — see <see cref="DialogueScale"/>). A non-positive factor falls back
+        /// to 1 rather than dividing by zero.
         /// </summary>
-        public static float DialogueCentreOffset(float screenX)
+        public static float DialogueLocalScale(float screenWidthPx, float canvasScaleFactor)
         {
-            return screenX < DialogueAuthoredWidth ? 0f : (screenX - DialogueAuthoredWidth) / 2f;
+            float s = canvasScaleFactor > 0f ? canvasScaleFactor : 1f;
+            return DialogueScale(screenWidthPx) / s;
         }
 
         // ── The dialogue plate's own geometry ─────────────────────────────────
@@ -535,7 +544,13 @@ namespace PFE.UI.HUD
                 // 500 px minimum width. The x/y below is the centred anchor; the width is ToastWidth().
                 { HudSlot.Toast, new HudAnchor(TopCentre, new Vector2(0f, -20f)) },
 
-                // GUI.as:339,344 `dial.x = (screenX - 1200) / 2` — centred on a 1200-wide sheet.
+                // GUI.as:339,344 `dial.x = (screenX - 1200) / 2` — the inset of the window's LEFT
+                // edge from the stage's left edge, i.e. equal margins on both sides: the window is
+                // CENTRED on the stage. A pivot-centred uGUI anchor already centres it, so this
+                // row's x offset is 0 — the Oracle's value must NOT be added on top of the anchor
+                // (that double-counts the centring and shoves the frame right by (screenX-1200)/2).
+                // The shrink-below-1200 scale is a localScale, not an anchor: see
+                // HudLayoutScaler.ApplyScaledSpecials.
                 //
                 // **Its Y is not set by resizeScreen, and that is the whole point.** `resizeScreen`
                 // writes `dial.x` and the scale and never touches `dial.y` (GUI.as:336-345), so the

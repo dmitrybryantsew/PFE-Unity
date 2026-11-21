@@ -70,7 +70,11 @@ namespace PFE.Tests.EditMode.UI
         {
             // The control: the tag must not have swallowed the screen-anchored rows it sits beside.
             Assert.AreEqual(HudAnchorSource.OracleResizeScreen, HudLayout.SourceFor(HudSlot.WeaponBlock));
-            Assert.AreEqual(HudAnchorSource.PortChoice, HudLayout.SourceFor(HudSlot.HealthBar));
+            // HealthBar was PortChoice until the SWF's own PlaceObject2 matrices were read out of
+            // visualGUI (3289b440) — its placement is authored data now, like the rest of the stat
+            // cluster. What this control actually guards is "not WorldAnchored"; the exact source is
+            // pinned by HudLayoutTests.
+            Assert.AreEqual(HudAnchorSource.OracleAuthored, HudLayout.SourceFor(HudSlot.HealthBar));
         }
 
         // ── The prompt's composition ──────────────────────────────────────────
