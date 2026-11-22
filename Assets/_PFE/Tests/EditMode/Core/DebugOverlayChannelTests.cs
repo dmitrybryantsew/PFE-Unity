@@ -24,7 +24,6 @@ namespace PFE.Tests.EditMode.Core
             DebugOverlayChannel.Objects,
             DebugOverlayChannel.TileQuery,
             DebugOverlayChannel.RoomData,
-            DebugOverlayChannel.PoolData,
             DebugOverlayChannel.Clock,
             DebugOverlayChannel.Legend,
             DebugOverlayChannel.LowLevelPhysics,
@@ -410,7 +409,6 @@ namespace PFE.Tests.EditMode.Core
                                                       "props", "prop", "barricades", "containers");
             AssertAliases(DebugOverlayChannel.TileQuery, "tilequery", "query", "colliderhelp");
             AssertAliases(DebugOverlayChannel.RoomData, "room", "rooms", "roomdata", "streaming");
-            AssertAliases(DebugOverlayChannel.PoolData, "pool", "pooldata", "pooling");
             AssertAliases(DebugOverlayChannel.Clock, "clock", "simclock", "sim", "fps");
             AssertAliases(DebugOverlayChannel.Legend, "legend", "key");
             AssertAliases(DebugOverlayChannel.EnemyAI, "ai", "enemyai", "enemy-ai",
@@ -451,7 +449,7 @@ namespace PFE.Tests.EditMode.Core
                 DebugOverlayChannel.Tiles | DebugOverlayChannel.Units | DebugOverlayChannel.Doors
                     | DebugOverlayChannel.Triggers | DebugOverlayChannel.Transitions | DebugOverlayChannel.Objects,
                 DebugOverlayChannel.TileQuery | DebugOverlayChannel.RoomData
-                    | DebugOverlayChannel.PoolData | DebugOverlayChannel.Clock,
+                    | DebugOverlayChannel.Clock,
             };
 
             foreach (DebugOverlayChannel sample in samples)

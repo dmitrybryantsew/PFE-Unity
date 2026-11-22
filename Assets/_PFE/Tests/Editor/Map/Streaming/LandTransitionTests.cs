@@ -112,11 +112,13 @@ namespace PFE.Tests.Editor.Map.Streaming
             };
             room.InitializeTiles();
 
-            // Initialize wires up the trigger system before it touches the render assets, so the
-            // system survives the early-out below. The null database is deliberate: this test only
-            // cares about the OnGotoLand forwarding chain, not about rendering the room.
-            LogAssert.Expect(LogType.Error, "[RoomVisualController] Cannot initialize with null asset database!");
-            rvc.Initialize(room, null);
+            // Initialize wires up the trigger system before it builds the room's visuals, so the
+            // system exists even though this bare room has no terrain art to draw from. The art
+            // miss is the one expected error; the test only cares about the OnGotoLand forwarding
+            // chain, not about rendering the room.
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(
+                "\\[RoomTerrain\\] Quarter renderer NOT built for room 'TestRoom'"));
+            rvc.Initialize(room);
 
             Assert.That(rvc.AreaTriggerSystem, Is.Not.Null);
 

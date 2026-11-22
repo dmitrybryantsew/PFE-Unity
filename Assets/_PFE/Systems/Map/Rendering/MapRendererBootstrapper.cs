@@ -12,10 +12,7 @@ namespace PFE.Systems.Map.Rendering
     public class MapRendererBootstrapper : MonoBehaviour
     {
         [SerializeField] private bool createIfMissing = true;
-        [SerializeField] private TileAssetDatabase tileDatabase;
-        [SerializeField] private TileTextureLookup tileTextureLookup;
         [SerializeField] private MaterialRenderDatabase materialRenderDatabase;
-        [SerializeField] private TileMaskLookup tileMaskLookup;
         [SerializeField] private RoomBackgroundLookup roomBackgroundLookup;
         
         private GameManager gameManager;
@@ -45,9 +42,7 @@ namespace PFE.Systems.Map.Rendering
         public void Construct(
             GameManager gm,
             RoomGenerator generator,
-            TileTextureLookup textureLookup,
             MaterialRenderDatabase materialDatabase,
-            TileMaskLookup maskLookup,
             RoomBackgroundLookup backgroundLookup,
             PfeDebugSettings debug,
             SimClock clock,
@@ -57,9 +52,7 @@ namespace PFE.Systems.Map.Rendering
         {
             gameManager = gm;
             roomGenerator = generator;
-            tileTextureLookup = tileTextureLookup != null ? tileTextureLookup : textureLookup;
             materialRenderDatabase = materialRenderDatabase != null ? materialRenderDatabase : materialDatabase;
-            tileMaskLookup = tileMaskLookup != null ? tileMaskLookup : maskLookup;
             roomBackgroundLookup = roomBackgroundLookup != null ? roomBackgroundLookup : backgroundLookup;
             debugSettings = debug;
             simClock = clock;
@@ -100,42 +93,21 @@ namespace PFE.Systems.Map.Rendering
             
             // Set up references via reflection or serialized fields
             // MapBridge uses [SerializeField] private fields, so we need to set them
-            var visualControllerField = typeof(MapBridge).GetField("_visualController", 
+            var visualControllerField = typeof(MapBridge).GetField("_visualController",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var tileDatabaseField = typeof(MapBridge).GetField("_tileDatabase", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
+
             if (visualControllerField != null)
             {
                 visualControllerField.SetValue(bridge, visualController);
                 Debug.Log("[MapRendererBootstrapper] Set visualController reference");
             }
-            
-            if (tileDatabaseField != null)
-            {
-                // Try to find tile database if not assigned
-                if (tileDatabase == null)
-                {
-                    tileDatabase = FindFirstObjectByType<TileAssetDatabase>();
-                    if (tileDatabase == null)
-                    {
-                        // Create a runtime tile database
-                        tileDatabase = ScriptableObject.CreateInstance<TileAssetDatabase>();
-                        Debug.Log("[MapRendererBootstrapper] Created runtime TileAssetDatabase");
-                    }
-                }
-                tileDatabaseField.SetValue(bridge, tileDatabase);
-                Debug.Log("[MapRendererBootstrapper] Set tileDatabase reference");
-            }
-            
+
             if (gameManager != null && roomGenerator != null)
             {
                 bridge.Construct(
                     gameManager,
                     roomGenerator,
-                    tileTextureLookup,
                     materialRenderDatabase,
-                    tileMaskLookup,
                     roomBackgroundLookup,
                     debugSettings,
                     simClock,

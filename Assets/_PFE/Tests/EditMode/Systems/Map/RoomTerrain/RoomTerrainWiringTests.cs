@@ -7,14 +7,14 @@ using PFE.Systems.Map.Rendering.RoomTerrain;
 namespace PFE.Tests.EditMode.Systems.Map.RoomTerrain
 {
     /// <summary>
-    /// Pins the decision that puts the quarter renderer into a room: when it is built, when it falls
-    /// back, and the two numbers it is built with.
+    /// Pins the decision that puts the quarter renderer into a room: whether it can be built, and the
+    /// numbers it is built with — for the main room and for the Z-door background layer.
     ///
     /// <para><b>Why the decision and not the picture.</b> <c>RoomTerrainGeometryTests</c> already pins the
     /// arithmetic that places a shape. What it cannot see is the failure mode this class exists for: the
-    /// flag on, the art missing, and a room that draws <i>nothing at all</i> because the shipped sprites
-    /// were suppressed and the replacement never ran. That is a three-input decision with a reason, so it
-    /// is a function, and these fixtures ask it all four ways.</para>
+    /// art asset missing and a room that draws <i>nothing at all</i> because the one terrain renderer
+    /// never ran. That is a two-input decision with a reason, so it is a function, and these fixtures
+    /// ask it each way.</para>
     ///
     /// <para><b>Two fixtures are deliberately not written.</b> There is no "the flag defaults to off"
     /// test — it would assert a field initialiser against itself, which is an identity and survives its
@@ -29,26 +29,22 @@ namespace PFE.Tests.EditMode.Systems.Map.RoomTerrain
         // ─── The decision ────────────────────────────────────────
 
         [Test]
-        public void TryResolve_BuildsOnlyWhenAllThreeInputsArePresent()
+        public void TryResolve_BuildsOnlyWhenBothInputsArePresent()
         {
             RoomTerrainArt art = ScriptableObject.CreateInstance<RoomTerrainArt>();
             var materials = ScriptableObject.CreateInstance<MaterialRenderDatabase>();
 
             try
             {
-                Assert.IsTrue(RoomTerrainWiring.TryResolve(true, art, materials, out string ok),
-                    "flag on, art present, materials present");
+                Assert.IsTrue(RoomTerrainWiring.TryResolve(art, materials, out string ok),
+                    "art present, materials present");
                 Assert.IsNull(ok, "a successful resolve must not carry a reason");
 
-                Assert.IsFalse(RoomTerrainWiring.TryResolve(false, art, materials, out string off),
-                    "flag off");
-                StringAssert.Contains("flag", off, "the reason must name the flag, not say 'unavailable'");
-
-                Assert.IsFalse(RoomTerrainWiring.TryResolve(true, null, materials, out string noArt),
+                Assert.IsFalse(RoomTerrainWiring.TryResolve(null, materials, out string noArt),
                     "art missing");
                 StringAssert.Contains("art", noArt, "the reason must name the art asset");
 
-                Assert.IsFalse(RoomTerrainWiring.TryResolve(true, art, null, out string noMaterials),
+                Assert.IsFalse(RoomTerrainWiring.TryResolve(art, null, out string noMaterials),
                     "materials missing");
                 StringAssert.Contains("MaterialRenderDatabase", noMaterials,
                     "the reason must name what the scene is missing");
@@ -61,14 +57,13 @@ namespace PFE.Tests.EditMode.Systems.Map.RoomTerrain
         }
 
         [Test]
-        public void TryResolve_NamesTheArtAssetAndNotTheFlagWhenTheFlagIsOn()
+        public void TryResolve_NamesTheArtAssetWhenItIsMissing()
         {
-            // The pair that matters in practice: the flag is on and the importer has never run. The
-            // reason must point at the art, because that is the thing the reader has to go and do — a
-            // generic "cannot build" sends them to the wrong file.
-            Assert.IsFalse(RoomTerrainWiring.TryResolve(true, null, null, out string reason));
+            // The case that matters in practice: the importer has never run. The reason must point at
+            // the art, because that is the thing the reader has to go and do — a generic "cannot
+            // build" sends them to the wrong file.
+            Assert.IsFalse(RoomTerrainWiring.TryResolve(null, null, out string reason));
             StringAssert.Contains("art", reason);
-            StringAssert.DoesNotContain("flag", reason);
         }
 
         // ─── The numbers it is built with ────────────────────────
@@ -128,6 +123,34 @@ namespace PFE.Tests.EditMode.Systems.Map.RoomTerrain
             // the default rather than building a grid with no extent.
             Assert.AreEqual(RoomTerrainRenderer.Options.Default().cellSize,
                 RoomTerrainWiring.ResolveOptions(0f).cellSize, 1e-6f);
+        }
+
+        [Test]
+        public void BackgroundOptions_PackEverythingOntoTheBackgroundTilesLayer()
+        {
+            // The Z-door back layer must draw behind the main room. That is a single forced sorting
+            // layer plus the -3000 offset the shipped background path used — anything else puts a
+            // background wall in front of the main room's floor.
+            RoomTerrainRenderer.Options main = RoomTerrainWiring.ResolveOptions(RoomTerrainWiring.ShippedCellSize);
+            RoomTerrainRenderer.Options background =
+                RoomTerrainWiring.ResolveBackgroundOptions(RoomTerrainWiring.ShippedCellSize);
+
+            Assert.IsNull(main.sortingLayerName, "the main room keeps its natural per-pass layers");
+            Assert.AreEqual(0, main.sortingOrderOffset, "the main room has no offset");
+
+            Assert.AreEqual(MapSortingLayers.BackgroundTiles, background.sortingLayerName,
+                "the back layer renders entirely on BackgroundTiles");
+            Assert.AreEqual(RoomTerrainWiring.BackgroundTileSortingOffset, background.sortingOrderOffset,
+                "the back layer keeps the shipped path's -3000 offset");
+            Assert.Less(background.sortingOrderOffset + 9, 0,
+                "even the back layer's flash must land behind the main room's back pass at order 0");
+
+            // The picture-affecting flags must match the main room's, or the back layer would read
+            // as a different room.
+            Assert.AreEqual(main.applyBackTint, background.applyBackTint);
+            Assert.AreEqual(main.applyFrontTint, background.applyFrontTint);
+            Assert.AreEqual(main.drawOverlays, background.drawOverlays);
+            Assert.AreEqual(main.cellSize, background.cellSize, 1e-6f);
         }
     }
 }

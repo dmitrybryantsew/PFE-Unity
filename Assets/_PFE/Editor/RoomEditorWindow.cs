@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Map.Rendering.RoomTerrain;
 
 namespace PFE.Editor
 {
@@ -124,13 +125,6 @@ namespace PFE.Editor
         /// <summary>Draw palette entries as art instead of their code letter.</summary>
         [SerializeField] private bool _images = true;
 
-        /// <summary>
-        /// Compose the preview through the real TileCompositor instead of stacking raw
-        /// material textures. On by default; turn it off if the compositor's per-(material,
-        /// phase, kontur) Texture2D cache makes the window sluggish on a slow machine.
-        /// </summary>
-        [SerializeField] private bool _livePreview = true;
-
         [SerializeField] private bool _showHelp = true;
 
         /// <summary>Draw the 1px seam between cells that reads as grid lines.</summary>
@@ -165,11 +159,9 @@ namespace PFE.Editor
         /// </summary>
         private float _resolvedPanelWidth = 310f;
 
-        private TileAssetDatabase _tileAssets;
+        private RoomTerrainArt _terrainArt;
         private TileTextureLookup _textureLookup;
         private MaterialRenderDatabase _materialDb;
-        private TileMaskLookup _maskLookup;
-        private TileCompositor _compositor;
         private bool _renderAssetsLookedUp;
 
         // Keyed by "id|ed" — NOT by id alone. fForms and oForms share the ids A..T
@@ -560,7 +552,6 @@ namespace PFE.Editor
 
             EditorGUILayout.BeginHorizontal();
             _images = GUILayout.Toggle(_images, "Images", EditorStyles.miniButtonLeft, GUILayout.Width(66f));
-            _livePreview = GUILayout.Toggle(_livePreview, "Live preview", EditorStyles.miniButtonMid, GUILayout.Width(96f));
             _showHelp = GUILayout.Toggle(_showHelp, "Help", EditorStyles.miniButtonRight, GUILayout.Width(54f));
             EditorGUILayout.EndHorizontal();
 
@@ -1174,7 +1165,7 @@ namespace PFE.Editor
                 return default;
             }
 
-            // Misses are cached too: TileAssetDatabase.GetSprite walks its entry list linearly,
+            // Misses are cached too: the art lookups walk their entry lists linearly,
             // so re-resolving the ~40 forms that legitimately have no art on every repaint
             // would cost tens of thousands of string comparisons per frame.
             string key = form.id + "|" + form.ed;
@@ -1193,10 +1184,11 @@ namespace PFE.Editor
             EnsureRenderAssets();
 
             // 1) Art referenced by visual id. Stairs, slopes and diagonals keep their graphics
-            //    in the tile sprite atlas rather than in a material, so vid wins when present.
-            if (form.vid > 0 && _tileAssets != null)
+            //    in the terrain art's overlay set rather than in a material, so vid wins when
+            //    present. The same sprites the quarter renderer draws at runtime.
+            if (form.vid > 0 && _terrainArt != null)
             {
-                Sprite sprite = _tileAssets.GetSpriteByVisualId(form.vid);
+                Sprite sprite = _terrainArt.Overlay(form.vid);
                 if (sprite != null)
                 {
                     return TileThumb.FromSprite(sprite, "tile_" + form.vid);
@@ -1216,16 +1208,6 @@ namespace PFE.Editor
                 if (texture != null)
                 {
                     return TileThumb.FromTexture(texture, sourceName);
-                }
-            }
-
-            // 3) The same physics placeholder the runtime falls back to.
-            if (_tileAssets != null)
-            {
-                Sprite placeholder = _tileAssets.GetDefaultSprite(FormPhysicsType(form));
-                if (placeholder != null)
-                {
-                    return TileThumb.FromSprite(placeholder, "(placeholder)");
                 }
             }
 
@@ -1313,7 +1295,7 @@ namespace PFE.Editor
             DrawRectOutline(frame, new Color(0f, 0f, 0f, 0.6f), 1f);
 
             EditorGUILayout.LabelField(
-                _livePreview ? "composed by TileCompositor" : "raw textures (Live preview off)",
+                "raw textures",
                 EditorStyles.miniLabel);
 
             EditorGUILayout.LabelField(
@@ -1395,15 +1377,6 @@ namespace PFE.Editor
 
         private TileThumb ResolveMainThumb(TileForm form, int k1, int k2, int k3, int k4)
         {
-            if (_livePreview)
-            {
-                Sprite composed = ComposeFrontSprite(form, k1, k2, k3, k4);
-                if (composed != null)
-                {
-                    return TileThumb.FromSprite(composed, form.front + " (composed)");
-                }
-            }
-
             return ResolveFormThumb(form);
         }
 
@@ -1420,26 +1393,6 @@ namespace PFE.Editor
             MaterialRenderEntry entry = _materialDb.GetFrontMaterial(backGraphic);
             Texture2D texture = FirstTexture(entry, out string sourceName);
             return TileThumb.FromTexture(texture, sourceName ?? backGraphic);
-        }
-
-        private Sprite ComposeFrontSprite(TileForm form, int k1, int k2, int k3, int k4)
-        {
-            if (form == null || string.IsNullOrEmpty(form.front))
-            {
-                return null;
-            }
-
-            EnsureCompositor();
-
-            if (_compositor == null)
-            {
-                return null;
-            }
-
-            // The compositor keys its cache on the sample position because the tiling phase
-            // depends on it. A fixed origin is fine for a single swatch and keeps the cache at
-            // one entry per kontur combination instead of one per grid cell.
-            return _compositor.GetFrontTileSprite(form.front, 0, 0, k1, k2, k3, k4);
         }
 
         // ---------------------------------------------------------------- settings
@@ -1469,7 +1422,6 @@ namespace PFE.Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Show", EditorStyles.boldLabel);
             _images = EditorGUILayout.ToggleLeft("Palette art (off = code letters)", _images);
-            _livePreview = EditorGUILayout.ToggleLeft("Live preview via TileCompositor", _livePreview);
             _showHelp = EditorGUILayout.ToggleLeft("Help section", _showHelp);
             _gridLines = EditorGUILayout.ToggleLeft("Grid lines", _gridLines);
             _gridArt = EditorGUILayout.ToggleLeft(
@@ -1596,7 +1548,6 @@ namespace PFE.Editor
             _previewSize = 84f;
 
             _images = true;
-            _livePreview = true;
             _showHelp = true;
             _gridLines = true;
             _gridArt = true;
@@ -2064,10 +2015,9 @@ namespace PFE.Editor
 
             _renderAssetsLookedUp = true;
 
-            _tileAssets = FindAsset<TileAssetDatabase>("Assets/_PFE/Data/Map/TileAssetDatabase.asset");
+            _terrainArt = FindAsset<RoomTerrainArt>(RoomTerrainWiring.EditorArtAssetPath);
             _textureLookup = FindAsset<TileTextureLookup>("Assets/_PFE/Data/TileTextureLookup.asset");
             _materialDb = FindAsset<MaterialRenderDatabase>("Assets/_PFE/Data/MaterialRenderDatabase.asset");
-            _maskLookup = FindAsset<TileMaskLookup>("Assets/_PFE/Data/TileMaskLookup.asset");
         }
 
         private static T FindAsset<T>(string fallbackPath) where T : UnityEngine.Object
@@ -2083,23 +2033,6 @@ namespace PFE.Editor
             }
 
             return AssetDatabase.LoadAssetAtPath<T>(fallbackPath);
-        }
-
-        private void EnsureCompositor()
-        {
-            if (_compositor != null)
-            {
-                return;
-            }
-
-            EnsureRenderAssets();
-
-            if (_textureLookup == null || _materialDb == null)
-            {
-                return;
-            }
-
-            _compositor = new TileCompositor(_textureLookup, _materialDb, _maskLookup);
         }
 
         // ---------------------------------------------------------------- grid / viewport

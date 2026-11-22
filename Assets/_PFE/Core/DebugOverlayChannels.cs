@@ -106,9 +106,6 @@ namespace PFE.Core
         /// <summary>The "Room Streaming Status" readout.</summary>
         RoomData = 1 << 7,
 
-        /// <summary>The "Object Pool Status" readout.</summary>
-        PoolData = 1 << 8,
-
         /// <summary>The SIM CLOCK readout.</summary>
         Clock = 1 << 9,
 
@@ -180,7 +177,7 @@ namespace PFE.Core
 
         /// <summary>Everything. <see cref="Legend"/> included — it is a channel like the rest.</summary>
         All = Tiles | Units | Doors | Triggers | Transitions | Objects
-            | TileQuery | RoomData | PoolData | Clock | Legend | LowLevelPhysics
+            | TileQuery | RoomData | Clock | Legend | LowLevelPhysics
             | DamageNumbers | UnitHealth | EnemyAI
     }
 
@@ -206,7 +203,6 @@ namespace PFE.Core
             (DebugOverlayChannel.Objects,     "objects",     "map objects: containers, crates, barricades, terminals"),
             (DebugOverlayChannel.TileQuery,   "tilequery",   "the [P2 Tile Collision Query] text readout"),
             (DebugOverlayChannel.RoomData,    "room",        "the Room Streaming Status text readout"),
-            (DebugOverlayChannel.PoolData,    "pool",        "the Object Pool Status text readout"),
             (DebugOverlayChannel.Clock,       "clock",       "the SIM CLOCK text readout"),
             (DebugOverlayChannel.Legend,      "legend",      "the collider legend plate"),
             (DebugOverlayChannel.LowLevelPhysics, "physics",   "the LowLevelPhysics2D (Box2D v3) chain mirror a projectile sweeps against"),
@@ -296,9 +292,6 @@ namespace PFE.Core
 
                 case "room": case "rooms": case "roomdata": case "streaming":
                     channel = DebugOverlayChannel.RoomData; return true;
-
-                case "pool": case "pooldata": case "pooling":
-                    channel = DebugOverlayChannel.PoolData; return true;
 
                 case "clock": case "simclock": case "sim": case "fps":
                     channel = DebugOverlayChannel.Clock; return true;

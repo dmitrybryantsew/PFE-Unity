@@ -236,8 +236,7 @@ namespace PFE.Core.Scripting
                               "  ui              - Report whether the quick-action button grid is shown\n" +
                               "  ui buttons on|off - Show / hide the button grid (title bar has a toggle too)\n" +
                               "  -- room terrain (which renderer draws a room) --\n" +
-                              "  terrain         - Flag, art asset, and which way the NEXT room is drawn\n" +
-                              "  terrain quad on|off - Quarter renderer / shipped per-tile compositor (next room)\n" +
+                              "  terrain         - Art asset resolution and which renderer the current room got\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
                               "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell, inv, ui, terrain";
@@ -963,14 +962,10 @@ namespace PFE.Core.Scripting
         }
 
         /// <summary>
-        /// Dispatch the <c>terrain</c> shortcuts: which renderer draws a room's terrain.
-        /// <c>terrain</c> and <c>terrain quad</c> are <b>status</b>; <c>terrain quad on|off</c> sets the
-        /// flag that the next room build reads.
-        ///
-        /// <para>A bare verb is status, matching every other multi-purpose verb in this console
-        /// (<c>col</c>, <c>prof</c>, <c>rpg</c>, <c>eff</c>, <c>spell</c>, <c>inv</c>, <c>ui</c>): this one
-        /// swaps the renderer, and a typo that swapped it would be a bug report about "the room went
-        /// black", not about the console.</para>
+        /// Dispatch the <c>terrain</c> shortcuts: which renderer drew a room's terrain.
+        /// <para><b>Status only.</b> The quarter renderer is the only terrain renderer since the shipped
+        /// per-tile path was retired, so there is no on/off to dispatch — every form of the verb reports
+        /// the art resolution and the current room's renderer.</para>
         /// </summary>
         private string RunTerrainShortcut(string[] parts)
         {
@@ -980,27 +975,6 @@ namespace PFE.Core.Scripting
             {
                 case "quad":
                 case "quarters":
-                    if (parts.Length < 3) return _terrainCommands.Status();
-
-                    switch (parts[2].ToLowerInvariant())
-                    {
-                        case "on":
-                        case "1":
-                        case "true":
-                            return _terrainCommands.SetQuad(true);
-
-                        case "off":
-                        case "0":
-                        case "false":
-                            return _terrainCommands.SetQuad(false);
-
-                        default:
-                            // An unknown state is an error, not a fallback — the same rule `ui` follows,
-                            // and for the same reason: silently reporting status reads as a command that
-                            // did nothing.
-                            return $"Unknown terrain state '{parts[2]}'. Use: terrain quad on | terrain quad off";
-                    }
-
                 case "status":
                     return _terrainCommands.Status();
 

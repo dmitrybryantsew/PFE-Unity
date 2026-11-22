@@ -28,7 +28,6 @@ namespace PFE.Editor.Importers
 
         private static string[] DefaultExportRoots => SourceImportPaths.RoomGraphicsExportRoots;
         private static string Texture1ImagesRoot => SourceImportPaths.TextureImagesRoot("texture1");
-        private const string TileAssetDatabasePath = "Assets/_PFE/Data/Map/TileAssetDatabase.asset";
         private const string MaterialDatabasePath = "Assets/_PFE/Data/MaterialRenderDatabase.asset";
         private const string RoomBackgroundLookupPath = "Assets/_PFE/Data/RoomBackgroundLookup.asset";
         private const string TileMaskLookupPath = "Assets/_PFE/Data/TileMaskLookup.asset";
@@ -67,17 +66,15 @@ namespace PFE.Editor.Importers
             }
 
             var resolver = BuildResolver(existingRoots);
-            var tileAssetDatabase = LoadOrCreateAsset<TileAssetDatabase>(TileAssetDatabasePath);
             var roomBackgroundLookup = LoadOrCreateAsset<RoomBackgroundLookup>(RoomBackgroundLookupPath);
             var tileMaskLookup = LoadOrCreateAsset<TileMaskLookup>(TileMaskLookupPath);
             var materialDatabase = AssetDatabase.LoadAssetAtPath<MaterialRenderDatabase>(MaterialDatabasePath);
 
-            ImportTileFront(resolver, tileAssetDatabase);
+            ImportTileFront(resolver);
             ImportTileVoda(resolver, roomBackgroundLookup);
             ImportMasks(resolver, tileMaskLookup, materialDatabase);
             ImportRoomBackgrounds(resolver, roomBackgroundLookup);
 
-            EditorUtility.SetDirty(tileAssetDatabase);
             EditorUtility.SetDirty(roomBackgroundLookup);
             EditorUtility.SetDirty(tileMaskLookup);
             AssetDatabase.SaveAssets();
@@ -88,10 +85,10 @@ namespace PFE.Editor.Importers
                 Debug.Log($"[RoomGraphicsImporter] Note: object/background bitmap fallback images exist at {Texture1ImagesRoot}");
             }
 
-            Debug.Log($"[RoomGraphicsImporter] Import complete. Background entries={roomBackgroundLookup.Count}, mask entries={tileMaskLookup.Count}, tile entries={tileAssetDatabase.GetCount()}");
+            Debug.Log($"[RoomGraphicsImporter] Import complete. Background entries={roomBackgroundLookup.Count}, mask entries={tileMaskLookup.Count}");
         }
 
-        private static void ImportTileFront(Dictionary<string, string> resolver, TileAssetDatabase tileAssetDatabase)
+        private static void ImportTileFront(Dictionary<string, string> resolver)
         {
             if (!resolver.TryGetValue("tileFront", out var folder))
             {
@@ -99,11 +96,9 @@ namespace PFE.Editor.Importers
                 return;
             }
 
+            // The frames land where RoomTerrainArtImporter reads them; the terrain art asset the
+            // quarter renderer draws from is their only consumer now.
             var sprites = ImportFolderFrames(folder, Path.Combine(ImportedRoot, "TileOverlays/tileFront"), FilterMode.Point);
-            for (int i = 0; i < sprites.Count; i++)
-            {
-                tileAssetDatabase.AddTileSprite($"tile_{i + 1}", sprites[i], TilePhysicsType.Air, MaterialType.Default);
-            }
 
             Debug.Log($"[RoomGraphicsImporter] Imported {sprites.Count} tileFront overlay frames.");
         }

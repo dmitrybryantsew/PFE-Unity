@@ -3,15 +3,21 @@ using UnityEngine;
 namespace PFE.Systems.Map.Rendering
 {
     /// <summary>
-    /// The backdrop composite's arithmetic, as functions rather than as a loop body — because the same
-    /// arithmetic now exists twice: once in C# (the fallback path) and once in
-    /// <c>PFE_BackdropMultiply.shader</c> (the default path).
+    /// The backdrop composite's arithmetic, as functions rather than as a loop body — the tested
+    /// reference <c>PFE_BackdropMultiply.shader</c> and <c>PFE_BackdropDecorationMultiply.shader</c>
+    /// were transcribed from.
     ///
     /// <para><b>Why this is extracted.</b> A shader cannot be unit-tested in this project — there is no
     /// offline HLSL runner and no GPU in the harness. What <i>can</i> be tested is the specification the
-    /// shader is a transcription of, and only if that specification exists as code. So the CPU path calls
-    /// these functions and the fixtures pin them; the shader is then checked by reading it against a
-    /// tested reference instead of against an intention.</para>
+    /// shader is a transcription of, and only if that specification exists as code. The fixtures pin
+    /// these functions; the shaders are then checked by reading them against a tested reference
+    /// instead of against an intention.</para>
+    ///
+    /// <para><b>Off the runtime wall path.</b> The wall's per-pixel CPU composite — the loop that
+    /// called this class — was removed when the GPU path became the only path, so the tiling
+    /// arithmetic now exists only in the shader, with these functions as its pinned reference. The
+    /// shadow and darkness functions are still called by the decoration CPU composite, which stays
+    /// as the shader-missing fallback and the A/B reference.</para>
     ///
     /// <para><b>Two coordinate systems, and they are not the same one.</b> The backdrop is authored
     /// top-down in <i>content pixels</i> (y grows down from the room's top-left content corner), while

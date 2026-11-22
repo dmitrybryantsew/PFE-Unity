@@ -37,9 +37,6 @@ namespace PFE.Systems.Map.Streaming
         [Tooltip("The RoomVisualController for re-rendering rooms on transition")]
         [SerializeField] private RoomVisualController visualController;
 
-        [Tooltip("The TileAssetDatabase for rendering room tiles")]
-        [SerializeField] private TileAssetDatabase tileDatabase;
-
         [Header("Transition Settings")]
         [Tooltip("Duration of room transition in seconds")]
         [SerializeField] private float transitionDuration = 0.3f;
@@ -99,15 +96,11 @@ namespace PFE.Systems.Map.Streaming
         }
 
         /// <summary>
-        /// Set the RoomVisualController and optional TileAssetDatabase.
+        /// Set the RoomVisualController.
         /// </summary>
-        public void SetVisualController(RoomVisualController controller, TileAssetDatabase database = null)
+        public void SetVisualController(RoomVisualController controller)
         {
             visualController = controller;
-            if (database != null)
-            {
-                tileDatabase = database;
-            }
         }
 
         /// <summary>
@@ -400,15 +393,7 @@ namespace PFE.Systems.Map.Streaming
 
             if (visualController != null)
             {
-                TileAssetDatabase db = tileDatabase != null ? tileDatabase : visualController.TileAssetDatabase;
-                if (db != null)
-                {
-                    visualController.Initialize(room, db);
-                }
-                else
-                {
-                    Debug.LogWarning("[RoomTransitionManager] Restored room left unrendered: no TileAssetDatabase available.");
-                }
+                visualController.Initialize(room);
             }
             else
             {
@@ -861,11 +846,7 @@ namespace PFE.Systems.Map.Streaming
             // Re-render visuals for the new room
             if (visualController != null)
             {
-                TileAssetDatabase db = tileDatabase != null ? tileDatabase : visualController.TileAssetDatabase;
-                if (db != null)
-                {
-                    visualController.Initialize(toRoom, db);
-                }
+                visualController.Initialize(toRoom);
             }
 
             // Move player to spawn position

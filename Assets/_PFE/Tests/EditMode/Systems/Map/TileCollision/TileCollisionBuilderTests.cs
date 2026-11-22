@@ -146,29 +146,20 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
         // ─── The default ────────────────────────────────────────────────────────
 
         [Test]
-        public void Settings_DefaultToTheQuarterRenderer()
+        public void Settings_CarryNoTerrainRendererToggle()
         {
-            // This is a decision, not an implementation detail: it is what every room in the game is
-            // drawn with, and what decides that the tiles are built for collision only. Flipping the
-            // initialiser is a global behaviour change and should fail a test rather than quietly
-            // change the picture. (The shipped settings asset carries the same value; a fixture cannot
-            // read it offline, so the initialiser is the thing pinned.)
-            //
-            // EDITOR ONLY, and the same known limitation as
-            // RoomTerrainWiringTests.TryResolve_BuildsOnlyWhenAllThreeInputsArePresent:
-            // ScriptableObject.CreateInstance is an ECall, so the offline harness reports this one as a
-            // SecurityException rather than a pass. It is green in the Editor.
-            var settings = ScriptableObject.CreateInstance<PfeDebugSettings>();
+            // The quarter renderer is the only terrain renderer, so the old debug flag choosing
+            // between it and a shipped per-tile path must not come back: reintroducing
+            // `QuadRoomTerrain` would resurrect the dual-path maintenance cost this cutover
+            // removed. Reflection, not source text, so the fixture fails on the reintroduced
+            // member itself. Purely offline — no ECall, unlike the settings instance it replaces.
+            System.Reflection.PropertyInfo property = typeof(PfeDebugSettings).GetProperty(
+                "QuadRoomTerrain", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            Assert.IsNull(property, "the QuadRoomTerrain toggle must stay removed");
 
-            try
-            {
-                Assert.IsTrue(settings.QuadRoomTerrain,
-                    "the quarter renderer is the shipped terrain path; `terrain quad off` is the escape hatch");
-            }
-            finally
-            {
-                Object.DestroyImmediate(settings);
-            }
+            System.Reflection.FieldInfo field = typeof(PfeDebugSettings).GetField(
+                "quadRoomTerrain", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.IsNull(field, "the quadRoomTerrain backing field must stay removed");
         }
     }
 }

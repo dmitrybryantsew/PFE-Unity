@@ -19,7 +19,6 @@ using PFE.Systems.Map.Streaming;
 public class MapBridge : MonoBehaviour
 {
     [SerializeField] private RoomVisualController _visualController;
-    [SerializeField] private TileAssetDatabase _tileDatabase;
 
     /// <summary>
     /// The particle adapter this bridge was constructed with, kept only to hand to
@@ -60,9 +59,7 @@ public class MapBridge : MonoBehaviour
     private GameManager _gameManager;
     private RoomGenerator _roomGenerator;
     private Transform _playerTransform;
-    private TileTextureLookup _tileTextureLookup;
     private MaterialRenderDatabase _materialRenderDatabase;
-    private TileMaskLookup _tileMaskLookup;
     private RoomBackgroundLookup _roomBackgroundLookup;
     private PFE.Core.PfeDebugSettings _debugSettings;
 
@@ -131,13 +128,11 @@ public class MapBridge : MonoBehaviour
     // defaults were "deliberately omitted" while the line beneath it carried three — the code is the
     // truth, and it is why a scene cannot opt out of a registration by relying on the default.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null, VContainer.IObjectResolver objectResolver = null, MessagePipe.ISubscriber<PFE.Core.Messages.LandBuildRequestMessage> landBuildSubscriber = null)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, MaterialRenderDatabase materialRenderDatabase, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null, VContainer.IObjectResolver objectResolver = null, MessagePipe.ISubscriber<PFE.Core.Messages.LandBuildRequestMessage> landBuildSubscriber = null)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
-        _tileTextureLookup = tileTextureLookup;
         _materialRenderDatabase = materialRenderDatabase;
-        _tileMaskLookup = tileMaskLookup;
         _roomBackgroundLookup = roomBackgroundLookup;
         _debugSettings = debugSettings;
         _simClock = simClock;
@@ -273,12 +268,6 @@ public class MapBridge : MonoBehaviour
         if (_visualController == null)
         {
             Debug.LogError("[MapBridge] RoomVisualController is not assigned! Assign it in the inspector.");
-            return;
-        }
-
-        if (_tileDatabase == null)
-        {
-            Debug.LogError("[MapBridge] TileAssetDatabase is not assigned! Assign it in the inspector.");
             return;
         }
 
@@ -421,9 +410,7 @@ public class MapBridge : MonoBehaviour
                         Debug.Log($"[MapBridge] Room has {nonAirTiles} non-air tiles to render");
                 }
 
-                _visualController.ConfigureCompositorAssets(_tileTextureLookup, _materialRenderDatabase, _roomBackgroundLookup, _tileMaskLookup);
-                if (_debugSettings?.LogMapBridgeLifecycle == true)
-                    Debug.Log($"[MapBridge] Using TileAssetDatabase '{_tileDatabase.name}' with {_tileDatabase.GetCount()} overlay sprites.");
+                _visualController.ConfigureRenderAssets(_materialRenderDatabase, _roomBackgroundLookup);
 
                 // Setup RoomTransitionManager BEFORE the visuals initialize — the order is load-bearing.
                 //
@@ -447,12 +434,12 @@ public class MapBridge : MonoBehaviour
                     transitionManager = rtmGo.AddComponent<RoomTransitionManager>();
                 }
                 transitionManager.SetLandMap(landMap);
-                transitionManager.SetVisualController(_visualController, _tileDatabase);
+                transitionManager.SetVisualController(_visualController);
 
                 // Initialize the visual controller with the logical room data
                 using (PFE.Core.Profiling.PfeProfiler.Region("room.init.visuals", "boot: MEASURED 4007ms (2026-09-25) — still the dominant phase: tiles.createAll 2518 + backdrop.createVisuals 1453"))
                 {
-                    _visualController.Initialize(currentRoom, _tileDatabase);
+                    _visualController.Initialize(currentRoom);
                 }
 
                 // Spawn player at valid position
@@ -1085,11 +1072,6 @@ public class MapBridge : MonoBehaviour
         // Clear visuals
         _visualController.ClearVisuals();
 
-        // The tileset is about to change, so the shared sprite cache is both stale and otherwise
-        // unbounded across lands. Safe here: ClearVisuals already destroyed the old tiles (and a
-        // yield passed before it), so no live renderer still references these sprites.
-        _visualController.ReleaseBakedTileSprites();
-
         // Get LandMap and clear
         var landMap = _gameManager.GetLandMap();
         if (landMap != null)
@@ -1308,7 +1290,7 @@ public class MapBridge : MonoBehaviour
         var currentRoom = landMap.currentRoom;
         if (currentRoom != null)
         {
-            _visualController.Initialize(currentRoom, _tileDatabase);
+            _visualController.Initialize(currentRoom);
             SpawnPlayer(currentRoom);
 
             // AS3 `Location.createCheck(true)` ends with `this.cp.activate(true)`
@@ -1332,7 +1314,7 @@ public class MapBridge : MonoBehaviour
             if (rtm != null)
             {
                 rtm.SetLandMap(landMap);
-                rtm.SetVisualController(_visualController, _tileDatabase);
+                rtm.SetVisualController(_visualController);
             }
 
             if (rsm != null)

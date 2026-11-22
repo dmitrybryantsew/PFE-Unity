@@ -491,15 +491,14 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// A tile as this overlay can see it: the GameObject that carries the collider, the sprite and
-        /// the data — <b>whether or not it is drawn</b>.
+        /// A tile as this overlay can see it: the collision-only GameObject and its data.
         ///
-        /// <para><b>Why this is not a <see cref="TileRenderer"/>.</b> A tile object no longer has to be
-        /// drawn to be collided with: with the quarter renderer as the default terrain path, the room's
-        /// tiles are built by <see cref="TileCollisionBuilder"/> and carry a <see cref="TileCollider"/>
-        /// and nothing else. Enumerating <see cref="TileRenderer"/> therefore finds <i>zero</i> tiles in
-        /// the default mode — and a diagnostic that silently measures nothing is worse than no
-        /// diagnostic, because `col` is the tool used to verify that collision survived the swap.</para>
+        /// <para><b>Why the probe is the collider and not a renderer.</b> A tile object no longer has to
+        /// be drawn to be collided with: the quarter renderer draws the room's terrain, and the tile
+        /// objects are built by <see cref="TileCollisionBuilder"/> to carry a <see cref="TileCollider"/>
+        /// and nothing else. Probing renderers would find zero tiles — and a diagnostic that silently
+        /// measures nothing is worse than no diagnostic, because `col` is the tool used to verify that
+        /// collision survived the swap.</para>
         /// </summary>
         private sealed class TileProbe
         {
@@ -508,17 +507,13 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Every tile object in the scene, from both halves of the room: colliders first (the default
-        /// path, and the only half that exists for an air-free room), then renderers (the shipped path,
-        /// and any air tile that is drawn without being solid).
-        ///
-        /// <para>Deduplicated by GameObject, so a shipped tile — which has both components — appears
-        /// once and reference comparison of two probes still means "the same tile".</para>
+        /// Every tile object in the scene — the collision-only objects the quarter terrain path
+        /// builds. A tile no longer carries a renderer at all, so the tile colliders are the whole
+        /// population.
         /// </summary>
         private static List<TileProbe> CollectTiles()
         {
             var probes = new List<TileProbe>(1024);
-            var seen = new HashSet<GameObject>();
 
             TileCollider[] colliders = FindObjectsByType<TileCollider>(
                 FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -531,24 +526,7 @@ namespace PFE.Systems.Map.Rendering
                 TileData data = collider.GetTileData();
                 if (data == null) continue;
 
-                GameObject go = collider.gameObject;
-                if (!seen.Add(go)) continue;
-
-                probes.Add(new TileProbe { go = go, data = data });
-            }
-
-            TileRenderer[] renderers = FindObjectsByType<TileRenderer>(
-                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                TileRenderer renderer = renderers[i];
-                if (renderer == null || renderer.TileData == null) continue;
-
-                GameObject go = renderer.gameObject;
-                if (!seen.Add(go)) continue;
-
-                probes.Add(new TileProbe { go = go, data = renderer.TileData });
+                probes.Add(new TileProbe { go = collider.gameObject, data = data });
             }
 
             return probes;
@@ -576,8 +554,7 @@ namespace PFE.Systems.Map.Rendering
                 Rect colliderRect = collider != null ? WorldRect(collider.bounds) : Rect.zero;
                 Rect visualRect = ResolveVisualRect(tr.go.transform, sprite, colliderRect);
 
-                // The mismatch pair. Both tile builders — TileCollisionBuilder on the quarter terrain
-                // path, TileVisualManager on the shipped one — attach a TileCollider only when
+                // The mismatch pair. TileCollisionBuilder attaches a TileCollider only when
                 // physicsType != Air, so "solid in the data, absent in physics" is the shape of a
                 // tile that renders as floor and cannot be stood on, which is the whole question.
                 //
@@ -605,7 +582,7 @@ namespace PFE.Systems.Map.Rendering
                 else
                 {
                     // Only reachable for an air tile, which has no collider by construction
-                    // (TileVisualManager.CreateTile attaches one only when physicsType != Air).
+                    // (TileCollisionBuilder attaches one only when physicsType != Air).
                     // Drawing its cell is the only thing there is to show, and it is what makes the
                     // air flag useful rather than an empty toggle.
                     EmitBox(visualRect, TileLineWidth, TileAirColor);
@@ -818,8 +795,9 @@ namespace PFE.Systems.Map.Rendering
         /// The "what the eye sees" box for a tile, with a fallback for the case where there is
         /// nothing to measure.
         ///
-        /// <para>A <see cref="TileRenderer"/> can legitimately have no sprite (the importer reports
-        /// tiles with no visual) and no collider at the same time. Returning an empty rect there
+        /// <para>A tile object can legitimately have no sprite (the quarter renderer draws the terrain;
+        /// the tile objects are collision-only) and no collider at the same time — an air tile. Returning
+        /// an empty rect there
         /// would make the tile silently vanish from the overlay — and worse, it would be filtered out
         /// by the camera-view test, because <c>Rect.zero</c> is at the world origin. So the fallback
         /// is a one-cell marker centred on the tile's own transform: an approximation, but an

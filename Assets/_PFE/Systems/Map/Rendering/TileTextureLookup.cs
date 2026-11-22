@@ -6,7 +6,8 @@ namespace PFE.Systems.Map.Rendering
 {
     /// <summary>
     /// Maps texture names (from MaterialRenderDatabase) to actual Texture2D assets.
-    /// Created by TileTextureImporter, used at runtime by TileCompositor.
+    /// Created by TileTextureImporter; used at runtime by RoomBackdropRenderer (the backwall
+    /// texture) and by the editor importers that bake the quarter renderer's art asset.
     /// 
     /// Example: "tConcrete" -> the imported Texture2D from texture.swf
     /// </summary>

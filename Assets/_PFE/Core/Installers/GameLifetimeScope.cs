@@ -36,11 +36,8 @@ public class GameLifetimeScope : LifetimeScope
     [SerializeField] private MusicService      _musicService;
     [SerializeField] private ImpactSoundTable  _impactSoundTable;
     [SerializeField] private PfeInputSettings _inputSettings;
-    [SerializeField] private TileAssetDatabase tileAssetDatabase;
     [SerializeField] private TileFormDatabase _tileFormDatabase;
-    [SerializeField] private TileTextureLookup _tileTextureLookup;
     [SerializeField] private MaterialRenderDatabase _materialRenderDb;
-    [SerializeField] private TileMaskLookup _tileMaskLookup;
     [SerializeField] private RoomBackgroundLookup _roomBackgroundLookup;
     [SerializeField] private PfeDebugSettings _debugSettings;
     [SerializeField] private GameSettings _gameSettings;
@@ -824,37 +821,13 @@ public class GameLifetimeScope : LifetimeScope
 
         // === Visual Systems ===
         builder.Register<FloatingTextManager>(Lifetime.Singleton);
-        
-        // Register TileAssetDatabase (either from inspector or create runtime)
-        if (tileAssetDatabase != null)
-        {
-            builder.RegisterInstance(tileAssetDatabase);
-        }
-        else
-        {
-            // Create runtime database if not assigned
-            var runtimeDb = ScriptableObject.CreateInstance<TileAssetDatabase>();
-            builder.RegisterInstance(runtimeDb);
-            Debug.Log("[GameLifetimeScope] Created runtime TileAssetDatabase (no asset assigned)");
-        }
 
         // === Map System ===
         builder.Register<LandMap>(Lifetime.Singleton);
         builder.Register<RoomGenerator>(Lifetime.Singleton);
         builder.Register<WorldBuilder>(Lifetime.Singleton);
         builder.RegisterInstance(_tileFormDatabase);
-        builder.RegisterInstance(_tileTextureLookup);
         builder.RegisterInstance(_materialRenderDb);
-        if (_tileMaskLookup != null)
-        {
-            builder.RegisterInstance(_tileMaskLookup);
-        }
-        else
-        {
-            var runtimeMaskLookup = ScriptableObject.CreateInstance<TileMaskLookup>();
-            builder.RegisterInstance(runtimeMaskLookup);
-            Debug.LogWarning("[GameLifetimeScope] TileMaskLookup is not assigned. Created empty runtime lookup.");
-        }
         if (_roomBackgroundLookup != null)
         {
             builder.RegisterInstance(_roomBackgroundLookup);

@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Tilemaps;
 using Profiler = PFE.Core.Profiling.PfeProfiler;
 
 namespace PFE.Systems.Map.Rendering.RoomTerrain
 {
     /// <summary>
-    /// Draws a room the way Remains-Unity draws one: half-cell Tilemaps holding shape masks, with the
-    /// material bitmap laid in world space by a shader.
+    /// Draws a room the way Remains-Unity draws one: shape masks placed on a half-cell grid, with
+    /// the material bitmap laid in world space by a shader — one dynamic quad mesh per
+    /// (material, part, mask texture) instead of a Tilemap.
     ///
     /// <para><b>This is the default terrain renderer.</b> <c>RoomVisualController</c> builds it for a
     /// room and then builds the room's tile objects <b>collision-only</b>
@@ -18,12 +18,21 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
     /// <c>terrain quad off</c>. It is kept whole on purpose — it is currently the only thing that
     /// <i>proves</i> this renderer is right.</para>
     ///
+    /// <para><b>Why meshes and not Tilemaps, in one paragraph.</b> A Tilemap rebuilds its whole chunk
+    /// mesh on every <c>SetTile</c>, and this renderer sized its chunks to cover the room so one
+    /// layer was one mesh — which made one destroyed tile rebuild every shape in every layer.
+    /// <see cref="RoomTerrainMeshLayer"/> gives each placed shape a fixed slot for the life of the
+    /// room, so the mutation path (<see cref="OnTilesMutated"/> → <see cref="FlushMutations"/>) clears
+    /// and rewrites only the dirty cells' slots and uploads one partial buffer per touched layer —
+    /// O(1) per tile instead of O(room). Build and mutation are the same <see cref="PlaceCell"/> code,
+    /// so a rebuilt cell cannot drift from a built one.</para>
+    ///
     /// <para><b>What is structurally different from the shipped path.</b> There is no per-tile bitmap:
     /// the mask sprite is a stencil and the material texture is sampled from the fragment's world
     /// position, so cell boundaries do not exist in the shader and the phase offsets
     /// (<c>tBlocks (12, 2)</c>) have nothing left to fix. Each cell contributes up to four mask
-    /// placements on a Tilemap instead of one composited texture, which is the trade: more vertices,
-    /// no CPU pixel work, and no seam.</para>
+    /// placements instead of one composited texture, which is the trade: more vertices, no CPU pixel
+    /// work, and no seam.</para>
     ///
     /// <para><b>What it does not do.</b> No lighting — the shader multiplies by a single ambient
     /// number, the same one the backdrop uses. Lamp falloff, the wall edge map and cast shadows are
@@ -232,6 +241,31 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             /// </summary>
             public bool applyFrontTint;
 
+            /// <summary>
+            /// When set, every pass — back, rear, front trio, overlays, flashes — renders on this
+            /// sorting layer instead of its natural one, with the orders packed into one strictly
+            /// increasing band (<see cref="PackedBackOrder"/> … <see cref="PackedFlashOrder"/>).
+            ///
+            /// <para><b>This exists for the background-layer room.</b> A room's Z-door back layer is a
+            /// second <see cref="RoomInstance"/> drawn by its own renderer instance (each instance
+            /// subscribes to one room's <c>TilesMutated</c>), and the whole of it must sit behind the
+            /// main room on <see cref="MapSortingLayers.BackgroundTiles"/>. The natural per-pass layers
+            /// (<c>MainTiles</c> for the front trio, <c>BackgroundDecor</c> for the rear pass) would put
+            /// background walls in front of the main room's floor, so a single forced layer plus packed
+            /// orders is the only correct shape.</para>
+            ///
+            /// <para>Default <see langword="null"/> — the main room keeps its natural multi-layer
+            /// ordering, and the packed band is not used at all.</para>
+            /// </summary>
+            public string sortingLayerName;
+
+            /// <summary>
+            /// Added to every sorting order this renderer assigns, packed or natural. The
+            /// background-layer build uses <see cref="RoomTerrainWiring.BackgroundTileSortingOffset"/>
+            /// (-3000) so the whole back layer lands behind the main room's back pass (order 0).
+            /// </summary>
+            public int sortingOrderOffset;
+
             public static Options Default()
             {
                 return new Options
@@ -249,14 +283,42 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
                     skipState0Mask = false,
                     maskDilateTexels = 5f,
                     applyBackTint = true,
-                    applyFrontTint = true
+                    applyFrontTint = true,
+                    sortingLayerName = null,
+                    sortingOrderOffset = 0
                 };
             }
         }
 
-        private readonly Dictionary<string, Tilemap> _layers = new Dictionary<string, Tilemap>(StringComparer.Ordinal);
+        // The order band used when Options.sortingLayerName forces every pass onto one sorting
+        // layer. The natural scheme spreads the passes across three layers (back on BackgroundTiles,
+        // rear on BackgroundDecor, front trio on MainTiles) and can afford colliding orders; a single
+        // forced layer cannot, so the packed band is strictly increasing: back wall, the rear trio,
+        // the front trio, overlays under, overlays above, flash.
+        private const int PackedBackOrder = 0;
+        private const int PackedRearMainOrder = 1;
+        private const int PackedRearBorderOrder = 2;
+        private const int PackedRearFloorOrder = 3;
+        private const int PackedMainOrder = 4;
+        private const int PackedBorderOrder = 5;
+        private const int PackedFloorOrder = 6;
+        private const int PackedOverlayUnderOrder = 7;
+        private const int PackedOverlayAboveOrder = 8;
+        private const int PackedFlashOrder = 9;
+
+        /// <summary>True when <see cref="Options.sortingLayerName"/> packs every pass onto one layer.</summary>
+        private bool PacksOrders => !string.IsNullOrEmpty(_options.sortingLayerName);
+
+        /// <summary>The sorting layer a pass actually renders on — the forced layer when packing, the natural one otherwise.</summary>
+        private string SortingLayerFor(string naturalLayer)
+            => PacksOrders ? _options.sortingLayerName : naturalLayer;
+
+        /// <summary>The sorting order a pass actually gets — the packed band plus the offset when packing, the natural order plus the offset otherwise.</summary>
+        private int OrderFor(int naturalOrder, int packedOrder)
+            => _options.sortingOrderOffset + (PacksOrders ? packedOrder : naturalOrder);
+
+        private readonly Dictionary<string, RoomTerrainMeshLayer> _layers = new Dictionary<string, RoomTerrainMeshLayer>(StringComparer.Ordinal);
         private readonly Dictionary<string, Material> _materials = new Dictionary<string, Material>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<Sprite, Tile> _tiles = new Dictionary<Sprite, Tile>();
         private readonly List<UnityEngine.Object> _owned = new List<UnityEngine.Object>();
         private readonly Dictionary<string, int> _missingMasks = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> _missingMaterials = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -273,22 +335,22 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         private readonly Dictionary<string, int> _layerTiles = new Dictionary<string, int>(StringComparer.Ordinal);
 
         /// <summary>
-        /// The diagnostic bucket each <see cref="Tilemap"/> feeds, so <see cref="LayerTileCounts"/> can be
-        /// recounted from the maps instead of from increments.
+        /// The diagnostic bucket each <see cref="RoomTerrainMeshLayer"/> feeds, so <see cref="LayerTileCounts"/> can be
+        /// recounted from the layers instead of from increments.
         ///
         /// <para><b>Why counting had to move.</b> A region rebuild clears and re-places cells, so an
         /// incrementing counter would climb every time a wall was shot and report more shapes than the
-        /// room has. Reading the maps makes the number true by construction: it is what is drawn, not
-        /// what was asked for. See <see cref="RecomputeCounts"/>.</para>
+        /// room has. Reading the layers' own slot counts makes the number true by construction: it is
+        /// what is drawn, not what was asked for. See <see cref="RecomputeCounts"/>.</para>
         /// </summary>
-        private readonly Dictionary<Tilemap, string> _mapBuckets = new Dictionary<Tilemap, string>();
+        private readonly Dictionary<RoomTerrainMeshLayer, string> _mapBuckets = new Dictionary<RoomTerrainMeshLayer, string>();
 
         /// <summary>
         /// Overlay GameObjects per tile cell, so a region rebuild can remove exactly the ones it is
         /// about to redraw. Keyed by <see cref="CellKey"/>.
         ///
-        /// <para>Overlays are <see cref="SpriteRenderer"/> children, not Tilemap tiles, so they cannot be
-        /// cleared with <c>SetTile(null)</c> and there is no way to ask a GameObject which cell it belongs
+        /// <para>Overlays are <see cref="SpriteRenderer"/> children, not layer-mesh quads, so they cannot be
+        /// cleared with the meshes and there is no way to ask a GameObject which cell it belongs
         /// to. Without this registry a destroyed ladder would keep drawing on a cell that no longer
         /// exists — the same picture-lying failure the whole subscription exists to prevent.</para>
         /// </summary>
@@ -304,10 +366,23 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         private RoomQuarterStates _states;
         private Color _appliedBackTint = Color.white;
 
+        /// <summary>Half-cell grid width (<c>room.width * 2</c>) — the slot index stride every layer uses.</summary>
+        private int _gridWidth = 1;
+
+        /// <summary>
+        /// The room's extent in this transform's local space, set by <see cref="Build"/> and handed to
+        /// every layer mesh as its bounds. Static on purpose: the room is one screen and every layer
+        /// spans it, so there is nothing to recompute and the uploads pass DontRecalculateBounds.
+        /// </summary>
+        private Bounds _roomLocalBounds;
+
         /// <summary>The union of every mutation region raised since the last flush. Empty when clean.</summary>
         private RectInt _dirtyRegion;
 
         private bool _hasDirtyRegion;
+
+        /// <summary>Set by a successful build; <see cref="LogLayerProbe"/> clears it on the next frame.</summary>
+        private bool _probePending;
 
         private Shader _shader;
         private Transform _overlayRoot;
@@ -395,20 +470,20 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// <summary>
         /// Mask placements currently drawn. One per quarter, so up to four per cell.
         ///
-        /// <para><b>Recounted from the Tilemaps, not incremented.</b> After a region rebuild the number
+        /// <para><b>Counted from the layer slot maps, not incremented.</b> After a region rebuild the number
         /// is still exactly what is on screen — see <see cref="RecomputeCounts"/> for why an incrementing
         /// counter could not stay true across a mutation.</para>
         /// </summary>
         public int ShapesPlaced { get; private set; }
 
         /// <summary>
-        /// Placements that landed on a cell already holding a tile, i.e. that replaced rather than added.
+        /// Placements that landed on a cell already holding a shape, i.e. that replaced rather than added.
         ///
         /// <para>Zero on a correct build. Four quarters of a cell belong on four different half-cell
         /// positions, so nothing should ever collide; a non-zero count means the mask grid and the
-        /// Tilemap grid disagree about how big a cell is, and the picture would be missing three quarters
-        /// out of four while <see cref="ShapesPlaced"/> reported all four. That is the difference this
-        /// number exists to make visible.</para>
+        /// half-cell slot grid disagree about how big a cell is, and the picture would be missing three
+        /// quarters out of four while <see cref="ShapesPlaced"/> reported all four. That is the difference
+        /// this number exists to make visible.</para>
         /// </summary>
         public int OverwrittenShapes { get; private set; }
 
@@ -449,23 +524,31 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// <summary>Overlay frame ids the room asked for that the art asset does not carry, with a count.</summary>
         public IReadOnlyDictionary<int, int> MissingOverlays => _missingOverlays;
 
-        /// <summary>Tilemap layers created — the draw-call floor, one per (material, part).</summary>
+        /// <summary>Mesh layers created — the draw-call floor, one per (material, part, mask texture).</summary>
         public int LayerCount => _layers.Count;
 
         /// <summary>
-        /// How many cells one <see cref="TilemapRenderer"/> chunk covers.
+        /// The union of the layer meshes' bounds — the volume the culler tests. Diagnostics only.
         ///
-        /// <para><b>Set so that one layer is one mesh.</b> <c>Mode.Chunk</c> splits a Tilemap into a grid
-        /// of chunks of this size, and every chunk is a separate mesh — so the room's submitted renderer
-        /// count was <c>layers × chunks</c> and nobody knew the second factor. A 40×30 room is 80×60
-        /// half-cells; at Unity's default of 32 that is 3 × 2 = 6 meshes per layer, i.e. the batch count
-        /// the HUD reports had no relationship to the number of layers this class logs, and the S3 gate
-        /// ("Batches ≤ 60") could not be attributed to anything.</para>
+        /// <para><b>A zero-size box here is the whole answer to "the room built and nothing draws".</b>
+        /// A culled mesh raises no error, logs nothing and leaves every counter green, so the shape
+        /// count, the layer count and the material list all look correct while the frame contains no
+        /// terrain at all. This is the one number that says so.</para>
+        /// </summary>
+        public Bounds LayerBounds { get; private set; }
+
+        /// <summary>Total vertices the layer meshes hold — what the frame would submit if none were culled.</summary>
+        public int LayerVertexCount { get; private set; }
+
+        /// <summary>
+        /// How many cells one layer's buffer covers, in half-cells.
         ///
-        /// <para>Making the chunk cover the room collapses that to one mesh per layer, which makes the
-        /// two numbers comparable: <c>LayerCount</c> is then the terrain's own contribution to Batches.
-        /// The cost is culling granularity, and it is nil here — a room is one screen, so a chunk that
-        /// covers it is drawn whether or not the culler would have split it.</para>
+        /// <para><b>The rule that keeps one layer one mesh.</b> Layers are no longer chunked — a layer is
+        /// one mesh by construction — but the number is kept, and kept derivable from the room size,
+        /// because the A/B readout and the wiring log print it next to <see cref="LayerCount"/>: together
+        /// they say "this room submits <c>LayerCount</c> terrain meshes", which is the floor the HUD's
+        /// Batches figure is compared against. The value is the smallest power of two that covers the
+        /// room's half-cell grid, the same sizing the Tilemap chunks used.</para>
         /// </summary>
         public int ChunkSize { get; private set; } = DefaultChunkSize;
 
@@ -582,24 +665,29 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             // applied value — white when the toggle is off.
             FrontTint = ResolveFrontTint(room, options.applyFrontTint);
 
-            // A Grid owns the cell size for every Tilemap under it; half a tile per cell is the whole
-            // trick — the masks are quarter-tile shapes, so they get a quarter-tile slot each.
-            var grid = gameObject.GetComponent<Grid>();
-            if (grid == null) grid = gameObject.AddComponent<Grid>();
-            float quarter = RoomTerrainGeometry.QuarterSize(options.cellSize);
-            grid.cellSize = new Vector3(quarter, quarter, 0f);
-
             int width = room.width;
             int height = room.height;
 
+            // The half-cell grid is twice the room's tile dimensions — the stride of every layer's
+            // slot index and the extent every layer's bounds cover.
+            _gridWidth = Mathf.Max(1, width * 2);
+
             // One chunk per layer — see ChunkSize. Rounded up to a power of two because that is what
-            // Unity's own chunking does with the value, and it keeps the number in the log recognisable
+            // Unity's own chunking did with the value, and it keeps the number in the log recognisable
             // as "covers the room" rather than as an arbitrary 80 or 60.
             ChunkSize = ChunkSizeFor(width, height);
 
+            // The room's local extent: every layer mesh is bounded by it, so the culler never sees a
+            // layer vanish because a slot write has not refreshed a recalculated bounds.
+            float roomWidth = width * options.cellSize;
+            float roomHeight = height * options.cellSize;
+            _roomLocalBounds = new Bounds(
+                new Vector3(roomWidth * 0.5f, roomHeight * 0.5f, 0f),
+                new Vector3(Mathf.Max(0.01f, roomWidth), Mathf.Max(0.01f, roomHeight), 1f));
+
             // Materials are created lazily inside the loop, so the room's top edge has to be known
             // before the first one: the bitmap fill starts there and runs down.
-            RoomTopLocalY = height * options.cellSize;
+            RoomTopLocalY = roomHeight;
 
             // Everything the region rebuild needs, captured before the first cell is drawn so a
             // mutation raised *during* the build (a door stamping its cells, an area trigger) can be
@@ -612,8 +700,7 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             _appliedBackTint = backTint;
 
             // `place` includes whatever the first material creations cost — see the nested
-            // `room.terrain.materials` and `room.terrain.tiles` regions for how much of it is not
-            // placement at all.
+            // `room.terrain.materials` region for how much of it is not placement at all.
             using (Profiler.Region("room.terrain.place", "every cell × every pass — materials are created lazily inside this loop"))
             {
                 for (int y = 0; y < height; y++)
@@ -625,6 +712,10 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
                 }
             }
 
+            // Every layer uploads exactly once for the whole build: the per-cell writes only marked
+            // spans dirty. One partial upload per layer instead of one chunk rebuild per SetTile.
+            FlushLayerUploads();
+
             IsBuilt = true;
             LastBuildMilliseconds = (Time.realtimeSinceStartupAsDouble - started) * 1000.0;
 
@@ -633,6 +724,9 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             // Subscribed last, and only on a successful build: a renderer that never got its shader
             // has nothing to rebuild, and the shipped sprites are still drawing the room.
             room.TilesMutated += OnTilesMutated;
+
+            // Next frame: did the culler accept these meshes? See LogLayerProbe.
+            _probePending = true;
         }
 
         /// <summary>
@@ -682,7 +776,9 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
                     else
                     {
                         Layer(art, options, back.mainTexture, MaskName(back.mainMask),
-                            "back:" + back.id, MapSortingLayers.BackgroundTiles, MainOrder,
+                            "back:" + back.id,
+                            SortingLayerFor(MapSortingLayers.BackgroundTiles),
+                            OrderFor(MainOrder, PackedBackOrder),
                             x, y, tile.heightLevel, opacity, backTint, q => states.Back(x, y, q), Part.Back);
                     }
                 }
@@ -713,7 +809,7 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             // between the back wall and the front wall, and reads its mask frames from the
             // *background* contours (`setMCT` is called with `param2 = false`, which selects
             // `pont`). Drawing it as a front material — which is what this renderer did — puts
-            // it in the same Tilemap-sorting competition as the walls it should be behind.
+            // it in the same sorting-order competition as the walls it should be behind.
             bool rear = front.isRear;
             string sortingLayer = rear ? MapSortingLayers.BackgroundDecor : MapSortingLayers.MainTiles;
             int baseOrder = rear ? RearOrder : MainOrder;
@@ -726,21 +822,27 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             // `Grafon.as:617` multiplies the whole front bitmap by the room's colour scheme,
             // and the rear pass lands in `backBmp2`, which gets the same `cTransform` at `:661`.
             // So both get the scheme; only the back layer gets the darkness term on top.
+            // Rear and front materials are disjoint sets (rear is a property of the material), but in
+            // the packed band the rear trio must still sit between the back wall and the front trio.
+            int packedBase = rear ? PackedRearMainOrder : PackedMainOrder;
+
             Layer(art, options, front.mainTexture, MaskName(front.mainMask),
-                partPrefix + front.id, sortingLayer, baseOrder,
+                partPrefix + front.id, SortingLayerFor(sortingLayer), OrderFor(baseOrder, packedBase),
                 x, y, tile.heightLevel, opacity, FrontTint, state, mainPart);
 
             if (options.drawBorder && front.HasBorder)
             {
                 Layer(art, options, front.borderTexture, MaskName(front.borderMask),
-                    partPrefix + front.id, sortingLayer, baseOrder + BorderOrder,
+                    partPrefix + front.id, SortingLayerFor(sortingLayer),
+                    OrderFor(baseOrder + BorderOrder, packedBase + 1),
                     x, y, tile.heightLevel, opacity, FrontTint, state, Part.Border);
             }
 
             if (options.drawFloor && front.HasFloor)
             {
                 Layer(art, options, front.floorTexture, MaskName(front.floorMask),
-                    partPrefix + front.id, sortingLayer, baseOrder + FloorOrder,
+                    partPrefix + front.id, SortingLayerFor(sortingLayer),
+                    OrderFor(baseOrder + FloorOrder, packedBase + 2),
                     x, y, tile.heightLevel, opacity, FrontTint, state, Part.Floor);
             }
         }
@@ -753,25 +855,25 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// half-cells <c>2x..2x+1</c> × <c>2y..2y+1</c> — see
         /// <see cref="RoomTerrainGeometry.QuarterCellX"/> and <see cref="RoomTerrainGeometry.Whole"/>,
         /// which both anchor at <c>2x, 2y</c>. Clearing the block therefore cannot miss a placement, and
-        /// does not need to know which layers the cell happened to use.</para>
+        /// each <see cref="RoomTerrainMeshLayer.ClearHalfCell"/> is O(1) on the layer's slot map.</para>
         ///
-        /// <para><b>The guard is not an optimisation.</b> <c>SetTile(null)</c> on an already-empty cell
-        /// still marks the map dirty and forces a mesh rebuild, and a region rebuild touches every layer
-        /// for every dirty cell — most of which that layer never drew.</para>
+        /// <para><b>The guard is not an optimisation.</b> Clearing an already-empty slot writes nothing
+        /// and marks nothing dirty — without it, a region rebuild would dirty upload spans in every
+        /// layer for cells that layer never drew.</para>
         /// </summary>
         private void ClearCell(int x, int y)
         {
             int cellX = x * 2;
             int cellY = y * 2;
 
-            foreach (Tilemap map in _layers.Values)
+            foreach (RoomTerrainMeshLayer layer in _layers.Values)
             {
-                if (map == null) continue;
+                if (layer == null) continue;
 
-                ClearHalfCell(map, cellX, cellY);
-                ClearHalfCell(map, cellX + 1, cellY);
-                ClearHalfCell(map, cellX, cellY + 1);
-                ClearHalfCell(map, cellX + 1, cellY + 1);
+                layer.ClearHalfCell(cellX, cellY, _gridWidth);
+                layer.ClearHalfCell(cellX + 1, cellY, _gridWidth);
+                layer.ClearHalfCell(cellX, cellY + 1, _gridWidth);
+                layer.ClearHalfCell(cellX + 1, cellY + 1, _gridWidth);
             }
 
             long key = CellKey(x, y);
@@ -790,12 +892,6 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             }
 
             overlays.Clear();
-        }
-
-        private static void ClearHalfCell(Tilemap map, int cellX, int cellY)
-        {
-            var cell = new Vector3Int(cellX, cellY, 0);
-            if (map.GetTile(cell) != null) map.SetTile(cell, null);
         }
 
         /// <summary>Stable key for a tile cell, for the overlay registry.</summary>
@@ -829,6 +925,106 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         private void LateUpdate()
         {
             if (_hasDirtyRegion) FlushMutations();
+            if (_probePending) LogLayerProbe();
+        }
+
+        /// <summary>
+        /// Prints the submission facts of the heaviest layer, once, one frame after a build.
+        ///
+        /// <para><b>Why one frame later, and why this exists.</b> <c>Renderer.isVisible</c> is written
+        /// by the culling pass, so asking on the frame the room was built always answers
+        /// <c>false</c> — the same answer a genuinely culled mesh gives, which makes the two
+        /// indistinguishable. One frame later they separate, and that separation is the whole answer
+        /// to "the build log says 4095 shapes and the room draws no terrain": a mesh that is built,
+        /// materialled, active, and still absent from the frame is culled, and the four fields below
+        /// say which of the reasons it is (bad AABB, no submesh, no valid pass, renderer off). A
+        /// culled mesh raises no error and logs nothing, so without this line every counter stays
+        /// green while the frame contains nothing.</para>
+        /// </summary>
+        private void LogLayerProbe()
+        {
+            _probePending = false;
+
+            RoomTerrainMeshLayer probe = null;
+            foreach (RoomTerrainMeshLayer candidate in _layers.Values)
+            {
+                if (candidate == null || candidate.Mesh == null || candidate.GameObject == null) continue;
+                if (probe == null || candidate.UsedSlots > probe.UsedSlots) probe = candidate;
+            }
+
+            if (probe == null) return;
+
+            Mesh mesh = probe.Mesh;
+            var renderer = probe.GameObject.GetComponent<MeshRenderer>();
+            var filter = probe.GameObject.GetComponent<MeshFilter>();
+
+            string indexCount = mesh.subMeshCount > 0 ? mesh.GetIndexCount(0).ToString() : "none";
+            string shader = renderer != null && renderer.sharedMaterial != null && renderer.sharedMaterial.shader != null
+                ? renderer.sharedMaterial.shader.name
+                : "none";
+
+            Debug.Log(
+                $"[RoomTerrain] layer probe '{probe.Bucket}' ({probe.UsedSlots} shape(s)): " +
+                $"active={probe.GameObject.activeInHierarchy} " +
+                $"filterMeshSet={filter != null && filter.sharedMesh == mesh} " +
+                $"rendererEnabled={renderer != null && renderer.enabled} " +
+                $"visible={(renderer != null && renderer.isVisible)} " +
+                $"verts={mesh.vertexCount} subMeshes={mesh.subMeshCount} indexCount={indexCount} " +
+                $"meshBounds={mesh.bounds.size} rendererBounds={(renderer != null ? renderer.bounds.size.ToString() : "none")} " +
+                $"shader={shader} sorting={(renderer != null ? renderer.sortingLayerName + ":" + renderer.sortingOrder : "none")}");
+
+            // What the shader will actually read, and what the vertex buffer actually holds. The layer
+            // can be perfectly healthy — drawn, right bounds, right sorting — and still paint the wrong
+            // picture, and then the question is only ever "which input is not what I think": the bound
+            // material texture, the projection uniforms, or the per-vertex channels. One line per
+            // material because the mess on screen is a function of *which* texture each layer binds.
+            foreach (Material material in _materials.Values)
+            {
+                if (material == null) continue;
+
+                Texture materialTex = material.GetTexture("_MaterialTex");
+                Texture maskTex = material.GetTexture("_MainTex");
+                Vector4 texelSize = material.GetVector("_MaterialTex_TexelSize");
+                Vector4 ours = material.GetVector("_MaterialTexelSize");
+                Vector4 origin = material.GetVector("_MaterialOrigin");
+                float texelsPerMeter = material.GetFloat("_TexelsPerMeter");
+
+                // The one number that says whether this material should read as a wall panel or as a
+                // plaid: how many world units one texture repeat covers. It must equal
+                // textureWidth / texelsPerMeter — 2.4 units for a 240 px Enclave wall at 100 texels/m,
+                // i.e. six cells. Anything much smaller is the plaid.
+                float period = materialTex != null && texelsPerMeter > 0f ? materialTex.width / texelsPerMeter : 0f;
+
+                Debug.Log(
+                    $"[RoomTerrain] material '{material.name}': " +
+                    $"materialTex={(materialTex != null ? materialTex.name + " " + materialTex.width + "x" + materialTex.height : "none")} " +
+                    $"maskTex={(maskTex != null ? maskTex.name + " " + maskTex.width + "x" + maskTex.height : "none")} " +
+                    $"texelsPerMeter={texelsPerMeter:0.###} " +
+                    $"origin=({origin.x:0.##},{origin.y:0.##}) " +
+                    $"texelSize=({texelSize.x:0.####},{texelSize.y:0.####}) ours=({ours.x:0.####},{ours.y:0.####}) " +
+                    $"repeat every {period:0.###} units " +
+                    $"ambient={material.GetFloat("_Ambient"):0.###} color={material.GetColor("_Color")} " +
+                    $"dilate={material.GetFloat("_MaskDilateUV"):0.####}");
+            }
+
+            // The four vertices of the first occupied slot, straight off the mesh. If the colour here is
+            // not the layer tint, the channels are not landing where the shader reads them; if it is, the
+            // picture's colour has to come from the material.
+            var quad = new RoomTerrainMeshLayer.TerrainVertex[4];
+            GraphicsBuffer vertices = mesh.GetVertexBuffer(0);
+            try
+            {
+                vertices.GetData(quad, 0, 0, 4);
+            }
+            finally
+            {
+                vertices.Release();
+            }
+
+            Debug.Log(
+                $"[RoomTerrain] vertex probe: tint={FrontTint} backTint={BackTint} ambient={_options.ambient} | " +
+                $"v0 pos={quad[0].Position} uv={quad[0].UV} col={quad[0].Color} | " +
+                $"v2 pos={quad[2].Position} uv={quad[2].UV} col={quad[2].Color}");
         }
 
         /// <summary>
@@ -837,11 +1033,12 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// <para><b>What is incremental and what is not.</b> The <see cref="RoomQuarterStates"/> grid is
         /// recomputed wholesale: it is a function of the whole room's solidity, it costs O(cells) of byte
         /// writes (1 200 cells for a 40×30 room), and narrowing it would be a second incremental algorithm
-        /// with its own way to be subtly wrong for no measurable gain. The expensive half — Tilemap writes,
-        /// material lookups, overlay GameObjects — is what the region narrows.</para>
+        /// with its own way to be subtly wrong for no measurable gain. The expensive half — shape writes
+        /// into the layer meshes — is what the region narrows: each dirty cell clears and rewrites only
+        /// its own half-cell slots, and each touched layer uploads exactly one partial buffer span.</para>
         ///
-        /// <para><b>Two passes, clear then place.</b> Placing can create a new <see cref="Tilemap"/> (a
-        /// material the room did not contain before, e.g. a door's stamped graphic), and mutating
+        /// <para><b>Two passes, clear then place.</b> Placing can create a new <see cref="RoomTerrainMeshLayer"/>
+        /// (a material the room did not contain before, e.g. a door's stamped graphic), and mutating
         /// <see cref="_layers"/> while iterating it would throw in the middle of a frame. Clearing
         /// everything first also keeps <see cref="OverwrittenShapes"/> honest: a placement into a cell
         /// that was just cleared is not an overwrite.</para>
@@ -870,11 +1067,25 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
                 for (int x = clamped.xMin; x < clamped.xMax; x++)
                     PlaceCell(x, y);
 
+            FlushLayerUploads();
+
             RecomputeCounts();
 
             LastMutationCells = clamped.width * clamped.height;
             MutationRebuilds++;
             LastMutationMilliseconds = (Time.realtimeSinceStartupAsDouble - started) * 1000.0;
+        }
+
+        /// <summary>
+        /// Uploads every layer's dirty vertex span. Called once after a build and once after a
+        /// mutation flush — the only two moments anything changed.
+        /// </summary>
+        private void FlushLayerUploads()
+        {
+            foreach (RoomTerrainMeshLayer layer in _layers.Values)
+            {
+                layer?.FlushUploads();
+            }
         }
 
         /// <summary>Smallest rectangle covering both. An empty rectangle contributes nothing.</summary>
@@ -915,28 +1126,50 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// <para>Called after a build and after every region rebuild. A region rebuild clears cells it is
         /// about to redraw, so any counter that was incremented at placement time would have to be
         /// decremented by exactly the right amount at clear time — and getting that wrong is silent. The
-        /// maps already know the answer.</para>
+        /// layers already know the answer: each <see cref="RoomTerrainMeshLayer.UsedSlots"/> is maintained
+        /// on the empty→occupied and occupied→empty transitions, which are the only two ways a slot
+        /// changes.</para>
         /// </summary>
         private void RecomputeCounts()
         {
             ShapesPlaced = 0;
             _layerTiles.Clear();
 
-            foreach (KeyValuePair<string, Tilemap> entry in _layers)
-            {
-                Tilemap map = entry.Value;
-                if (map == null) continue;
+            // The volume the culler sees, and the vertices it would submit. Both are what a
+            // "the room built but nothing is drawn" report needs: a layer whose mesh bounds are a
+            // zero-size box is culled without an error, a warning or a missing material, and the
+            // shape count alone cannot tell that apart from a material that draws nothing.
+            Bounds layerBounds = default;
+            int layerVertices = 0;
+            bool hasLayerBounds = false;
 
-                int used = map.GetUsedTilesCount();
+            foreach (KeyValuePair<string, RoomTerrainMeshLayer> entry in _layers)
+            {
+                RoomTerrainMeshLayer layer = entry.Value;
+                if (layer == null) continue;
+
+                if (layer.Mesh != null)
+                {
+                    layerVertices += layer.Mesh.vertexCount;
+
+                    Bounds bounds = layer.Mesh.bounds;
+                    if (hasLayerBounds) layerBounds.Encapsulate(bounds);
+                    else { layerBounds = bounds; hasLayerBounds = true; }
+                }
+
+                int used = layer.UsedSlots;
                 if (used <= 0) continue;
 
-                string bucket = _mapBuckets.TryGetValue(map, out string mapped) ? mapped : entry.Key;
+                string bucket = _mapBuckets.TryGetValue(layer, out string mapped) ? mapped : entry.Key;
 
                 _layerTiles.TryGetValue(bucket, out int previous);
                 _layerTiles[bucket] = previous + used;
 
                 ShapesPlaced += used;
             }
+
+            LayerBounds = layerBounds;
+            LayerVertexCount = layerVertices;
 
             int overlays = 0;
             foreach (KeyValuePair<long, List<GameObject>> entry in _overlaysByCell)
@@ -1096,8 +1329,8 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// Places one <c>tileFront</c> overlay — a ladder, a stair tread, or the ledge frame on top of
         /// a stair run.
         ///
-        /// <para><b>Why a <see cref="SpriteRenderer"/> and not a Tilemap tile.</b> Every other shape in
-        /// this renderer is a stencil: a mask frame on a half-cell Tilemap, coloured by a material
+        /// <para><b>Why a <see cref="SpriteRenderer"/> and not a mesh quad.</b> Every other shape in
+        /// this renderer is a stencil: a mask frame in a half-cell mesh layer, coloured by a material
         /// texture sampled in world space. An overlay is the opposite — it is the whole picture, with
         /// its own colours, its own alpha and its own size. Putting it through the mask shader would
         /// draw the <i>material</i> through a ladder-shaped stencil, which is a ladder-shaped hole in a
@@ -1170,8 +1403,10 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             RoomTerrainGeometry.OverlaySort(
                 rear, options.overlayAboveMaterials, out string overlayLayer, out int overlayOrder);
 
-            renderer.sortingLayerName = overlayLayer;
-            renderer.sortingOrder = overlayOrder;
+            renderer.sortingLayerName = SortingLayerFor(overlayLayer);
+            renderer.sortingOrder = OrderFor(
+                overlayOrder,
+                options.overlayAboveMaterials ? PackedOverlayAboveOrder : PackedOverlayUnderOrder);
 
             OverlaySortKey = overlayLayer + " order " + overlayOrder +
                              (rear ? " (rear form)" : string.Empty);
@@ -1216,12 +1451,12 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         /// Flashes one cell — the quarter renderer's answer to <c>TileVisualManager.FlashTile</c>.
         ///
         /// <para><b>Why this cannot be the shipped mechanism.</b> A shipped tile flash replaces the
-        /// colour of that tile's <see cref="SpriteRenderer"/>. Here the terrain is a mesh whose pixels
-        /// come from a material sampled in world space, and the only per-cell channel a Tilemap leaves
-        /// open is <c>Tilemap.SetColor</c> — which is a <i>tint of the material</i>, not a flat colour,
-        /// and would flash the mask's silhouette rather than the cell. So the flash is drawn as its own
-        /// quad over the cell, which is also what makes it independent of which layers that cell
-        /// happened to use.</para>
+        /// colour of that tile's <see cref="SpriteRenderer"/>. Here the terrain is a set of meshes whose
+        /// pixels come from a material sampled in world space, and the only per-cell channel those
+        /// meshes leave open is the vertex colour — which is a <i>tint of the material</i>, not a flat
+        /// colour, and would flash the mask's silhouette rather than the cell. So the flash is drawn as
+        /// its own quad over the cell, which is also what makes it independent of which layers that
+        /// cell happened to use.</para>
         ///
         /// <para><b>Order and lifetime.</b> Above the front trio (<see cref="FloorOrder"/>) so a wall
         /// reads as hit, below the overlays' above-materials order so a ladder is not covered. The quad
@@ -1253,8 +1488,8 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = FlashSprite();
             renderer.sharedMaterial = OverlayMaterial();
-            renderer.sortingLayerName = MapSortingLayers.MainTiles;
-            renderer.sortingOrder = MainOrder + FloorOrder + 1;
+            renderer.sortingLayerName = SortingLayerFor(MapSortingLayers.MainTiles);
+            renderer.sortingOrder = OrderFor(MainOrder + FloorOrder + 1, PackedFlashOrder);
             renderer.color = color;
 
             StartCoroutine(EndFlashAfter(go, duration));
@@ -1330,16 +1565,14 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             }
 
             // The bucket has to name the *part*, not just the pass and the form. A material can point its
-            // main, border and floor slots at the same texture id, and the map cache below keys on this
+            // main, border and floor slots at the same texture id, and the layer cache below keys on this
             // name — so without the part, a border that shares its main's texture lands in the main's
-            // Tilemap and its sorting order is silently dropped by the cache hit. It also made the
+            // mesh and its sorting order is silently dropped by the cache hit. It also made the
             // per-layer dump unreadable: one bucket summed three passes, so its count could exceed the
             // population it was supposedly drawn on and the arithmetic looked impossible.
             string bucket = layerName + "/" + part;
 
-            Tilemap map = LayerMap(
-                bucket, textureId, sortingLayer, sortingOrder, art, options, MaskDilateUV(art, mask, options));
-
+            float dilateUV = MaskDilateUV(art, mask, options);
             float cellSize = options.cellSize;
 
             // `Grafon.as:848` squashes a raised tile only when `param2` — the front pass — is true, and
@@ -1361,10 +1594,11 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
                     return;
                 }
 
-                Place(map, whole,
+                PlaceShape(bucket, textureId, whole, sortingLayer, sortingOrder, art, options, dilateUV,
                     RoomTerrainGeometry.Scaled(
                         RoomTerrainGeometry.Whole(x, y, cellSize, heightScale, drop),
-                        MaskScaleFor(art, whole, mask.clip, cellSize)), opacity, tint);
+                        MaskScaleFor(art, whole, mask.clip, cellSize)),
+                    opacity, tint);
                 return;
             }
 
@@ -1388,36 +1622,38 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
                 RoomTerrainPlacement placement = RoomTerrainGeometry.Quarter(
                     quarter.quarter, x, y, cellSize, heightScale, drop, quarter.flipX, quarter.flipY);
 
-                Place(map, sprite,
+                PlaceShape(bucket, textureId, sprite, sortingLayer, sortingOrder, art, options, dilateUV,
                     RoomTerrainGeometry.Scaled(
-                        placement, MaskScaleFor(art, sprite, quarter.clip, cellSize)), opacity, tint);
+                        placement, MaskScaleFor(art, sprite, quarter.clip, cellSize)),
+                    opacity, tint);
             }
         }
 
-        private void Place(
-            Tilemap map,
+        /// <summary>
+        /// Writes one mask shape into its layer's mesh slot. Which layer a shape lands in is decided
+        /// per sprite, not per call: the quarters of one mask can come from different clip textures,
+        /// and a mesh binds one <c>_MainTex</c> — exactly the axis the old Tilemap chunks split on.
+        /// </summary>
+        private void PlaceShape(
+            string bucket,
+            string textureId,
             Sprite sprite,
+            string sortingLayer,
+            int sortingOrder,
+            RoomTerrainArt art,
+            Options options,
+            float dilateUV,
             RoomTerrainPlacement placement,
             float opacity,
             Color tint)
         {
-            Tile tile = TileFor(sprite);
-            if (tile == null) return;
+            if (sprite == null || sprite.texture == null) return;
 
-            // A Tilemap holds exactly one tile per cell, so a second placement into the same cell does
-            // not draw twice — it replaces. Counting placements alone therefore cannot tell "the mask
-            // legitimately split this cell into four quarters" from "the grid is the wrong size and the
-            // quarters are landing on top of each other"; both report four. Counting the replacements
-            // separates them: a correct half-cell grid never replaces anything, because the four quarters
-            // of a cell are four different cells.
-            if (map.GetTile(placement.Cell) != null) OverwrittenShapes++;
+            Material material = MaterialFor(textureId, sprite.texture, art, options, dilateUV);
+            if (material == null) return;
 
-            map.SetTile(placement.Cell, tile);
-
-            // None, or the transform and the colour stay locked at whatever the tile asset carries and
-            // both writes below are silently ignored — the mask lands unflipped at the cell's origin.
-            map.SetTileFlags(placement.Cell, TileFlags.None);
-            map.SetTransformMatrix(placement.Cell, placement.ToMatrix());
+            RoomTerrainMeshLayer layer = LayerMesh(
+                bucket, textureId, sprite.texture, sortingLayer, sortingOrder, material);
 
             // The per-cell colour is the only per-layer channel a shared material leaves open: the
             // material is keyed by texture, and the same texture can serve a front and a back layer, so
@@ -1425,14 +1661,68 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             // from the tint — `tint * opacity` would multiply the two alphas and make a dark back wall
             // translucent, which is the kind of defect that reads as "the backdrop shows through".
             //
-            // Written unconditionally, including when it is plain white. `SetTile` writes the tile, not
-            // the cell's colour — they are separate fields — so skipping the white case leaves whatever
-            // colour the cell held before. A region rebuild writes the same cell a second time, and a
-            // tile's opacity can change in between: a raised tile is decoded at `opac = 0`
-            // (`TileDecoder.SetZForm`), and `Doorcarver` sets `opacity = 1` on the cells it carves. With
-            // the guard, that cell keeps alpha 0 and the door draws as a hole.
-            var colour = new Color(tint.r, tint.g, tint.b, opacity);
-            map.SetColor(placement.Cell, colour);
+            // Written unconditionally, including when it is plain white: a slot rewrite has to carry the
+            // full vertex, and a region rebuild can change a cell's opacity in between (a raised tile is
+            // decoded at `opac = 0`, and `Doorcarver` sets `opacity = 1` on the cells it carves) — a
+            // skipped colour write would leave the old alpha behind and the door would draw as a hole.
+            //
+            // The RGB is pow(tint, 2.2), not tint: the shipped per-tile path multiplies its tint in
+            // gamma space (the Flash `colorTransform` baked by `TileCompositor`, then
+            // `SpriteRenderer.color` — a gamma-space display multiplier), while this shader multiplies
+            // in linear, where the texture arrives after its sRGB decode. Displaying `art * tint^2.2`
+            // re-encodes to `art * tint`, the multiplier the shipped wall actually shows; skipping the
+            // pow makes every back wall 1/tint^(1/2.2-1) too bright — ~2.1x at the shipped darkness of
+            // 0.255 — which is what "the quad wall is brighter than the per-tile wall" looked like.
+            // Same rationale, same exponent as `PFE_BackdropMultiply.shader`'s `pow(darken, 2.2)`.
+            // Opacity is a blend term, not a colour, and stays linear.
+            var colour = new Color(
+                Mathf.Pow(tint.r, 2.2f),
+                Mathf.Pow(tint.g, 2.2f),
+                Mathf.Pow(tint.b, 2.2f),
+                opacity);
+
+            // A layer holds exactly one quad per half-cell, so a second write into the same slot does
+            // not draw twice — it replaces. Counting writes alone therefore cannot tell "the mask
+            // legitimately split this cell into four quarters" from "the grid is the wrong size and the
+            // quarters are landing on top of each other"; both report four. Counting the replacements
+            // separates them: a correct half-cell grid never replaces anything, because the four quarters
+            // of a cell are four different half-cells.
+            if (layer.Write(
+                    placement.Cell.x, placement.Cell.y, _gridWidth,
+                    RoomTerrainGeometry.QuarterSize(options.cellSize),
+                    sprite, placement.Translation, placement.Scale, colour))
+            {
+                OverwrittenShapes++;
+            }
+        }
+
+        /// <summary>
+        /// The mesh layer for one (bucket, material texture, sorting order, mask texture), creating it
+        /// on first use.
+        ///
+        /// <para><b>The order and both textures are part of the layer's identity</b>, not properties you
+        /// may ask for and be denied: two callers wanting different orders are two different layers, and
+        /// two mask clips are two layers even inside one bucket, because a mesh binds exactly one
+        /// <c>_MainTex</c>. Leaving either out meant a cache hit returned a layer already pinned to the
+        /// first caller's values and the second caller's were accepted and ignored.</para>
+        /// </summary>
+        private RoomTerrainMeshLayer LayerMesh(
+            string bucket,
+            string textureId,
+            Texture2D maskTexture,
+            string sortingLayer,
+            int sortingOrder,
+            Material material)
+        {
+            string key = bucket + "|" + textureId + "|" + sortingOrder + "|" + maskTexture.GetInstanceID();
+            if (_layers.TryGetValue(key, out RoomTerrainMeshLayer existing)) return existing;
+
+            var layer = new RoomTerrainMeshLayer(
+                transform, bucket, material, sortingLayer, sortingOrder, _roomLocalBounds);
+
+            _layers[key] = layer;
+            _mapBuckets[layer] = bucket + "|" + textureId;
+            return layer;
         }
 
         /// <summary>
@@ -1513,45 +1803,6 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             return RoomBackdropRenderer.ResolveColorSchemeTint(room.environment.colorScheme);
         }
 
-        private Tilemap LayerMap(
-            string layerName,
-            string textureId,
-            string sortingLayer,
-            int sortingOrder,
-            RoomTerrainArt art,
-            Options options,
-            float maskDilateUV)
-        {
-            // The order is part of the identity of a map, not a property you may ask for and be denied:
-            // two callers wanting different orders are two different layers. Leaving it out meant a cache
-            // hit returned a map already pinned to the first caller's order and the second caller's
-            // `sortingOrder` was accepted and ignored — the same silent-parameter shape as SetTileFlags.
-            string key = layerName + "|" + textureId + "|" + sortingOrder;
-            if (_layers.TryGetValue(key, out Tilemap existing)) return existing;
-
-            var go = new GameObject("Layer: " + layerName);
-            go.transform.SetParent(transform, false);
-
-            var map = go.AddComponent<Tilemap>();
-
-            // The cell's origin is its corner; the registration maths already accounts for where the
-            // shape's pivot sits, so an anchor would move every shape by half a cell.
-            map.tileAnchor = Vector3.zero;
-
-            var renderer = go.AddComponent<TilemapRenderer>();
-            renderer.mode = TilemapRenderer.Mode.Chunk;
-            // Vector3Int, not int: Unity asks per axis, and a 2D grid has no depth to chunk.
-            renderer.chunkSize = new Vector3Int(ChunkSize, ChunkSize, 1);
-            renderer.sortingLayerName = sortingLayer;
-            renderer.sortingOrder = sortingOrder;
-            renderer.sharedMaterial = MaterialFor(textureId, art, options, maskDilateUV);
-
-            _layers[key] = map;
-            _mapBuckets[map] = layerName + "|" + textureId;
-            _owned.Add(go);
-            return map;
-        }
-
         /// <summary>
         /// How far to grow a mask, in UV, from the option's texel count and the mask texture's width.
         /// </summary>
@@ -1583,12 +1834,14 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             return width > 0 ? options.maskDilateTexels / width : 0f;
         }
 
-        private Material MaterialFor(string textureId, RoomTerrainArt art, Options options, float maskDilateUV)
+        private Material MaterialFor(
+            string textureId, Texture2D maskTexture, RoomTerrainArt art, Options options, float maskDilateUV)
         {
-            // The dilation is part of the material's identity, not a value that can be shared: two layers
-            // can use the same material texture with masks of different resolutions, and a shared material
-            // would give the second layer the first layer's texel size. Keying on it costs one material.
-            string key = textureId + "|" + maskDilateUV.ToString("0.00000");
+            // The dilation and the mask texture are part of the material's identity, not values that
+            // can be shared: two layers can use the same material texture with masks of different
+            // resolutions, and each mesh layer binds one _MainTex (the mask), so a shared material
+            // would give the second layer the first layer's texel size or the first layer's mask.
+            string key = textureId + "|" + maskDilateUV.ToString("0.00000") + "|" + maskTexture.GetInstanceID();
 
             if (_materials.TryGetValue(key, out Material existing)) return existing;
 
@@ -1606,6 +1859,21 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
 
                 var material = new Material(_shader) { name = "RoomTerrain:" + textureId };
                 material.SetTexture("_MaterialTex", texture);
+
+                // The texel size the shader projects with, passed explicitly. Unity also generates
+                // `_MaterialTex_TexelSize` for the texture property, but that is a `_TexelSize` inside
+                // `UnityPerMaterial`, and the 2D SRP Batcher does not support those — the backdrop
+                // material gets exactly that warning on every build. This value is the shader's only
+                // scale term, so a stale or zero one tiles the material into a plaid with no error,
+                // no missing texture and no warning. Written here, next to the texture it describes,
+                // it cannot disagree with it.
+                material.SetVector(
+                    "_MaterialTexelSize",
+                    new Vector4(1f / texture.width, 1f / texture.height, texture.width, texture.height));
+
+                // The mask the old TilemapRenderer bound per chunk through [PerRendererData]; a mesh
+                // layer binds it explicitly, one texture per layer.
+                material.mainTexture = maskTexture;
 
                 // Bitmap rows run down from the room's top-left corner; Unity's v runs up, so the origin
                 // is the top of the room and the subtraction below is negative going down. That is what
@@ -1627,30 +1895,6 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
 
         /// <summary>Top of the room in this transform's local space, set by <see cref="Build"/>.</summary>
         private float RoomTopLocalY { get; set; }
-
-        private Tile TileFor(Sprite sprite)
-        {
-            if (sprite == null) return null;
-            if (_tiles.TryGetValue(sprite, out Tile tile)) return tile;
-
-            // A ScriptableObject per distinct mask frame, cached — so this is "one per frame used", and
-            // a room that draws 20 material buckets out of 5 masks creates 5, not 200.
-            using (Profiler.Region("room.terrain.tiles", "one Tile ScriptableObject per distinct mask frame, cached"))
-            {
-                tile = ScriptableObject.CreateInstance<Tile>();
-                tile.name = sprite.name;
-                tile.sprite = sprite;
-
-                // Sprite-sheet masks must not be packed or the atlas would repack the quarter into a
-                // different rect than the one the pivot was computed against.
-                tile.flags = TileFlags.None;
-                tile.colliderType = Tile.ColliderType.None;
-
-                _tiles[sprite] = tile;
-                _owned.Add(tile);
-                return tile;
-            }
-        }
 
         private Shader ResolveShader()
         {
@@ -1676,9 +1920,9 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
                 _room = null;
             }
 
-            foreach (Tilemap map in _layers.Values)
+            foreach (RoomTerrainMeshLayer layer in _layers.Values)
             {
-                if (map != null) DestroyObject(map.gameObject);
+                layer?.Destroy();
             }
 
             _layers.Clear();
@@ -1691,7 +1935,6 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
 
             _owned.Clear();
             _materials.Clear();
-            _tiles.Clear();
             _missingMasks.Clear();
             _missingMaterials.Clear();
             _missingOverlays.Clear();
@@ -1731,7 +1974,7 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
 
         /// <summary>
         /// <c>Destroy</c> throws in edit mode, and the preview window builds this outside play mode.
-        /// Same seam, and same reason, as <c>CharacterSpriteAssembler.DestroyObject</c>.
+        /// Same seam, and same reason, as <c>CharacterQuadMaterialCache.DestroyObject</c>.
         /// <para><c>new</c> is required: <c>UnityEngine.Object</c> has a deprecated
         /// <c>DestroyObject</c> of its own. Without it every call here is a CS0108.</para>
         /// </summary>

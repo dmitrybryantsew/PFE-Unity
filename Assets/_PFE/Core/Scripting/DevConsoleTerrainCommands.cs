@@ -6,22 +6,16 @@ using PFE.Systems.Map.Rendering.RoomTerrain;
 namespace PFE.Core.Scripting
 {
     /// <summary>
-    /// The room terrain renderer switch, exposed to Lua as the global <c>terrain</c>:
-    /// <c>terrain:SetQuad(true)</c>, and to the REPL as <c>terrain quad on|off</c>.
+    /// The room terrain renderer's status, exposed to Lua as the global <c>terrain</c> and to the
+    /// REPL as <c>terrain</c> / <c>terrain status</c>.
     ///
-    /// <para><b>Why a verb and not just the Inspector field.</b> The flag lives on
-    /// <see cref="PfeDebugSettings"/>, which is an asset — so without this verb, trying the quarter
-    /// renderer means editing a project asset, and every experiment leaves a diff behind. The verb
-    /// writes the same field the Inspector edits, so the two cannot disagree, and a session that ends
-    /// with the flag on leaves no trace in the repository.</para>
-    ///
-    /// <para><b>The status line answers the question that a picture cannot.</b> With the flag on and the
-    /// art asset missing, the room falls back to the shipped renderer rather than drawing nothing — so the
-    /// question is not "is the room empty" but "which renderer did this room actually get", and that is a
-    /// fact only the console can report without a screenshot. <see cref="Status"/> resolves the art asset
-    /// up front and names it, then asks the live controller what it built. It is the same question
-    /// <see cref="RoomTerrainWiring.TryResolve"/> asks at room build; asking it here is how you find out
-    /// before the transition instead of after.</para>
+    /// <para><b>Status only — there is nothing to switch anymore.</b> The quarter renderer
+    /// (<see cref="RoomTerrainRenderer"/>) is the only terrain renderer since the shipped per-tile
+    /// path was retired, so the old <c>terrain quad on|off</c> verb went with it. What can still go
+    /// wrong is an input to the one renderer that remains: the art asset missing, or the material
+    /// database absent. <see cref="Status"/> resolves the art asset up front and names it, then asks
+    /// the live controller what it built — the question <see cref="RoomTerrainWiring.TryResolve"/>
+    /// asks at room build, asked here so you can find out before the transition instead of after.</para>
     ///
     /// <para><b>MoonSharp visibility.</b> Only the command methods are public; the wiring is private, as
     /// with the other command objects, because MoonSharp's default reflection interop exposes public
@@ -30,47 +24,20 @@ namespace PFE.Core.Scripting
     [LocalOnly]
     public sealed class DevConsoleTerrainCommands
     {
-        private readonly Func<PfeDebugSettings> _settingsSource;
-
-        /// <summary>Production constructor: read the live settings asset, as every other command object does.</summary>
-        public DevConsoleTerrainCommands() : this(null)
+        /// <summary>Production constructor: nothing to resolve — the settings asset no longer carries a terrain flag.</summary>
+        public DevConsoleTerrainCommands()
         {
         }
 
         /// <summary>
-        /// Test seam for the settings source — the same one <see cref="DevConsoleUiCommands"/> carries and
-        /// for the same reason: <c>DebugOverlays.Settings</c> is a <c>Resources.Load</c>, and an offline
-        /// test cannot execute an ECall, so a command object reachable only through the live asset could
-        /// not be tested at all. A null source falls back to the live asset, so production code cannot
-        /// accidentally get a command object that reports "no settings" because of a wiring slip.
-        /// </summary>
-        public DevConsoleTerrainCommands(Func<PfeDebugSettings> settingsSource)
-        {
-            _settingsSource = settingsSource ?? (() => DebugOverlays.Settings);
-        }
-
-        /// <summary>
-        /// The flag, whether the art the flag depends on resolves, which way the next room will be drawn,
-        /// and which renderer the room you are standing in actually got.
+        /// Whether the art the renderer depends on resolves, and which renderer the room you are
+        /// standing in actually got.
         /// </summary>
         public string Status()
         {
-            PfeDebugSettings settings = _settingsSource();
-            if (settings == null) return NoSettings;
-
-            bool on = settings.QuadRoomTerrain;
             RoomTerrainArt art = RoomTerrainWiring.ResolveArt(null);
 
-            // The verdict names the *next* room, not this one: the flag is read once per build, so a
-            // room you are standing in keeps whatever it was built with. Saying "on" without that
-            // qualifier is how a toggle gets reported as broken.
-            string verdict = on && art != null
-                ? "next room: QUARTER"
-                : on
-                    ? "next room: shipped (no art)"
-                    : "next room: shipped";
-
-            return $"[terrain] quad: {(on ? "on" : "off")} · {ArtLine(art)} · cell {RoomTerrainWiring.ShippedCellSize:0.###} · {verdict} · {CurrentRoomLine()}";
+            return $"[terrain] {ArtLine(art)} · cell {RoomTerrainWiring.ShippedCellSize:0.###} · {CurrentRoomLine()}";
         }
 
         /// <summary>
@@ -80,7 +47,7 @@ namespace PFE.Core.Scripting
         /// reachable by path, so a null here is a real "the importer has not run". In a build there is no
         /// asset database: the art arrives through the serialized reference on
         /// <see cref="RoomVisualController"/>, which this command cannot see — so claiming it is missing
-        /// would be a false alarm in exactly the build where the flag was deliberately enabled.</para>
+        /// would be a false alarm in exactly the build where the reference was deliberately assigned.</para>
         /// </summary>
         private static string ArtLine(RoomTerrainArt art)
         {
@@ -96,9 +63,9 @@ namespace PFE.Core.Scripting
         /// <summary>
         /// Which renderer the room currently built actually uses.
         ///
-        /// <para>This is the one line that distinguishes "the flag is on" from "the room in front of you
-        /// is drawn by it" — the two are different facts, and the second is the one being asked about.
-        /// A scene search per call is fine: this is a debug verb, not a per-frame path.</para>
+        /// <para>This is the one line that distinguishes "the art resolved" from "the room in front of
+        /// you was drawn by it" — the two are different facts, and the second is the one being asked
+        /// about. A scene search per call is fine: this is a debug verb, not a per-frame path.</para>
         /// </summary>
         private static string CurrentRoomLine()
         {
@@ -107,36 +74,16 @@ namespace PFE.Core.Scripting
 
             RoomTerrainRenderer renderer = controller.QuadTerrainRenderer;
             return renderer == null
-                ? "this room: shipped"
-                : $"this room: QUARTER ({renderer.ShapesPlaced} shape(s), {renderer.LayerCount} layer(s))";
-        }
-
-        /// <summary>
-        /// Turn the quarter renderer on or off for the next room that is built.
-        ///
-        /// <para>Does not rebuild the current room: a room's terrain is built once, at
-        /// <c>RoomVisualController.Initialize</c>, and re-entering is what re-reads the flag. The reply
-        /// says so rather than leaving the caller to wonder why the picture did not change.</para>
-        /// </summary>
-        public string SetQuad(bool on)
-        {
-            PfeDebugSettings settings = _settingsSource();
-            if (settings == null) return NoSettings;
-
-            settings.QuadRoomTerrain = on;
-            return Status() + "\n  (takes effect when the next room is built — walk through a door)";
+                ? "this room: NOT BUILT — the quarter renderer is the only terrain renderer; a missing line here means the build failed, check the log"
+                : $"this room: quarter renderer ({renderer.ShapesPlaced} shape(s), {renderer.LayerCount} layer(s))";
         }
 
         /// <summary>Usage summary, so the console's <c>help</c> has a single source for it.</summary>
         public string Help()
         {
-            return "terrain             - status: quad flag, art asset, and which way the next room is drawn\n" +
-                   "terrain quad        - same as `terrain`\n" +
-                   "terrain quad on     - draw the next room with the quarter renderer (the default)\n" +
-                   "terrain quad off    - fall back to the shipped per-tile compositor, sprites and all\n" +
-                   "Lua: terrain:SetQuad(true | false)";
+            return "terrain             - status: art asset resolution and which renderer the current room got\n" +
+                   "terrain status      - same as `terrain`\n" +
+                   "Lua: terrain:Status()";
         }
-
-        private const string NoSettings = "[terrain] PfeDebugSettings not found in Resources.";
     }
 }

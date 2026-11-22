@@ -7,11 +7,10 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
     ///
     /// <para><b>Why quarters at all.</b> The Flash original draws a tile as four independent 20×20
     /// shapes, each choosing one of five edge variants from its own two orthogonal neighbours and the
-    /// diagonal between them. The port's shipped path (<see cref="TileCompositor"/>) collapses that into
-    /// one 40×40 bitmap per tile and then has to sample a quadrant of a *combination* mask — which is
-    /// where the inverted turns come from. The parallel renderer keeps the four quarters as four
-    /// placements on a half-cell Tilemap, so each quarter selects its own frame and nothing has to be
-    /// mirrored.</para>
+    /// diagonal between them. The retired per-tile compositor path collapsed that into one 40×40
+    /// bitmap per tile and then had to sample a quadrant of a *combination* mask — which is where the
+    /// inverted turns came from. The quarter renderer keeps the four quarters as four placements on a
+    /// half-cell grid, so each quarter selects its own frame and nothing has to be mirrored.</para>
     ///
     /// <para><b>Y runs up here, like everywhere else in the port.</b> <see cref="TopLeft"/> is the
     /// quarter that looks at the tile <i>above</i>; row 0 is the floor row. See

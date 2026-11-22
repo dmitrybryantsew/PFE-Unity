@@ -144,25 +144,30 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         private readonly Dictionary<Sprite, Sprite> _readableDecorationSprites = new Dictionary<Sprite, Sprite>();
 
-        /// <summary>Which implementation composites the backdrop wall.</summary>
+        /// <summary>
+        /// Which implementation composites the backdrop wall. <b>Orphaned.</b> The GPU path is the
+        /// only runtime path since the per-pixel CPU composite was removed, so neither <see cref="Auto"/>,
+        /// <see cref="Cpu"/> nor <see cref="Gpu"/> selects anything anymore. Left declared — and still
+        /// settable — so the flag's removal lands in one later change (with PfeDebugSettings, which a
+        /// later thread owns) instead of half a change here.
+        /// </summary>
         public enum BackdropMode
         {
-            /// <summary>The shader, unless the room configures a sharpen pass — only the CPU path has one.</summary>
+            /// <summary>Formerly "the shader, unless the room configures a sharpen pass". Now no-op.</summary>
             Auto = 0,
 
-            /// <summary>Always the pre-S2 per-pixel compositor. This is the rollback and the A/B control.</summary>
+            /// <summary>Formerly the pre-S2 per-pixel compositor. The compositor is gone; no-op.</summary>
             Cpu = 1,
 
-            /// <summary>Always the shader; falls back to <see cref="Cpu"/> if any of its inputs is missing.</summary>
+            /// <summary>Formerly "always the shader". Now no-op — the shader is simply the only path.</summary>
             Gpu = 2,
         }
 
         /// <summary>
-        /// Process-wide selection of the backdrop implementation. <c>Auto</c> in the shipped game.
-        ///
-        /// <para><b>Static on purpose.</b> The A/B in doc 09 §16.6 has to be runnable without editing the
-        /// three call sites that construct this renderer, and a per-instance switch would make "which
-        /// path drew this room" depend on a constructor argument that nobody passes.</para>
+        /// Process-wide selection of the backdrop implementation. <b>Orphaned:</b> nothing reads it
+        /// since the CPU compositor was removed — the wall is always composited by
+        /// <c>PFE_BackdropMultiply</c>. Kept (and still settable) so the later thread that owns the
+        /// debug-settings surface can retire the flag without touching this renderer.
         /// </summary>
         public static BackdropMode Mode { get; set; } = BackdropMode.Auto;
 
@@ -232,10 +237,10 @@ namespace PFE.Systems.Map.Rendering
         /// calling <c>GetPixel</c>.
         ///
         /// Why this matters: <c>GetPixel</c> is a managed→native interop call (~0.1-1 µs), not a
-        /// field read. The room backdrop is 48×25 tiles at 40 px = 1.92M pixels, and the loop in
-        /// <see cref="CreateBackdropSprite"/> was measured at 1197 ms per call — ~0.62 µs per
-        /// pixel, which is interop, not arithmetic. The composite maths it interleaves
-        /// (<see cref="ApplyBackdropComposite"/>) is pure managed code and costs almost nothing.
+        /// field read. The wall's per-pixel composite that this cache was built for used to make
+        /// 1.92M of those calls per room and measured 1197 ms doing it; the wall path is a shader
+        /// now, and the remaining CPU composite (the decoration fallback) still indexes this cache
+        /// instead of interop-per-pixel.
         ///
         /// This is the same defect (and the same fix) as <c>TileCompositor.CacheTexturePixels</c>,
         /// which was the root cause of the original 54 s boot.
@@ -1230,89 +1235,32 @@ namespace PFE.Systems.Map.Rendering
             }
             Color tint = ResolveBackdropColor();
 
-            // S2: the shader path. Same rects, same tint, same texture — no per-pixel loop. It returns
-            // false when one of its inputs is missing (no readable copy, no shader), and the CPU loop
-            // below is then the answer, which is why that loop is not deleted.
-            if (ShouldUseBackdropShader())
-            {
-                using (Profiler.Region("backdrop.quads", "boot: one SpriteRenderer per fill rect, composited by PFE/BackdropMultiply"))
-                {
-                    if (TryCreateRoomBackdropQuads(sourceTexture, contentOriginPixels, contentPixelSize, fillRects, compositeData, tint))
-                    {
-                        return;
-                    }
-                }
-            }
-
-            // The pixel work. Was 1197 ms per call because CreateBackdropSprite called GetPixel
-            // once per pixel (1.92M interop calls for a 48x25 room) and re-read Texture2D.width/
-            // .height up to four times per pixel. Both are now hoisted/cached, so this region
-            // should collapse — if it does not, the cost is somewhere else and we look again.
-            using (Profiler.Region("backdrop.sprites", "boot: CreateBackdropSprite per fill rect — the per-pixel loop"))
-            {
-                for (int i = 0; i < fillRects.Count; i++)
-                {
-                    RectInt fillRect = fillRects[i];
-                    if (fillRect.width <= 0 || fillRect.height <= 0)
-                    {
-                        continue;
-                    }
-
-                    Sprite sprite = CreateBackdropSprite(sourceTexture, fillRect, compositeData);
-                    if (sprite == null)
-                    {
-                        continue;
-                    }
-
-                    GameObject backdropObject = new GameObject($"Backdrop_{backgroundWall}_{i}");
-                    backdropObject.transform.SetParent(_backgroundParent, false);
-
-                    SpriteRenderer renderer = backdropObject.AddComponent<SpriteRenderer>();
-                    renderer.sprite = sprite;
-                    renderer.sortingLayerName = MapSortingLayers.Backwall;
-                    renderer.sortingOrder = BackdropSortingOrder;
-                    renderer.color = tint;
-                    renderer.transform.localPosition = GetBackdropSegmentPosition(contentOriginPixels, contentPixelSize, fillRect, sprite);
-
-                    _backdropRenderers.Add(renderer);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Whether this room composites the backdrop with the shader. Two things can say no: an explicit
-        /// <see cref="BackdropMode.Cpu"/>, and a configured sharpen pass — which only the CPU path has.
-        /// </summary>
-        private bool ShouldUseBackdropShader()
-        {
-            if (Mode == BackdropMode.Cpu)
-            {
-                return false;
-            }
-
-            if (_backdropSharpenStrength <= 0.001f)
-            {
-                return true;
-            }
-
-            // Dropping a configured effect to win a benchmark is not a trade this renderer gets to make,
-            // so a sharpened room keeps the slow path. `Gpu` still forces the shader, because that is the
-            // only way to A/B such a room — and then the console says what was skipped.
-            if (Mode != BackdropMode.Gpu)
-            {
-                return false;
-            }
-
-            if (!_backdropShaderWarned)
+            // The shader path is the only path. The per-pixel CPU composite and the BackdropMode.Cpu
+            // fallback went together: the mode no longer selects anything, and a sharpened room no
+            // longer keeps the slow path — the 5-tap convolution was part of the CPU compositor, so a
+            // configured sharpen strength is reported below and not applied.
+            if (_backdropSharpenStrength > 0.001f && !_backdropShaderWarned)
             {
                 _backdropShaderWarned = true;
                 Debug.LogWarning(
                     $"[RoomBackdrop] Room '{_room?.id}' configures sharpen strength " +
-                    $"{_backdropSharpenStrength:0.###} and BackdropMode was forced to Gpu — " +
-                    "the sharpen pass is not applied on the shader path.");
+                    $"{_backdropSharpenStrength:0.###}, but the sharpen pass lived in the CPU compositor " +
+                    "and that path has been removed — the shader path does not sharpen.");
             }
 
-            return true;
+            using (Profiler.Region("backdrop.quads", "boot: one SpriteRenderer per fill rect, composited by PFE/BackdropMultiply"))
+            {
+                if (!TryCreateRoomBackdropQuads(sourceTexture, contentOriginPixels, contentPixelSize, fillRects, compositeData, tint))
+                {
+                    // Every input the quads need is resolved inside, and a false here means the shader
+                    // or its readable texture is missing. There is no second path to fall back to, so
+                    // this is an error the room visibly carries (no wall) rather than a slowdown.
+                    Debug.LogError(
+                        $"[RoomBackdrop] Room '{_room?.id}': the backdrop shader path could not be built " +
+                        "(shader or readable texture missing) and the CPU compositor has been removed — " +
+                        "this room has no backdrop wall.");
+                }
+            }
         }
 
         /// <summary>
@@ -1320,8 +1268,9 @@ namespace PFE.Systems.Map.Rendering
         /// to the rect, with one shared material that computes the fill, the shadow and the darkness per
         /// fragment instead of per pixel on the main thread.
         ///
-        /// <para>Returns false — never a partial backdrop — when an input is missing, so the caller can
-        /// run the CPU compositor instead.</para>
+        /// <para>Returns false — never a partial backdrop — when an input is missing. The caller treats
+        /// that as "this room has no wall": the CPU compositor that used to be the fallback was removed
+        /// when <see cref="BackdropMode.Cpu"/> stopped selecting anything.</para>
         /// </summary>
         private bool TryCreateRoomBackdropQuads(
             Texture2D sourceTexture,
@@ -1359,7 +1308,18 @@ namespace PFE.Systems.Map.Rendering
                 $"darkness {compositeData.DarknessAlpha:0.000} " +
                 $"(expect {(BackdropBaseDarkness + (_room?.environment?.darkness ?? 0)) / 255f:0.000}), " +
                 $"shadow {(compositeData.ShadowAlpha != null && compositeData.ShadowAlpha.Length > 0 ? $"{compositeData.ShadowSize.x}x{compositeData.ShadowSize.y}" : "MISSING - no shadow term")}, " +
-                $"tex {backdropTexture.width}x{backdropTexture.height}, tint {tint}, rects {fillRects.Count}");
+                // The texture's NAME matters, not just its size: when a room's wall reads as a plaid,
+                // the first question is whether the fill is painting the wall at all, and the only
+                // place that answers it is here. `content` is the room in content pixels and `fill` is
+                // content px per source texel — so the tiling period in room-widths is
+                // `texels * fill / content`, NOT `fill / content`. The old expression printed
+                // 0.0005 for a backdrop that actually tiles once per quarter room — a number that
+                // cannot be true of anything and sent one diagnosis chasing a 2000x zoom that did
+                // not exist.
+                $"tex {backdropTexture.name} {backdropTexture.width}x{backdropTexture.height}, " +
+                $"content {contentPixelSize.x}x{contentPixelSize.y}, fill {_backdropTextureScale.x:0.###}x{_backdropTextureScale.y:0.###} " +
+                $"(repeat every {(contentPixelSize.x > 0 ? backdropTexture.width * _backdropTextureScale.x / contentPixelSize.x : 0f):0.###} room-widths), " +
+                $"tint {tint}, rects {fillRects.Count}");
 
             string wallName = _room.environment.backgroundWall;
             for (int i = 0; i < fillRects.Count; i++)
@@ -1423,11 +1383,12 @@ namespace PFE.Systems.Map.Rendering
             Shader shader = ResolveBackdropShader();
             if (shader == null)
             {
-                // Once per room, not once per frame: the CPU path still draws the backdrop, so this is
-                // information, not a failure the player can see.
+                // Once per room, not once per frame. The shader is the only path now: the CPU
+                // compositor that used to answer a missing shader was removed with BackdropMode.Cpu,
+                // so this room visibly has no wall — which is why it is an error and not a note.
                 Debug.LogError(
                     $"[RoomBackdrop] Shader '{BackdropShaderName}' not found (expected at " +
-                    $"Resources/{BackdropShaderResourcePath}). The backdrop uses the CPU compositor.");
+                    $"Resources/{BackdropShaderResourcePath}). The backdrop wall is not drawn.");
                 return null;
             }
 
@@ -1446,6 +1407,7 @@ namespace PFE.Systems.Map.Rendering
 
             material.SetTexture("_BackdropTex", backdropTexture);
             material.SetTexture("_ShadowTex", shadowTexture);
+
             material.SetVector("_ContentOrigin", new Vector4(contentOriginPixels.x, contentOriginPixels.y, 0f, 0f));
             material.SetVector("_ContentSize", new Vector4(contentPixelSize.x, contentPixelSize.y, 0f, 0f));
             material.SetFloat("_PixelsPerUnit", PixelsPerUnityUnit);
@@ -1680,14 +1642,14 @@ namespace PFE.Systems.Map.Rendering
             HashSet<string> spawnedKeys = new HashSet<string>();
 
             // Built once for the whole room: every decoration differs only in its sprite, and the
-            // composite's inputs are the room's, not the placement's.
-            Material decorationMaterial = null;
-            if (ShouldUseDecorationShader())
+            // composite's inputs are the room's, not the placement's. The shader is the only path
+            // (BackdropMode.Cpu no longer selects anything); when it cannot be built — shader
+            // missing — CreateBackgroundSprite composites on the CPU instead, which is the rollback
+            // and the A/B reference for the decoration shader.
+            Material decorationMaterial;
+            using (Profiler.Region("backdrop.decorations.material", "boot: the shared decoration material — shadow upload only"))
             {
-                using (Profiler.Region("backdrop.decorations.material", "boot: the shared decoration material — shadow upload only"))
-                {
-                    decorationMaterial = GetDecorationMaterial(contentOriginPixels, contentPixelSize, compositeData);
-                }
+                decorationMaterial = GetDecorationMaterial(contentOriginPixels, contentPixelSize, compositeData);
             }
 
             if (_room.backgroundDecorations != null)
@@ -1708,19 +1670,6 @@ namespace PFE.Systems.Map.Rendering
                 }
             }
 
-        }
-
-        /// <summary>
-        /// Whether this room composites its decorations with the shader.
-        ///
-        /// <para><b>Not the wall's predicate.</b> A configured sharpen strength sends the <i>wall</i> to the
-        /// CPU path because the 5-tap convolution exists only there; decorations never had a sharpen pass,
-        /// so a sharpened room still gets shader decorations. Only an explicit
-        /// <see cref="BackdropMode.Cpu"/> turns both off, which is what the A/B needs.</para>
-        /// </summary>
-        private bool ShouldUseDecorationShader()
-        {
-            return Mode != BackdropMode.Cpu;
         }
 
         private void CreateBackgroundTileShadowOverlay(Vector2 contentOriginPixels, Vector2Int contentPixelSize, BackdropCompositeData compositeData)
@@ -2109,9 +2058,9 @@ namespace PFE.Systems.Map.Rendering
             int textureX = Mathf.RoundToInt(textureRect.x);
             int textureY = Mathf.RoundToInt(textureRect.y);
 
-            // Same fix as CreateBackdropSprite: index a cached Color[] instead of one GetPixel
-            // interop call per pixel. GetPixels() returns y-major with y=0 at the bottom, which is
-            // exactly the order GetPixel(x, y) addresses, so the mapping is (y * texWidth + x).
+            // Index a cached Color[] instead of one GetPixel interop call per pixel — the same fix
+            // the wall's old CPU composite got. GetPixels() returns y-major with y=0 at the bottom,
+            // which is exactly the order GetPixel(x, y) addresses, so the mapping is (y * texWidth + x).
             int texWidth = readableTexture.width;
             Color[] sourcePixels = GetReadablePixels(readableTexture);
 
@@ -2385,89 +2334,6 @@ namespace PFE.Systems.Map.Rendering
             return new RectInt(xMin, yMin, Mathf.Max(0, xMax - xMin), Mathf.Max(0, yMax - yMin));
         }
 
-        private Sprite CreateBackdropSprite(Texture2D sourceTexture, RectInt fillRect, BackdropCompositeData compositeData)
-        {
-            if (sourceTexture == null || fillRect.width <= 0 || fillRect.height <= 0)
-            {
-                return null;
-            }
-
-            Texture2D readableTexture = GetReadableTexture(sourceTexture);
-            if (readableTexture == null)
-            {
-                return null;
-            }
-
-            // Hoist every native accessor out of the pixel loop. readableTexture.width/.height are
-            // interop calls, and the loop below used to read them up to four times per pixel.
-            // GetPixels() is one call for the whole texture instead of one GetPixel per pixel.
-            int texWidth = readableTexture.width;
-            int texHeight = readableTexture.height;
-            Color[] sourcePixels = GetReadablePixels(readableTexture);
-
-            Texture2D result = new Texture2D(fillRect.width, fillRect.height, TextureFormat.RGBA32, false);
-            result.filterMode = FilterMode.Point;
-            result.wrapMode = TextureWrapMode.Clamp;
-
-            // The tiling fill, as the tested reference rather than as loop body. This is the same
-            // arithmetic the shader transcribes, so `BackdropCompositeMathTests` pins both.
-            var tiling = new BackdropCompositeMath.TilingSample(
-                texWidth,
-                texHeight,
-                _backdropTextureScale,
-                _backdropTextureOffset,
-                _flipBackdropTextureX,
-                _flipBackdropTextureY);
-
-            Color[] pixels = new Color[fillRect.width * fillRect.height];
-            using (Profiler.Region("backdrop.sprites.sample", "boot: per-pixel sample + composite. Was 1.92M GetPixel interop calls before the pixel cache"))
-            {
-                for (int y = 0; y < fillRect.height; y++)
-                {
-                    int destRow = (fillRect.height - 1 - y) * fillRect.width;
-                    int srcRowBase = fillRect.y + y;
-                    for (int x = 0; x < fillRect.width; x++)
-                    {
-                        tiling.Texel(fillRect.x + x, srcRowBase, out int sourceX, out int sourceY);
-                        Color sampledColor = sourcePixels != null
-                            ? sourcePixels[sourceY * texWidth + sourceX]
-                            : readableTexture.GetPixel(sourceX, sourceY);
-                        sampledColor = ApplyBackdropComposite(sampledColor, fillRect.x + x, srcRowBase, compositeData);
-                        pixels[destRow + x] = sampledColor;
-                    }
-                }
-            }
-
-            if (_backdropSharpenStrength > 0.001f)
-            {
-                // Suspected to be the bulk of what is left here: a 5-tap convolution over the whole
-                // image using Color operator chains, which are method calls returning a 16-byte
-                // struct — seven of them per pixel over 1.92M pixels. Now scalar float maths.
-                using (Profiler.Region("backdrop.sprites.sharpen", "boot: ApplySharpen — 5-tap convolution over every pixel"))
-                {
-                    pixels = ApplySharpen(pixels, fillRect.width, fillRect.height, _backdropSharpenStrength);
-                }
-            }
-
-            Sprite sprite;
-            using (Profiler.Region("backdrop.sprites.upload", "boot: SetPixels + Apply + Sprite.Create for one backdrop segment"))
-            {
-                result.SetPixels(pixels);
-                result.Apply();
-
-                sprite = Sprite.Create(
-                    result,
-                    new Rect(0, 0, fillRect.width, fillRect.height),
-                    new Vector2(0.5f, 0.5f),
-                    100f);
-            }
-
-            sprite.name = $"Backdrop_{_room?.environment.backgroundWall}_{fillRect.x}_{fillRect.y}_{fillRect.width}_{fillRect.height}";
-            _generatedAssets.Add(result);
-            _generatedAssets.Add(sprite);
-            return sprite;
-        }
-
         private Texture2D GetReadableTexture(Texture2D source)
         {
             if (source == null)
@@ -2509,58 +2375,6 @@ namespace PFE.Systems.Map.Rendering
             RenderTexture.active = previous;
             RenderTexture.ReleaseTemporary(temporary);
             return readable;
-        }
-
-        private static Color[] ApplySharpen(Color[] source, int width, int height, float strength)
-        {
-            if (source == null || source.Length != width * height || width <= 2 || height <= 2)
-            {
-                return source;
-            }
-
-            Color[] sharpened = new Color[source.Length];
-            Array.Copy(source, sharpened, source.Length);
-
-            float clampedStrength = Mathf.Clamp(strength, 0f, 2f);
-            for (int y = 1; y < height - 1; y++)
-            {
-                int row = y * width;
-                for (int x = 1; x < width - 1; x++)
-                {
-                    int index = row + x;
-                    Color center = source[index];
-                    Color left = source[index - 1];
-                    Color right = source[index + 1];
-                    Color up = source[index - width];
-                    Color down = source[index + width];
-
-                    // Scalar float maths instead of Color operator chains.
-                    //
-                    // UnityEngine.Color's +, - and * are static METHODS returning a 16-byte struct,
-                    // not intrinsics. The original expression below dispatched seven of them plus
-                    // three Mathf.Clamp01 calls per pixel — over 1.92M pixels that is the bulk of
-                    // this loop. The arithmetic and its evaluation order are unchanged, so the
-                    // result is bit-identical; only the operator dispatch is gone.
-                    //
-                    // Note the alpha term is deliberately NOT computed: the original calculated it
-                    // through the operator chain and then overwrote it with center.a anyway.
-                    float avgR = (left.r + right.r + up.r + down.r) * 0.25f;
-                    float avgG = (left.g + right.g + up.g + down.g) * 0.25f;
-                    float avgB = (left.b + right.b + up.b + down.b) * 0.25f;
-
-                    float r = center.r + (center.r - avgR) * clampedStrength;
-                    float g = center.g + (center.g - avgG) * clampedStrength;
-                    float b = center.b + (center.b - avgB) * clampedStrength;
-
-                    sharpened[index] = new Color(
-                        r < 0f ? 0f : (r > 1f ? 1f : r),
-                        g < 0f ? 0f : (g > 1f ? 1f : g),
-                        b < 0f ? 0f : (b > 1f ? 1f : b),
-                        center.a);
-                }
-            }
-
-            return sharpened;
         }
 
         private BackdropCompositeData BuildBackdropCompositeData(Vector2 contentOriginPixels, Vector2Int contentPixelSize)
@@ -2855,17 +2669,6 @@ namespace PFE.Systems.Map.Rendering
             Vector3 extents = sprite.bounds.extents;
             Vector3 offset = WorldCoordinates.PixelToUnity(pixelOffset);
             return new Vector3(origin.x + extents.x + offset.x, origin.y + extents.y + offset.y, 0f);
-        }
-
-        private static Vector3 GetBackdropSegmentPosition(Vector2 contentOriginPixels, Vector2Int contentPixelSize, RectInt fillRect, Sprite sprite)
-        {
-            Vector2 segmentBottomLeft = new Vector2(
-                contentOriginPixels.x + fillRect.x,
-                contentOriginPixels.y + (contentPixelSize.y - fillRect.y - fillRect.height));
-
-            Vector3 origin = WorldCoordinates.PixelToUnity(segmentBottomLeft);
-            Vector3 extents = sprite.bounds.extents;
-            return new Vector3(origin.x + extents.x, origin.y + extents.y, 0f);
         }
 
         private bool RoomHasAnyWaterTile()

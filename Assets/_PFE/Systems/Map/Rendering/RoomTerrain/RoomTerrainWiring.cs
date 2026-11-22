@@ -50,25 +50,22 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
         public static float ShippedCellSize => WorldConstants.TILE_SIZE / 100f;
 
         /// <summary>
-        /// Whether the quarter renderer should be built for this room, and — when the answer is no — why
+        /// Whether the quarter renderer can be built for a room, and — when the answer is no — why
         /// not, in a sentence the log line can print verbatim.
+        ///
+        /// <para><b>There is no flag input anymore.</b> The quarter renderer is the only terrain
+        /// renderer since the shipped per-tile path was retired, so "is it enabled" is always true;
+        /// what can still stop a build is a missing input, and those are the only reasons this
+        /// method returns.</para>
         /// </summary>
-        /// <param name="enabled">The debug flag, read once per room build.</param>
         /// <param name="art">The built art asset, or null when the importer has never run.</param>
         /// <param name="materials">The material database the controller already holds.</param>
         /// <param name="reason">Null on success; otherwise what is missing.</param>
         public static bool TryResolve(
-            bool enabled,
             RoomTerrainArt art,
             MaterialRenderDatabase materials,
             out string reason)
         {
-            if (!enabled)
-            {
-                reason = "the quad-terrain flag is off";
-                return false;
-            }
-
             if (art == null)
             {
                 reason = "the room terrain art asset is missing (run PFE/Art/Rebuild Room Terrain Art)";
@@ -109,6 +106,35 @@ namespace PFE.Systems.Map.Rendering.RoomTerrain
             {
                 options.cellSize = cellSize;
             }
+
+            return options;
+        }
+
+        /// <summary>
+        /// The sorting-order offset the background-layer room's build is packed at. The shipped
+        /// background path used the same -3000 (it kept the whole Z-door back layer behind the main
+        /// room's tiles on <see cref="MapSortingLayers.BackgroundTiles"/>), and the packed quad build
+        /// must land in the same place or the back layer would draw in front of the main room.
+        /// </summary>
+        public const int BackgroundTileSortingOffset = -3000;
+
+        /// <summary>
+        /// The renderer options for the background-layer room (the Z-door back layer).
+        ///
+        /// <para><b>Everything renders on <see cref="MapSortingLayers.BackgroundTiles"/>.</b> The back
+        /// layer is a full second room drawn behind the main one, so its passes cannot use their
+        /// natural layers — a background front wall on <c>MainTiles</c> would sort with the main
+        /// room's front wall. The options force one sorting layer and pack the passes into one
+        /// strictly increasing order band at <see cref="BackgroundTileSortingOffset"/>; the tint
+        /// flags stay on, because the back layer takes the room's scheme and darkness exactly like
+        /// the main one.</para>
+        /// </summary>
+        public static RoomTerrainRenderer.Options ResolveBackgroundOptions(float cellSize)
+        {
+            RoomTerrainRenderer.Options options = ResolveOptions(cellSize);
+
+            options.sortingLayerName = MapSortingLayers.BackgroundTiles;
+            options.sortingOrderOffset = BackgroundTileSortingOffset;
 
             return options;
         }
