@@ -34,6 +34,7 @@ namespace PFE.Tests.Editor.Combat
     {
         private const string ControllerPath = "Systems/Combat/Sats/SatsController.cs";
         private const string PlayerPath = "Entities/Player/PlayerController.cs";
+        private const string ExecutorPath = "Entities/Player/PlayerCommandExecutor.cs";
         private const string LoadoutPath = "Systems/Weapons/PlayerWeaponLoadout.cs";
 
         /// <summary>
@@ -89,6 +90,7 @@ namespace PFE.Tests.Editor.Combat
         public void EveryWiredMember_HasACallSite()
         {
             string player = SourceLint.ReadStripped(PlayerPath);
+            string executor = SourceLint.ReadStripped(ExecutorPath);
             string loadout = SourceLint.ReadStripped(LoadoutPath);
             string controller = SourceLint.ReadStripped(ControllerPath);
 
@@ -100,6 +102,7 @@ namespace PFE.Tests.Editor.Combat
 
                 bool found =
                     player.Contains(needle) ||
+                    executor.Contains(needle) ||
                     loadout.Contains(needle) ||
                     controller.Contains(needle);
 
@@ -114,9 +117,15 @@ namespace PFE.Tests.Editor.Combat
         // ── 3. Each trigger is at the handler it belongs to ─────────────────────
 
         [Test]
-        public void PlayerTriggers_AreInPlayerController()
+        public void PlayerTriggers_AreInThePlayerInputStack()
         {
+            // Thread F (the PlayerController split) moved the message handlers themselves into
+            // PlayerCommandExecutor — the triggers still fire from exactly the AS3 handlers, but the
+            // handlers now live one class over. This fixture is the deliberate edit the ledger asks
+            // for: the player-side scan now covers PlayerController AND PlayerCommandExecutor, so a
+            // trigger quietly relocated to a third file fails here.
             string player = SourceLint.ReadStripped(PlayerPath);
+            string executor = SourceLint.ReadStripped(ExecutorPath);
 
             foreach (string member in new[]
                      {
@@ -124,11 +133,12 @@ namespace PFE.Tests.Editor.Combat
                          "DefendSpell", "SpellHotkey", "LocationExit", "ManualFire",
                      })
             {
-                Assert.IsTrue(player.Contains("SatsInvalidationReason." + member),
-                    "SatsInvalidationReason." + member + " must be raised from PlayerController, where " +
-                    "the Oracle raises it (UnitPlayer.as). Moving it elsewhere is not wrong in " +
-                    "principle, but it must be a deliberate edit to this fixture rather than a quiet " +
-                    "relocation that leaves the ledger pointing at the wrong file.");
+                Assert.IsTrue(
+                    player.Contains("SatsInvalidationReason." + member)
+                    || executor.Contains("SatsInvalidationReason." + member),
+                    "SatsInvalidationReason." + member + " must be raised from the player's input " +
+                    "stack (PlayerController / PlayerCommandExecutor), where the Oracle raises it " +
+                    "(UnitPlayer.as). If it moved elsewhere, repoint this fixture deliberately.");
             }
         }
 

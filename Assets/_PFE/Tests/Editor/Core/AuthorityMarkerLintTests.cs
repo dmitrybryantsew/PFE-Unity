@@ -7,12 +7,13 @@ using PFE.Tests.Editor.Common;
 namespace PFE.Tests.Editor.Core
 {
     /// <summary>
-    /// Phase 1.1 lint (F-01/F-02): every <b>mutable instance field</b> in the three Sim-facing
-    /// controllers — <c>TilePhysicsController</c>, <c>UnitController</c>, <c>PlayerController</c> —
-    /// must carry exactly one authority marker (<c>[Authoritative]</c> / <c>[ClientPredicted]</c> /
-    /// <c>[LocalOnly]</c>). This is the authority map the rest of the multiplayer plan reads: a field
-    /// with no marker is invisible to the snapshot/prediction/reconciliation design, and a field with
-    /// the wrong marker is a silent host/client divergence.
+    /// Phase 1.1 lint (F-01/F-02): every <b>mutable instance field</b> in the Sim-facing
+    /// controllers — <c>TilePhysicsController</c>, <c>UnitController</c>, <c>PlayerController</c>,
+    /// and since thread F the player's two halves <c>LocalPlayerInputSampler</c> /
+    /// <c>PlayerCommandExecutor</c> — must carry exactly one authority marker (<c>[Authoritative]</c> /
+    /// <c>[ClientPredicted]</c> / <c>[LocalOnly]</c>). This is the authority map the rest of the
+    /// multiplayer plan reads: a field with no marker is invisible to the snapshot/prediction/
+    /// reconciliation design, and a field with the wrong marker is a silent host/client divergence.
     ///
     /// <para><b>Why a source lint and not reflection.</b> These controllers are <c>MonoBehaviour</c>s;
     /// instantiating them offline throws before any assertion runs (the same ECall wall
@@ -36,14 +37,21 @@ namespace PFE.Tests.Editor.Core
     [TestFixture]
     public sealed class AuthorityMarkerLintTests
     {
-        // The three Sim-facing controllers, relative to Assets/_PFE. A fourth Sim-facing controller is
+        // The Sim-facing controllers, relative to Assets/_PFE. A fifth Sim-facing controller is
         // a deliberate addition to this list — the whole point is that "this class holds tick-mutated
         // state" is a reviewed claim, not something a file opts into by existing.
+        //
+        // Thread F added the player's two halves: LocalPlayerInputSampler (ClientPredicted input-
+        // sampling state — tape, sequence, double-tap edges) and PlayerCommandExecutor (LocalOnly
+        // wiring plus the acting-side interact frame dedup). Both sit on the command boundary the
+        // snapshot/prediction design reads, so both belong in the authority map.
         private static readonly string[] SimFacingFiles =
         {
             "Systems/Physics/TilePhysicsController.cs",
             "Entities/Units/UnitController.cs",
             "Entities/Player/PlayerController.cs",
+            "Entities/Player/LocalPlayerInputSampler.cs",
+            "Entities/Player/PlayerCommandExecutor.cs",
         };
 
         private static readonly string[] MarkerNames = { "Authoritative", "ClientPredicted", "LocalOnly" };

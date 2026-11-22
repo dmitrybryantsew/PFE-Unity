@@ -31,7 +31,7 @@ namespace PFE.Tests.Editor.Combat
     public class SatsAutomaticWeaponWiringLintTests
     {
         private const string LoadoutPath = "Systems/Weapons/PlayerWeaponLoadout.cs";
-        private const string PlayerPath = "Entities/Player/PlayerController.cs";
+        private const string ExecutorPath = "Entities/Player/PlayerCommandExecutor.cs";
         private const string ControllerPath = "Systems/Combat/Sats/SatsController.cs";
         private const string WeaponPath = "Systems/Combat/Sats/SatsWeapon.cs";
         private const string StatePath = "Sim/Weapons/WeaponRuntimeState.cs";
@@ -221,17 +221,21 @@ namespace PFE.Tests.Editor.Combat
         /// (<c>Sats.as:185-188</c>). The port reads the same InputAction twice, so
         /// <c>HandleAttackStart</c> must swallow its half or every planning click latches
         /// <c>BeginAttack()</c> and the accepted plan inherits a held trigger.
+        ///
+        /// <para>Thread F moved <c>HandleAttackStart</c> into <c>PlayerCommandExecutor</c> (the
+        /// sampler forwards the attack edge to it); the swallow and its ordering moved verbatim, so
+        /// the lint follows the method.</para>
         /// </summary>
         [Test]
         public void Player_SwallowsThePlanningClick()
         {
-            string body = SourceLint.MethodBody(SourceLint.ReadStripped(PlayerPath),
+            string body = SourceLint.MethodBody(SourceLint.ReadStripped(ExecutorPath),
                 "private void HandleAttackStart()");
             string flat = Flat(body);
 
             Assert.That(flat, Does.Contain("SatsInvalidationReason.ManualFire"),
                 "MethodBody did not return HandleAttackStart; the ordering assertion would be vacuous.");
-            int swallow = flat.IndexOf("_sats.IsActive)return;", StringComparison.Ordinal);
+            int swallow = flat.IndexOf("_context.SatsIsActive)return;", StringComparison.Ordinal);
             int begin = flat.IndexOf("_loadout?.BeginAttack();", StringComparison.Ordinal);
 
             Assert.That(swallow, Is.GreaterThanOrEqualTo(0),

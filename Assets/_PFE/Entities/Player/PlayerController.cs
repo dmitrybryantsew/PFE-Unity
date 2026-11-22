@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using VContainer;
-using R3;
 using MessagePipe;
 using PFE.Character;
 using PFE.Core;
@@ -77,14 +76,8 @@ namespace PFE.Entities.Player
         [LocalOnly(Note = "Wiring reference; hold-to-act gesture runner, never replicated")]
         private PlayerActionInteractor _actionInteractor;
 
-        /// <summary>
-        /// Frame of the last accepted interact press. The press arrives twice — once on the
-        /// MessagePipe subscription and once from the direct poll in <see cref="Update"/> — and this is
-        /// what stops one key press acting twice, which for a door would open and close it in a single
-        /// frame.
-        /// </summary>
-        [ClientPredicted(Note = "Input edge dedup; local input-sampling state, predicted (F-03)")]
-        private int _lastInteractPressFrame = -1;
+        // The interact press frame-dedup moved to PlayerCommandExecutor (thread F): it is acting-side
+        // state and lives beside the code that acts on the press.
 
         /// <summary>
         /// AS3 <c>UnitPlayer.ggControl</c> (<c>UnitPlayer.as:65</c>) — the cutscene input lock, set false
@@ -345,9 +338,8 @@ namespace PFE.Entities.Player
         [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private PFE.Data.ContentRegistry _pendingRegistry;
 
-        // MessagePipe subscriptions (disposable)
-        [LocalOnly(Note = "Wiring reference; subscription bag, never replicated")]
-        private CompositeDisposable _disposables;
+        // The MessagePipe subscription bag moved into LocalPlayerInputSampler with the subscriptions
+        // it disposes (thread F).
 
         [LocalOnly(Note = "View reference; cached camera, never replicated")]
         private Camera _mainCamera;
@@ -382,36 +374,38 @@ namespace PFE.Entities.Player
         [ClientPredicted(Note = "Sampled aim angle fed into PlayerCommand; predicted (F-03)")]
         private float _aimAngle;
 
-        // F-03 / Phase 2.1: the local player's intent as a tick-stamped command stream. The tape
-        // holds the redundant last-N window a client would send (and replay for prediction); today it
-        // is the single-player command tape. Single-player slot is always 0.
-        //
-        // 2026-11-07: the tape is a Producer, not a read-back cache. Update() samples input per
-        // render frame while SimLoop ticks at 30 Hz, so several frames share one commandTick.
-        // PlayerCommandTape folds them into ONE entry per tick; the local consumer must not look in
-        // that tape for this frame's intent (see HandleMovementInput below).
-        private const int CommandBufferCapacity = 64;
-        [ClientPredicted(Note = "One-command-per-tick replay tape; predicted (F-03)")]
-        private readonly PFE.Core.Input.PlayerCommandTape _commandTape =
-            new PFE.Core.Input.PlayerCommandTape(CommandBufferCapacity);
-        [ClientPredicted(Note = "Command tape sequence counter; predicted (F-03)")]
-        private uint _commandSequence;
+        // F-03 / Phase 2.1: the local player's intent as a tick-stamped command stream now lives in
+        // LocalPlayerInputSampler (thread F) — the tape, the sequence counter, the double-tap state
+        // and every input subscription moved there. The tape is a Producer, not a read-back cache:
+        // Update() samples input per render frame while SimLoop ticks at 30 Hz, and PlayerCommandTape
+        // folds the frames of one tick into ONE entry; the local consumer executes the fresh frame
+        // (see Update below), never a tape lookup.
+        [LocalOnly(Note = "Wiring reference; input→intent half, never replicated")]
+        private LocalPlayerInputSampler _inputSampler;
+
+        [LocalOnly(Note = "Wiring reference; intent→subsystem half, never replicated")]
+        private PlayerCommandExecutor _commandExecutor;
+
+        /// <summary>
+        /// Create the sampler/executor pair on first use. Both <c>Construct</c> and <c>Awake</c> call
+        /// this because Unity does not order the container's injection against the component's own
+        /// awake — and the executor's context needs <c>this</c>, which field initializers cannot
+        /// reference (CS0027). Idempotent: the pair is created once and shared by both entry points.
+        /// </summary>
+        private void EnsureInputStack()
+        {
+            if (_commandExecutor == null)
+            {
+                _commandExecutor = new PlayerCommandExecutor(new PlayerCommandContext(this));
+            }
+            if (_inputSampler == null)
+            {
+                _inputSampler = new LocalPlayerInputSampler();
+            }
+        }
 
         /// <summary>The local player's recent command window (redundant last-N). Read-only to callers.</summary>
-        public PFE.Core.Input.PlayerCommandBuffer CommandBuffer => _commandTape.Buffer;
-
-        [ClientPredicted(Note = "Double-tap dash detection; local input-sampling state, predicted (F-03)")]
-        private float _lastLeftTapTime = float.NegativeInfinity;
-        [ClientPredicted(Note = "Double-tap dash detection; local input-sampling state, predicted (F-03)")]
-        private float _lastRightTapTime = float.NegativeInfinity;
-        [ClientPredicted(Note = "Double-tap drop-through detection; local input-sampling state, predicted (F-03)")]
-        private float _lastDownTapTime = float.NegativeInfinity;
-        [ClientPredicted(Note = "Dash edge tracking; local input-sampling state, predicted (F-03)")]
-        private bool _wasLeftHeld;
-        [ClientPredicted(Note = "Dash edge tracking; local input-sampling state, predicted (F-03)")]
-        private bool _wasRightHeld;
-        [ClientPredicted(Note = "Drop-through edge tracking; local input-sampling state, predicted (F-03)")]
-        private bool _wasDownHeld;
+        public PFE.Core.Input.PlayerCommandBuffer CommandBuffer => _inputSampler.CommandBuffer;
 
         public PlayerTelekinesisController Telekinesis => _telekinesis;
         [LocalOnly(Note = "Wiring reference; RPG stats component, never replicated")]
@@ -496,224 +490,33 @@ namespace PFE.Entities.Player
             // built in Awake. Whichever runs second wins; Construct is idempotent.
             WireRadiationTickerIfReady();
 
-            // ── Construct really is called twice, and this guard is why that is harmless ─────────────
-            //
-            // The player GameObject is injected by two independent paths: `RegisterComponent` in
-            // GameLifetimeScope, and the scene scope's `autoInjectGameObjects`, which lists the very
-            // same player prefab instance (SampleScene, fileID 1971043193 — a stripped GameObject whose
-            // source is the Player prefab). VContainer runs the [Inject] method once per injection, so
-            // Construct runs twice and every Subscribe below used to be registered twice: one
-            // TeleportMessage arrived as two.
-            //
-            // Worse, `_disposables` was reassigned without disposing, so the first subscription set was
-            // orphaned and could never be disposed. That is exactly how it presented: one physical Q
-            // press delivered two press edges, the first grabbed a crate and the second dropped it again
-            // in the same frame, so a hold never survived a single frame. Every attack and interact
-            // message was silently doubled too.
-            //
-            // Disposing the previous set makes the duplicate harmless whatever its source; the warning
-            // keeps the underlying scene misconfiguration visible instead of hiding it behind the guard.
-            if (_disposables != null)
-            {
-                Debug.LogWarning(
-                    "[PlayerController] Construct() called more than once — this component is injected " +
-                    "twice (RegisterComponent AND autoInjectGameObjects both name the player GameObject). " +
-                    "Re-subscribing; the previous MessagePipe subscriptions are disposed.");
-                _disposables.Dispose();
-            }
-
             if (_debugSettings.LogDependencyInjectionConstruct)
                 Debug.Log("[PlayerController] Construct() called — dependencies injected.");
 
-            // Subscribe to MessagePipe events
-            _disposables = new CompositeDisposable();
-
-            attackSubscriber.Subscribe(message =>
-            {
-                if (_debugSettings.LogWeaponLifecycle)
-                    Debug.Log($"[PlayerController] AttackMessage received — IsStarted={message.IsStarted}.");
-                if (message.IsStarted)
-                    HandleAttackStart();
-                else
-                    HandleAttackEnd();
-            }).AddTo(_disposables);
-
-            // R — the reload key. AS3's `keyReload` (inter/Ctr.as:24) drives two things from one
-            // press: the magazine reload, and — for a radio throwable — `currentWeapon.detonator()`
-            // (UnitPlayer.as:2358). Both live behind `IWeaponController.StartReload()`, which the
-            // controller decides between using its own definition (`WeaponDefinition.radio`), so
-            // there is nothing to branch on here.
+            // ── Input → intent: the sampler owns every input subscription ────────────────────────────
             //
-            // The press edge only. See ReloadMessage for why a release edge has no consumer.
-            reloadSubscriber.Subscribe(message =>
-            {
-                if (!message.IsStarted) return;
-                if (_debugSettings.LogWeaponLifecycle)
-                    Debug.Log("[PlayerController] ReloadMessage received — forwarding to the loadout.");
-                _loadout?.StartReload();
-            }).AddTo(_disposables);
-
-            // G — AS3 `keyGrenad` (UnitPlayer.as:2188-2204). Fires the player's `throwWeapon`, a slot
-            // independent of the weapon in hand, which is why this is not routed through Attack.
-            //
-            // Press edge only, even though the message carries both edges. AS3 reads the held boolean
-            // every frame, but the handler itself clears it after a successful throw
-            // (`if(this.throwWeapon.tip == 4) { this.ctr.keyGrenad = false; }`, :2196-2199), so one press
-            // is one throw. `t_attack`/`t_auto` on the controller then pace anything that slips through.
-            grenadeSubscriber.Subscribe(message =>
-            {
-                if (!message.IsHeld) return;
-
-                // AS3 `:2186` — the grenade arm is gated on `this.attackForever <= 0`, so the `vote`
-                // effect locks throwing out entirely while it runs. The gate is here rather than in the
-                // loadout because it is a *player control* rule, not a weapon rule: the same
-                // `ThrowGrenade()` is what a script or a test calls.
-                if (_characterStats != null && _characterStats.attackForever > 0)
-                {
-                    if (_debugSettings.LogWeaponLifecycle)
-                    {
-                        Debug.Log("[PlayerController] GrenadeMessage — refused: attackForever > 0 " +
-                                  "(AS3 UnitPlayer.as:2186).");
-                    }
-                    return;
-                }
-
-                // AS3 `:2188-2191` — `if(sats.que.length > 0) sats.clearAll();` sits *inside* the gated
-                // block and *before* the throw, so a refused throw (the gate above) leaves the plan
-                // standing while an accepted one drops it. Placing this above the gate instead would
-                // cancel a plan during a `vote`, when the player did nothing they could have wanted.
-                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.Grenade);
-
-                bool threw = _loadout != null && _loadout.ThrowGrenade();
-                if (_debugSettings.LogWeaponLifecycle)
-                {
-                    Debug.Log(threw
-                        ? $"[PlayerController] GrenadeMessage — throwing '{_loadout.ThrowWeapon?.State.Def.weaponId}'."
-                        : "[PlayerController] GrenadeMessage — no throwable in the grenade slot " +
-                          "(AS3's `else { keyGrenad = false; }` arm).");
-                }
-            }).AddTo(_disposables);
-
-            // F — AS3 `keyPunch` (inter/Ctr.as:23), handled at UnitPlayer.as:2377-2385.
-            //
-            // A second weapon slot, not a mode of the one in hand: AS3 builds `punchWeapon` beside
-            // `currentWeapon` and runs its `actions()` every frame, so hoofing something with a rifle
-            // equipped is normal. The run key is read HERE, at the press, because that is where the
-            // oracle reads it (`(punchWeapon as WKick).kick = this.ctr.keyRun`, :2379).
-            punchSubscriber.Subscribe(message =>
-            {
-                if (!message.IsHeld) return;
-
-                // AS3 `:2377` gates the whole block on `attackForever <= 0` — the `vote` effect locks
-                // striking out, the same gate the grenade arm above honours (:2186).
-                if (_characterStats != null && _characterStats.attackForever > 0)
-                {
-                    if (_debugSettings.LogWeaponLifecycle)
-                        Debug.Log("[PlayerController] PunchMessage — refused: attackForever > 0 (UnitPlayer.as:2377).");
-                    return;
-                }
-
-                // Shift is AS3's `keyRun`. The port binds it as `Dash` (PfeInputSettings.dash) and the
-                // locomotion block already reads it as `runHeld`, so this is the same signal, not a
-                // second opinion about it.
-                bool kicked = _input != null && _input.IsDashing.Value;
-
-                bool struck = _loadout != null && _loadout.Punch(kicked);
-
-                if (_debugSettings.LogWeaponLifecycle)
-                {
-                    Debug.Log(struck
-                        ? $"[PlayerController] PunchMessage — {(kicked ? "back kick" : "front strike")} (runHeld={kicked})."
-                        : "[PlayerController] PunchMessage — no punch weapon built; nothing struck.");
-                }
-            }).AddTo(_disposables);
-
-            teleportSubscriber.Subscribe(message =>
-            {
-                // Q does two things at once in AS3 and they are NOT mutually exclusive. While the key
-                // is held, actTele() runs ONCE on the press edge (latched by `teleReady`) and the
-                // teleport charge `t_port` increments on EVERY frame; on release, actPort() fires if
-                // the charge reached portTime (UnitPlayer.as:2141-2176). So a successful grab does not
-                // cancel the charge — both run side by side, and AS3 will happily teleport while still
-                // holding the prop.
-                //
-                // The port used to suppress the charge whenever telekinesis consumed the press
-                // (`if (handledByTelekinesis) SetTeleportHeld(false)`), so the moment a grab started
-                // working, Q stopped being able to teleport at all. The return value still reports
-                // whether telekinesis handled the edge; it is just not a decision about the teleport.
-                TelekinesisTrace.Log(
-                    $"PlayerController got TeleportMessage IsStarted={message.IsStarted}  " +
-                    $"telekinesis={(_telekinesis != null ? "present" : "NULL")}  " +
-                    $"locomotion={(_locomotion != null ? "present" : "NULL")}");
-
-                // Delivery count, so "the input published two edges" and "the broker delivered two"
-                // are distinguishable from each other in the flight log.
-                TelekinesisRecorder.Write($"[DELIVER] TeleportMessage IsStarted={message.IsStarted}");
-
-                // AS3 `:2143-2147` — `clearAll` sits inside `if(!teleReady)`, i.e. on the press edge
-                // only, not on every held frame. `teleReady` is the latch that makes one hold one
-                // teleport; the port's message carries the same two edges, so `IsStarted` is the
-                // equivalent observation.
-                if (message.IsStarted)
-                {
-                    InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.Teleport);
-                }
-
-                if (_telekinesis != null)
-                {
-                    _telekinesis.OnTeleportKeyPressed(message.IsStarted);
-                }
-
-                if (_locomotion != null)
-                {
-                    _locomotion.SetTeleportHeld(message.IsStarted);
-                }
-            }).AddTo(_disposables);
-
-            interactSubscriber.Subscribe(message =>
-            {
-                if (message.IsPressed)
-                {
-                    HandleInteract();
-                }
-                else
-                {
-                    EndInteract();
-                }
-            }).AddTo(_disposables);
-
-            // ── The remaining §3.11 cancel triggers that arrive as messages ──────────────────────────
-            //
-            // Each of these is `if(sats.que.length > 0) sats.clearAll();` at the top of an otherwise
-            // unrelated handler in UnitPlayer.as. They are subscribed here rather than folded into the
-            // spell caster because the caster is a *component* that can be absent from a hand-built
-            // rig, and a cancel trigger that disappears with an optional component is worse than one
-            // that is slightly out of place.
-            //
-            // Note the cast subscriber is shared with `_spellCaster.BindInput`: MessagePipe delivers to
-            // every handler on a subscriber, so both the cast and this cancel see the same message.
-
-            // T — AS3 `keyMagic` (:2208-2211). The magic weapon is a separate slot, so this is not the
-            // attack key and does not clear on a plain shot.
-            magicWeaponSubscriber.Subscribe(message =>
-            {
-                if (!message.IsHeld) return;
-                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.MagicWeapon);
-            }).AddTo(_disposables);
-
-            // C — the defend spell (:2228-2231).
-            spellCastSubscriber.Subscribe(message =>
-            {
-                if (!message.IsHeld) return;
-                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.DefendSpell);
-            }).AddTo(_disposables);
-
-            // Any favourite-spell hotkey (:2259-2262).
-            spellHotkeySubscriber.Subscribe(message =>
-            {
-                if (!message.IsHeld) return;
-                InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.SpellHotkey);
-            }).AddTo(_disposables);
+            // The controller no longer subscribes to gameplay messages itself (thread F): the sampler
+            // is the sole subscriber, folds the per-frame stream into tick-stamped PlayerCommands, and
+            // forwards the discrete action edges to the executor straight away. The double-injection
+            // re-subscription guard (the player GameObject is injected by both RegisterComponent and
+            // the scene scope's autoInjectGameObjects) moved into LocalPlayerInputSampler.Construct
+            // with the subscriptions it protects.
+            EnsureInputStack();
+            _inputSampler.Construct(
+                input,
+                attackSubscriber,
+                teleportSubscriber,
+                interactSubscriber,
+                reloadSubscriber,
+                spellCastSubscriber,
+                spellHotkeySubscriber,
+                grenadeSubscriber,
+                punchSubscriber,
+                magicWeaponSubscriber,
+                debugSettings,
+                _commandExecutor,
+                _doubleTapWindowSeconds);
+            _commandExecutor.BindDebugSettings(debugSettings);
         }
 
         /// <summary>
@@ -895,9 +698,18 @@ namespace PFE.Entities.Player
             // The replication seam for the avatar extras (aim/weapon/animation). Test rigs without
             // an assembler simply report "state unknown" forever; that is the safe default, not a
             // crash, because capture stamps only what the provider returns.
-            SetAvatarViewSource(new AvatarViewSource(this, GetComponent<CharacterSpriteAssembler>()));
+            SetAvatarViewSource(new AvatarViewSource(this, GetComponent<CharacterQuadAssembler>()));
             _actionInteractor = GetComponent<PlayerActionInteractor>();
             _telekinesis = GetComponent<PlayerTelekinesisController>() ?? gameObject.AddComponent<PlayerTelekinesisController>();
+            // The executor's component half is bound here — every component it drives exists from this
+            // point of Awake on. Its context half (this) was supplied at construction.
+            EnsureInputStack();
+            _commandExecutor.BindComponents(
+                _locomotion,
+                _telekinesis,
+                _loadout,
+                _tilePhysics,
+                _actionInteractor);
             base._unitStats = new UnitStats();
             _characterStats = GetComponent<CharacterStats>() ?? gameObject.AddComponent<CharacterStats>();
             _characterStats.BindUnitStats(base._unitStats);
@@ -1107,8 +919,8 @@ namespace PFE.Entities.Player
                 _inventoryComponent.Inventory.OnItemRemoved -= OnItemRemovedRecalc;
             }
 
-            // Clean up MessagePipe subscriptions
-            _disposables?.Dispose();
+            // Clean up MessagePipe subscriptions (owned by the sampler since thread F)
+            _inputSampler.Dispose();
 
             // The base drops this unit's SimLoop registration. This override used to be `private`,
             // which HIDES a base `OnDestroy` rather than calling it — Unity's message dispatch finds
@@ -1150,7 +962,37 @@ namespace PFE.Entities.Player
         private void Update()
         {
             HandleAiming();
-            HandleMovementInput();
+            UpdateForcedAttack();
+
+            // The per-frame intent: the sampler reads the input devices, folds what they produced into
+            // one command for this frame's tick, and pushes it onto the replay tape. The controller
+            // never reads the tape back — the same fresh frame goes straight to the executor, which is
+            // the wiring fact PlayerCommandConsumptionLintTests pins (the 2026-11-06 lost-jump defect
+            // was a read-back between these two lines).
+            LocalPlayerInputSampler.SampledFrame frame = _inputSampler.SampleFrame(
+                controlActive: ControlActive,
+                isWorldPaused: IsWorldPaused,
+                zaput: _characterStats != null && _characterStats.zaput != 0,
+                aimAngle: _aimAngle,
+                weaponKey: CurrentWeaponKey(),
+                motorDriven: _locomotion != null,
+                commandTick: SimLoop != null ? SimLoop.TickIndex + 1 : 0,
+                // The player's own slot from the F-09 context. Single-player has one local slot
+                // (index 0); a multiplayer context would resolve this client's slot differently.
+                // The seam is that the context is consulted, not that the answer changes today.
+                commandSlot: 0,
+                // The teleport level is read back off the locomotion so the command carries the
+                // POST-telekinesis-steal key state, and the last cursor the camera forwarded.
+                teleportHeld: _locomotion != null && _locomotion.IsTeleportHeld,
+                teleportCursorPixels: _locomotion != null ? _locomotion.CursorWorldPixels : Vector2.zero);
+
+            _commandExecutor.Execute(in frame, frame.HasCommand ? ResolveCursorWorldPixels() : null);
+
+            if (frame.ArmTakeWindow)
+            {
+                _autoPickup?.ArmTakeWindow();
+            }
+
             PollSatsLocationExit();
 
             // Refreshed every frame, before anything reads it: this is the port of AS3's
@@ -1164,245 +1006,62 @@ namespace PFE.Entities.Player
             // the Oracle's own per-frame object scan costs; it is not a scene walk.
             CurrentInteractTarget = ControlActive ? FindCursorTarget() : null;
 
-            // Direct interact check (E key or Right-Click). Both edges are read, because acting is a
-            // hold: AS3 keeps keyAction as a held boolean (set at Ctr.as:699, cleared at :797) and
-            // UnitPlayer.as:2115-2135 acts on the false edge by abandoning the action. The MessagePipe
-            // subscription above carries the same two edges; both paths are guarded per frame below,
-            // so the redundancy cannot double-fire.
-            bool ePressed = Input.GetKeyDown(KeyCode.E) ||
-                (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame);
-            bool rightClick = Input.GetMouseButtonDown(1) ||
-                (UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.rightButton.wasPressedThisFrame);
-
-            // Gated on the cutscene lock: `control off` must also stop the player opening a door or
-            // grabbing a terminal while a script is talking. `EndInteract` below is deliberately NOT
-            // gated — if the lock lands while the key is held, the release still has to be delivered or
-            // the interactor stays stuck in its "acting" state for the rest of the session.
-            if (ControlActive && (ePressed || rightClick))
-            {
-                HandleInteract();
-            }
-
-            bool eReleased = Input.GetKeyUp(KeyCode.E) ||
-                (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasReleasedThisFrame);
-            bool rightReleased = Input.GetMouseButtonUp(1) ||
-                (UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.rightButton.wasReleasedThisFrame);
-
-            if (eReleased || rightReleased)
-            {
-                EndInteract();
-            }
+            // Direct interact check (E key or Right-Click), the poll that backs the Interact message
+            // stream. Both edges are read, because acting is a hold: AS3 keeps keyAction as a held
+            // boolean (set at Ctr.as:699, cleared at :797) and UnitPlayer.as:2115-2135 acts on the
+            // false edge by abandoning the action. The press is gated on the cutscene lock — `control
+            // off` must also stop the player opening a door mid-script — while the release is
+            // deliberately NOT gated, so a lock that lands mid-hold still delivers the abandon and
+            // the interactor cannot stay stuck in its "acting" state. The executor dedups the two
+            // streams by frame, so the redundancy cannot double-fire.
+            _inputSampler.PollLegacyInteractEdges(ControlActive);
         }
 
         /// <summary>
-        /// Handle WASD movement input.
-        /// Replaces: control() function from UnitPlayer.as
+        /// The cursor in world pixels for this frame, or null when no camera has been resolved yet.
+        /// ONLY a real cursor is ever handed over: `SetCursorWorldPixels` disables the telekinesis
+        /// controller's own camera fallback, so forwarding a zero placeholder would pin the cursor to
+        /// the room origin and make every grab miss — while looking exactly like a range problem.
         /// </summary>
-        private void HandleMovementInput()
+        private Vector2? ResolveCursorWorldPixels()
         {
-            if (_input == null)
+            if (_mainCamera == null)
             {
-                return;
+                // `_mainCamera` is cached from Camera.main at Awake, so a camera created later leaves
+                // it null forever. Retry here; `Camera.main` is cheap and cached by Unity, unlike a
+                // scene scan.
+                _mainCamera = Camera.main;
+            }
+            if (_mainCamera == null)
+            {
+                return null;
             }
 
-            // AS3 `ggControl` gates the whole control block at `World.as:1379`. Substituting a zero
-            // vector rather than early-returning keeps the rest of this method running, which matters:
-            // the locomotion controller has to be told "no input" so it decelerates, whereas an early
-            // return would leave it holding the last direction for the whole cutscene.
-            //
-            // The interface pause gate joins `ControlActive` for the same reason and with the same
-            // mechanism: `World.as:1257` freezes the room while the PipBuck or S.A.T.S. is open, and a
-            // player who keeps walking through a frozen frame is the visible half of that bug. Zero
-            // rather than return, so the motor still decelerates instead of freezing mid-stride.
-            Vector2 input = (ControlActive && !IsWorldPaused) ? _input.CurrentMoveInput : Vector2.zero;
-
-            // AS3 `zaput` (UnitPlayer.as:93, read at :2085-2086) swaps the two movement keys at the
-            // moment they are read: `left = zaput ? keyRight : keyLeft`. Negating the horizontal axis
-            // is the same fact for an analogue stick, and it is deliberately applied HERE, to the raw
-            // intent, so everything downstream — locomotion, ladder, double-tap dash — sees one
-            // consistent direction.
-            //
-            // It does NOT touch the aim: `zaput` inverts movement, not the camera. The aim angle is
-            // mouse-derived and stays where the player points, which is what makes `disorient`
-            // disorienting rather than a full control inversion.
-            if (ControlActive && _characterStats != null && _characterStats.zaput != 0)
+            // `Input.mousePosition.z` is always 0, and `ScreenToWorldPoint` reads that z as the
+            // DISTANCE IN FRONT OF THE CAMERA. On a perspective camera a z of 0 is the near plane, so
+            // the "world point" comes back sitting on the camera — and the camera follows the player,
+            // so the cursor silently tracks the player instead of the mouse. Pass the distance to the
+            // plane the rooms live on: z = 0. For an orthographic camera this assignment is a no-op.
+            Vector3 mouseScreen = Input.mousePosition;
+            if (!_mainCamera.orthographic)
             {
-                input.x = -input.x;
+                mouseScreen.z = -_mainCamera.transform.position.z;
             }
 
-            UpdateForcedAttack();
+            Vector3 mouseWorld = _mainCamera.ScreenToWorldPoint(mouseScreen);
+            // Convert Unity world units to pixel space
+            return new Vector2(
+                mouseWorld.x * TileQueryConstants.UnitToPixel,
+                mouseWorld.y * TileQueryConstants.UnitToPixel);
+        }
 
-            // Arm the loot-take window — AS3's `this.isTake = 40`, set while a horizontal direction is
-            // HELD (UnitPlayer.as:2551, :2570) or on a jump press (:2685). It is assigned, not
-            // accumulated, so holding a direction pins it at 40 rather than growing it, which is what
-            // makes "walk over loot and it gets picked up" a property of walking rather than of pressing
-            // something. Armed here, on the frame boundary, because a tick must not read Input: the tick
-            // only ages the value this sets.
-            if (_autoPickup != null &&
-                (Mathf.Abs(input.x) > 0.1f || (_input.Jump != null && _input.Jump.WasPressedThisFrame())))
-            {
-                _autoPickup.ArmTakeWindow();
-            }
-
-            if (_locomotion != null)
-            {
-                // Every edge and level below is gated on the same lock as the move vector: a cutscene
-                // that let the player jump or dash would be worse than one that let them walk, because
-                // it also breaks the animation the script is playing.
-                bool jumpHeld = ControlActive && _input.IsJumpHeld;
-                bool runHeld = ControlActive && _input.IsDashing.Value;
-                bool jumpPressed = ControlActive && _input.Jump != null && _input.Jump.WasPressedThisFrame();
-                bool dashPressed = runHeld && DetectHorizontalDoubleTap(input.x);
-                bool dropThroughPressed = DetectDownDoubleTap(input.y);
-                // Provide mouse cursor world position for teleport targeting (AS3: World.w.celX/celY)
-                //
-                // Two things matter here and both were wrong.
-                //
-                // (1) `_mainCamera` is cached from Camera.main at Awake, so a camera that is created
-                //     later leaves it null forever. Retry it here; `Camera.main` is cheap and cached by
-                //     Unity, unlike a scene scan.
-                // (2) ONLY hand the cursor over when we actually have one. `SetCursorWorldPixels` sets
-                //     `_cursorSetExternally = true`, which *disables* the telekinesis controller's own
-                //     fallback (`UpdateCursorPositionIfNeeded`, which additionally tries
-                //     `FindFirstObjectByType<Camera>()`). Forwarding a `Vector2.zero` placeholder
-                //     therefore pins the cursor to the room origin and makes every grab miss -- while
-                //     looking exactly like a physics or mass problem.
-                //
-                // Skipping the forward is free for locomotion: it has no set-externally flag and its
-                // field already defaults to `Vector2.zero`.
-                if (_mainCamera == null)
-                {
-                    _mainCamera = Camera.main;
-                }
-
-                if (_mainCamera != null)
-                {
-                    // (3) `Input.mousePosition.z` is always 0, and `ScreenToWorldPoint` reads that z as
-                    //     the DISTANCE IN FRONT OF THE CAMERA. On a perspective camera a z of 0 is the
-                    //     near plane, so the "world point" comes back sitting on the camera -- and the
-                    //     camera follows the player, so the cursor silently tracks the player instead of
-                    //     the mouse. Every grab then misses, because the cursor never leaves the player's
-                    //     feet, and it looks exactly like a range or mass problem. The gameplay camera
-                    //     here IS perspective (see ColliderDebugOverlay.GetViewRect, UnitHealthOverlay
-                    //     .SelectVisible, both of which had to stop branching on `orthographic`), so the
-                    //     fix is to pass the distance to the plane the rooms live on: z = 0.
-                    //
-                    //     For an orthographic camera this assignment is a no-op -- the projection ignores
-                    //     z for x/y -- so the same two lines are correct for both. This mirrors the
-                    //     already-correct site in HandleCursorInteraction below (line ~479) and in
-                    //     PlayerTelekinesisController.UpdateCursorPositionIfNeeded.
-                    Vector3 mouseScreen = Input.mousePosition;
-                    if (!_mainCamera.orthographic)
-                    {
-                        mouseScreen.z = -_mainCamera.transform.position.z;
-                    }
-
-                    Vector3 mouseWorld = _mainCamera.ScreenToWorldPoint(mouseScreen);
-                    // Convert Unity world units to pixel space
-                    Vector2 cursorWorldPixels = new Vector2(
-                        mouseWorld.x * TileQueryConstants.UnitToPixel,
-                        mouseWorld.y * TileQueryConstants.UnitToPixel);
-                    _locomotion.SetCursorWorldPixels(cursorWorldPixels);
-                    _telekinesis?.SetCursorWorldPixels(cursorWorldPixels);
-                }
-
-                // Build the intent as a tick-stamped command. What this frame sampled has TWO
-                // separate consumers, and confusing them is the 2026-11-06 "Space no longer always
-                // jumps" defect:
-                //
-                // (1) LOCAL INTENT — locomotion consumes the command THIS frame built. Jump is a
-                //     WasPressedThisFrame() edge, a one-frame signal. The old code enqueued the
-                //     command and then read it back with an oldest-first tick lookup. At 60–144 fps
-                //     against a 30 Hz SimLoop several Update() frames share one commandTick, so the
-                //     lookup returned the FIRST frame's command: a press on the second frame of a
-                //     tick window was silently dropped, SetIntent never armed _jumpBufferTimer, and
-                //     TryConsumeJump bailed at its <= 0f guard. Never interpose the tape between
-                //     producing and consuming a local edge. Pinned by
-                //     PlayerCommandConsumptionLintTests (a MonoBehaviour cannot be run offline).
-                // (2) THE REPLAY TAPE — a host replaying tick N must see ONE command carrying every
-                //     edge produced during N. PlayerCommandTape folds the frames sharing a tick:
-                //     edges OR'd, levels and analogue intent from the newest frame, and that tick's
-                //     buffered entry replaced in place rather than duplicated. Behaviourally pinned
-                //     by PlayerCommandTapeTests.
-                //
-                // F-03 / Phase 2.3: TickIndex is the session tick the command applies to — the next
-                // tick the SimLoop steps (TickIndex is the last COMPLETED tick). With no SimLoop
-                // attached (the legacy FixedUpdate path) it stays 0: there is no tick clock, so the
-                // tape degenerates to one rolling entry and nothing replays it. Local intent is
-                // unaffected, because it never reads the tape. The slot comes from the
-                // IPlayerSlotContext (F-09); single-player resolves to slot 0.
-                int commandTick = SimLoop != null ? SimLoop.TickIndex + 1 : 0;
-                // The player's own slot from the F-09 context. Single-player has one local slot
-                // (index 0); a multiplayer context would resolve this client's slot differently.
-                // The seam is that the context is consulted, not that the answer changes today.
-                byte commandSlot = (byte)0;
-
-                // A suppressed container interact (a joined client pressing E on a chest — the local
-                // open is replaced by the command edge) becomes this frame's InteractPressed. The
-                // latch is consumed HERE so the edge rides the same command everything else does and
-                // the per-tick tape fold keeps exactly-once delivery. A raised latch no build ever
-                // consumes is dropped, which is the same answer a lost press gets.
-                ulong interactRoomHash;
-                int interactObjectIndex;
-                bool interactPressed = SimInteractCommandLatch.TryConsume(
-                    out interactRoomHash, out interactObjectIndex);
-
-                var command = PFE.Core.Input.PlayerCommand.FromIntent(
-                    tickIndex: commandTick,
-                    slotIndex: commandSlot,
-                    sequence: _commandSequence++,
-                    moveInputX: input.x,
-                    moveInputY: input.y,
-                    jumpHeld: jumpHeld,
-                    runHeld: runHeld,
-                    jumpPressed: jumpPressed,
-                    dashPressed: dashPressed,
-                    dropThroughPressed: dropThroughPressed,
-                    aimAngle: _aimAngle,
-                    // Teleport is hold-to-charge, release-to-execute — a level plus the cursor the
-                    // charge will fire at. Read back off the locomotion so the command carries the
-                    // POST-telekinesis-steal key state (a grab that stole the key this frame already
-                    // called SetTeleportHeld(false)), and the last cursor the camera forwarded.
-                    teleportHeld: _locomotion.IsTeleportHeld,
-                    cursorWorldX: _locomotion.CursorWorldPixels.x,
-                    cursorWorldY: _locomotion.CursorWorldPixels.y,
-                    // What is in hand rides every command idempotently: the host cannot derive the
-                    // peer's equipped weapon (it lives in the peer's inventory), so the peer states
-                    // it and the host stamps it into the unit record the clients draw from.
-                    weaponIdHash: CurrentWeaponIdHash(),
-                    // The interact edge, when one fired this frame: zero hash means "no target",
-                    // which the host-side ingress refuses — an edge never defaults to chest 0.
-                    interactPressed: interactPressed,
-                    targetRoomHash: interactRoomHash,
-                    targetObjectIndex: interactObjectIndex,
-                    // The attack level rides the command like every other level: the host-side
-                    // weapon mount on the peer's simulated body fires while the flag is set. What
-                    // the peer holds is intent the host cannot derive — the local rig's trigger
-                    // state lives in the InputReader, not in any Sim record.
-                    fireHeld: _input != null && _input.IsAttackHeld);
-
-                // (2) first, so the tape always contains this frame's intent for the tick...
-                _commandTape.Push(command);
-                // (1) ...then hand the FRESH command straight to locomotion. No read-back.
-                _locomotion.SetIntent(command);
-                _isGrounded = _locomotion.CurrentSnapshot.IsGrounded;
-                _isRunning = _locomotion.CurrentSnapshot.IsRunning;
-                return;
-            }
-
-            if (_tilePhysics != null)
-            {
-                // Route input through tile physics controller
-                bool jump = Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.W);
-                bool down = Input.GetKey(KeyCode.S);
-                _tilePhysics.SetInput(input.x, jump, down);
-
-                // Sync grounded state from tile physics
-                _isGrounded = _tilePhysics.IsGrounded;
-                return;
-            }
-
-            // Fallback: original Rigidbody2D movement (if no TilePhysicsController)
+        /// <summary>
+        /// No-motor fallback: the original Rigidbody2D movement for a hand-built rig that has neither
+        /// a <see cref="PlayerLocomotionController"/> nor a <see cref="TilePhysicsController"/>. Kept
+        /// on the controller because it writes <c>UnitController</c>-internal state directly.
+        /// </summary>
+        private void ApplyFallbackMotor(Vector2 input)
+        {
             if (input == Vector2.zero)
             {
                 _isRunning = false;
@@ -1415,48 +1074,10 @@ namespace PFE.Entities.Player
             SetVelocityX(Mathf.MoveTowards(_velocity.x, targetVelocityX, acceleration));
         }
 
-        private bool DetectHorizontalDoubleTap(float horizontalInput)
-        {
-            const float threshold = 0.5f;
-            float currentTime = Time.unscaledTime;
-            bool dashTriggered = false;
-
-            bool leftHeld = horizontalInput <= -threshold;
-            bool rightHeld = horizontalInput >= threshold;
-
-            if (leftHeld && !_wasLeftHeld)
-            {
-                dashTriggered = currentTime - _lastLeftTapTime <= _doubleTapWindowSeconds;
-                _lastLeftTapTime = currentTime;
-            }
-
-            if (rightHeld && !_wasRightHeld)
-            {
-                dashTriggered = currentTime - _lastRightTapTime <= _doubleTapWindowSeconds;
-                _lastRightTapTime = currentTime;
-            }
-
-            _wasLeftHeld = leftHeld;
-            _wasRightHeld = rightHeld;
-            return dashTriggered;
-        }
-
-        private bool DetectDownDoubleTap(float verticalInput)
-        {
-            const float threshold = 0.5f;
-            float currentTime = Time.unscaledTime;
-            bool downHeld = verticalInput <= -threshold;
-            bool dropTriggered = false;
-
-            if (downHeld && !_wasDownHeld)
-            {
-                dropTriggered = currentTime - _lastDownTapTime <= _doubleTapWindowSeconds;
-                _lastDownTapTime = currentTime;
-            }
-
-            _wasDownHeld = downHeld;
-            return dropTriggered;
-        }
+        // HandleMovementInput, DetectHorizontalDoubleTap and DetectDownDoubleTap moved to
+        // LocalPlayerInputSampler (thread F): the input read, the gate/zaput shaping, the edge
+        // detection, the command build and the tape push are the sampler's "input → intent" half;
+        // the motor dispatch half lives in PlayerCommandExecutor.Execute, called from Update.
 
         /// <summary>
         /// Handle weapon aiming towards mouse cursor.
@@ -1507,7 +1128,7 @@ namespace PFE.Entities.Player
             _forcedAimValid = false;
 
             Vector3 mouseScreen = Input.mousePosition;
-            // Same near-plane trap as HandleMovementInput above: `Input.mousePosition.z` is 0, which on
+            // Same near-plane trap as the cursor forward in Update above: `Input.mousePosition.z` is 0, which on
             // a perspective camera means "on the camera", not "on the z = 0 plane the rooms live on".
             // Aim then collapses toward the player and the facing is wrong. Pass the plane distance.
             if (!_mainCamera.orthographic)
@@ -1535,9 +1156,9 @@ namespace PFE.Entities.Player
         }
 
         /// <summary>
-        /// The equipped weapon's content id in the wire's hash vocabulary, or 0 when unarmed. The
-        /// loadout is the authority on what is in hand; nothing equipped (or a loadout-less test rig)
-        /// hashes to 0, which both the host stamp and the client's weapon view read as "no weapon".
+        /// The equipped weapon as the wire's hash vocabulary, or 0 when unarmed. The loadout is the
+        /// authority on what is in hand; nothing equipped (or a loadout-less test rig) hashes to 0,
+        /// which both the host stamp and the client's weapon view read as "no weapon".
         /// </summary>
         private ulong CurrentWeaponIdHash()
         {
@@ -1545,6 +1166,22 @@ namespace PFE.Entities.Player
             return string.IsNullOrEmpty(weaponId)
                 ? 0UL
                 : PFE.Sim.State.SimSnapshotProjectionRules.LootItemKey(weaponId, isWeapon: true);
+        }
+
+        /// <summary>
+        /// The equipped weapon as the interned key the command uplink carries (protocol v10), or
+        /// <c>Uninterned</c> when unarmed or not in this build's weapon table. The host converts the
+        /// key back to the content hash at the body boundary; the local capture path keeps sending
+        /// the hash itself (<see cref="CurrentWeaponIdHash"/>), so a key the table cannot resolve
+        /// degrades to "unarmed" only on the uplink, never on the local avatar.
+        /// </summary>
+        private ushort CurrentWeaponKey()
+        {
+            string weaponId = _loadout != null ? _loadout.Current?.State.Def?.weaponId : null;
+            return string.IsNullOrEmpty(weaponId)
+                ? PFE.Sim.Content.ContentInternTable.Uninterned
+                : PFE.Sim.Content.SimWeaponKeyRules.ResolveWeaponKey(
+                    ContentInternContext.Weapons, weaponId);
         }
 
         /// <summary>
@@ -1560,9 +1197,9 @@ namespace PFE.Entities.Player
             [LocalOnly(Note = "Wiring back-reference; the view source reads the owner's live state, it carries none of its own")]
             private readonly PlayerController _owner;
             [LocalOnly(Note = "View-layer assembler reference, fixed at construction; the animation driver owns the state it reads")]
-            private readonly CharacterSpriteAssembler _assembler;
+            private readonly CharacterQuadAssembler _assembler;
 
-            public AvatarViewSource(PlayerController owner, CharacterSpriteAssembler assembler)
+            public AvatarViewSource(PlayerController owner, CharacterQuadAssembler assembler)
             {
                 _owner = owner;
                 _assembler = assembler;
@@ -1579,6 +1216,55 @@ namespace PFE.Entities.Player
 
             public ushort AnimFrame =>
                 _assembler != null ? (ushort)Mathf.Clamp(_assembler.CurrentFrame, 0, ushort.MaxValue) : (ushort)0;
+        }
+
+        /// <summary>
+        /// The <see cref="PlayerCommandExecutor.IPlayerContext"/> the local rig installs on its
+        /// executor — the rig-specific services the executor needs that are not components: the
+        /// authority gates (cutscene lock is consulted at the call sites in <c>Update</c>, but
+        /// <c>attackForever</c> and the S.A.T.S. state gate the discrete actions), S.A.T.S.
+        /// invalidation, interact targeting, and the motor-state mirrors that land on
+        /// <c>UnitController</c> fields. A host-side body for a remote peer implements the same
+        /// interface against Sim state; that is the seam that keeps one execution code path for
+        /// local and remote players (thread F).
+        /// </summary>
+        private sealed class PlayerCommandContext : PlayerCommandExecutor.IPlayerContext
+        {
+            [LocalOnly(Note = "Wiring back-reference; reads the owner's live state, carries none of its own")]
+            private readonly PlayerController _owner;
+
+            public PlayerCommandContext(PlayerController owner)
+            {
+                _owner = owner;
+            }
+
+            public GameObject Self => _owner.gameObject;
+
+            public float AttackForever =>
+                _owner._characterStats != null ? _owner._characterStats.attackForever : 0f;
+
+            public bool SatsHasQueuedShots => _owner._sats != null && _owner._sats.HasQueuedShots;
+
+            public bool SatsIsActive => _owner._sats != null && _owner._sats.IsActive;
+
+            public void InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason reason)
+                => _owner.InvalidateSats(reason);
+
+            public PFE.Systems.Interaction.IInteractable FindCursorTarget() => _owner.FindCursorTarget();
+
+            public bool BeginOrPerformInteract(PFE.Systems.Interaction.IInteractable target)
+                => _owner.BeginOrPerformInteract(target);
+
+            public void MirrorLocomotionState(bool isGrounded, bool isRunning)
+            {
+                _owner._isGrounded = isGrounded;
+                _owner._isRunning = isRunning;
+            }
+
+            public void MirrorLegacyGrounded(bool isGrounded) => _owner._isGrounded = isGrounded;
+
+            public void ApplyFallbackMotor(Vector2 processedMoveInput)
+                => _owner.ApplyFallbackMotor(processedMoveInput);
         }
 
         /// <summary>
@@ -1616,54 +1302,6 @@ namespace PFE.Entities.Player
                 pixelX / TileQueryConstants.UnitToPixel,
                 pixelY / TileQueryConstants.UnitToPixel,
                 0f);
-        }
-
-        /// <summary>Start attacking when attack button is pressed.</summary>
-        private void HandleAttackStart()
-        {
-            // AS3 `:2334-2340` — a manual attack while a plan is standing cancels the plan **and is
-            // itself swallowed** (`keyAttack = false`). So the click that ends a plan does not also
-            // spend a round; the player who meant to cancel gets the cancel, not a shot they did not
-            // aim. `_latchAttackEdge` in SatsController.Step2 covers the same trigger from the
-            // mode's side, but that runs on a tick — by which time this handler has already fired.
-            //
-            // `!IsActive` is load-bearing: while the mode is open an attack press *queues a cell*
-            // (Sats.as:181-201 consumes it first), so this must not treat a queued shot as a manual
-            // one and wipe the plan the player is still building.
-            if (_sats != null && _sats.HasQueuedShots && !_sats.IsActive)
-            {
-                _sats.Invalidate(PFE.Systems.Combat.Sats.SatsInvalidationReason.ManualFire);
-                return;
-            }
-
-            // Sats.step() consumes keyAttack while the mode is open (Sats.as:185-188): LMB queues a
-            // cell and is NOT a manual trigger pull. The bootstrapper reads the same InputAction and
-            // latches the cell, so this handler must not also latch `BeginAttack()` — otherwise an
-            // ordinary planning click leaves _attackHeld down, and accepting the plan inherits a
-            // held trigger that outlives the queue on an automatic weapon.
-            if (_sats != null && _sats.IsActive) return;
-
-            // If the mouse is aimed directly at an interactable within reach, interact instead of
-            // attacking. Cursor only — this must not fall back to the nearest target, or a click meant
-            // as a shot would be swallowed by whatever happens to be standing next to the player.
-            //
-            // Routed through the same hold/immediate decision as the interact key, so a Z door needs
-            // its hold here too rather than opening on the click. There is deliberately no matching
-            // release: a hold begun by a click simply runs to completion, or is abandoned by walking
-            // away (the range guard). Letting go of the attack button cancelling an E-initiated hold
-            // would be a surprising coupling.
-            if (BeginOrPerformInteract(FindCursorTarget()))
-            {
-                return;
-            }
-
-            _loadout?.BeginAttack();
-        }
-
-        /// <summary>Stop attacking when attack button is released.</summary>
-        private void HandleAttackEnd()
-        {
-            _loadout?.EndAttack();
         }
 
         /// <summary>
@@ -1706,7 +1344,7 @@ namespace PFE.Entities.Player
         /// instant <c>attackForever</c> clears it forces <c>autoAttack = 0</c>.</para>
         ///
         /// <para><b>Why the loadout is driven directly instead of through
-        /// <see cref="HandleAttackStart"/>.</b> That method first tries to interact with whatever is
+        /// <see cref="PlayerCommandExecutor.AttackEdge"/>.</b> That path first tries to interact with whatever is
         /// under the cursor. AS3's <c>autoAttack</c> substitutes for <c>keyAttack</c> at the <i>weapon</i>
         /// gate, which sits below the interact decision — a panicking player who happens to be pointing
         /// at a door should keep firing, not open it.</para>
@@ -2033,29 +1671,6 @@ namespace PFE.Entities.Player
         /// </summary>
         [Authoritative(Note = "AS3 celObj per-frame target; host-owned Sim truth (F-02)")]
         public IInteractable CurrentInteractTarget { get; private set; }
-
-        /// <summary>
-        /// Resolves what the player is trying to act on, <b>without acting</b>: the interactable
-        /// under the cursor, if one is within reach.
-        ///
-        /// <para><b>There is no nearest-target fallback, and adding one back is a bug.</b> AS3
-        /// requires the cursor to be on the object — <c>UnitPlayer.actAction</c> tests
-        /// <c>loc.celObj &amp;&amp; loc.celObj.onCursor &amp;&amp; loc.celDist &lt;= World.w.actionDist</c>
-        /// (<c>UnitPlayer.as:1931</c>) — and when nothing is under the cursor it does nothing at all.
-        /// The old <c>?? FindNearestTarget()</c> here made <c>E</c> work from anywhere near a door
-        /// regardless of where the player was pointing, which is not a behaviour AS3 has anywhere in
-        /// the interaction path.</para>
-        ///
-        /// <para>Split out of the old <c>HandleInteract</c> because the press has to <i>decide</i>
-        /// before it acts: a target that authors a hold must not be interacted with on the press —
-        /// AS3 arms <c>t_action</c> and returns (<c>UnitPlayer.as:1944-1988</c>), and the effect lands
-        /// only from the timer's completion branch (<c>:1081-1086</c>).</para>
-        /// </summary>
-        private IInteractable ResolveInteractTarget()
-        {
-            return FindCursorTarget();
-        }
-
         /// <summary>
         /// The interactable under the mouse cursor, if one is within reach. AS3:
         /// <c>loc.celObj &amp;&amp; loc.celObj.onCursor</c> (<c>UnitPlayer.as:1931</c>).
@@ -2107,43 +1722,10 @@ namespace PFE.Entities.Player
         private const float CursorHitRadius = 0.45f;
 
         /// <summary>
-        /// The action key went down.
-        /// </summary>
-        private void HandleInteract()
-        {
-            // Guarded per frame. Both the MessagePipe subscription and the direct poll in Update
-            // deliver the same press, and an instant action must not run twice for one key press —
-            // which for a door means open-then-close in a single frame.
-            if (Time.frameCount == _lastInteractPressFrame) return;
-            _lastInteractPressFrame = Time.frameCount;
-
-            // AS3 UnitPlayer.as:2125-2129: if holding an object, Action key throws it.
-            if (_telekinesis != null && _telekinesis.IsHoldingObject)
-            {
-                if (_telekinesis.TryThrow())
-                {
-                    return;
-                }
-            }
-
-            // AS3 `:2117-2124` — `clearAll` sits inside the `if(!this.teleObj)` arm, *after* the
-            // throw-what-you-hold branch above. So an Action press that throws a held prop leaves the
-            // plan alone, while one that actually acts on the world drops it. The port's `teleObj` is
-            // `_telekinesis.IsHoldingObject`, which is why this cannot move above that block.
-            InvalidateSats(PFE.Systems.Combat.Sats.SatsInvalidationReason.Interact);
-
-            // A hold in flight owns the action: AS3 will not start a second while actionObj is set —
-            // actAction() only re-checks the incumbent (:1924-1930).
-            if (_actionInteractor != null && _actionInteractor.IsHolding) return;
-
-            BeginOrPerformInteract(ResolveInteractTarget());
-        }
-
-        /// <summary>
         /// Acts on <paramref name="target"/>: starts a hold if it authors a duration, otherwise
         /// interacts at once — AS3's zero-time branch (<c>UnitPlayer.as:1985-1988</c>).
         ///
-        /// <para>Shared by the interact key and by <see cref="HandleAttackStart"/>'s
+        /// <para>Shared by the interact key and by <see cref="PlayerCommandExecutor"/>'s
         /// "clicking an interactable interacts instead of attacking" path, so both obey the same rule.
         /// Splitting them is how a held Z door would open instantly on a left-click while needing a
         /// third of a second on E.</para>
@@ -2167,18 +1749,6 @@ namespace PFE.Entities.Player
 
             target.Interact(gameObject);
             return true;
-        }
-
-        /// <summary>
-        /// The action key came up: abandon any hold in flight. Nothing fires.
-        ///
-        /// <para>This is AS3's release path — a false <c>keyAction</c> nulls <c>actionObj</c> at
-        /// <c>UnitPlayer.as:2131-2135</c> — and it is why letting go of E half-way through a Z door
-        /// does nothing at all rather than finishing.</para>
-        /// </summary>
-        private void EndInteract()
-        {
-            _actionInteractor?.ReleaseHold();
         }
 
         // Public getters

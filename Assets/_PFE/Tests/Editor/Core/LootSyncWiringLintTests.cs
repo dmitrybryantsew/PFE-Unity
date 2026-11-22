@@ -22,7 +22,7 @@ namespace PFE.Tests.Editor.Core
         private const string PresenterPath = "Systems/Map/Rendering/ContainerPropPresenter.cs";
         private const string PickupPath = "Systems/Inventory/WorldItemPickup.cs";
         private const string AutoPickupPath = "Entities/Player/PlayerAutoPickup.cs";
-        private const string ControllerPath = "Entities/Player/PlayerController.cs";
+        private const string SamplerPath = "Entities/Player/LocalPlayerInputSampler.cs";
         private const string ScopePath = "Core/Installers/GameLifetimeScope.cs";
 
         private const string SessionFile = "PfeReplicationSession.cs";
@@ -173,9 +173,11 @@ namespace PFE.Tests.Editor.Core
         // ── Controller ────────────────────────────────────────────────────────
 
         [Test]
-        public void Controller_TheCommandCarriesTheSuppressedEdge()
+        public void Sampler_TheCommandCarriesTheSuppressedEdge()
         {
-            string source = Read(ControllerPath);
+            // Thread F moved the per-frame command build into LocalPlayerInputSampler.SampleFrame;
+            // the latch consume and the named-target fields moved with it, so the lint follows.
+            string source = Read(SamplerPath);
             AssertContains(source, "SimInteractCommandLatch.TryConsume(",
                 "The latch has exactly one consumer: the per-frame command build.");
             AssertContains(source, "interactPressed: interactPressed,",

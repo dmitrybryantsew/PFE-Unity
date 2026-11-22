@@ -37,7 +37,14 @@ namespace PFE.Tests.Editor.Core
             bool jumpPressed = false,
             bool dashPressed = false,
             bool dropThroughPressed = false,
-            float aimAngle = 0f)
+            float aimAngle = 0f,
+            bool teleportHeld = false,
+            bool fireHeld = false,
+            bool interactPressed = false,
+            ulong targetRoomHash = 0UL,
+            int targetObjectIndex = 0,
+            float cursorX = 0f,
+            float cursorY = 0f)
         {
             return PlayerCommand.FromIntent(
                 tickIndex: tick,
@@ -50,7 +57,14 @@ namespace PFE.Tests.Editor.Core
                 jumpPressed: jumpPressed,
                 dashPressed: dashPressed,
                 dropThroughPressed: dropThroughPressed,
-                aimAngle: aimAngle);
+                aimAngle: aimAngle,
+                teleportHeld: teleportHeld,
+                cursorWorldX: cursorX,
+                cursorWorldY: cursorY,
+                interactPressed: interactPressed,
+                targetRoomHash: targetRoomHash,
+                targetObjectIndex: targetObjectIndex,
+                fireHeld: fireHeld);
         }
 
         // ── Pure fold ─────────────────────────────────────────────────────────
@@ -89,6 +103,136 @@ namespace PFE.Tests.Editor.Core
             Assert.That(merged.JumpPressed, Is.True,
                 "the exact defect: a jump edge produced on a later frame of the same tick was lost");
             Assert.That(merged.JumpHeld, Is.True);
+        }
+
+        // ── The widened fold: teleport/fire levels and the interact edge ─────────
+        //
+        // The original EdgeButtons/LevelButtons masks omitted TeleportHeld, FireHeld and
+        // InteractPressed, so folding two frames of one tick silently cleared them: a peer holding
+        // the trigger across a 60 fps→30 Hz tick replayed to the host as not firing at all. Latent
+        // only because the tape is replay-only today — pinned before host replay ships.
+
+        [Test]
+        public void Fold_TeleportAndFireLevels_ComeFromTheNewestFrame()
+        {
+            PlayerCommand charging = Frame(Tick, 1u, teleportHeld: true, fireHeld: true,
+                cursorX: 1f, cursorY: 2f);
+            PlayerCommand released = Frame(Tick, 2u, cursorX: 9f, cursorY: 9f);
+
+            PlayerCommand merged = PlayerCommandTape.Fold(charging, released);
+
+            Assert.That(merged.TeleportHeld, Is.False,
+                "a release on the tick's last frame must read as released THIS tick — otherwise " +
+                "the teleport charge executes one tick late on the host");
+            Assert.That(merged.FireHeld, Is.False,
+                "a released trigger must not keep firing for the whole folded tick");
+            Assert.That(merged.CursorWorldX, Is.EqualTo(9f), "the cursor is newest-frame state");
+            Assert.That(merged.CursorWorldY, Is.EqualTo(9f));
+        }
+
+        [Test]
+        public void Fold_TeleportAndFireLevels_HeldOnTheLastFrame_Survive()
+        {
+            PlayerCommand quiet = Frame(Tick, 1u);
+            PlayerCommand firing = Frame(Tick, 2u, teleportHeld: true, fireHeld: true,
+                cursorX: 4f, cursorY: 5f);
+
+            PlayerCommand merged = PlayerCommandTape.Fold(quiet, firing);
+
+            Assert.That(merged.TeleportHeld, Is.True);
+            Assert.That(merged.FireHeld, Is.True);
+            Assert.That(merged.CursorWorldX, Is.EqualTo(4f));
+            Assert.That(merged.CursorWorldY, Is.EqualTo(5f));
+        }
+
+        [Test]
+        public void Fold_InteractEdge_SurvivesFromEitherFrame_AndFirstTargetWins()
+        {
+            const ulong roomA = 0xAAAA;
+            const ulong roomB = 0xBBBB;
+
+            // Edge on the first frame: the later quiet frame must not erase it, target included.
+            PlayerCommand first = PlayerCommandTape.Fold(
+                Frame(Tick, 1u, interactPressed: true, targetRoomHash: roomA, targetObjectIndex: 1),
+                Frame(Tick, 2u));
+            Assert.That(first.InteractPressed, Is.True);
+            Assert.That(first.TargetRoomHash, Is.EqualTo(roomA));
+            Assert.That(first.TargetObjectIndex, Is.EqualTo(1));
+
+            // Edge on the last frame: must survive exactly like the jump edge regression above.
+            PlayerCommand last = PlayerCommandTape.Fold(
+                Frame(Tick, 1u),
+                Frame(Tick, 2u, interactPressed: true, targetRoomHash: roomB, targetObjectIndex: 2));
+            Assert.That(last.InteractPressed, Is.True);
+            Assert.That(last.TargetRoomHash, Is.EqualTo(roomB));
+            Assert.That(last.TargetObjectIndex, Is.EqualTo(2));
+
+            // Two raises inside one tick: one folded command has one target pair, so the FIRST press
+            // names it — the local rig already acted on both presses this tick.
+            PlayerCommand both = PlayerCommandTape.Fold(
+                Frame(Tick, 1u, interactPressed: true, targetRoomHash: roomA, targetObjectIndex: 1),
+                Frame(Tick, 2u, interactPressed: true, targetRoomHash: roomB, targetObjectIndex: 2));
+            Assert.That(both.InteractPressed, Is.True);
+            Assert.That(both.TargetRoomHash, Is.EqualTo(roomA), "first raise wins the single target slot");
+            Assert.That(both.TargetObjectIndex, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Fold_MutationControl_TheOriginalMasks_LoseTheLevelsAndTheInteractEdge()
+        {
+            // Guard that the widened masks are load-bearing: replay the ORIGINAL fold (levels and
+            // edges limited to the 2026-11-06 sets) and prove it drops the bits the fix keeps.
+            static PlayerCommand OriginalFold(in PlayerCommand accumulated, in PlayerCommand frame)
+            {
+                const PlayerCommand.Button OriginalEdges =
+                    PlayerCommand.Button.JumpPressed |
+                    PlayerCommand.Button.DashPressed |
+                    PlayerCommand.Button.DropThroughPressed;
+                const PlayerCommand.Button OriginalLevels =
+                    PlayerCommand.Button.JumpHeld |
+                    PlayerCommand.Button.RunHeld;
+
+                PlayerCommand merged = accumulated;
+                merged.Buttons = (accumulated.Buttons & OriginalEdges)
+                                 | (frame.Buttons & OriginalEdges)
+                                 | (frame.Buttons & OriginalLevels);
+                merged.MoveX = frame.MoveX;
+                merged.MoveY = frame.MoveY;
+                merged.AimAngle = frame.AimAngle;
+                return merged;
+            }
+
+            PlayerCommand first = Frame(Tick, 1u, teleportHeld: true, fireHeld: true,
+                interactPressed: true, targetRoomHash: 7, targetObjectIndex: 3);
+            PlayerCommand second = Frame(Tick, 2u, teleportHeld: true, fireHeld: true);
+
+            PlayerCommand fixed_ = PlayerCommandTape.Fold(first, second);
+            Assert.That(fixed_.TeleportHeld, Is.True, "Precondition: the shipping fold keeps the level.");
+            Assert.That(fixed_.FireHeld, Is.True);
+            Assert.That(fixed_.InteractPressed, Is.True);
+
+            PlayerCommand original = OriginalFold(first, second);
+            Assert.That(original.TeleportHeld, Is.False,
+                "Mutation control failed: the original masks did NOT lose TeleportHeld — the " +
+                "regression this fixture pins is not modelled.");
+            Assert.That(original.FireHeld, Is.False);
+            Assert.That(original.InteractPressed, Is.False);
+        }
+
+        [Test]
+        public void Tape_Regression_FireHeldAcrossAMultiFrameTick_SurvivesOntoTheTickCommand()
+        {
+            // The exact latent defect at tape level: at 60 fps half the ticks fold two frames. The
+            // old masks cleared FireHeld/TeleportHeld on every fold, so a host replaying the tape
+            // would see the peer release the trigger on those ticks — stuttering fire at 15 Hz.
+            var tape = new PlayerCommandTape(Capacity);
+            tape.Push(Frame(Tick, 1u, fireHeld: true, teleportHeld: true, cursorX: 3f, cursorY: 4f));
+            tape.Push(Frame(Tick, 2u, fireHeld: true, teleportHeld: true, cursorX: 3f, cursorY: 4f));
+
+            Assert.That(tape.Buffer.TryGetForTick(Tick, out PlayerCommand consumed), Is.True);
+            Assert.That(consumed.FireHeld, Is.True, "a held trigger stays held across the fold");
+            Assert.That(consumed.TeleportHeld, Is.True, "a held charge stays held across the fold");
+            Assert.That(consumed.CursorWorldX, Is.EqualTo(3f));
         }
 
         [Test]

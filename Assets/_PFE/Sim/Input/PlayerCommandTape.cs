@@ -22,11 +22,14 @@ namespace PFE.Core.Input
     /// same jump the local player just made.</para>
     ///
     /// <para><b>Folding rule.</b> Edges (<c>JumpPressed</c>, <c>DashPressed</c>,
-    /// <c>DropThroughPressed</c>) are OR'd across the tick because they are one-frame signals: losing
-    /// one loses the action. Levels (<c>JumpHeld</c>, <c>RunHeld</c>) and the analogue intent
-    /// (move axes, aim angle) come from the <b>newest</b> frame, because they describe a state that is
-    /// still true at the end of the tick. <see cref="Sequence"/> stays the first frame's — the folded
-    /// entry is one wire message, named by when the tick's command was first published.</para>
+    /// <c>DropThroughPressed</c>, <c>InteractPressed</c>) are OR'd across the tick because they are
+    /// one-frame signals: losing one loses the action. Levels (<c>JumpHeld</c>, <c>RunHeld</c>,
+    /// <c>TeleportHeld</c>, <c>FireHeld</c>) and the analogue intent (move axes, aim angle, teleport
+    /// cursor) come from the <b>newest</b> frame, because they describe a state that is still true at
+    /// the end of the tick — a release on the last frame must read as released this tick. The
+    /// interact target rides the first frame to raise the edge: one folded command has exactly one
+    /// target pair. <see cref="Sequence"/> stays the first frame's — the folded entry is one wire
+    /// message, named by when the tick's command was first published.</para>
     ///
     /// <para><b>Pure C#, no Unity.</b> The whole policy is executable in the offline harness. That
     /// matters here: the original defect lived in a <c>MonoBehaviour</c>, which no offline fixture can
@@ -35,16 +38,29 @@ namespace PFE.Core.Input
     /// </summary>
     public sealed class PlayerCommandTape
     {
-        /// <summary>One-frame signals: an edge on ANY frame of the tick must survive the fold.</summary>
+        /// <summary>
+        /// One-frame signals: an edge on ANY frame of the tick must survive the fold. InteractPressed
+        /// joins the movement edges — a container press on any frame of the tick must still reach the
+        /// host, or exactly-once delivery dies with the fold.
+        /// </summary>
         public const PlayerCommand.Button EdgeButtons =
             PlayerCommand.Button.JumpPressed |
             PlayerCommand.Button.DashPressed |
-            PlayerCommand.Button.DropThroughPressed;
+            PlayerCommand.Button.DropThroughPressed |
+            PlayerCommand.Button.InteractPressed;
 
-        /// <summary>Held signals: the newest frame of the tick is authoritative.</summary>
+        /// <summary>
+        /// Held signals: the newest frame of the tick is authoritative. TeleportHeld and FireHeld are
+        /// levels the same way JumpHeld and RunHeld are — a release on the tick's last frame must be
+        /// visible to the host as a release THIS tick, not folded away into an ongoing hold (a
+        /// teleport charge that released mid-tick would otherwise execute one tick late, and a
+        /// released trigger would keep firing for the whole tick).
+        /// </summary>
         public const PlayerCommand.Button LevelButtons =
             PlayerCommand.Button.JumpHeld |
-            PlayerCommand.Button.RunHeld;
+            PlayerCommand.Button.RunHeld |
+            PlayerCommand.Button.TeleportHeld |
+            PlayerCommand.Button.FireHeld;
 
         private readonly PlayerCommandBuffer _buffer;
         private PlayerCommand _pending;
@@ -93,6 +109,15 @@ namespace PFE.Core.Input
         /// <summary>
         /// Pure fold of two frames of the same tick. Kept public and static so fixtures can exercise
         /// the exact rule without constructing a tape or a Unity object.
+        ///
+        /// <para><b>Payload merge.</b> The analogue intent (move axes, aim angle) and the teleport
+        /// cursor come from <paramref name="frame"/> — the newest sample wins, exactly like the
+        /// levels, so a charge aimed somewhere new on the tick's last frame fires where it was last
+        /// aimed. The interact target is edge payload, not state: it is taken from the FIRST frame
+        /// that raised the edge, because one folded command has one target pair and the first press
+        /// is the one AS3 acts on first. <see cref="PlayerCommand.WeaponKey"/> keeps the accumulated
+        /// (first) frame's value: the equip that matters is the one the host already stamped, and the
+        /// newest frame's key lands on the next tick's command anyway.</para>
         /// </summary>
         public static PlayerCommand Fold(in PlayerCommand accumulated, in PlayerCommand frame)
         {
@@ -103,8 +128,21 @@ namespace PFE.Core.Input
             merged.MoveX = frame.MoveX;
             merged.MoveY = frame.MoveY;
             merged.AimAngle = frame.AimAngle;
-            // TickIndex, SlotIndex and Sequence deliberately stay the accumulated (first) frame's:
-            // a folded tick is ONE wire message, not a second one.
+            merged.CursorWorldX = frame.CursorWorldX;
+            merged.CursorWorldY = frame.CursorWorldY;
+
+            // First frame to raise the interact edge names the target. A second raise inside the same
+            // tick cannot add a second target to one command — the local rig already acted on both
+            // presses, and the wire has room for exactly one.
+            if ((frame.Buttons & PlayerCommand.Button.InteractPressed) != 0
+                && (accumulated.Buttons & PlayerCommand.Button.InteractPressed) == 0)
+            {
+                merged.TargetRoomHash = frame.TargetRoomHash;
+                merged.TargetObjectIndex = frame.TargetObjectIndex;
+            }
+
+            // TickIndex, SlotIndex, Sequence and WeaponKey deliberately stay the accumulated (first)
+            // frame's: a folded tick is ONE wire message, not a second one.
             return merged;
         }
     }
