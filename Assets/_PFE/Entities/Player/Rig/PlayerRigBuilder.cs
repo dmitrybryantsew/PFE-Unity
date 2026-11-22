@@ -149,7 +149,7 @@ namespace PFE.Entities.Player.Rig
 
             // ── Components. Order is free here (nothing has Awoken yet); it is written in the
             //    prefab's own order so a future reader can diff the two lists by eye.
-            root.AddComponent<CharacterSpriteAssembler>();
+            root.AddComponent<CharacterQuadAssembler>();
             root.AddComponent<TilePhysicsController>();
             root.AddComponent<PlayerLocomotionController>();
             root.AddComponent<PlayerLocomotionAbilities>();
@@ -177,7 +177,7 @@ namespace PFE.Entities.Player.Rig
             //    Awake's Setup builds the slots on the right layer in the first place.
             if (!string.IsNullOrEmpty(ctx.SortingLayerName))
             {
-                root.GetComponent<CharacterSpriteAssembler>().SortingLayerName = ctx.SortingLayerName;
+                root.GetComponent<CharacterQuadAssembler>().SortingLayerName = ctx.SortingLayerName;
                 visualRenderer.sortingLayerName = ctx.SortingLayerName;
             }
 
@@ -217,7 +217,7 @@ namespace PFE.Entities.Player.Rig
             //    from GameBootData; re-running Setup is the public, supported way to override it.
             if (ctx.AnimationDefinition != null)
             {
-                root.GetComponent<CharacterSpriteAssembler>()
+                root.GetComponent<CharacterQuadAssembler>()
                     .Setup(ctx.AnimationDefinition, ctx.StyleData,
                            ctx.Appearance ?? CharacterAppearance.CreateDefault());
             }

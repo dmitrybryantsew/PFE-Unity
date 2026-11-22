@@ -80,12 +80,12 @@ namespace PFE.Systems.Weapons
         ///
         /// <para>A component reference rather than a Transform because the point is not a node: the
         /// part is invisible marker art with no GameObject, and its position changes with the
-        /// animation — see <see cref="PFE.Character.CharacterSpriteAssembler.TryGetPartWorldPosition"/>.
+        /// animation — see <see cref="PFE.Character.CharacterQuadAssembler.TryGetPartWorldPosition"/>.
         /// </para>
         /// </summary>
         [SerializeField]
         [Tooltip("Character rig to read the magic horn point from. Auto-found on this object or a child.")]
-        private PFE.Character.CharacterSpriteAssembler _characterAssembler;
+        private PFE.Character.CharacterQuadAssembler _characterAssembler;
 
         [Header("Aim")]
         [SerializeField]
@@ -915,7 +915,7 @@ namespace PFE.Systems.Weapons
             // The character rig, for the magic horn point. Optional: an enemy rig or a bare test
             // object has none, and then ResolveHornPoint takes AS3's `catch` branch.
             if (_characterAssembler == null)
-                _characterAssembler = GetComponentInChildren<PFE.Character.CharacterSpriteAssembler>();
+                _characterAssembler = GetComponentInChildren<PFE.Character.CharacterQuadAssembler>();
 
             if (_animationDriver == null)
                 _animationDriver = GetComponentInParent<PFE.Character.Animation.CharacterAnimationDriver>();

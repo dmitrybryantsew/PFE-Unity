@@ -26,7 +26,7 @@ namespace PFE.Character.Animation
         bool CanEnter(in PlayerMovementSnapshot snapshot);
 
         /// <summary>
-        /// Animation state name to pass to CharacterSpriteAssembler.
+        /// Animation state name to pass to CharacterQuadAssembler.
         /// Return null to keep the current state name unchanged.
         /// </summary>
         string GetStateName(in PlayerMovementSnapshot snapshot);

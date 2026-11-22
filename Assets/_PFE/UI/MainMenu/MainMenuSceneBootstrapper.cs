@@ -64,8 +64,8 @@ namespace PFE.UI.MainMenu
         Text _loadText;
         Text _modsText;
         Text _summaryText;
-        CharacterPreviewPresenter _newGamePreviewPresenter;
-        CharacterPreviewPresenter _customizationPreviewPresenter;
+        CharacterQuadPreviewPresenter _newGamePreviewPresenter;
+        CharacterQuadPreviewPresenter _customizationPreviewPresenter;
         CanvasGroup _newGameContentGroup;
         CanvasGroup _customizationContentGroup;
         Slider _redSlider;
@@ -565,7 +565,7 @@ namespace PFE.UI.MainMenu
             _summaryText.text = $"Player: {playerName}\nDifficulty: {NewGameSettings.GetDifficultyLabel(_settings.difficulty)}\n{flags}";
         }
 
-        CharacterPreviewPresenter BuildCharacterPreview(RectTransform parent, CharacterAppearance appearance, int previewLayer)
+        CharacterQuadPreviewPresenter BuildCharacterPreview(RectTransform parent, CharacterAppearance appearance, int previewLayer)
         {
             if (_characterDefinition == null || _characterStyle == null)
             {
@@ -574,7 +574,7 @@ namespace PFE.UI.MainMenu
             }
 
             RawImage raw = parent.gameObject.AddComponent<RawImage>();
-            CharacterPreviewPresenter presenter = parent.gameObject.AddComponent<CharacterPreviewPresenter>();
+            CharacterQuadPreviewPresenter presenter = parent.gameObject.AddComponent<CharacterQuadPreviewPresenter>();
             presenter.Initialize(raw, _characterDefinition, _characterStyle, appearance, CharacterVisualContext.Default, "stay", 0, previewLayer);
             return presenter;
         }

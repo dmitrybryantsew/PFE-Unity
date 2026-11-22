@@ -6,8 +6,7 @@ namespace PFE.Character
 {
     /// <summary>
     /// Renders a character into a <see cref="RawImage"/> through <see cref="CharacterQuadAssembler"/> —
-    /// the quad-renderer twin of <see cref="CharacterPreviewPresenter"/>, for menus, dialogs and any
-    /// other paper-doll surface that wants to show what the new pipeline looks like.
+    /// the quad-renderer paper doll for menus, dialogs and any other UI surface that shows a character.
     ///
     /// <para><b>Same contract, different renderer.</b> The public methods are the presenter's
     /// (<c>Initialize</c>, <c>SetAppearance</c>, <c>SetVisualContext</c>, <c>SetState</c>,

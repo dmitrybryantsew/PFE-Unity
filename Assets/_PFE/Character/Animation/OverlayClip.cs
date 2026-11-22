@@ -10,7 +10,7 @@ namespace PFE.Character.Animation
     /// host, because assigning a <c>SpriteRenderer</c> reaches a Unity <c>ECall</c> and the JIT refuses
     /// the method that mentions it. So the decision — <i>which</i> frame, and <i>whether</i> to draw at
     /// all — lives here, where a plain NUnit fixture can call it, and
-    /// <see cref="CharacterSpriteAssembler"/> is reduced to "call this, then assign the sprite".</para>
+    /// <see cref="CharacterQuadAssembler"/> is reduced to "call this, then assign the sprite".</para>
     ///
     /// <para><b>The oracle it mirrors.</b> <c>UnitPlayer.as:4916-4925</c>:</para>
     ///
@@ -63,7 +63,7 @@ namespace PFE.Character.Animation
 
         /// <summary>
         /// The next playhead position. Mirrors the state-clip rule in
-        /// <c>CharacterSpriteAssembler.AdvanceFrame</c>, so an overlay and a body clip cannot drift
+        /// <c>CharacterQuadAssembler.AdvanceFrame</c>, so an overlay and a body clip cannot drift
         /// apart on the same <see cref="AnimationLoopMode"/>.
         /// </summary>
         /// <param name="loopStartFrame">Sub-range start, used by <see cref="AnimationLoopMode.LoopRange"/>.</param>

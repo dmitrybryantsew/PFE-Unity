@@ -11,7 +11,7 @@ using UnityEngine;
 namespace PFE.Entities.Player
 {
     /// <summary>
-    /// Bootstraps the CharacterSpriteAssembler on the player GameObject at game-scene start.
+    /// Bootstraps the CharacterQuadAssembler on the player GameObject at game-scene start.
     ///
     /// Reads CharacterAppearance from GameBootData (set by the main-menu new-game flow)
     /// and calls assembler.Setup() so the player looks correct from frame 1.
@@ -29,10 +29,10 @@ namespace PFE.Entities.Player
     /// Setup (add to the player GameObject):
     ///   1. Assign _definition  → PlayerAnimationDefinition asset
     ///   2. Assign _styleData   → PlayerStyleData asset
-    ///   3. CharacterSpriteAssembler is found automatically via RequireComponent.
+    ///   3. CharacterQuadAssembler is found automatically via RequireComponent.
     /// </summary>
     [DefaultExecutionOrder(-150)]
-    [RequireComponent(typeof(CharacterSpriteAssembler))]
+    [RequireComponent(typeof(CharacterQuadAssembler))]
     [DisallowMultipleComponent]
     public sealed class PlayerCharacterVisual : MonoBehaviour
     {
@@ -44,7 +44,7 @@ namespace PFE.Entities.Player
         [Tooltip("Auto-resolved from this GameObject or a parent when left empty.")]
         [SerializeField] PlayerController _player;
 
-        CharacterSpriteAssembler _assembler;
+        CharacterQuadAssembler _assembler;
         CharacterVisualContext   _context = CharacterVisualContext.Default;
 
         UnitStats _stats;
@@ -79,7 +79,7 @@ namespace PFE.Entities.Player
 
         void Awake()
         {
-            _assembler = GetComponent<CharacterSpriteAssembler>();
+            _assembler = GetComponent<CharacterQuadAssembler>();
 
             if (_definition == null || _styleData == null)
             {
@@ -306,7 +306,7 @@ namespace PFE.Entities.Player
         /// <see cref="SpellShield.ShouldShow"/>/<see cref="SpellShield.ShouldHide"/> decide, so the
         /// rule stays in the tested class and this method stays a setter. Pushing the context is the
         /// whole of its job: <c>vis.shit</c> is an <b>overlay clip</b>, not a body part, and
-        /// <see cref="CharacterSpriteAssembler"/> owns that clip's playhead — it restarts on the rise
+        /// <see cref="CharacterQuadAssembler"/> owns that clip's playhead — it restarts on the rise
         /// edge and resets on the fall edge, which is exactly <c>gotoAndPlay(1)</c>/<c>gotoAndStop(1)</c>.
         /// So nothing here advances frames, and nothing here needs to.</para>
         /// </summary>

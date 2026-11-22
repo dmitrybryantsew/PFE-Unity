@@ -6,25 +6,22 @@ using UnityEngine;
 namespace PFE.Tests.EditMode.Character
 {
     /// <summary>
-    /// The quad renderer must carry the same <c>osn</c> scale the shipped sprite renderer does.
+    /// The quad renderer must carry the same <c>osn</c> scale the original SWF tree does.
     ///
-    /// <para><b>The fault this guards.</b> <see cref="CharacterSpriteAssembler"/> hangs its part slots
-    /// from a <c>body</c> node whose <c>localScale</c> is
-    /// <see cref="CharacterAnimationDefinition.BodyScale"/>, which for the player is <b>1.2999878</b>.
-    /// <see cref="CharacterQuadAssembler"/> baked the placement into four vertices and read
-    /// <c>BodyScale</c> <i>nowhere</i> — so the quad side drew the character at
-    /// <b>1/1.3 = 0.769</b> of the sprite side: every part too small, and every part too close to the
-    /// origin. That is what "the atlas side is smaller than the sprite one" was in the A/B, and it is
-    /// the quad path's version of the fault <see cref="PlayerBodyPlacementTests"/> already pinned for
-    /// the sprite path — a value that existed and nothing read.</para>
+    /// <para><b>The fault this guards.</b> The character's part quads hang from a <c>body</c> node
+    /// whose <c>localScale</c> is <see cref="CharacterAnimationDefinition.BodyScale"/>, which for
+    /// the player is <b>1.2999878</b>. An earlier quad path baked the placement into four vertices
+    /// and read <c>BodyScale</c> <i>nowhere</i> — so it drew the character at <b>1/1.3 = 0.769</b>
+    /// of the sprite path: every part too small, and every part too close to the origin. That is
+    /// the quad path's version of the fault <see cref="PlayerBodyPlacementTests"/> pinned at the
+    /// definition level — a value that existed and nothing read.</para>
     ///
-    /// <para><b>Why a parity fixture and not a scale assertion.</b> "The body root has scale 1.3" can
-    /// pass while the quads ignore it, because the scale could be set on a node the meshes are not
-    /// under. The two renderers are handed the same definition, the same placement and the same
-    /// sprite, and the fixture compares where each of them <i>actually puts the part</i> — a world
-    /// centre and a world size, both written down before the code runs. One of them is the oracle for
-    /// the other only because the sprite path is the one the game ships and the eye has already
-    /// accepted.</para>
+    /// <para><b>Why a geometry fixture and not a scale assertion.</b> "The body root has scale 1.3"
+    /// can pass while the quads ignore it, because the scale could be set on a node the meshes are
+    /// not under. So the fixture hands the renderer a known definition, a known placement and a
+    /// known sprite, and asserts where it <i>actually puts the part</i> — a world centre and a
+    /// world size written down from the fixture's own numbers (1 unit square at (0.5, 0.25),
+    /// scaled by 1.3), not read back from the renderer.</para>
     /// </summary>
     [TestFixture]
     public class CharacterQuadBodyScaleTests
@@ -131,54 +128,33 @@ namespace PFE.Tests.EditMode.Character
         }
 
         [Test]
-        public void TheQuadSidePutsAPartWhereTheSpriteSidePutsIt()
+        public void TheQuadSidePutsAPartWhereTheFixtureSaysItBelongs()
         {
-            // The invariant. Both renderers get the same definition, so a difference here is a
-            // difference in the renderer, which is the only thing this fixture is allowed to be about.
-            CharacterSpriteAssembler spriteAssembler = null;
-            CharacterQuadAssembler quadAssembler = null;
-            var spriteGo = new GameObject("sprite side");
-            try
-            {
-                spriteAssembler = spriteGo.AddComponent<CharacterSpriteAssembler>();
-                spriteAssembler.Setup(_definition, null, CharacterAppearance.CreateDefault());
+            // The invariant, against numbers written down from the fixture itself: a 1×1 unit quad
+            // at (0.5, 0.25), carried through a 1.3 body scale, lands at centre (0.65, 0.325) with
+            // size 1.3. A failure reads directly as "the body scale is not being applied".
+            CharacterQuadAssembler quadAssembler = QuadAssembler();
 
-                quadAssembler = QuadAssembler();
+            CharacterQuadAssembler.QuadSlot quadSlot = quadAssembler.GetQuadSlot("korpus");
+            Assert.IsNotNull(quadSlot, "the quad side drew no korpus");
+            Assert.IsTrue(quadSlot.visible, "the quad slot was not written into the mesh");
 
-                CharacterSpriteAssembler.PartSlot spriteSlot = spriteAssembler.GetSlot("korpus");
-                CharacterQuadAssembler.QuadSlot quadSlot = quadAssembler.GetQuadSlot("korpus");
-                Assert.IsNotNull(spriteSlot, "the sprite side drew no korpus");
-                Assert.IsNotNull(quadSlot, "the quad side drew no korpus");
+            GetQuadBounds(quadSlot, out Vector3 quadCentre, out Vector3 quadSize);
 
-                Bounds spriteBounds = spriteSlot.renderer.bounds;
-                GetQuadBounds(quadSlot, out Vector3 quadCentre, out Vector3 quadSize);
+            Assert.AreEqual(ExpectedCentre.x, quadCentre.x, 1e-3f,
+                $"the quad side put the part at x {quadCentre.x}, expected {ExpectedCentre.x}. At " +
+                $"bodyScale {BodyScale} a renderer that ignores BodyScale draws at " +
+                $"{1f / BodyScale:0.####} of the fixture size — which is what the quad path did " +
+                "before it grew a body root.");
+            Assert.AreEqual(ExpectedCentre.y, quadCentre.y, 1e-3f,
+                "the quad side's vertical placement disagrees with the fixture");
 
-                // Written down first: one unit square at (0.5, 0.25), scaled by the body.
-                Assert.AreEqual(ExpectedCentre.x, spriteBounds.center.x, 1e-3f,
-                    "the sprite side is not where the fixture says the part belongs — the oracle " +
-                    "moved, so the parity number below would be comparing two unknowns");
-                Assert.AreEqual(ExpectedCentre.y, spriteBounds.center.y, 1e-3f);
-                Assert.AreEqual(ExpectedSize.x, spriteBounds.size.x, 1e-3f);
-
-                Assert.AreEqual(spriteBounds.center.x, quadCentre.x, 1e-3f,
-                    $"the quad side put the part at x {quadCentre.x}, the sprite side at " +
-                    $"{spriteBounds.center.x}. At bodyScale {BodyScale} the quad path is drawing at " +
-                    $"{1f / BodyScale:0.####} of the sprite path if it ignores BodyScale — which is " +
-                    "what CharacterQuadAssembler did before it grew a body root.");
-                Assert.AreEqual(spriteBounds.center.y, quadCentre.y, 1e-3f,
-                    "the quad side's vertical placement disagrees with the sprite side");
-
-                Assert.AreEqual(spriteBounds.size.x, quadSize.x, 1e-3f,
-                    $"the quad side drew the part {quadSize.x} wide, the sprite side " +
-                    $"{spriteBounds.size.x}. A part's world size is rect / ppu times every scale " +
-                    "between it and the camera, and bodyScale is one of them.");
-                Assert.AreEqual(spriteBounds.size.y, quadSize.y, 1e-3f,
-                    "the quad side's height disagrees with the sprite side");
-            }
-            finally
-            {
-                Object.DestroyImmediate(spriteGo);
-            }
+            Assert.AreEqual(ExpectedSize.x, quadSize.x, 1e-3f,
+                $"the quad side drew the part {quadSize.x} wide, expected {ExpectedSize.x}. A part's " +
+                "world size is rect / ppu times every scale between it and the camera, and bodyScale " +
+                "is one of them.");
+            Assert.AreEqual(ExpectedSize.y, quadSize.y, 1e-3f,
+                "the quad side's height disagrees with the fixture");
         }
 
         [Test]
@@ -186,8 +162,9 @@ namespace PFE.Tests.EditMode.Character
         {
             // The node itself, so a failure reads as "nothing carries the scale" rather than as a
             // 30 % size difference to be reverse-engineered. The overlay half is the same rule the
-            // sprite path is held to: the shield dome is a sibling of osn in the SWF, so scaling the
-            // body must not scale it.
+            // original holds: the shield dome is a sibling of osn in the SWF, so scaling the body
+            // must not scale it — a dome 30 % too big is a bug nobody would trace back to the
+            // player's height.
             CharacterQuadAssembler assembler = QuadAssembler();
 
             Assert.IsNotNull(assembler.BodyRoot,
@@ -203,14 +180,26 @@ namespace PFE.Tests.EditMode.Character
             Assert.IsNotNull(slot, "the quad side drew no korpus");
             Assert.IsTrue(slot.visible, "the quad slot was not written into the shared mesh");
 
-            // With the consolidated mesh, all quads share a single mesh renderer under the body root.
-            // The assertion is about the renderer's parent, not a per-slot GameObject.
-            Assert.IsNotNull(assembler.BodyRoot, "a built quad rig has no body root");
+            // With the consolidated mesh, all part quads share a single mesh renderer under the
+            // body root. The assertion is about the renderer's parent, not a per-slot GameObject.
             Transform meshRoot = assembler.BodyRoot.Find("quad_mesh");
             Assert.IsNotNull(meshRoot, "the consolidated mesh root was not built under the body root");
             Assert.AreSame(assembler.BodyRoot, meshRoot.parent,
                 "the mesh root is not under the body root, so the shared mesh is not scaled " +
                 "by the body's placement and the whole character draws at 1/bodyScale");
+
+            // The overlays answer the same question from the other side: their mesh hangs off the
+            // assembler root, NOT the body root — in the SWF vis.shit(3625) and its siblings are
+            // children of visualPlayer, beside osn, at their own scales.
+            Transform overlayMeshRoot = _go.transform.Find("quad_overlay_mesh");
+            Assert.IsNotNull(overlayMeshRoot, "the overlay mesh root was not built");
+            Assert.AreSame(_go.transform, overlayMeshRoot.parent,
+                "the overlay mesh must be a sibling of the body root; parenting it under the body " +
+                "root would scale the shield dome with the character");
+            Assert.AreEqual(1f, overlayMeshRoot.localScale.x, 1e-4f,
+                "the overlay mesh picked up the body's scale");
+            Assert.AreEqual(1f, overlayMeshRoot.localScale.y, 1e-4f,
+                "the overlay mesh picked up the body's scale");
         }
 
         [Test]
@@ -218,7 +207,8 @@ namespace PFE.Tests.EditMode.Character
         {
             // The scale is re-read on every build, not cached on the node: an import that changes the
             // definition must not leave a stale transform behind on a survivor. Same rule and same
-            // reason as the sprite assembler's EnsureBodyRoot.
+            // reason as EnsureBodyRoot's: a value that exists but nothing reads is the fault this
+            // node was added to fix.
             CharacterQuadAssembler assembler = QuadAssembler();
             Assert.AreEqual(BodyScale, assembler.BodyRoot.localScale.x, 1e-4f);
 

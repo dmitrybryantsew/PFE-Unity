@@ -65,15 +65,19 @@ namespace PFE.Tests.EditMode.Systems.Particles
         //                         floor-row tile give 1..2, and rows above it go negative.
         //   debug markers         AreaTriggerPresenter / DoorPropPresenter / ObjectColliderDebugPresenter
         //                         at 998/999.
-        //   character slots       CharacterSpriteAssembler:609 — `slotIdx * 2`, i.e. 0..~40 for a
-        //                         two-dozen-part rig.
-        //   character overlays    CharacterSpriteAssembler:411 — `def.sortingOrder`, whose declared
-        //                         default is 1000 (CharacterAnimationDefinition.cs:182).
+        //   character body        CharacterQuadAssembler — one consolidated mesh per character at
+        //                         renderer order 0 (parts interleave by vertex order, not by
+        //                         sorting order).
+        //   character overlays    CharacterQuadAssembler — the overlay mesh at the definition's
+        //                         top overlay sortingOrder, whose declared default is 1000
+        //                         (CharacterAnimationDefinition.cs:182).
         //   fog / visibility mask RoomBackdropRenderer.VisibilityMaskSortingOrder = 5000.
         //   collider debug        ColliderDebugOverlay.OverlaySortingOrder = 32000.
         //
         // So the free slot on this layer is 2000..3379, and it is the only one that is simultaneously
-        // above every character and below the fog mask.
+        // above every character and below the fog mask. (A whole character now sorts as one renderer
+        // at order 0 instead of per-part 0..~40 — particles can no longer slip between a character's
+        // body parts, which is the accepted cost of the single-mesh cutover.)
         private const int FrontTileOrderMax = 2;
         private const int CharacterOrderMax = 1000;
         private const int FogMaskOrder = 5000;

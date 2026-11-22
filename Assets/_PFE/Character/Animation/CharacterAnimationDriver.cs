@@ -7,7 +7,7 @@ using UnityEngine;
 namespace PFE.Character.Animation
 {
     /// <summary>
-    /// FSM that maps PlayerMovementSnapshot → CharacterSpriteAssembler.SetState / AdvanceFrame.
+    /// FSM that maps PlayerMovementSnapshot → CharacterQuadAssembler.SetState / AdvanceFrame.
     ///
     /// Architecture — Option C (state classes):
     ///   • Locomotion states (priority 10–110) evaluate continuously from PlayerMovementSnapshot.
@@ -17,7 +17,7 @@ namespace PFE.Character.Animation
     ///     always interrupt lower ones (punch).
     ///
     /// Setup:
-    ///   1. Add CharacterSpriteAssembler to the player GameObject.
+    ///   1. Add CharacterQuadAssembler to the player GameObject.
     ///   2. Add PlayerCharacterVisual to the player GameObject and assign definition/styleData.
     ///   3. Add this component to the player GameObject.
     ///   4. Optionally assign an IAnimationEventSink implementor for sounds.
@@ -33,7 +33,7 @@ namespace PFE.Character.Animation
 
         [Header("References")]
         [Tooltip("Assign if the assembler is on a child object; otherwise auto-found on this GO.")]
-        [SerializeField] CharacterSpriteAssembler _assembler;
+        [SerializeField] CharacterQuadAssembler _assembler;
 
         [Tooltip("MonoBehaviour on this or another GO that implements IAnimationEventSink (sounds/VFX).")]
         [SerializeField] MonoBehaviour _eventSinkObject;
@@ -87,9 +87,9 @@ namespace PFE.Character.Animation
                 Debug.LogError("[CharacterAnimationDriver] No PlayerLocomotionController found.", this);
 
             if (_assembler == null)
-                _assembler = GetComponent<CharacterSpriteAssembler>();
+                _assembler = GetComponent<CharacterQuadAssembler>();
             if (_assembler == null)
-                Debug.LogError("[CharacterAnimationDriver] No CharacterSpriteAssembler found.", this);
+                Debug.LogError("[CharacterAnimationDriver] No CharacterQuadAssembler found.", this);
 
             if (_eventSinkObject != null)
                 _eventSink = _eventSinkObject as IAnimationEventSink;

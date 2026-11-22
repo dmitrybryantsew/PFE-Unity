@@ -74,7 +74,7 @@ namespace PFE.Data.Definitions
     /// offline host — assigning a <c>SpriteRenderer</c> reaches a Unity <c>ECall</c> and the JIT refuses
     /// the method that mentions it. So the <i>decision</i> lives here, where a plain NUnit fixture can
     /// call it, and <c>UnitShieldOverlay</c> is reduced to "ask this, then assign the sprite". That is
-    /// the same split <c>OverlayClip</c> and <c>CharacterSpriteAssembler</c> already use.</para>
+    /// the same split <c>OverlayClip</c> and <c>CharacterQuadAssembler</c> already use.</para>
     /// </summary>
     public static class UnitShieldOverlayRules
     {

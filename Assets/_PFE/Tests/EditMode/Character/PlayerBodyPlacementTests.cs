@@ -23,11 +23,11 @@ namespace PFE.Tests.EditMode.Character
     /// persona (<see cref="PFE.Data.Definitions.Campaign.NpcDefinition.visualScaleX"/>), which is why
     /// the NPCs applied their scale and the player did not.</para>
     ///
-    /// <para><b>What is pinned and what is not.</b> The scale, the fact that a built rig carries it on
-    /// a transform of its own, and the fact that the overlays are <i>not</i> under that transform —
-    /// because in the SWF they are siblings of <c>osn</c>, so scaling the body must not scale the
-    /// shield dome. The exact node names are not pinned beyond the overlay prefix the assembler
-    /// already used.</para>
+    /// <para><b>Where the rig-side half lives.</b> The transform-level contract — the body root carries
+    /// <c>bodyScale</c>, the overlay mesh stays a sibling of it — is pinned renderer-side in
+    /// <see cref="CharacterQuadBodyScaleTests"/>. This file pins the definition-level numbers and the
+    /// one behaviour the renderer fixture cannot see: the shield dome is actually <i>on screen</i>
+    /// when its gate is on.</para>
     /// </summary>
     [TestFixture]
     public class PlayerBodyPlacementTests
@@ -87,64 +87,21 @@ namespace PFE.Tests.EditMode.Character
             }
         }
 
-        [Test]
-        public void TheBodyRootCarriesTheScaleAndTheOverlaysStayBesideIt()
-        {
-            // Storing the scale is only half of it: the fault being fixed was a value nothing read.
-            // The other half is *where* it lands. In the SWF, vis.shit(3625) and friends are siblings
-            // of osn inside visualPlayer, so scaling the body must not scale the shield dome — a dome
-            // 30 % too big is a bug nobody would trace back to the player's height.
-            var go = new GameObject("player rig fixture");
-            var definition = ScriptableObject.CreateInstance<CharacterAnimationDefinition>();
-            try
-            {
-                definition.characterId = "fixture";
-                definition.bodyScale = new Vector2(1.3f, 1.3f);
-                definition.parts = System.Array.Empty<CharacterPartDefinition>();
-                definition.stateClips = System.Array.Empty<CharacterStateClip>();
-                definition.overlays = new[]
-                {
-                    new CharacterOverlayDefinition { overlayName = "shit", sortingOrder = 1000 },
-                };
-
-                var assembler = go.AddComponent<CharacterSpriteAssembler>();
-                assembler.Setup(definition, null, CharacterAppearance.CreateDefault());
-
-                Assert.IsNotNull(assembler.BodyRoot,
-                    "a built rig has no body root, so the part slots hang straight off the assembler " +
-                    "and nothing can carry the body's placement scale");
-                Assert.AreSame(go.transform, assembler.BodyRoot.parent,
-                    "the body root must be a child of the character, not the character itself");
-                Assert.AreEqual(1.3f, assembler.BodyRoot.localScale.x, 1e-4f,
-                    "the body root did not take the definition's bodyScale");
-                Assert.AreEqual(1.3f, assembler.BodyRoot.localScale.y, 1e-4f,
-                    "the body root did not take the definition's bodyScale");
-
-                Transform overlay = go.transform.Find("overlay_shit");
-                Assert.IsNotNull(overlay, "the shield overlay was not built");
-                Assert.AreSame(go.transform, overlay.parent,
-                    "the overlay is a sibling of the body in the SWF; parenting it under the body " +
-                    "root would scale the shield dome with the character");
-                Assert.AreEqual(1f, overlay.localScale.x, 1e-4f,
-                    "the overlay picked up the body's scale");
-            }
-            finally
-            {
-                Object.DestroyImmediate(go);
-                Object.DestroyImmediate(definition);
-            }
-        }
-
         /// <summary>
         /// The shield dome must be <b>on screen</b> when its gate is on — not merely configured.
+        /// The quad-path assertion is the overlay mesh renderer: with the consolidated meshes,
+        /// "an overlay gate is on" is exactly "the overlay mesh has visible quads", which is what
+        /// <see cref="CharacterQuadAssembler.IsOverlayMeshActive"/> reports.
         ///
-        /// <para><b>The fault this guards.</b> <c>BuildOverlays</c> created the overlay GameObject
-        /// deactivated and nothing ever reactivated it, while every hide/show branch in
-        /// <c>SyncOverlays</c> writes the renderer's <c>enabled</c> flag. A SpriteRenderer on a
-        /// deactivated GameObject draws nothing however enabled it is, so the player's
-        /// <c>sp_mshit</c> dome had a correct gate (<c>shithp &gt; 0</c>), 20 imported frames, a
-        /// resolved sprite and sorting order 1000, and was still invisible. Every one of those was
-        /// asserted somewhere; the one thing nobody asserted was that the object is alive.</para>
+        /// <para><b>The fault the sprite-path fixture guarded.</b> Its <c>BuildOverlays</c> created
+        /// the overlay GameObject deactivated and nothing ever reactivated it, while every hide/show
+        /// branch wrote the renderer's <c>enabled</c> flag. A SpriteRenderer on a deactivated
+        /// GameObject draws nothing however enabled it is, so the player's <c>sp_mshit</c> dome had
+        /// a correct gate (<c>shithp &gt; 0</c>), 20 imported frames, a resolved sprite and sorting
+        /// order 1000, and was still invisible. The degenerate-quad design cannot have that
+        /// failure mode (a hidden overlay is zeroed vertices, drawn only when the playhead lands),
+        /// but "the gate says on and the mesh renderer says off" can still be written by hand —
+        /// which is what this fixture pins.</para>
         ///
         /// <para><b>Both edges.</b> The gate-off half is the control: it proves the two assertions
         /// after it are reading values that can change, rather than a constant that would make the
@@ -157,14 +114,50 @@ namespace PFE.Tests.EditMode.Character
             var definition = ScriptableObject.CreateInstance<CharacterAnimationDefinition>();
             var texture = new Texture2D(8, 8);
             Sprite frame = null;
+            Sprite partSprite = null;
             try
             {
                 frame = Sprite.Create(texture, new Rect(0f, 0f, 8f, 8f), new Vector2(0.5f, 0.5f), 1f);
+                partSprite = Sprite.Create(texture, new Rect(0f, 0f, 8f, 8f), new Vector2(0.5f, 0.5f), 1f);
 
                 definition.characterId = "fixture";
                 definition.bodyScale = Vector2.one;
-                definition.parts = System.Array.Empty<CharacterPartDefinition>();
-                definition.stateClips = System.Array.Empty<CharacterStateClip>();
+                definition.parts = new[]
+                {
+                    new CharacterPartDefinition
+                    {
+                        partName = "korpus",
+                        baseSprite = partSprite,
+                        pivotNormalized = new Vector2(0.5f, 0.5f),
+                        tintCategory = TintCategory.None,
+                    },
+                };
+                definition.stateClips = new[]
+                {
+                    new CharacterStateClip
+                    {
+                        stateName = "stay",
+                        frameCount = 1,
+                        loopMode = AnimationLoopMode.ClampForever,
+                        frames = new[]
+                        {
+                            new CharacterFrameData
+                            {
+                                partPlacements = new[]
+                                {
+                                    new PartFramePlacement
+                                    {
+                                        partIndex = 0,
+                                        localPosition = Vector2.zero,
+                                        localRotation = 0f,
+                                        localScale = Vector2.one,
+                                        visible = true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                };
                 definition.overlays = new[]
                 {
                     new CharacterOverlayDefinition
@@ -179,34 +172,32 @@ namespace PFE.Tests.EditMode.Character
                 };
 
                 var context = CharacterVisualContext.Default;
-                var assembler = go.AddComponent<CharacterSpriteAssembler>();
+                var assembler = go.AddComponent<CharacterQuadAssembler>();
                 assembler.Setup(definition, null, CharacterAppearance.CreateDefault(), context);
 
-                Transform overlay = go.transform.Find("overlay_shit");
-                Assert.IsNotNull(overlay, "the shield overlay was not built");
-                var renderer = overlay.GetComponent<SpriteRenderer>();
-                Assert.IsNotNull(renderer, "the shield overlay has no SpriteRenderer");
-
-                // Control: gate off, so nothing may draw.
-                Assert.IsFalse(renderer.enabled, "the shield drew with showShield off");
+                // Control: gate off, so nothing may draw. The body part draws; the overlay mesh
+                // must not.
+                Assert.IsFalse(assembler.IsOverlayMeshActive, "the shield drew with showShield off");
+                Assert.AreEqual(1, assembler.ActiveQuadCount,
+                    "only the body part may be drawn while the shield gate is off");
 
                 // The rise edge — AS3 `vis.shit.visible = true; gotoAndPlay(1)`.
                 context.showShield = true;
                 assembler.VisualContext = context;
 
-                Assert.IsTrue(overlay.gameObject.activeSelf,
-                    "the shield overlay's GameObject is deactivated, so its SpriteRenderer draws " +
-                    "nothing no matter what `enabled` says. This is the 'cast the shield spell and " +
-                    "see no dome' fault: BuildOverlays switched the object off and nothing ever " +
-                    "switched it back on.");
-                Assert.IsTrue(renderer.enabled, "the shield renderer was not enabled on the rise edge");
-                Assert.IsNotNull(renderer.sprite, "the shield overlay resolved no sprite");
+                Assert.IsTrue(assembler.IsOverlayMeshActive,
+                    "the shield overlay's mesh renderer is off with the gate on, so the dome is " +
+                    "not on screen. This is the 'cast the shield spell and see no dome' fault in " +
+                    "its quad-path shape: the gate fired but no overlay quad reached the mesh.");
+                Assert.AreEqual(2, assembler.ActiveQuadCount,
+                    "the body part plus exactly one shield quad should be drawn with the gate on");
             }
             finally
             {
                 Object.DestroyImmediate(go);
                 Object.DestroyImmediate(definition);
                 if (frame != null) Object.DestroyImmediate(frame);
+                if (partSprite != null) Object.DestroyImmediate(partSprite);
                 Object.DestroyImmediate(texture);
             }
         }

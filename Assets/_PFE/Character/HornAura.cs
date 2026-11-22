@@ -18,9 +18,9 @@ namespace PFE.Character
     /// <c>aMagic</c> (0 / 50 / 100) and a current <c>aMC</c> that walks toward the target by 5 per
     /// tick — then writes <c>alpha = aMC / 100</c> and <c>visible = alpha &gt; 0</c>
     /// (<c>UnitPlayer.as:4851-4852</c>). Putting that arithmetic inside
-    /// <see cref="CharacterSpriteAssembler"/> would make a renderer the owner of a simulation value;
+    /// <see cref="CharacterQuadAssembler"/> would make a renderer the owner of a simulation value;
     /// this way the assembler is told an alpha and the simulation decides it, which is also what lets
-    /// the A/B window drive the same number by hand.</para>
+    /// a preview drive the same number by hand.</para>
     ///
     /// <para><b>The targets, in the original's own terms.</b>
     /// <c>aMagic = 50</c> while a weapon whose <c>vis</c> is visible is drawn and it is not a

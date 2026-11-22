@@ -220,8 +220,8 @@ namespace PFE.Data.Definitions
         public float localScale = 1f;
 
         /// <summary>
-        /// Sorting order for the overlay renderer. Must exceed the body's, which is
-        /// <c>2 * maxPartPlacements + 1</c> — see <c>CharacterSpriteAssembler</c>.
+        /// Sorting order for the overlay mesh renderer. Must exceed the body's, which is the single
+        /// consolidated mesh at order 0 — see <c>CharacterQuadAssembler</c>.
         /// </summary>
         public int sortingOrder = 1000;
 

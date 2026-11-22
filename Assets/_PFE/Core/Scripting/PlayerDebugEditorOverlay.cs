@@ -1347,7 +1347,7 @@ namespace PFE.Core.Scripting
             {
                 var rig = _rigRoot.GetComponent<PlayerController>();
                 var rigTile = _rigRoot.GetComponent<TilePhysicsController>();
-                var rigAssembler = _rigRoot.GetComponent<CharacterSpriteAssembler>();
+                var rigAssembler = _rigRoot.GetComponent<CharacterQuadAssembler>();
 
                 float rigHp = rig != null && rig.UnitStats != null ? rig.UnitStats.CurrentHp.Value : 0f;
                 float rigVelX = rigTile != null ? rigTile.VelocityX : 0f;
@@ -1399,7 +1399,7 @@ namespace PFE.Core.Scripting
             }
 
             var liveTile = player.GetComponent<TilePhysicsController>();
-            var liveAssembler = player.GetComponent<CharacterSpriteAssembler>();
+            var liveAssembler = player.GetComponent<CharacterQuadAssembler>();
 
             // `PlayerController.Stats` SHADOWS `UnitController.Stats` with a DIFFERENT type —
             // UnitStats on the derived, UnitDefinition on the base (which is why the header above

@@ -344,8 +344,15 @@ namespace PFE.Character
 
         int _mipDepth = 1;
 
-        /// <summary>Sprites the atlas had to leave out (unreadable format, or no room). They keep
-        /// using the per-texture material, so a skipped part still draws.</summary>
+        /// <summary>
+        /// Sprites the atlas had to leave out (unreadable format, or no room). <b>A skipped part
+        /// does not draw correctly:</b> the consolidated mesh binds the one atlas material to every
+        /// quad, so a skipped sprite's quad samples the atlas at the UV fractions of its own source
+        /// texture — which is the flat-rectangle bug, not a graceful degradation. That was not
+        /// always true: it held while each slot owned a renderer and a material, and the doc
+        /// comment outlived that design. Kept counted (and named by the caller's own checks)
+        /// because a nonzero count with a ready atlas is a bug to report.
+        /// </summary>
         public int SkippedCount { get; private set; }
 
         /// <summary>
@@ -488,17 +495,21 @@ namespace PFE.Character
                 if (atlas != null && (atlas.RegionsMissingAnEdge > 0 || atlas.ReadbackInconclusive))
                 {
                     // Both routes produced a wrong or unverifiable atlas. Say so and hand back
-                    // nothing: the caller keeps one material per part texture, which draws
-                    // correctly. A wrong picture is worse than a slow one, and an unverifiable
-                    // atlas is a wrong picture waiting to be discovered.
+                    // nothing. The caller's fallback is NOT a correct render: the consolidated
+                    // single mesh binds one material for every part, so a multi-texture character
+                    // (every imported character is one) draws wrong art for every part that does
+                    // not live on the first visible part's texture — flat rectangles, not a slow
+                    // character. That claim used to be true, when each slot had its own renderer
+                    // and material; the one-mesh consolidation retired it. An abandoned atlas is
+                    // therefore a rendering bug, said out loud.
                     string reason = atlas.ReadbackInconclusive
                         ? "read-back was inconclusive (GPU writes not visible to CPU)"
                         : $"{atlas.RegionsMissingAnEdge} of {atlas.RegionCount} regions are only partly filled";
-                    Debug.LogWarning(
-                        $"[CharacterQuad] Atlas abandoned: {reason} even after a blit " +
-                        $"through a render texture ({atlas.RegionMismatchSample}). Falling back to " +
-                        "one material per part texture — the quad side will draw correctly but not " +
-                        "batch.");
+                    Debug.LogError(
+                        $"[CharacterQuad] Atlas abandoned: {reason} even after a staging copy " +
+                        $"through CPU memory ({atlas.RegionMismatchSample}). The character will " +
+                        "render with one shared material, which is WRONG ART for any multi-texture " +
+                        "character — report this, do not ship it.");
                     atlas.Dispose();
                     return null;
                 }
@@ -508,13 +519,261 @@ namespace PFE.Character
         }
 
         /// <summary>
+        /// Process-wide reuse of built atlases, so a character spawn or armour swap with a
+        /// <i>seen</i> costume pays a dictionary lookup instead of a region pack, a page of
+        /// <c>CopyTexture</c> calls and the pixel read-back that verifies them.
+        ///
+        /// <para><b>Cache policy, stated explicitly.</b></para>
+        /// <list type="number">
+        /// <item><description><b>Key.</b> <c>(armorId, bilinear, mips, spriteSetHash)</c>. The hash is
+        /// FNV-1a over every collected sprite's identity — texture instance id, texture name and
+        /// rounded texture rect, in collection order — so two builds with the same key pack the same
+        /// pixels by construction. <c>armorId</c> is part of the key even though the worn set's
+        /// sprites already move the hash, because a diagnostic that can say which costume an atlas
+        /// carries is worth the extra field.</description></item>
+        /// <item><description><b>Bounded, LRU.</b> At most <see cref="MaxEntries"/> atlases, kept as a
+        /// use-clock LRU. An evicted atlas is disposed on the spot — safe only because the cache owns
+        /// play-mode atlases outright (see below). Not an unbounded dictionary: each entry is a
+        /// 1024² texture plus a mip chain, and an unbounded cache of those is a leak with a hit
+        /// rate.</description></item>
+        /// <item><description><b>Play mode only.</b> In the editor (the A/B preview windows) this
+        /// returns <c>null</c> and the caller builds a fresh, caller-owned atlas exactly as before —
+        /// the preview's rebuild-on-demand semantics (toggling Bilinear, AtlasEnabled or the armour
+        /// set re-runs the pack) stay honest, and the editor session does not accumulate megabytes of
+        /// <c>HideAndDontSave</c> textures.</description></item>
+        /// <item><description><b>Ownership.</b> An atlas this cache hands out in play mode belongs to
+        /// the cache, never to the assembler: dropping a costume must not tear a texture another
+        /// character is still drawing, so the assembler's teardown paths deliberately do
+        /// <i>not</i> dispose a cached atlas (see <c>CharacterQuadAssembler.ReleaseAtlas</c>).</description></item>
+        /// <item><description><b>Single-threaded.</b> Main thread only, like every Unity API this
+        /// class already calls. No locking.</description></item>
+        /// <item><description><b>Invalidation.</b> Play mode performs no content reloads, so no
+        /// reload hook is needed; the entries that matter — the atlas texture and material — are
+        /// destroyed by play-mode teardown, and the dead references are pruned on the next access
+        /// (<c>IsReady</c> is false for a destroyed texture). Failed builds return <c>null</c> and
+        /// are never cached, so a transient GPU failure is retried, not fossilised. Content edited
+        /// between play sessions changes the imported sprites (and, after a domain reload, their
+        /// instance ids), so the next session's keys cannot collide with a stale entry even in
+        /// principle.</description></item>
+        /// </list>
+        /// </summary>
+        public static class Cache
+        {
+            /// <summary>How many atlases stay resident at once. Eight costumes is far beyond what a
+            /// session visits; the bound exists so the cache is never the leak the per-assembler
+            /// material cache warned about.</summary>
+            public const int MaxEntries = 8;
+
+            sealed class Entry
+            {
+                public CharacterQuadAtlas Atlas;
+                public uint LastUse;
+            }
+
+            /// <summary>
+            /// The key: the build flags, the armour id, and the sprite-set hash. The hash is split
+            /// into two lanes because FNV-1a at 64 bits over a few hundred ints is cheap, but a
+            /// single 64-bit lane still leaves "same art, same order" indistinguishable from a
+            /// collision for the lifetime of the process — two lanes of 64 bits make the accidental
+            /// collision a non-subject.
+            /// </summary>
+            readonly struct Key : IEquatable<Key>
+            {
+                readonly string _armorId;
+                readonly bool _bilinear;
+                readonly bool _mips;
+                readonly ulong _hashA;
+                readonly ulong _hashB;
+
+                Key(string armorId, bool bilinear, bool mips, ulong hashA, ulong hashB)
+                {
+                    _armorId = armorId ?? string.Empty;
+                    _bilinear = bilinear;
+                    _mips = mips;
+                    _hashA = hashA;
+                    _hashB = hashB;
+                }
+
+                /// <summary>
+                /// Builds the key for one collected sprite set. Order-sensitive on purpose:
+                /// <c>CollectSprites</c> iterates fixed asset arrays, so one costume always collects
+                /// in the same order, and a different order would pack different regions.
+                /// </summary>
+                public static Key Compute(
+                    IReadOnlyList<Sprite> sprites, bool bilinear, string armorId, bool mips)
+                {
+                    // FNV-1a 64-bit, two interleaved lanes: lane A takes texture identity, lane B
+                    // the rectangle. Mixing both into one lane would also work; two lanes keep a
+                    // swapped-width/height pair of rects from cancelling out.
+                    const ulong offset = 14695981039346656037UL;
+                    const ulong prime = 1099511628211UL;
+
+                    ulong Mix(ulong hash, ulong value) => (hash ^ value) * prime;
+
+                    ulong a = offset;
+                    ulong b = offset;
+
+                    int count = sprites?.Count ?? 0;
+                    for (int i = 0; i < count; i++)
+                    {
+                        Sprite sprite = sprites[i];
+                        if (sprite == null)
+                        {
+                            a = Mix(a, 0xFFFFFFFFUL);
+                            b = Mix(b, 0xFFFFFFFFUL);
+                            continue;
+                        }
+
+                        Texture texture = sprite.texture;
+                        int textureId = texture != null ? texture.GetInstanceID() : 0;
+                        string textureName = texture != null ? texture.name : string.Empty;
+                        int nameHash = textureName != null ? textureName.GetHashCode() : 0;
+
+                        Rect rect = sprite.textureRect;
+                        a = Mix(a, (ulong)(uint)textureId);
+                        a = Mix(a, (ulong)(uint)nameHash);
+                        b = Mix(b, (ulong)(uint)Mathf.RoundToInt(rect.x));
+                        b = Mix(b, (ulong)(uint)Mathf.RoundToInt(rect.y));
+                        b = Mix(b, (ulong)(uint)Mathf.RoundToInt(rect.width));
+                        b = Mix(b, (ulong)(uint)Mathf.RoundToInt(rect.height));
+                    }
+
+                    return new Key(armorId, bilinear, mips, a, b);
+                }
+
+                public bool Equals(Key other)
+                {
+                    return _hashA == other._hashA
+                        && _hashB == other._hashB
+                        && _bilinear == other._bilinear
+                        && _mips == other._mips
+                        && string.Equals(_armorId, other._armorId, StringComparison.Ordinal);
+                }
+
+                public override bool Equals(object obj) => obj is Key other && Equals(other);
+
+                public override int GetHashCode()
+                {
+                    unchecked
+                    {
+                        int hash = _armorId != null ? _armorId.GetHashCode() : 0;
+                        hash = hash * 397 ^ _bilinear.GetHashCode();
+                        hash = hash * 397 ^ _mips.GetHashCode();
+                        hash = hash * 397 ^ _hashA.GetHashCode();
+                        hash = hash * 397 ^ _hashB.GetHashCode();
+                        return hash;
+                    }
+                }
+            }
+
+            static readonly Dictionary<Key, Entry> _entries = new();
+
+            static uint _clock;
+
+            /// <summary>
+            /// The atlas for this exact build, or <c>null</c> when this host does not cache (the
+            /// editor) or the build failed. Never disposes a previously handed-out atlas.
+            /// </summary>
+            public static CharacterQuadAtlas Get(
+                IReadOnlyList<Sprite> sprites, bool bilinear, string armorId, bool mips)
+            {
+                if (!Application.isPlaying)
+                {
+                    return null;
+                }
+
+                PruneDead();
+
+                var key = Key.Compute(sprites, bilinear, armorId, mips);
+                if (_entries.TryGetValue(key, out Entry existing))
+                {
+                    if (existing.Atlas != null && existing.Atlas.IsReady)
+                    {
+                        existing.LastUse = ++_clock;
+                        return existing.Atlas;
+                    }
+
+                    _entries.Remove(key);
+                }
+
+                CharacterQuadAtlas built = Build(sprites, bilinear, armorId, mips);
+                if (built == null)
+                {
+                    // A failed build is not cached: the failure may be transient, and a fossilised
+                    // null would turn "the atlas missed once" into "this costume never atlases".
+                    return null;
+                }
+
+                _entries[key] = new Entry { Atlas = built, LastUse = ++_clock };
+                EvictOverflow();
+                return built;
+            }
+
+            /// <summary>How many atlases are currently resident. Diagnostics and fixtures.</summary>
+            public static int Count => _entries.Count;
+
+            /// <summary>Drops every entry and disposes its atlas. Play-mode teardown only — tests and
+            /// future session boundaries; the dead-entry prune on access is the normal path.</summary>
+            public static void Clear()
+            {
+                foreach (Entry entry in _entries.Values)
+                {
+                    entry.Atlas?.Dispose();
+                }
+                _entries.Clear();
+            }
+
+            static void PruneDead()
+            {
+                // Play-mode exit destroys every runtime-created texture and material, leaving the
+                // dictionary pointing at dead objects. Removing them here keeps the cache honest
+                // across sessions without any editor-only lifecycle hook (which a runtime assembly
+                // cannot use anyway).
+                if (_entries.Count == 0) return;
+
+                var dead = new List<Key>();
+                foreach (KeyValuePair<Key, Entry> pair in _entries)
+                {
+                    if (pair.Value.Atlas == null || !pair.Value.Atlas.IsReady)
+                    {
+                        dead.Add(pair.Key);
+                    }
+                }
+
+                for (int i = 0; i < dead.Count; i++)
+                {
+                    _entries.Remove(dead[i]);
+                }
+            }
+
+            static void EvictOverflow()
+            {
+                while (_entries.Count > MaxEntries)
+                {
+                    Key oldest = default;
+                    uint oldestUse = uint.MaxValue;
+                    foreach (KeyValuePair<Key, Entry> pair in _entries)
+                    {
+                        if (pair.Value.LastUse < oldestUse)
+                        {
+                            oldestUse = pair.Value.LastUse;
+                            oldest = pair.Key;
+                        }
+                    }
+
+                    _entries[oldest].Atlas.Dispose();
+                    _entries.Remove(oldest);
+                }
+            }
+        }
+
+        /// <summary>
         /// One attempt at the atlas. <paramref name="viaRenderTexture"/> routes every region through a
         /// reusable <see cref="RenderTexture"/> instead of copying straight out of the imported
         /// texture — see <see cref="Build"/> for why that is a separate attempt rather than the only
         /// path.
         /// </summary>
-        static CharacterQuadAtlas BuildCore(
-            List<Sprite> sprites, bool bilinear, string armorId, bool mips, bool viaRenderTexture)
+        static CharacterQuadAtlas BuildCore(            List<Sprite> sprites, bool bilinear, string armorId, bool mips, bool viaRenderTexture)
         {
             // ── 1. Collect the distinct regions, in a deterministic order ──
             var regions = new List<Region>();
@@ -639,8 +898,11 @@ namespace PFE.Character
             };
 
             // Only the render-texture route needs these; the direct route leaves them empty and the
-            // finally below is a no-op.
+            // finally below is a no-op. The staging cache holds one single-level render texture per
+            // distinct source texture; the scratch cache holds one CPU-readable texture per distinct
+            // region size, the landing pad for ReadPixels.
             var stagingCache = new Dictionary<long, RenderTexture>();
+            var readbackScratch = new Dictionary<long, Texture2D>();
 
             try
             {
@@ -695,23 +957,42 @@ namespace PFE.Character
                         continue;
                     }
 
-                    // The source a region is read from. On the direct route that is the imported
-                    // texture; on the staging route it is a plain, single-level copy of it, made
-                    // once per distinct source size.
-                    Texture source = viaRenderTexture
-                        ? GetStagingCopy(region.Texture, stagingCache)
-                        : (Texture)region.Texture;
-
-                    Graphics.CopyTexture(
-                        source, 0, 0,
-                        copy.SourceX, copy.SourceY, copy.Width, copy.Height,
-                        atlas._texture, 0, 0, copy.DestinationX, copy.DestinationY);
+                    if (viaRenderTexture)
+                    {
+                        // The staging route copies through CPU memory (blit-made render texture ->
+                        // ReadPixels -> SetPixels32) instead of CopyTexture straight out of the
+                        // staging texture. The reason is the lesson of the armoured-character
+                        // report: on this driver the CopyTexture(staging -> atlas) writes were
+                        // invisible to the GetPixels32 verification that runs after this loop —
+                        // the build read back zero ink in every region, declared itself
+                        // inconclusive, and was abandoned, and the character fell into the broken
+                        // one-material fallback. ReadPixels performs a real GPU->CPU sync, so the
+                        // pixels verification reads are the pixels this method wrote, by
+                        // construction. The route exists only for builds whose direct copy failed
+                        // verification, so the extra copies cost nothing in the common case.
+                        RenderTexture staging = GetStagingCopy(region.Texture, stagingCache);
+                        CopyRegionThroughCpu(staging, copy, atlas._texture, readbackScratch);
+                    }
+                    else
+                    {
+                        Graphics.CopyTexture(
+                            region.Texture, 0, 0,
+                            copy.SourceX, copy.SourceY, copy.Width, copy.Height,
+                            atlas._texture, 0, 0, copy.DestinationX, copy.DestinationY);
+                    }
 
                     atlas._rects.Add(rect);
                     atlas._sources.Add(new CharacterAtlasRegionSource(
                         region.Texture.name, region.Rect,
                         region.Texture.width, region.Texture.height));
                     atlas._indexBySprite[region.Key] = atlas._rects.Count - 1;
+                }
+
+                // The staging route wrote level 0 through SetPixels32; those uploads batch into one
+                // Apply here. (The direct route needs none — CopyTexture lands on the GPU directly.)
+                if (viaRenderTexture)
+                {
+                    atlas._texture.Apply(false, false);
                 }
 
                 // The chain, from the finished level 0. `Apply(true)` is the only mip generation this
@@ -784,6 +1065,20 @@ namespace PFE.Character
                 }
 
                 stagingCache.Clear();
+
+                // Scratch textures are scratch too: the atlas holds the pixels once SetPixels32 has
+                // run, so the landing pads follow the staging textures into the bin.
+                foreach (Texture2D scratch in readbackScratch.Values)
+                {
+                    if (scratch == null)
+                    {
+                        continue;
+                    }
+
+                    CharacterQuadMaterialCache.DestroyObject(scratch);
+                }
+
+                readbackScratch.Clear();
             }
 
             // One material for every slot. Vertex colour still carries the tint, so the material needs
@@ -866,8 +1161,8 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// A plain, single-level copy of an imported part texture, made once per distinct source size
-        /// and reused for every region that comes from a texture that size.
+        /// A plain, single-level copy of one imported part texture, made once per distinct source
+        /// <b>texture</b> and reused for the (usually few) regions cut from it.
         ///
         /// <para><b>Why this exists.</b> Copying a region straight out of an imported texture on this
         /// driver lands the source's <b>mip-1 extent at the level-0 origin</b> — half size, anchored
@@ -877,8 +1172,8 @@ namespace PFE.Character
         ///
         /// <para><b>Why a blit and not <c>CopyTexture</c>.</b> A blit is a raster operation: it samples
         /// level 0 by definition, so it cannot pick a level. That is the property being bought here,
-        /// and it is worth one full-screen copy per distinct source size (a dozen at most for a
-        /// character, each under 256 px a side) on a build that already does 83 copies.</para>
+        /// and it is worth one full-screen copy per distinct source texture (at most one per packed
+        /// region) on a build that already does dozens of copies.</para>
         ///
         /// <para><b>Format.</b> The staging texture takes the source's own <c>graphicsFormat</c>, so no
         /// conversion happens and the blit is a straight copy in the same colour space. If the platform
@@ -889,7 +1184,13 @@ namespace PFE.Character
         static RenderTexture GetStagingCopy(
             Texture2D source, Dictionary<long, RenderTexture> cache)
         {
-            long key = ((long)source.width << 32) ^ (uint)source.height;
+            // Keyed by the source TEXTURE, not its size — the armored-character report caught this
+            // caching by (width, height): the part PNGs of one armour frame sequence all share one
+            // canvas, so same-size collisions are the norm, and a cache hit returned the previous
+            // texture's blit for every region after the first of that size. The content then came
+            // from the wrong texture, which the edge test reads as partly-filled regions. One entry
+            // per distinct source texture, of which there are at most one per packed region.
+            long key = source.GetInstanceID();
             if (cache.TryGetValue(key, out RenderTexture cached) && cached != null)
             {
                 return cached;
@@ -910,16 +1211,74 @@ namespace PFE.Character
             };
             staging.Create();
 
-            // `Blit` sets the destination as the active render target and leaves it there. Restoring it
-            // matters here because the very next thing that happens is a `CopyTexture` **from** this
-            // texture: reading a render target that is still bound is asking for a silently empty
-            // result, and an empty read is indistinguishable from a failed copy.
+            // `Blit` sets the destination as the active render target and leaves it there. Restoring
+            // it matters here because this texture is read back region-by-region while it is the
+            // ACTIVE render texture (`ReadPixels` requires that), and an active RT that is still
+            // bound when the next blit or copy comes along produces silently empty reads — the
+            // failure the restore existed to prevent.
             RenderTexture previous = RenderTexture.active;
             Graphics.Blit(source, staging);
             RenderTexture.active = previous;
 
             cache[key] = staging;
             return staging;
+        }
+
+        /// <summary>
+        /// Copies one region from a staging render texture into the atlas through CPU memory:
+        /// activate the staging texture, <c>ReadPixels</c> the region into a scratch texture,
+        /// <c>SetPixels32</c> it into the atlas at the destination rect.
+        ///
+        /// <para><b>Why through the CPU at all.</b> The previous staging route ended in a
+        /// <c>CopyTexture</c> from the render texture into the atlas, and on this driver the
+        /// result could not be verified: the <c>GetPixels32</c> read-back after the loop saw no
+        /// ink in any region, the build declared itself inconclusive, and the whole atlas was
+        /// abandoned — which is how an equipped armour set rendered as flat rectangles while the
+        /// same costume in a preview rendered correctly. <c>ReadPixels</c> performs an actual
+        /// GPU-to-CPU synchronisation, so once this method has run, the atlas's CPU-visible pixels
+        /// are exactly the pixels that were asked for, and the verification pass reads the truth.</para>
+        ///
+        /// <para><b>Scratch cache.</b> One readable texture per distinct region size, reused across
+        /// regions and builds for the life of one <see cref="BuildCore"/> call — the staging route
+        /// only runs for builds whose direct copy already failed, so this allocation is paid on a
+        /// path that is already rare, and never per frame.</para>
+        /// </summary>
+        static void CopyRegionThroughCpu(
+            RenderTexture staging,
+            in CharacterAtlasMipCopy copy,
+            Texture2D destination,
+            Dictionary<long, Texture2D> scratchCache)
+        {
+            long key = ((long)copy.Width << 32) ^ (uint)copy.Height;
+            if (!scratchCache.TryGetValue(key, out Texture2D scratch) || scratch == null)
+            {
+                // Same format as the destination so neither ReadPixels nor SetPixels32 performs a
+                // colour-space or layout conversion.
+                scratch = new Texture2D(copy.Width, copy.Height, destination.graphicsFormat,
+                    TextureCreationFlags.None)
+                {
+                    name = $"CharacterQuadAtlasScratch_{copy.Width}x{copy.Height}",
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                scratchCache[key] = scratch;
+            }
+
+            RenderTexture previous = RenderTexture.active;
+            RenderTexture.active = staging;
+            try
+            {
+                // ReadPixels reads the active render texture in its own pixels, origin bottom-left —
+                // the same space ComputeMipCopy works in at level 0, so the window is verbatim.
+                scratch.ReadPixels(
+                    new Rect(copy.SourceX, copy.SourceY, copy.Width, copy.Height), 0, 0, false);
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+            }
+
+            destination.SetPixels32(
+                copy.DestinationX, copy.DestinationY, copy.Width, copy.Height, scratch.GetPixels32());
         }
 
         /// <summary>

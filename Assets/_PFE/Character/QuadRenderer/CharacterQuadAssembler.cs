@@ -7,36 +7,38 @@ using UnityEngine.Rendering;
 namespace PFE.Character
 {
     /// <summary>
-    /// The character renderer that draws <b>baked quads</b> instead of <see cref="SpriteRenderer"/>s —
-    /// the shape of pipeline Remains-Unity uses, running beside the shipped
-    /// <see cref="CharacterSpriteAssembler"/> rather than instead of it.
+    /// The character renderer: draws <b>baked quads</b> instead of per-part
+    /// <see cref="SpriteRenderer"/>s — the shape of pipeline the Remains-Unity reference port uses.
     ///
-    /// <para><b>What is different from the shipped path, in one place.</b></para>
+    /// <para><b>What that means, in one place.</b></para>
     /// <list type="number">
     /// <item><b>Geometry is four vertices, not a sprite.</b> The registration point is resolved to
     /// pixels in the full PNG and the trimmed rect is offset against it
-    /// (<see cref="CharacterQuadGeometry"/>), so a part whose PNG was alpha-trimmed no longer lands
-    /// somewhere else than the importer meant. The shipped path cannot do this because
-    /// <c>Sprite.Create</c> always reads the pivot as a fraction of the trimmed rect.</item>
+    /// (<see cref="CharacterQuadGeometry"/>), so a part whose PNG was alpha-trimmed lands where the
+    /// importer meant.</item>
     /// <item><b>The quad is the whole rect.</b> No <c>Tight</c> contour, so the anti-aliased rim the
     /// vector rasteriser produced survives.</item>
+    /// <item><b>One consolidated mesh per character.</b> Every visible part quad is written into a
+    /// single dynamic mesh (<see cref="EnsureSharedMesh"/>); the whole character costs one transform
+    /// and one draw call instead of the 21–26 a per-part hierarchy pays.</item>
     /// <item><b>Sampling can be bilinear</b> without touching a single import setting — the texture is
     /// copied GPU-side and the copy carries the filter (<see cref="CharacterQuadMaterialCache"/>).</item>
     /// <item><b>Nothing is allocated per frame.</b> One reusable <see cref="HashSet{T}"/> for the armour
-    /// head-part filter, no <c>Sprite.Create</c>, no <c>SetActive</c>; a hidden slot is
-    /// <c>renderer.enabled = false</c>.</item>
+    /// head-part filter, no <c>Sprite.Create</c>, no <c>SetActive</c>; a hidden slot is a degenerate
+    /// quad, not a disabled object.</item>
     /// </list>
     ///
-    /// <para><b>Why it is a separate component and not a mode inside the old one.</b> The shipped
-    /// assembler is on the player prefab and is load-bearing; a regression there is a regression in
-    /// the game. This component is opt-in: the preview windows drive it, and wiring it into
-    /// <c>PlayerCharacterVisual</c> is a deliberate later step, not something this class does by
-    /// existing. Its public surface deliberately mirrors <see cref="CharacterSpriteAssembler"/>
-    /// (<c>Setup</c>, <c>Appearance</c>, <c>VisualContext</c>, <c>SortingLayerName</c>,
-    /// <c>SetState</c>, <c>AdvanceFrame</c>, <c>Definition</c>, <c>StyleData</c>,
-    /// <c>CurrentFrame</c>, <c>CurrentState</c>) so that step is a type swap and nothing else.</para>
+    /// <para><b>The atlas is on by default, and that is a correctness requirement, not only a batching
+    /// win.</b> One mesh binds one material, and part UVs point into each part's own texture — so a
+    /// character whose parts live on several textures (every imported character does) renders
+    /// correctly only when every part is packed into the one atlas texture
+    /// (<see cref="CharacterQuadAtlas"/>). docs/CharacterImportPipeline/04 and 05 record the
+    /// investigation of the flat-block artefacts: the atlas was exonerated (padding is cleared before
+    /// regions are copied; a region can change UVs and the material but never geometry), and the
+    /// captures under .workbuddy-ai/tmp/wave1/captures show the atlas path drawing every character
+    /// correctly in-game.</para>
     ///
-    /// <para><b>What it does not do yet.</b> Lamp falloff. <see cref="Ambient"/> multiplies every part
+    /// <para><b>What it does not do.</b> Lamp falloff. <see cref="Ambient"/> multiplies every part
     /// by the room's single ambient number — the same number the background tiles use — which is the
     /// large visible half of "the character sits in the room's light". A per-pixel lamp term needs the
     /// visibility buffer written to a texture and a shader that samples it; that is a separate change
@@ -47,9 +49,9 @@ namespace PFE.Character
     public sealed class CharacterQuadAssembler : MonoBehaviour
     {
         /// <summary>
-        /// Head sub-parts that a composite <c>morda_armor</c> replaces. Kept identical to
-        /// <see cref="CharacterSpriteAssembler"/>'s copy on purpose: the two renderers must agree about
-        /// which parts exist or an A/B between them compares different characters.
+        /// Head sub-parts that a composite <c>morda_armor</c> replaces. Shared with the animation
+        /// preview tooling on purpose: every consumer of the definition must agree about which parts
+        /// exist or a costume change looks like a renderer bug.
         /// </summary>
         static readonly HashSet<string> HeadSubPartNames = new()
         {
@@ -84,12 +86,14 @@ namespace PFE.Character
         [SerializeField] bool _bilinear = true;
 
         [Tooltip("Pack every part texture into one atlas and draw the whole character with one material. " +
-                 "Turns 21-26 draw calls into one batch. Off falls back to one material per texture, " +
-                 "which is what the shipped sprite path does. " +
-                 "Default off since 2026-10-21: the atlas is the only structure here that the reference " +
-                 "port does not have, and it is currently the only suspect for the flat tinted blocks in " +
-                 "docs/CharacterImportPipeline/04.")]
-        [SerializeField] bool _useAtlas;
+                 "Turns 21-26 draw calls into one batch. Default on since the one-mesh consolidation: " +
+                 "a single mesh binds a single material, so a character whose parts live on several " +
+                 "textures (every imported character) only renders correct art with the atlas packed. " +
+                 "The flat-tinted-block suspect that kept this off was investigated to a different " +
+                 "cause — uninitialised atlas padding — which is cleared before regions are copied " +
+                 "(docs/CharacterImportPipeline/04-05). Off is a diagnostic fallback, not a supported " +
+                 "rendering mode for multi-texture characters.")]
+        [SerializeField] bool _useAtlas = true;
 
         [Tooltip("Give the atlas a mip chain. Off by default: with it on this driver returned an atlas " +
                  "whose regions held half-size fragments and the build logged an invalid-mip " +
@@ -104,62 +108,87 @@ namespace PFE.Character
         readonly List<QuadSlot> _slotPool = new();
         readonly List<QuadOverlaySlot> _overlaySlots = new();
 
-        // ─── Consolidated mesh (one draw call per character) ────────────────
+        // ─── Consolidated meshes (one draw call for the body, one for the overlays) ──
         //
         // Every visible part quad is written into a single dynamic mesh. The mesh has
         // maxSlots * 4 vertices and maxSlots * 6 indices, pre-allocated at build time.
-        // Each frame, ApplyFrame writes the visible slots' vertices and then updates
-        // the index buffer to include only the visible quads. The renderer draws
-        // whatever the index buffer describes.
+        // Each frame, ApplyFrame writes the visible slots' vertices (interleaved
+        // position/UV/colour) and hides the rest by zeroing their positions, which makes
+        // their triangles degenerate. The index buffer is uploaded once at build time and
+        // never touched again; the renderer draws whatever the vertex data describes.
         //
         // Why one mesh and not one per slot: 26 parts × (GameObject + MeshFilter +
         // MeshRenderer + Mesh) is the overhead the sprite path pays; the quad path
         // was designed to avoid it. One mesh also means one draw call when the atlas
         // is active, and one draw call per material when it is not.
+        //
+        // Overlays live in a SECOND mesh under the assembler root, not under the body
+        // root: in the SWF the shield dome and its siblings are children of visualPlayer,
+        // siblings of osn — so scaling the body must not scale the shield (see EnsureOverlayMesh).
 
-        /// <summary>The single GameObject that carries the consolidated mesh renderer.</summary>
+        /// <summary>The single GameObject that carries the consolidated body mesh renderer.</summary>
         GameObject _meshRoot;
         MeshFilter _meshFilter;
         MeshRenderer _meshRenderer;
         Mesh _sharedMesh;
 
-        /// <summary>Pre-allocated vertex buffers, sized to maxSlots * 4.</summary>
-        Vector3[] _allVertices;
-        Vector2[] _allUvs;
-        Color[] _allColors;
+        /// <summary>
+        /// Pre-allocated interleaved vertex buffer, sized to maxSlots * 4: position, UV and colour
+        /// in one <see cref="CharacterQuadVertex"/>, so a frame uploads through a single
+        /// <c>SetVertexBufferData</c> call. A hidden slot is not removed from the buffer — its four
+        /// positions are zeroed, making its two triangles degenerate, which is what lets the index
+        /// buffer be uploaded once at build time and never rewritten.
+        /// </summary>
+        CharacterQuadVertex[] _vertices;
+
+        /// <summary>
+        /// The quad topology, pre-filled at creation and uploaded to the index buffer exactly once.
+        /// Compaction used to rewrite this every frame to skip hidden quads; the degenerate-quad
+        /// approach removed that whole path.
+        /// </summary>
         int[] _allTriangles;
 
-        /// <summary>How many slots the shared mesh can hold (primary + secondary + overlays).</summary>
+        /// <summary>One past the highest vertex index written since the last flush; the upload count.</summary>
+        int _touchedVertexCount;
+
+        /// <summary>How many slots the body mesh can hold (primary + secondary).</summary>
         int _meshCapacity;
 
-        /// <summary>How many quads were written into the shared mesh this frame.</summary>
+        /// <summary>How many quads were written into the meshes this frame (body + overlays).</summary>
         int _activeQuadCount;
+
+        // ── Overlay mesh. Sibling of the body root, exactly as the shield dome and its
+        //    brothers are siblings of osn in the SWF: an overlay written under the body
+        //    root would scale with the character (a 30 % oversized shield for the player),
+        //    and would also sit at one fixed renderer sorting order with no way to honour
+        //    each overlay definition's own order above the body. ────────────────────────
+
+        GameObject _overlayMeshRoot;
+        MeshFilter _overlayMeshFilter;
+        MeshRenderer _overlayMeshRenderer;
+        Mesh _overlayMesh;
+        CharacterQuadVertex[] _overlayVertices;
+        int[] _overlayTriangles;
+        int _overlayTouchedVertexCount;
 
         /// <summary>
         /// The node the part quads hang from — AS3's <c>osn</c> child of the outer visual symbol, the
-        /// one that carries the placement's scale. <b>This is what the quad path was missing.</b>
-        ///
-        /// <para><b>Why a node and not a number in the vertex maths.</b>
-        /// <see cref="CharacterSpriteAssembler.EnsureBodyRoot"/> gives its part slots this same node,
-        /// so the shipped path draws every part at <c>rect / ppu × bodyScale</c> and every part
-        /// <i>position</i> at <c>localPosition × bodyScale</c>. The quad path baked the placement into
-        /// the vertices and never read <see cref="CharacterAnimationDefinition.BodyScale"/> at all —
-        /// measured on the player, whose <c>bodyScale</c> is 1.2999878, that drew the whole character
-        /// at <b>1/1.3 = 0.769</b> of the sprite side: every part too small and every part too close
-        /// to the origin, which is the "the atlas side is smaller" reading in the A/B.
+        /// one that carries the placement's scale. <b>Not a number in the vertex maths.</b> The part
+        /// slots hang from this node, so every part draws at <c>rect / ppu × bodyScale</c> and every
+        /// part <i>position</i> at <c>localPosition × bodyScale</c>. Measured on the player, whose
+        /// <c>bodyScale</c> is 1.2999878: without the node the whole character drew at
+        /// <b>1/1.3 = 0.769</b> — every part too small and every part too close to the origin.
         /// Reproducing the node rather than multiplying two numbers here means a non-uniform or
-        /// mirrored <c>bodyScale</c> composes the way a parent transform does, and the two paths stay
-        /// comparable part-for-part instead of agreeing only while the scale happens to be uniform.</para>
+        /// mirrored <c>bodyScale</c> composes the way a parent transform does.
         ///
-        /// <para><b>Overlays do not hang from it.</b> The shipped path parents its overlay slots to
-        /// <c>transform</c> (:601), not to the body root, because an overlay is a sibling of <c>osn</c>
-        /// in the original. Overlays keep that here.</para>
+        /// <para><b>Overlays do not hang from it.</b> In the original an overlay is a sibling of
+        /// <c>osn</c>, so scaling the body must not scale the shield dome.</para>
         /// </summary>
         Transform _bodyRoot;
 
         /// <summary>
-        /// Reused every frame. The shipped path allocates one of these per animation frame per
-        /// character, which is the single largest piece of garbage in its draw path.
+        /// Reused every frame — the per-frame allocation a naive filter costs is the single largest
+        /// piece of garbage in a character draw path, so this set is filled and cleared instead.
         /// </summary>
         readonly HashSet<string> _hiddenHeadParts = new();
 
@@ -188,7 +217,7 @@ namespace PFE.Character
 
         float _overlayTimer;
 
-        /// <summary>Same ceiling as the shipped path: a paused editor must not fast-forward a clip.</summary>
+        /// <summary>Same ceiling as a view is allowed: a paused editor must not fast-forward a clip.</summary>
         const int MaxOverlayStepsPerTick = 8;
 
         string _currentState;
@@ -196,12 +225,13 @@ namespace PFE.Character
         bool _assembled;
 
         /// <summary>
-        /// Horn aura charge, 0..100 — see <see cref="HornAura"/>. Same default as the shipped path
-        /// (off) so the two sides of the A/B start from the same picture.
+        /// Horn aura charge, 0..100 — see <see cref="HornAura"/>. The default is "off": the original
+        /// builds the glow at alpha 0 and only raises it when a weapon or a levitation asks for it
+        /// (<c>UnitPlayer.as:4851</c>), so a character that nobody drives must not glow.
         /// </summary>
         float _hornAuraLevel = HornAura.LevelIdle;
 
-        // ─── Public API (mirrors CharacterSpriteAssembler) ───────────────────
+        // ─── Public API ──────────────────────────────────────────────────────
 
         public CharacterAppearance Appearance
         {
@@ -306,10 +336,12 @@ namespace PFE.Character
 
         /// <summary>
         /// Draw every part from one atlas texture with one material, so the character batches.
+        /// Default <b>on</b>, and required for correct art on any character whose parts live on more
+        /// than one texture: one consolidated mesh binds one material, and without the atlas every
+        /// quad's UVs would sample the first visible part's texture.
         ///
-        /// <para>Off restores one material per part texture, which is what the shipped sprite path does
-        /// and what the A/B window needs in order to show the difference. Turning it on or off rebuilds
-        /// the atlas immediately, so the switch is a fair comparison rather than a restart.</para>
+        /// <para>Turning it off rebuilds immediately and falls back to the first visible part's
+        /// per-texture material — useful only as a diagnostic for single-texture fixtures.</para>
         /// </summary>
         public bool AtlasEnabled
         {
@@ -330,21 +362,27 @@ namespace PFE.Character
         /// How many parts the last drawn frame took from the worn armour set.
         /// </summary>
         /// <remarks>
-        /// The A/B could not tell "the costume did not reach this side" from "the costume reached it and
-        /// the pixels are wrong", because both look like a part drawn in the wrong clothes. This counts
-        /// the decision instead of the result: the sprite side and the quad side must report the same
-        /// number for the same frame, and the window prints both.
+        /// A decision-level diagnostic, not a pixel check: "the costume did not reach the renderer"
+        /// and "the costume reached it and the pixels are wrong" can look identical in a screenshot,
+        /// but report different numbers here.
         /// </remarks>
         public int ArmourPartsDrawn { get; private set; }
 
-        /// <summary>How many quads were written into the shared mesh on the last frame.</summary>
+        /// <summary>How many quads were written into the meshes on the last frame (body + overlays).</summary>
         public int ActiveQuadCount => _activeQuadCount;
 
-        /// <summary>How many slots the shared mesh can hold (primary + secondary + overlays).</summary>
+        /// <summary>How many slots the body mesh can hold (primary + secondary).</summary>
         public int MeshCapacity => _meshCapacity;
 
-        /// <summary>Whether the shared mesh renderer is currently enabled (i.e. something was drawn).</summary>
+        /// <summary>Whether the body mesh renderer is currently enabled (i.e. something was drawn).</summary>
         public bool IsMeshRendererActive => _meshRenderer != null && _meshRenderer.enabled;
+
+        /// <summary>
+        /// Whether the overlay mesh renderer is currently enabled. The shield and its siblings are
+        /// the only overlays, so this is "an overlay gate is on" — the quad-path answer to "is the
+        /// dome on screen", asserted by the shield fixture.
+        /// </summary>
+        public bool IsOverlayMeshActive => _overlayMeshRenderer != null && _overlayMeshRenderer.enabled;
 
         /// <summary>
         /// Give the atlas a mip chain. <b>Off by default.</b>
@@ -381,9 +419,9 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// Horn aura charge, 0..100, in the original's units — see <see cref="HornAura"/>. Mirrors
-        /// <see cref="CharacterSpriteAssembler.HornAuraLevel"/> so the A/B window can drive both sides
-        /// with one slider and any difference that survives is a difference between the renderers.
+        /// Horn aura charge, 0..100, in the original's units — see <see cref="HornAura"/>. 0 is what
+        /// the game spends most of its time at, so a freshly built character shows no glow until the
+        /// simulation says otherwise.
         /// </summary>
         public float HornAuraLevel
         {
@@ -403,7 +441,7 @@ namespace PFE.Character
 
         /// <summary>
         /// Room ambient, 0..1, multiplied into every part's vertex colour. Overlays are excluded — the
-        /// shield is emissive magic, and the shipped path draws it white for the same reason.
+        /// shield is emissive magic and draws white for the same reason.
         /// </summary>
         public float Ambient
         {
@@ -538,8 +576,7 @@ namespace PFE.Character
 
         /// <summary>
         /// The slot currently drawing <paramref name="partName"/>, or null. Several slots may map to
-        /// the same part (the near and far legs share symbols), so this returns the first — same
-        /// contract as <see cref="CharacterSpriteAssembler.GetSlot"/>.
+        /// the same part (the near and far legs share symbols), so this returns the first.
         /// </summary>
         public QuadSlot GetQuadSlot(string partName)
         {
@@ -552,6 +589,100 @@ namespace PFE.Character
             }
             return null;
         }
+
+        /// <summary>
+        /// Where a named part sits in world space on the frame currently drawn — the port of AS3's
+        /// <c>vis.osn.body.head.morda.konec</c> transform (<c>UnitPlayer.as:3563</c>), which is how the
+        /// player's magic spawn point is derived.
+        ///
+        /// <para><b>Why this cannot be a Transform lookup.</b> <c>konec</c> is a marker, not art:
+        /// symbol 240 is empty, <see cref="CharacterPartDefinition.baseSprite"/> is null, and all
+        /// <b>881</b> of its placements are authored <c>visible: 0</c> — so <see cref="ApplyFrame"/>
+        /// never writes it a quad slot and there is no GameObject to read. The point still exists in
+        /// the frame data, which is where this reads it.</para>
+        ///
+        /// <para><b>Why it must be read every frame.</b> <c>konec</c> has <b>687</b> distinct positions
+        /// across the shipped clips — x spans 0.61 units, y spans 0.66 — because it rides the head.
+        /// Caching one sample would put the horn in the wrong place on most of the animation (lesson
+        /// #256: a placement is a starting point, not a position).</para>
+        ///
+        /// <para>World space through the <i>body root</i>, not this component's transform: the
+        /// placement is expressed in the body clip's own space, and since the body root can carry a
+        /// scale (<see cref="CharacterAnimationDefinition.BodyScale"/>) the two are not the same
+        /// answer. Reading it through the assembler would report every anchor at 1/1.3 of where the
+        /// quad actually draws, and a held weapon would sit inside the chest with nothing logged. The
+        /// armour override's <c>localOffset</c> is included for the same reason
+        /// <see cref="ApplyFrame"/> includes it — a caller asking about <c>helm</c> must not get a
+        /// different answer than the renderer draws.</para>
+        /// </summary>
+        /// <param name="partName">The definition's part name, e.g. <c>konec</c>, <c>head</c>.</param>
+        /// <param name="world">The point, when the part is present on the current frame.</param>
+        /// <returns>
+        /// <c>false</c> when there is no definition, no current clip, no such part, or the part is
+        /// absent from this frame — every one of which is a legal "no anchor" answer rather than an
+        /// error, and each of which the caller must have a fallback for.
+        /// </returns>
+        public bool TryGetPartWorldPosition(string partName, out Vector2 world)
+        {
+            world = default;
+
+            if (_definition == null || string.IsNullOrEmpty(_currentState)) return false;
+
+            CharacterStateClip clip = _definition.GetStateClip(_currentState);
+            if (clip?.frames == null || _currentFrame < 0 || _currentFrame >= clip.frames.Length) return false;
+
+            CharacterFrameData frame = clip.frames[_currentFrame];
+            if (frame.partPlacements == null) return false;
+
+            int partIndex = FindPartIndex(partName);
+            if (partIndex < 0) return false;
+
+            foreach (PartFramePlacement placement in frame.partPlacements)
+            {
+                if (placement.partIndex != partIndex) continue;
+
+                Vector2 local = placement.localPosition;
+
+                // Same expression as ApplyFrame's position write: a part the armour has displaced must
+                // report the displaced point, or this and the renderer would disagree about where the
+                // part is.
+                ArmorVisualSet armorSet = GetActiveArmorSet();
+                if (TryGetArmorOverride(partIndex, armorSet, out ArmorPartOverride armorOverride))
+                {
+                    local += ArmorOffsets.Total(armorOverride, placement);
+                }
+
+                // Through the body root, not this component's transform: the placement is expressed in
+                // the body clip's own space, and since the body root can carry a scale
+                // (CharacterAnimationDefinition.bodyScale) the two are not the same answer. Using the
+                // assembler here would report every anchor at 1/1.3 of where the quad actually draws,
+                // and a held weapon would sit inside the chest with nothing logged.
+                world = BodyRootOrSelf.TransformPoint(new Vector3(local.x, local.y, 0f));
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Index of a named part in <see cref="CharacterAnimationDefinition.parts"/>, or -1.</summary>
+        int FindPartIndex(string partName)
+        {
+            if (_definition?.parts == null || string.IsNullOrEmpty(partName)) return -1;
+
+            for (int i = 0; i < _definition.parts.Length; i++)
+            {
+                CharacterPartDefinition part = _definition.parts[i];
+                if (part != null && part.partName == partName) return i;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// <see cref="BodyRoot"/> when a build has happened, otherwise this component's transform.
+        /// The fallback matters for a caller that reads an anchor before the first <c>Rebuild</c>.
+        /// </summary>
+        Transform BodyRootOrSelf => _bodyRoot != null ? _bodyRoot : transform;
 
         // ─── Build ──────────────────────────────────────────────────────────
 
@@ -575,11 +706,11 @@ namespace PFE.Character
                 }
             }
 
-            // Capacity: primary slots + potential secondary hair layers + overlay slots.
-            // Secondary slots are created lazily but share the same mesh, so they must
-            // be counted here. The worst case is every primary slot having a secondary.
-            int overlayCount = _definition.overlays?.Length ?? 0;
-            _meshCapacity = maxPlacements * 2 + overlayCount;
+            // Capacity: primary slots + potential secondary hair layers. Secondary slots are
+            // created lazily but share the same mesh, so they must be counted here. The worst
+            // case is every primary slot having a secondary. Overlays live in their own mesh
+            // (EnsureOverlayMesh) and are not part of this capacity.
+            _meshCapacity = maxPlacements * 2;
 
             EnsureSharedMesh();
 
@@ -591,7 +722,8 @@ namespace PFE.Character
                     sortingOrder = i * 2,
                     partIndex = -1,
                     partDef = null,
-                    _owner = this
+                    _owner = this,
+                    _buffer = _vertices
                 };
                 _slotPool.Add(slot);
             }
@@ -604,8 +736,8 @@ namespace PFE.Character
         ///
         /// <para><b>The scale is re-read on every rebuild, never cached on the node.</b>
         /// <see cref="ClearSlots"/> destroys it, so an import that changes the definition cannot leave
-        /// a stale scale behind — the same rule and the same reason as the shipped assembler's
-        /// <c>EnsureBodyRoot</c>, which this mirrors deliberately rather than by coincidence.</para>
+        /// a stale scale behind — a value that exists but nothing reads is exactly the fault this
+        /// node was added to fix.</para>
         /// </summary>
         Transform EnsureBodyRoot()
         {
@@ -669,17 +801,12 @@ namespace PFE.Character
             };
             _sharedMesh.MarkDynamic();
 
-            _allVertices = new Vector3[vertexCount];
-            _allUvs = new Vector2[vertexCount];
-            _allColors = new Color[vertexCount];
+            _vertices = new CharacterQuadVertex[vertexCount];
             _allTriangles = new int[indexCount];
 
-            // Pre-fill the index buffer with the quad topology. Each quad i uses
-            // vertices [i*4 .. i*4+3] and indices [i*6 .. i*6+5]. The index buffer
-            // is never rewritten per-frame; instead, the mesh's index count is set
-            // to _activeQuadCount * 6, which truncates from the end. This works
-            // because slots are written in order and hidden slots are simply not
-            // included in the active count.
+            // Fill the index buffer with the quad topology. Each quad i uses vertices
+            // [i*4 .. i*4+3] and indices [i*6 .. i*6+5]. Uploaded once: visibility is expressed in
+            // the vertex data (degenerate quads), never by editing this buffer.
             for (int quad = 0; quad < _meshCapacity; quad++)
             {
                 int v = quad * 4;
@@ -692,12 +819,96 @@ namespace PFE.Character
                 _allTriangles[t + 5] = v + 3;
             }
 
-            _sharedMesh.vertices = _allVertices;
-            _sharedMesh.uv = _allUvs;
-            _sharedMesh.colors = _allColors;
-            _sharedMesh.triangles = _allTriangles;
+            _sharedMesh.SetVertexBufferParams(vertexCount, CharacterQuadVertex.Layout);
+            // UInt32 even though this character needs a few hundred vertices: the format is chosen
+            // once for the life of the mesh, and a pathological definition must not overflow it.
+            _sharedMesh.SetIndexBufferParams(indexCount, IndexFormat.UInt32);
+            _sharedMesh.SetIndexBufferData(_allTriangles, 0, 0, indexCount);
+            _sharedMesh.SetSubMesh(
+                0,
+                new SubMeshDescriptor(0, indexCount, MeshTopology.Triangles),
+                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
 
+            _touchedVertexCount = 0;
             _meshFilter.sharedMesh = _sharedMesh;
+        }
+
+        /// <summary>
+        /// Creates the GameObject that carries the overlay quads — the shield dome and its siblings —
+        /// plus its mesh, sized to the definition's overlay count. Called once per build from
+        /// <see cref="BuildOverlays"/>.
+        ///
+        /// <para><b>Parented to the assembler root, deliberately NOT to the body root.</b> In the SWF
+        /// the overlays are siblings of <c>osn</c> inside <c>visualPlayer</c>, placed at their own
+        /// scales: scaling the body must not scale the shield dome (for the player, whose bodyScale
+        /// is 1.2999878, parenting the dome under the body root is a 30 % oversized dome and a bug
+        /// nobody would connect to the player's height).</para>
+        ///
+        /// <para><b>Its own renderer, at the highest overlay sorting order.</b> An overlay definition
+        /// carries a <c>sortingOrder</c> meant to sit above every body part (the shield is 1000);
+        /// a single body mesh at order 0 could not express that.</para>
+        /// </summary>
+        void EnsureOverlayMesh(int capacity, int sortingOrder)
+        {
+            if (_overlayMeshRoot != null || capacity <= 0)
+            {
+                return;
+            }
+
+            _overlayMeshRoot = new GameObject("quad_overlay_mesh");
+            _overlayMeshRoot.transform.SetParent(transform, false);
+            _overlayMeshRoot.layer = gameObject.layer;
+
+            if (!Application.isPlaying)
+            {
+                _overlayMeshRoot.hideFlags = HideFlags.DontSave;
+            }
+
+            _overlayMeshFilter = _overlayMeshRoot.AddComponent<MeshFilter>();
+            _overlayMeshRenderer = _overlayMeshRoot.AddComponent<MeshRenderer>();
+            _overlayMeshRenderer.enabled = false;
+            _overlayMeshRenderer.sortingLayerName = _sortingLayerName;
+            _overlayMeshRenderer.sortingOrder = sortingOrder;
+            _overlayMeshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _overlayMeshRenderer.receiveShadows = false;
+
+            int vertexCount = capacity * CharacterQuadGeometry.VertexCount;
+            int indexCount = capacity * 6;
+
+            _overlayMesh = new Mesh
+            {
+                name = $"{name}_overlays",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            _overlayMesh.MarkDynamic();
+
+            _overlayVertices = new CharacterQuadVertex[vertexCount];
+            _overlayTriangles = new int[indexCount];
+
+            // Same degenerate-quad visibility contract as the body mesh: the index buffer is
+            // uploaded once, hidden overlays are zeroed positions.
+            for (int quad = 0; quad < capacity; quad++)
+            {
+                int v = quad * 4;
+                int t = quad * 6;
+                _overlayTriangles[t + 0] = v + 0;
+                _overlayTriangles[t + 1] = v + 1;
+                _overlayTriangles[t + 2] = v + 2;
+                _overlayTriangles[t + 3] = v + 0;
+                _overlayTriangles[t + 4] = v + 2;
+                _overlayTriangles[t + 5] = v + 3;
+            }
+
+            _overlayMesh.SetVertexBufferParams(vertexCount, CharacterQuadVertex.Layout);
+            _overlayMesh.SetIndexBufferParams(indexCount, IndexFormat.UInt32);
+            _overlayMesh.SetIndexBufferData(_overlayTriangles, 0, 0, indexCount);
+            _overlayMesh.SetSubMesh(
+                0,
+                new SubMeshDescriptor(0, indexCount, MeshTopology.Triangles),
+                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+
+            _overlayTouchedVertexCount = 0;
+            _overlayMeshFilter.sharedMesh = _overlayMesh;
         }
 
         void ClearSlots()
@@ -716,10 +927,9 @@ namespace PFE.Character
                 _sharedMesh = null;
             }
 
-            _allVertices = null;
-            _allUvs = null;
-            _allColors = null;
+            _vertices = null;
             _allTriangles = null;
+            _touchedVertexCount = 0;
 
             if (_meshRoot != null)
             {
@@ -727,6 +937,24 @@ namespace PFE.Character
                 _meshRoot = null;
                 _meshFilter = null;
                 _meshRenderer = null;
+            }
+
+            if (_overlayMesh != null)
+            {
+                CharacterQuadMaterialCache.DestroyObject(_overlayMesh);
+                _overlayMesh = null;
+            }
+
+            _overlayVertices = null;
+            _overlayTriangles = null;
+            _overlayTouchedVertexCount = 0;
+
+            if (_overlayMeshRoot != null)
+            {
+                CharacterQuadMaterialCache.DestroyObject(_overlayMeshRoot);
+                _overlayMeshRoot = null;
+                _overlayMeshFilter = null;
+                _overlayMeshRenderer = null;
             }
 
             // The body root goes with the slots: it carries the definition's bodyScale, and a rebuild
@@ -744,6 +972,11 @@ namespace PFE.Character
             if (_meshRenderer != null)
             {
                 _meshRenderer.sortingLayerName = _sortingLayerName;
+            }
+
+            if (_overlayMeshRenderer != null)
+            {
+                _overlayMeshRenderer.sortingLayerName = _sortingLayerName;
             }
         }
 
@@ -807,8 +1040,7 @@ namespace PFE.Character
         /// </summary>
         void RebuildAtlas()
         {
-            _atlas?.Dispose();
-            _atlas = null;
+            ReleaseAtlas();
             _atlasVersion++;
 
             if (!_useAtlas || _definition == null)
@@ -824,7 +1056,28 @@ namespace PFE.Character
                 return;
             }
 
-            _atlas = CharacterQuadAtlas.Build(sprites, _bilinear, _visualContext.armorId, _atlasMips);
+            // Play mode borrows from the shared cache: the same costume on the next spawn or swap
+            // is a lookup, not a pack + copy + read-back. The editor builds a fresh, owned atlas so
+            // the preview windows keep their rebuild-on-demand semantics.
+            _atlas = Application.isPlaying
+                ? CharacterQuadAtlas.Cache.Get(sprites, _bilinear, _visualContext.armorId, _atlasMips)
+                : CharacterQuadAtlas.Build(sprites, _bilinear, _visualContext.armorId, _atlasMips);
+        }
+
+        /// <summary>
+        /// Drops the current atlas reference. <b>Never disposes a play-mode atlas</b> — those belong
+        /// to <see cref="CharacterQuadAtlas.Cache"/> and may still be drawn by another character;
+        /// the cache evicts and disposes on its own LRU. Only the editor path (a fresh
+        /// <see cref="CharacterQuadAtlas.Build"/>, owned by this instance) is disposed here.
+        /// </summary>
+        void ReleaseAtlas()
+        {
+            if (_atlas != null && !Application.isPlaying)
+            {
+                _atlas.Dispose();
+            }
+
+            _atlas = null;
         }
 
         void CollectSprites(List<Sprite> into)
@@ -954,13 +1207,26 @@ namespace PFE.Character
         {
             if (_definition?.overlays == null) return;
 
+            // Count the overlays that will actually get a slot — null or nameless definitions are
+            // skipped below, and the mesh is sized to what is drawn, not to the array length.
+            int validCount = 0;
+            int topSortingOrder = 0;
+            foreach (CharacterOverlayDefinition def in _definition.overlays)
+            {
+                if (def == null || string.IsNullOrEmpty(def.overlayName)) continue;
+                validCount++;
+                topSortingOrder = Mathf.Max(topSortingOrder, def.sortingOrder);
+            }
+
+            EnsureOverlayMesh(validCount, topSortingOrder);
+
             int overlayIndex = 0;
             foreach (CharacterOverlayDefinition def in _definition.overlays)
             {
                 if (def == null || string.IsNullOrEmpty(def.overlayName)) continue;
 
-                // Overlay vertices live after the primary and secondary slots in the shared mesh.
-                int vertexBase = (_slotPool.Count * 2 + overlayIndex) * CharacterQuadGeometry.VertexCount;
+                // Overlay vertices live in the overlay mesh, one quad each, in definition order.
+                int vertexBase = overlayIndex * CharacterQuadGeometry.VertexCount;
 
                 var slot = new QuadSlot
                 {
@@ -968,7 +1234,9 @@ namespace PFE.Character
                     sortingOrder = def.sortingOrder,
                     partIndex = -1,
                     partDef = null,
-                    _owner = this
+                    _owner = this,
+                    _buffer = _overlayVertices,
+                    _isOverlay = true
                 };
 
                 _overlaySlots.Add(new QuadOverlaySlot
@@ -990,9 +1258,9 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// The overlay playhead rules are the shipped ones — <see cref="OverlayClip"/> — deliberately
-        /// not re-derived. The rise restarts at frame 1, the fall writes the playhead too, and an
-        /// overlay whose frames never imported draws nothing.
+        /// The overlay playhead rules are the original Flash ones, centralised in
+        /// <see cref="OverlayClip"/> — deliberately not re-derived. The rise restarts at frame 1, the
+        /// fall writes the playhead too, and an overlay whose frames never imported draws nothing.
         /// </summary>
         void SyncOverlays(int steps)
         {
@@ -1121,7 +1389,7 @@ namespace PFE.Character
 
                 CharacterPartDefinition part = _definition.parts[placement.partIndex];
 
-                // ── Part visibility filters (identical to the shipped assembler) ──
+                // ── Part visibility filters (the original's rules) ──
                 if (part.partName == "mane" && clip.useRunMane) continue;
                 if (part.partName == "mane_run" && !clip.useRunMane) continue;
                 if (part.partName == "tail" && clip.useRunTail) continue;
@@ -1213,7 +1481,8 @@ namespace PFE.Character
                 sortingOrder = primary.sortingOrder + 1,
                 partIndex = -1,
                 partDef = null,
-                _owner = this
+                _owner = this,
+                _buffer = _vertices
             };
 
             primary.secondary = secondary;
@@ -1221,10 +1490,11 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// Writes one slot's quad into the shared mesh buffers. Geometry (quad + UVs) is only
-        /// recomputed when the sprite/pivot/settings change; vertices and colors are written every
-        /// time the placement changes. Nothing is uploaded to the GPU here — that happens once
-        /// in <see cref="FlushMesh"/> after all slots are written.
+        /// Writes one slot's quad into its interleaved buffer — the body mesh's for parts, the
+        /// overlay mesh's for overlays. Geometry (quad + UV window) is only recomputed when the
+        /// sprite/pivot/settings change; the four vertices are rewritten every call — position, UV
+        /// and colour together, one struct per vertex. Nothing is uploaded to the GPU here — that
+        /// happens once in <see cref="FlushMesh"/>.
         /// </summary>
         void WriteSlot(
             QuadSlot slot,
@@ -1235,7 +1505,9 @@ namespace PFE.Character
             Vector2 scale,
             Color color)
         {
-            if (sprite == null || slot.vertexBase < 0 || slot.vertexBase + 3 >= _allVertices.Length)
+            CharacterQuadVertex[] buffer = slot._buffer;
+            if (sprite == null || slot.vertexBase < 0 || buffer == null
+                || slot.vertexBase + 3 >= buffer.Length)
             {
                 slot.Hide();
                 return;
@@ -1268,133 +1540,157 @@ namespace PFE.Character
                     slot.quad.UMax = atlasUv.z;
                     slot.quad.VMax = atlasUv.w;
                 }
-
-                // Write UVs into the shared buffer at this slot's vertex offset.
-                int vb = slot.vertexBase;
-                _allUvs[vb + 0] = new Vector2(slot.quad.UMin, slot.quad.VMin);
-                _allUvs[vb + 1] = new Vector2(slot.quad.UMin, slot.quad.VMax);
-                _allUvs[vb + 2] = new Vector2(slot.quad.UMax, slot.quad.VMax);
-                _allUvs[vb + 3] = new Vector2(slot.quad.UMax, slot.quad.VMin);
-
-                slot.colorValid = false;
             }
 
-            if (!slot.colorValid || slot.color != color)
-            {
-                int vb = slot.vertexBase;
-                _allColors[vb + 0] = color;
-                _allColors[vb + 1] = color;
-                _allColors[vb + 2] = color;
-                _allColors[vb + 3] = color;
-                slot.color = color;
-                slot.colorValid = true;
-            }
+            CharacterQuadGeometry.WriteQuad(
+                slot.quad, position, rotationDegrees, scale, color, buffer, slot.vertexBase);
+            NoteTouched(slot, slot.vertexBase + CharacterQuadGeometry.VertexCount);
 
-            // Write vertices into the shared buffer at this slot's vertex offset.
-            CharacterQuadGeometry.WriteCorners(
-                slot.quad, position, rotationDegrees, scale, _allVertices, slot.vertexBase);
-
+            slot.color = color;
+            slot.colorValid = true;
             slot.visible = true;
         }
 
         /// <summary>
-        /// Uploads the shared mesh buffers to the GPU and sets the renderer's material and
-        /// active quad count. Called once per frame after all slots have been written.
+        /// Zeros the four positions of one quad, which turns both of its triangles degenerate: the
+        /// quad is hidden without touching the index buffer. UV and colour stay stale on purpose —
+        /// a degenerate triangle rasterizes no fragment, so nothing reads them.
+        /// </summary>
+        void ZeroQuad(QuadSlot slot)
+        {
+            CharacterQuadVertex[] buffer = slot._buffer;
+            int vertexBase = slot.vertexBase;
+            if (buffer == null || vertexBase < 0 || vertexBase + 3 >= buffer.Length)
+            {
+                return;
+            }
+
+            for (int i = 0; i < CharacterQuadGeometry.VertexCount; i++)
+            {
+                CharacterQuadVertex vertex = buffer[vertexBase + i];
+                vertex.Position = Vector3.zero;
+                buffer[vertexBase + i] = vertex;
+            }
+
+            NoteTouched(slot, vertexBase + CharacterQuadGeometry.VertexCount);
+        }
+
+        /// <summary>Extends the upload prefix of the slot's own mesh: every write this frame sits below this index.</summary>
+        void NoteTouched(QuadSlot slot, int onePastLast)
+        {
+            if (slot._isOverlay)
+            {
+                if (onePastLast > _overlayTouchedVertexCount)
+                {
+                    _overlayTouchedVertexCount = onePastLast;
+                }
+            }
+            else if (onePastLast > _touchedVertexCount)
+            {
+                _touchedVertexCount = onePastLast;
+            }
+        }
+
+        /// <summary>
+        /// Uploads the touched prefix of both interleaved vertex buffers, sets each mesh's bounds
+        /// from its own visible quads, and resolves each renderer's material. Called once per frame
+        /// after all slots have been written. The index buffers are never touched here — they were
+        /// uploaded once at build time, and hidden quads are degenerate positions, not absent
+        /// indices. <see cref="_activeQuadCount"/> counts the quads of both meshes.
         /// </summary>
         void FlushMesh()
         {
+            // A dead atlas must not reach the material resolution below. The play-mode cache
+            // evicts and disposes atlases LRU (CharacterQuadAtlas.Cache.MaxEntries), and an
+            // assembler that keeps drawing a costume it acquired before eight newer builds —
+            // an equipped armour, a room full of costumes — holds a disposed texture. Left
+            // alone, that renders the broken one-material fallback forever; rebuilding here
+            // turns it into one missed frame. InvalidateAtlas re-draws through ApplyFrame
+            // (nested flush), so the slots below re-upload with the fresh atlas anyway.
+            if (_atlas != null && !_atlas.IsReady)
+            {
+                Debug.LogWarning(
+                    "[CharacterQuad] The character atlas was disposed while in use (cache " +
+                    "eviction); rebuilding it. Raise CharacterQuadAtlas.Cache.MaxEntries if this " +
+                    "recurs.");
+                InvalidateAtlas();
+            }
+
+            int drawn = FlushBodyMesh();
+            drawn += FlushOverlayMesh();
+            _activeQuadCount = drawn;
+        }
+
+        int FlushBodyMesh()
+        {
             if (_sharedMesh == null || _meshRenderer == null)
             {
-                return;
+                return 0;
             }
 
-            // Count visible quads. Slots are written in order, so we count contiguously
-            // from the start. A hidden slot (visible == false) does not contribute.
-            // However, slots may be interleaved (primary visible, secondary hidden),
-            // so we count all visible slots and rewrite the index buffer to compact them.
+            // Count visible quads for the readout and accumulate the local-space bounds Unity
+            // would otherwise recalculate per upload — the upload below passes
+            // DontRecalculateBounds, so this loop owns the only bounds the culler ever sees.
             int quadCount = 0;
-            int triangleCount = 0;
+            var bounds = new Bounds(Vector3.zero, Vector3.zero);
+            bool hasBounds = false;
 
-            // Count primary slots and their secondaries
+            void Include(QuadSlot slot)
+            {
+                if (_vertices == null) return;
+                for (int i = 0; i < CharacterQuadGeometry.VertexCount; i++)
+                {
+                    Vector3 p = _vertices[slot.vertexBase + i].Position;
+                    if (hasBounds) bounds.Encapsulate(p);
+                    else { bounds = new Bounds(p, Vector3.zero); hasBounds = true; }
+                }
+            }
+
             foreach (QuadSlot slot in _slotPool)
             {
-                if (slot.visible)
-                {
-                    quadCount++;
-                    // Copy this quad's indices to the compacted position
-                    int srcBase = slot.vertexBase;
-                    int dstTriBase = triangleCount;
-                    _allTriangles[dstTriBase + 0] = srcBase + 0;
-                    _allTriangles[dstTriBase + 1] = srcBase + 1;
-                    _allTriangles[dstTriBase + 2] = srcBase + 2;
-                    _allTriangles[dstTriBase + 3] = srcBase + 0;
-                    _allTriangles[dstTriBase + 4] = srcBase + 2;
-                    _allTriangles[dstTriBase + 5] = srcBase + 3;
-                    triangleCount += 6;
-                }
-
-                if (slot.secondary != null && slot.secondary.visible)
-                {
-                    quadCount++;
-                    int srcBase = slot.secondary.vertexBase;
-                    int dstTriBase = triangleCount;
-                    _allTriangles[dstTriBase + 0] = srcBase + 0;
-                    _allTriangles[dstTriBase + 1] = srcBase + 1;
-                    _allTriangles[dstTriBase + 2] = srcBase + 2;
-                    _allTriangles[dstTriBase + 3] = srcBase + 0;
-                    _allTriangles[dstTriBase + 4] = srcBase + 2;
-                    _allTriangles[dstTriBase + 5] = srcBase + 3;
-                    triangleCount += 6;
-                }
+                if (slot.visible) { quadCount++; Include(slot); }
+                if (slot.secondary != null && slot.secondary.visible) { quadCount++; Include(slot.secondary); }
             }
-
-            // Count overlay slots
-            foreach (QuadOverlaySlot overlay in _overlaySlots)
-            {
-                if (overlay.slot != null && overlay.slot.visible)
-                {
-                    quadCount++;
-                    int srcBase = overlay.slot.vertexBase;
-                    int dstTriBase = triangleCount;
-                    _allTriangles[dstTriBase + 0] = srcBase + 0;
-                    _allTriangles[dstTriBase + 1] = srcBase + 1;
-                    _allTriangles[dstTriBase + 2] = srcBase + 2;
-                    _allTriangles[dstTriBase + 3] = srcBase + 0;
-                    _allTriangles[dstTriBase + 4] = srcBase + 2;
-                    _allTriangles[dstTriBase + 5] = srcBase + 3;
-                    triangleCount += 6;
-                }
-            }
-
-            _activeQuadCount = quadCount;
 
             if (quadCount == 0)
             {
+                _touchedVertexCount = 0;
                 _meshRenderer.enabled = false;
-                return;
+                return 0;
             }
 
-            // Upload the buffers. The triangle buffer is pre-filled at creation and never
-            // changes — hidden quads are excluded by rewriting the index buffer to compact
-            // visible quads at the start. SetTriangles with a count truncates the index
-            // buffer so only the active quads are drawn.
-            _sharedMesh.vertices = _allVertices;
-            _sharedMesh.uv = _allUvs;
-            _sharedMesh.colors = _allColors;
-            _sharedMesh.SetTriangles(_allTriangles, 0, triangleCount, 0, false);
+            int count = Mathf.Min(_touchedVertexCount, _vertices.Length);
+            _touchedVertexCount = 0;
+            if (count > 0)
+            {
+                _sharedMesh.SetVertexBufferData(
+                    _vertices, 0, 0, count, 0,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+            }
+
+            // A generous box on purpose: parts swing between animation extremes, and recomputing
+            // tight bounds per frame is the work the manual-bounds flag exists to skip. One extra
+            // unit of margin around what is actually drawn.
+            if (hasBounds)
+            {
+                bounds.Expand(1f);
+                _sharedMesh.bounds = bounds;
+                _sharedMesh.SetSubMesh(
+                    0,
+                    new SubMeshDescriptor(0, _allTriangles.Length, MeshTopology.Triangles) { bounds = bounds },
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+            }
 
             // Resolve the material. If the atlas is active, all slots share the atlas material.
-            // If not, we use the material of the first visible slot — this is a limitation of
-            // the single-mesh approach: without the atlas, all parts must share one material.
-            // The atlas is what enables the full benefit; without it, the quad path still
-            // draws correctly but uses one material (the first part's texture).
+            // If not, the material of the first visible part — the limitation of the single-mesh
+            // approach: one mesh binds one material. Correct only when every part lives on that
+            // one texture; on any real character that means the atlas must be on (class doc).
             if (_atlas != null && _atlas.IsReady)
             {
                 _meshRenderer.sharedMaterial = _atlas.Material;
             }
             else
             {
-                // Find the first visible slot to get its material
                 Material mat = null;
                 foreach (QuadSlot slot in _slotPool)
                 {
@@ -1405,22 +1701,89 @@ namespace PFE.Character
                     }
                 }
 
-                if (mat == null)
-                {
-                    foreach (QuadOverlaySlot overlay in _overlaySlots)
-                    {
-                        if (overlay.slot != null && overlay.slot.visible && overlay.slot.sprite != null)
-                        {
-                            mat = _materials.GetMaterial(overlay.slot.sprite.texture, _bilinear);
-                            break;
-                        }
-                    }
-                }
-
                 _meshRenderer.sharedMaterial = mat;
             }
 
             _meshRenderer.enabled = true;
+            return quadCount;
+        }
+
+        int FlushOverlayMesh()
+        {
+            if (_overlayMesh == null || _overlayMeshRenderer == null)
+            {
+                return 0;
+            }
+
+            int quadCount = 0;
+            var bounds = new Bounds(Vector3.zero, Vector3.zero);
+            bool hasBounds = false;
+
+            void Include(QuadSlot slot)
+            {
+                if (_overlayVertices == null) return;
+                for (int i = 0; i < CharacterQuadGeometry.VertexCount; i++)
+                {
+                    Vector3 p = _overlayVertices[slot.vertexBase + i].Position;
+                    if (hasBounds) bounds.Encapsulate(p);
+                    else { bounds = new Bounds(p, Vector3.zero); hasBounds = true; }
+                }
+            }
+
+            foreach (QuadOverlaySlot overlay in _overlaySlots)
+            {
+                if (overlay.slot != null && overlay.slot.visible) { quadCount++; Include(overlay.slot); }
+            }
+
+            if (quadCount == 0)
+            {
+                _overlayTouchedVertexCount = 0;
+                _overlayMeshRenderer.enabled = false;
+                return 0;
+            }
+
+            int count = Mathf.Min(_overlayTouchedVertexCount, _overlayVertices.Length);
+            _overlayTouchedVertexCount = 0;
+            if (count > 0)
+            {
+                _overlayMesh.SetVertexBufferData(
+                    _overlayVertices, 0, 0, count, 0,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+            }
+
+            if (hasBounds)
+            {
+                bounds.Expand(1f);
+                _overlayMesh.bounds = bounds;
+                _overlayMesh.SetSubMesh(
+                    0,
+                    new SubMeshDescriptor(0, _overlayTriangles.Length, MeshTopology.Triangles) { bounds = bounds },
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+            }
+
+            // Same material rule as the body mesh, over the overlay slots' own sprites: the atlas
+            // material when packed, otherwise the first visible overlay's per-texture material.
+            if (_atlas != null && _atlas.IsReady)
+            {
+                _overlayMeshRenderer.sharedMaterial = _atlas.Material;
+            }
+            else
+            {
+                Material mat = null;
+                foreach (QuadOverlaySlot overlay in _overlaySlots)
+                {
+                    if (overlay.slot != null && overlay.slot.visible && overlay.slot.sprite != null)
+                    {
+                        mat = _materials.GetMaterial(overlay.slot.sprite.texture, _bilinear);
+                        break;
+                    }
+                }
+
+                _overlayMeshRenderer.sharedMaterial = mat;
+            }
+
+            _overlayMeshRenderer.enabled = true;
+            return quadCount;
         }
 
         Color ApplyAmbient(Color color)
@@ -1436,7 +1799,7 @@ namespace PFE.Character
             return color;
         }
 
-        // ─── Armour + visual resolution (mirrors the shipped assembler) ──────
+        // ─── Armour + visual resolution ──────────────────────────────────────
 
         ArmorVisualSet GetActiveArmorSet()
         {
@@ -1449,8 +1812,8 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// Fills the reusable set. The shipped path builds a fresh <see cref="HashSet{T}"/> here on
-        /// every animation frame; this is the same rule with the allocation hoisted out.
+        /// Fills the reusable set. The rule itself builds a fresh <see cref="HashSet{T}"/> per
+        /// animation frame; this is the same rule with the allocation hoisted out.
         /// </summary>
         void BuildHiddenHeadParts(ArmorVisualSet armorSet, out bool usesMordaComposite)
         {
@@ -1627,11 +1990,10 @@ namespace PFE.Character
 
         void OnDestroy()
         {
-            // ClearSlots already disposes the per-texture materials; the atlas is not a slot, so it is
-            // the one thing this method has to own.
+            // ClearSlots already disposes the per-texture materials; the atlas is either the cache's
+            // (play mode — the cache evicts it) or ours (editor — released here).
             ClearSlots();
-            _atlas?.Dispose();
-            _atlas = null;
+            ReleaseAtlas();
         }
 
         // ─── Data types ─────────────────────────────────────────────────────
@@ -1650,15 +2012,24 @@ namespace PFE.Character
         }
 
         /// <summary>
-        /// One quad's worth of rendering state. Unlike the shipped <c>PartSlot</c> there is no
-        /// GameObject per part: the placement is baked into four vertices written into a single
-        /// dynamic mesh shared by the whole character. That is the Remains shape — one transform
-        /// for the actor, vertices for the parts, one draw call.
+        /// One quad's worth of rendering state. There is no GameObject per part: the placement is
+        /// baked into four vertices written into one of the character's two dynamic meshes. That
+        /// is the Remains shape — one transform for the actor, vertices for the parts, one draw
+        /// call per mesh.
         /// </summary>
         public sealed class QuadSlot
         {
-            /// <summary>Index of this slot's first vertex in the shared mesh (slotIndex * 4).</summary>
+            /// <summary>Index of this slot's first vertex in its mesh's buffer (slotIndex * 4).</summary>
             public int vertexBase;
+
+            /// <summary>
+            /// The vertex buffer this slot writes — the body mesh's for parts and secondaries, the
+            /// overlay mesh's for overlays. Set once at slot creation.
+            /// </summary>
+            internal CharacterQuadVertex[] _buffer;
+
+            /// <summary>Whether this slot belongs to the overlay mesh (drives uploads, bounds, and which renderer the shim returns).</summary>
+            internal bool _isOverlay;
 
             public CharacterQuadLocal quad;
             public Sprite sprite;
@@ -1677,17 +2048,19 @@ namespace PFE.Character
             /// <summary>Sorting order this slot keeps within the character (index × 2).</summary>
             public int sortingOrder;
 
-            /// <summary>Whether this slot wrote vertices into the shared mesh this frame.</summary>
+            /// <summary>Whether this slot wrote vertices into its mesh this frame.</summary>
             public bool visible;
 
             public QuadSlot secondary;
 
             /// <summary>
-            /// The shared mesh renderer that draws this slot's quad. Exposed for the preview
-            /// window's bounds and material checks — with the consolidated mesh there is only one
-            /// renderer for the whole character, so every slot returns the same one.
+            /// The mesh renderer that draws this slot's quad — the body mesh renderer for parts,
+            /// the overlay mesh renderer for overlays. Exposed for bounds and material checks.
             /// </summary>
-            public MeshRenderer renderer => _owner != null ? _owner._meshRenderer : null;
+            public MeshRenderer renderer =>
+                _owner != null
+                    ? (_isOverlay ? _owner._overlayMeshRenderer : _owner._meshRenderer)
+                    : null;
 
             /// <summary>Back-reference to the assembler that owns this slot, for the renderer shim.</summary>
             internal CharacterQuadAssembler _owner;
@@ -1695,7 +2068,16 @@ namespace PFE.Character
             public void Hide()
             {
                 visible = false;
-                if (secondary != null) secondary.visible = false;
+
+                // Degenerate the quad in the vertex buffer so the static index buffer draws
+                // nothing for it. Without this a previously written slot would keep rasterizing
+                // its stale vertices — the old design avoided that by compacting the index buffer
+                // every frame, which is the work this design exists to remove.
+                if (_owner != null)
+                {
+                    _owner.ZeroQuad(this);
+                    if (secondary != null) _owner.ZeroQuad(secondary);
+                }
             }
         }
 

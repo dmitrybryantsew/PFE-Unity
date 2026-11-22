@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using PFE.Character;
 using UnityEngine;
@@ -320,6 +321,98 @@ namespace PFE.Tests.EditMode.Character
             Assert.AreEqual(new Vector2(0.1f, 0.8f), uvs[1]); // tl
             Assert.AreEqual(new Vector2(0.9f, 0.8f), uvs[2]); // tr
             Assert.AreEqual(new Vector2(0.9f, 0.2f), uvs[3]); // br
+        }
+
+        // ── WriteQuad: the interleaved twin ──────────────────────────────────────────────────────
+
+        [Test]
+        public void WriteQuad_MatchesWriteCornersAndWriteUvs_CornerForCorner()
+        {
+            // The assembler uploads the interleaved buffer, but the corner order and the TRS
+            // composition are pinned on WriteCorners/WriteUvs — so WriteQuad must agree with both
+            // exactly, or the mesh path and the fixture path would silently diverge on the same
+            // quad. Same inputs as WriteCorners_RotatesAboutTheRegistrationPoint plus a UV window.
+            var quad = new CharacterQuadLocal
+            {
+                XMin = -1f, XMax = 1f, YMin = -1f, YMax = 1f,
+                UMin = 0.1f, UMax = 0.9f, VMin = 0.2f, VMax = 0.8f,
+            };
+
+            var positions = new Vector3[CharacterQuadGeometry.VertexCount];
+            var uvs = new Vector2[CharacterQuadGeometry.VertexCount];
+            CharacterQuadGeometry.WriteCorners(quad, new Vector2(3f, -2f), 33f, new Vector2(0.5f, 2f), positions);
+            CharacterQuadGeometry.WriteUvs(quad, uvs);
+
+            var interleaved = new CharacterQuadVertex[CharacterQuadGeometry.VertexCount];
+            var color = new Color(0.25f, 0.5f, 0.75f, 1f);
+            CharacterQuadGeometry.WriteQuad(quad, new Vector2(3f, -2f), 33f, new Vector2(0.5f, 2f), color, interleaved);
+
+            for (int i = 0; i < CharacterQuadGeometry.VertexCount; i++)
+            {
+                Assert.AreEqual(positions[i], interleaved[i].Position, $"vertex {i} position");
+                Assert.AreEqual(uvs[i], interleaved[i].UV, $"vertex {i} uv");
+                Assert.AreEqual(color, interleaved[i].Color, $"vertex {i} colour");
+            }
+        }
+
+        [Test]
+        public void WriteQuad_RefusesAShortBuffer_InsteadOfThrowing()
+        {
+            var tooSmall = new CharacterQuadVertex[2];
+            Assert.DoesNotThrow(() =>
+                CharacterQuadGeometry.WriteQuad(UnitQuad(), Vector2.zero, 0f, Vector2.one, Color.white, tooSmall));
+        }
+
+        [Test]
+        public void InterleavedVertex_UploadsAndReadsBack_WithChannelsIntact()
+        {
+            // The one thing the pure fixtures above cannot see: whether the explicit struct layout
+            // agrees with the layout Unity computes for SetVertexBufferParams. If the two ever drift
+            // (attribute offsets are aligned to the attribute's own size, so a sequential struct
+            // drifts), the read-back UV arrives as the colour's first two floats — wrong picture,
+            // no error. Uploading one quad and reading it back pins the channel attribution.
+            var quad = new CharacterQuadLocal
+            {
+                XMin = -0.5f, XMax = 0.5f, YMin = -0.25f, YMax = 0.75f,
+                UMin = 0.125f, UMax = 0.625f, VMin = 0.25f, VMax = 0.75f,
+            };
+            var color = new Color(0.2f, 0.4f, 0.6f, 0.8f);
+
+            var vertices = new CharacterQuadVertex[CharacterQuadGeometry.VertexCount];
+            CharacterQuadGeometry.WriteQuad(quad, new Vector2(1f, 2f), 15f, new Vector2(2f, 0.5f), color, vertices);
+
+            var mesh = new Mesh();
+            try
+            {
+                mesh.SetVertexBufferParams(vertices.Length, CharacterQuadVertex.Layout);
+                mesh.SetVertexBufferData(vertices, 0, 0, vertices.Length);
+
+                // Read the raw buffer back: the legacy vertices/uv/colors getters read the legacy
+                // channel cache, which a buffer-declared mesh does not maintain, so they return
+                // stale or NaN data here even when the upload is correct.
+                GraphicsBuffer buffer = mesh.GetVertexBuffer(0);
+                try
+                {
+                    var readback = new CharacterQuadVertex[vertices.Length];
+                    buffer.GetData(readback);
+
+                    Assert.AreEqual(vertices.Length, readback.Length);
+                    for (int i = 0; i < vertices.Length; i++)
+                    {
+                        Assert.AreEqual(vertices[i].Position, readback[i].Position, $"vertex {i} position channel");
+                        Assert.AreEqual(vertices[i].UV, readback[i].UV, $"vertex {i} uv channel");
+                        Assert.AreEqual(vertices[i].Color, readback[i].Color, $"vertex {i} colour channel");
+                    }
+                }
+                finally
+                {
+                    buffer.Release();
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(mesh);
+            }
         }
 
         // ── Ambient ────────────────────────────────────────────────────────────────────────────

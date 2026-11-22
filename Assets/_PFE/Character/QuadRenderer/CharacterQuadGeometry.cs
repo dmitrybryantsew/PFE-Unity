@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace PFE.Character
 {
@@ -260,6 +261,59 @@ namespace PFE.Character
             buffer[offset + 3] = new Vector2(quad.UMax, quad.VMin);
         }
 
+        /// <summary>
+        /// Writes all four corners of one quad into an interleaved buffer: position, UV and colour in
+        /// one struct, so a frame's worth of parts uploads as a single
+        /// <c>Mesh.SetVertexBufferData</c> call instead of three separate array uploads.
+        /// Same corner order and the same TRS composition as <see cref="WriteCorners"/> — this is
+        /// that method's interleaved twin, and
+        /// <see cref="PFE.Tests.EditMode.Character.CharacterQuadGeometryTests"/> pins the two to
+        /// agree.
+        /// </summary>
+        public static void WriteQuad(
+            in CharacterQuadLocal quad,
+            Vector2 position,
+            float rotationDegrees,
+            Vector2 scale,
+            Color color,
+            CharacterQuadVertex[] buffer,
+            int offset = 0)
+        {
+            if (buffer == null || buffer.Length < offset + VertexCount)
+            {
+                return;
+            }
+
+            float radians = rotationDegrees * Mathf.Deg2Rad;
+            float cos = Mathf.Cos(radians);
+            float sin = Mathf.Sin(radians);
+
+            buffer[offset + 0] = new CharacterQuadVertex
+            {
+                Position = Corner(quad.XMin, quad.YMin, position, scale, cos, sin),
+                Color = color,
+                UV = new Vector2(quad.UMin, quad.VMin)
+            };
+            buffer[offset + 1] = new CharacterQuadVertex
+            {
+                Position = Corner(quad.XMin, quad.YMax, position, scale, cos, sin),
+                Color = color,
+                UV = new Vector2(quad.UMin, quad.VMax)
+            };
+            buffer[offset + 2] = new CharacterQuadVertex
+            {
+                Position = Corner(quad.XMax, quad.YMax, position, scale, cos, sin),
+                Color = color,
+                UV = new Vector2(quad.UMax, quad.VMax)
+            };
+            buffer[offset + 3] = new CharacterQuadVertex
+            {
+                Position = Corner(quad.XMax, quad.YMin, position, scale, cos, sin),
+                Color = color,
+                UV = new Vector2(quad.UMax, quad.VMin)
+            };
+        }
+
         static void WriteCorner(
             float x,
             float y,
@@ -270,14 +324,56 @@ namespace PFE.Character
             Vector3[] buffer,
             int index)
         {
+            buffer[index] = Corner(x, y, position, scale, cos, sin);
+        }
+
+        /// <summary>One corner: scale, then rotate, then translate — the shared TRS step.</summary>
+        static Vector3 Corner(
+            float x, float y, Vector2 position, Vector2 scale, float cos, float sin)
+        {
             float scaledX = x * scale.x;
             float scaledY = y * scale.y;
 
-            buffer[index] = new Vector3(
+            return new Vector3(
                 position.x + scaledX * cos - scaledY * sin,
                 position.y + scaledX * sin + scaledY * cos,
                 0f);
         }
+    }
+
+    /// <summary>
+    /// One quad vertex with every channel the sprite shader reads — position, UV, colour — laid out
+    /// contiguously so the whole character uploads through <see cref="Mesh.SetVertexBufferData"/> as
+    /// a single interleaved stream. Interleaving replaces three per-frame array uploads (positions,
+    /// UVs, colours) with one, and lets the index buffer be uploaded once at build time: a hidden
+    /// part is a zero-area quad (all four positions equal), not an index-buffer edit.
+    ///
+    /// <para><b>The field order is the wire format.</b> <c>SetVertexBufferData</c> uploads the struct
+    /// verbatim, and <c>SetVertexBufferParams</c> packs the declared attributes tightly in
+    /// declaration order — position at 0, UV at 12, colour at 20, 36 bytes a vertex — which is
+    /// exactly the field order below. Drift between <see cref="Layout"/> and the fields misattributes
+    /// channels with no error, and the legacy <c>Mesh.vertices/uv/colors</c> getters cannot be used
+    /// to check it on a buffer-declared mesh; read the buffer back with
+    /// <c>Mesh.GetVertexBufferData&lt;CharacterQuadVertex&gt;</c> instead (pinned by
+    /// <see cref="PFE.Tests.EditMode.Character.CharacterQuadGeometryTests"/>).</para>
+    /// </summary>
+    public struct CharacterQuadVertex
+    {
+        public Vector3 Position;
+        public Color Color;
+        public Vector2 UV;
+
+        /// <summary>
+        /// The vertex declaration matching this struct's fields, for
+        /// <c>Mesh.SetVertexBufferParams</c>. A static readonly array so the caller has nothing to
+        /// allocate per build.
+        /// </summary>
+        public static readonly VertexAttributeDescriptor[] Layout =
+        {
+            new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+            new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4),
+            new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
+        };
     }
 
     /// <summary>

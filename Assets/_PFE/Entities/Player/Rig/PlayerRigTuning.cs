@@ -180,7 +180,7 @@ namespace PFE.Entities.Player.Rig
                 s.Set(MountThrowPoint, mounts.HasThrowPoint);
             }
 
-            var assembler = player.GetComponent<CharacterSpriteAssembler>();
+            var assembler = player.GetComponent<CharacterQuadAssembler>();
             if (assembler != null)
             {
                 s.Set(CharSortingLayer, assembler.SortingLayerName);
@@ -273,7 +273,7 @@ namespace PFE.Entities.Player.Rig
             // Only the sorting layer is applicable. The two `*Assigned` keys are diagnostics: a
             // snapshot cannot carry an asset reference, so "is it assigned" is a fact to report, not
             // a value to write. The builder is what supplies the assets, before activation.
-            var assembler = player.GetComponent<CharacterSpriteAssembler>();
+            var assembler = player.GetComponent<CharacterQuadAssembler>();
             if (assembler != null)
             {
                 string layer;

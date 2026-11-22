@@ -442,7 +442,7 @@ namespace PFE.Net
         /// resource id would fail silently at runtime with a body that ticks but never draws.
         ///
         /// <para><b>Why the visual is an assembler, not a sprite.</b> The pony is a multi-part
-        /// <c>CharacterSpriteAssembler</c> rig on the player root; the prefab's only static
+        /// <c>CharacterQuadAssembler</c> rig on the player root; the prefab's only static
         /// <c>SpriteRenderer</c> is the rifle under the Weapon child, and
         /// <c>GetComponentInChildren&lt;SpriteRenderer&gt;</c> finds depth-first — so the first build
         /// copied the GUN and drew it as the remote player's whole body (the "I see only a weapon"
@@ -491,7 +491,7 @@ namespace PFE.Net
             // The visual source is the rig itself, never a searched renderer: the prefab's only static
             // SpriteRenderer is the rifle under the Weapon child, and a GetComponentInChildren search
             // finds it first — the first build drew a floating gun as the remote player's whole body.
-            var visualSource = player.GetComponent<CharacterSpriteAssembler>();
+            var visualSource = player.GetComponent<CharacterQuadAssembler>();
             // The player's ability sheet (levitation/double-jump/teleport gates). The simulated body
             // wears a mana-free wrapper around it — see RemoteBodyAbilities.
             var abilitySource = player.GetComponent<ILocomotionAbilities>();
