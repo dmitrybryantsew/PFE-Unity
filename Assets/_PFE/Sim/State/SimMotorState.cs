@@ -126,25 +126,46 @@ namespace PFE.Sim.State
         [SimReconcile(SimReconcileRule.Resimulate)]
         public float SupportCarryY;
 
-        // ── Wire serialization (Phase 1.4) ────────────────────────────────────
-        // Field order on the wire is the declaration order above; both ends must agree, which is why
-        // the serializer is versioned. Little-endian, deterministic, no padding.
+        // ── Wire serialization (Phase 1.4; v10 codec: packed flags + sbyte directions) ──
+        // Field order on the wire follows the declaration blocks above, with the nine contact/gait
+        // bools folded into one flags ushort (LSB-first) written where the bool run was, and
+        // FacingDirection / ActiveLadderDirection as sbytes. Little-endian, deterministic, no
+        // padding. Both ends must agree, which is why the serializer is versioned (protocol v10).
 
-        /// <summary>Appends this record to <paramref name="writer"/> in declaration order.</summary>
+        /// <summary>Flags bit for <see cref="IsGrounded"/> — LSB-first order, bit 0.</summary>
+        private const ushort FlagIsGrounded = 1 << 0;
+        /// <summary>Flags bit for <see cref="IsOnPlatform"/> — bit 1.</summary>
+        private const ushort FlagIsOnPlatform = 1 << 1;
+        /// <summary>Flags bit for <see cref="IsInWater"/> — bit 2.</summary>
+        private const ushort FlagIsInWater = 1 << 2;
+        /// <summary>Flags bit for <see cref="IsFullySubmerged"/> — bit 3.</summary>
+        private const ushort FlagIsFullySubmerged = 1 << 3;
+        /// <summary>Flags bit for <see cref="IsOnLadder"/> — bit 4.</summary>
+        private const ushort FlagIsOnLadder = 1 << 4;
+        /// <summary>Flags bit for <see cref="IsCrouching"/> — bit 5.</summary>
+        private const ushort FlagIsCrouching = 1 << 5;
+        /// <summary>Flags bit for <see cref="HitCeiling"/> — bit 6.</summary>
+        private const ushort FlagHitCeiling = 1 << 6;
+        /// <summary>Flags bit for <see cref="WallLeft"/> — bit 7.</summary>
+        private const ushort FlagWallLeft = 1 << 7;
+        /// <summary>Flags bit for <see cref="WallRight"/> — bit 8. Bits 9..15 are reserved and
+        /// written 0.</summary>
+        private const ushort FlagWallRight = 1 << 8;
+
+        /// <summary>Appends this record to <paramref name="writer"/> in the v10 layout documented
+        /// above the flag constants.</summary>
         public readonly void WriteTo(System.IO.BinaryWriter writer)
         {
             writer.Write(EntityHash);
             writer.Write(Px); writer.Write(Py);
             writer.Write(Vx); writer.Write(Vy);
-            writer.Write(IsGrounded); writer.Write(IsOnPlatform); writer.Write(IsInWater);
-            writer.Write(IsFullySubmerged); writer.Write(IsOnLadder); writer.Write(IsCrouching);
-            writer.Write(HitCeiling); writer.Write(WallLeft); writer.Write(WallRight);
-            writer.Write(FacingDirection);
+            writer.Write(BuildFlags());
+            writer.Write((sbyte)FacingDirection);
             writer.Write(PendingVerticalImpulse);
             writer.Write(DashTimer);
             writer.Write(DashVelocityX); writer.Write(DashVelocityY);
             writer.Write(PlatformDropTimer);
-            writer.Write(ActiveLadderDirection);
+            writer.Write((sbyte)ActiveLadderDirection);
             writer.Write(ActiveLadderSnapX);
             writer.Write(GravityScale);
             writer.Write(SupportCarryX); writer.Write(SupportCarryY);
@@ -154,26 +175,52 @@ namespace PFE.Sim.State
         /// <see cref="WriteTo"/> wrote it.</summary>
         public static SimMotorState ReadFrom(System.IO.BinaryReader reader)
         {
-            return new SimMotorState
+            ulong entityHash = reader.ReadUInt64();
+            float px = reader.ReadSingle(), py = reader.ReadSingle();
+            float vx = reader.ReadSingle(), vy = reader.ReadSingle();
+            ushort flags = reader.ReadUInt16();
+
+            var state = new SimMotorState
             {
-                EntityHash = reader.ReadUInt64(),
-                Px = reader.ReadSingle(), Py = reader.ReadSingle(),
-                Vx = reader.ReadSingle(), Vy = reader.ReadSingle(),
-                IsGrounded = reader.ReadBoolean(), IsOnPlatform = reader.ReadBoolean(),
-                IsInWater = reader.ReadBoolean(), IsFullySubmerged = reader.ReadBoolean(),
-                IsOnLadder = reader.ReadBoolean(), IsCrouching = reader.ReadBoolean(),
-                HitCeiling = reader.ReadBoolean(), WallLeft = reader.ReadBoolean(),
-                WallRight = reader.ReadBoolean(),
-                FacingDirection = reader.ReadInt32(),
+                EntityHash = entityHash,
+                Px = px, Py = py,
+                Vx = vx, Vy = vy,
+                FacingDirection = reader.ReadSByte(),
                 PendingVerticalImpulse = reader.ReadSingle(),
                 DashTimer = reader.ReadSingle(),
                 DashVelocityX = reader.ReadSingle(), DashVelocityY = reader.ReadSingle(),
                 PlatformDropTimer = reader.ReadSingle(),
-                ActiveLadderDirection = reader.ReadInt32(),
+                ActiveLadderDirection = reader.ReadSByte(),
                 ActiveLadderSnapX = reader.ReadSingle(),
                 GravityScale = reader.ReadSingle(),
                 SupportCarryX = reader.ReadSingle(), SupportCarryY = reader.ReadSingle(),
             };
+
+            state.IsGrounded = (flags & FlagIsGrounded) != 0;
+            state.IsOnPlatform = (flags & FlagIsOnPlatform) != 0;
+            state.IsInWater = (flags & FlagIsInWater) != 0;
+            state.IsFullySubmerged = (flags & FlagIsFullySubmerged) != 0;
+            state.IsOnLadder = (flags & FlagIsOnLadder) != 0;
+            state.IsCrouching = (flags & FlagIsCrouching) != 0;
+            state.HitCeiling = (flags & FlagHitCeiling) != 0;
+            state.WallLeft = (flags & FlagWallLeft) != 0;
+            state.WallRight = (flags & FlagWallRight) != 0;
+            return state;
+        }
+
+        private readonly ushort BuildFlags()
+        {
+            ushort flags = 0;
+            if (IsGrounded) flags |= FlagIsGrounded;
+            if (IsOnPlatform) flags |= FlagIsOnPlatform;
+            if (IsInWater) flags |= FlagIsInWater;
+            if (IsFullySubmerged) flags |= FlagIsFullySubmerged;
+            if (IsOnLadder) flags |= FlagIsOnLadder;
+            if (IsCrouching) flags |= FlagIsCrouching;
+            if (HitCeiling) flags |= FlagHitCeiling;
+            if (WallLeft) flags |= FlagWallLeft;
+            if (WallRight) flags |= FlagWallRight;
+            return flags;
         }
 
         public readonly bool Equals(SimMotorState other)

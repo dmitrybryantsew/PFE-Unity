@@ -159,6 +159,14 @@ namespace PFE.Tests.Editor.Core
                 var written = new HashSet<string>(StringComparer.Ordinal);
                 foreach (string body in ExtractWriteToBodies(stripped))
                 {
+                    // A field reaches the wire in one of five shapes. The two original ones: a bare
+                    // write and a WriteArray helper. The three v10 codec idioms: a helper-encode
+                    // write (writer.Write(EncodeX(Field))), a cast write whose operand is the field
+                    // ((sbyte)FacingDirection), and a cast write whose operand is a bias expression
+                    // that starts from the field ((ushort)(ControllerSlot + 1)). Every pattern names
+                    // the FIELD, not the encoding — the parity being checked is "every scanned field
+                    // is on the wire", while the encodings themselves are pinned byte-exact by
+                    // SimSnapshotRoundTripTests.V10RecordWireSizes_ArePinned.
                     foreach (Match m in Regex.Matches(body, @"writer\.Write\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)"))
                     {
                         written.Add(m.Groups[1].Value);
@@ -167,6 +175,26 @@ namespace PFE.Tests.Editor.Core
                     {
                         written.Add(m.Groups[1].Value);
                     }
+                    foreach (Match m in Regex.Matches(body,
+                                 @"writer\.Write\(\s*[A-Za-z_][A-Za-z0-9_]*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)"))
+                    {
+                        written.Add(m.Groups[1].Value);
+                    }
+                    foreach (Match m in Regex.Matches(body,
+                                 @"writer\.Write\(\s*\([A-Za-z0-9_.]+\)\s*\(?\s*([A-Za-z_][A-Za-z0-9_]*)"))
+                    {
+                        written.Add(m.Groups[1].Value);
+                    }
+                }
+
+                // The v10 flags aggregate (writer.Write(BuildFlags())) names no field at the call
+                // site. What it carries is the `if (Field) flags |= ...` run inside the builder — a
+                // spelling that exists nowhere else in these files — so scanning the file for the
+                // run recovers exactly the fields the aggregate covers.
+                foreach (Match m in Regex.Matches(stripped,
+                             @"if\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*flags\s*\|="))
+                {
+                    written.Add(m.Groups[1].Value);
                 }
 
                 if (written.Count == 0)

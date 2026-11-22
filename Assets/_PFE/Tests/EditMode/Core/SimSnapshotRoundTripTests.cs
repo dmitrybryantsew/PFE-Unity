@@ -166,6 +166,11 @@ namespace PFE.Tests.EditMode.Core
         [Test]
         public void RoundTrip_PreservesStateHash()
         {
+            // v10 note: the fixture deliberately uses wire-representable values for the two quantized
+            // fields (DissolveProgress 0, AimAngle 33.5 = 2144/64), so the state hash stays exactly
+            // invariant here; the lossy fields themselves are pinned by tolerance in
+            // RoundTrip_PreservesValueEquality. Both peers deserialize the same bytes, so the hash
+            // both would compute on the wire form agrees — determinism is what the codec must keep.
             SimSnapshot snapshot = BuildRepresentativeSnapshot();
             ulong before = snapshot.ComputeStateHash();
 
@@ -174,8 +179,8 @@ namespace PFE.Tests.EditMode.Core
             ulong after = restored.ComputeStateHash();
 
             Assert.AreEqual(before, after,
-                "serialize → deserialize → ComputeStateHash must be invariant (§8 row 1.4). The codec " +
-                "lost or altered state in the round-trip.");
+                "serialize → deserialize → ComputeStateHash must be invariant (§8 row 1.4) for " +
+                "wire-representable values. The codec lost or altered state in the round-trip.");
         }
 
         [Test]
@@ -184,9 +189,64 @@ namespace PFE.Tests.EditMode.Core
             SimSnapshot snapshot = BuildRepresentativeSnapshot();
             SimSnapshot restored = SimSnapshotSerializer.Deserialize(SimSnapshotSerializer.Serialize(in snapshot));
 
-            Assert.IsTrue(snapshot.Equals(restored),
-                "A round-tripped snapshot must equal its source field-for-field, not merely hash the " +
-                "same — a hash collision would pass AreEqual on the hash while losing a field.");
+            // v10: identity/key/exact-width fields must still compare field-for-field — a hash
+            // collision would pass AreEqual on the hash while losing a field — while the two
+            // quantized fields (DissolveProgress as a byte, AimAngle as 1/64-degree fixed point)
+            // are asserted with their wire tolerances. The struct fields are unchanged; the codec
+            // is what narrowed.
+            Assert.AreEqual(snapshot.TickIndex, restored.TickIndex);
+            Assert.AreEqual(snapshot.SnapshotSequence, restored.SnapshotSequence);
+            Assert.AreEqual(snapshot.WorldRevision, restored.WorldRevision);
+            Assert.AreEqual(snapshot.BaselineHash, restored.BaselineHash);
+            Assert.AreEqual(snapshot.Rooms.Length, restored.Rooms.Length);
+            AssertUnitStateMatches(in snapshot.Rooms[0].Units[0], in restored.Rooms[0].Units[0]);
+            Assert.IsTrue(snapshot.Rooms[0].Motors[0].Equals(restored.Rooms[0].Motors[0]),
+                "The motor record is fixed-width exact in v10 and must compare field-for-field.");
+            CollectionAssert.AreEqual(snapshot.Rooms[0].Projectiles, restored.Rooms[0].Projectiles,
+                "Projectile records are unchanged by v10 and must round-trip exactly.");
+            CollectionAssert.AreEqual(snapshot.Rooms[0].DroppedItems, restored.Rooms[0].DroppedItems);
+            CollectionAssert.AreEqual(snapshot.Rooms[0].DoorStates, restored.Rooms[0].DoorStates);
+            CollectionAssert.AreEqual(snapshot.TileMutations, restored.TileMutations);
+        }
+
+        /// <summary>The v10 unit-record assertion: every identity/key/exact-width field bit-for-bit,
+        /// the two quantized fields within their documented wire tolerances (1/510 for the byte
+        /// dissolve, 1/128 degree for the fixed-point aim).</summary>
+        private static void AssertUnitStateMatches(in SimUnitState expected, in SimUnitState actual)
+        {
+            Assert.AreEqual(expected.EntityHash, actual.EntityHash);
+            Assert.AreEqual(expected.Generation, actual.Generation);
+            Assert.AreEqual(expected.LifecycleSequence, actual.LifecycleSequence);
+            Assert.AreEqual(expected.ControllerSlot, actual.ControllerSlot);
+            Assert.AreEqual(expected.DefinitionId, actual.DefinitionId);
+            Assert.AreEqual(expected.FacingDirection, actual.FacingDirection);
+            Assert.AreEqual(expected.Px, actual.Px);
+            Assert.AreEqual(expected.Py, actual.Py);
+            Assert.AreEqual(expected.Vx, actual.Vx);
+            Assert.AreEqual(expected.Vy, actual.Vy);
+            Assert.AreEqual(expected.IsGrounded, actual.IsGrounded);
+            Assert.AreEqual(expected.DropThroughPlatforms, actual.DropThroughPlatforms);
+            Assert.AreEqual(expected.OverhangLeft, actual.OverhangLeft);
+            Assert.AreEqual(expected.OverhangRight, actual.OverhangRight);
+            Assert.AreEqual(expected.SupportCarryX, actual.SupportCarryX);
+            Assert.AreEqual(expected.SupportCarryY, actual.SupportCarryY);
+            Assert.AreEqual(expected.Health, actual.Health);
+            Assert.AreEqual(expected.MaxHealth, actual.MaxHealth);
+            Assert.AreEqual(expected.HasRuntimeHealth, actual.HasRuntimeHealth);
+            Assert.AreEqual(expected.IsDead, actual.IsDead);
+            Assert.AreEqual(expected.IsDown, actual.IsDown);
+            Assert.AreEqual(expected.IsDissolving, actual.IsDissolving);
+            Assert.AreEqual(expected.Faction, actual.Faction);
+            Assert.AreEqual(expected.Digger, actual.Digger);
+            Assert.AreEqual(expected.AmbushArmed, actual.AmbushArmed);
+            Assert.AreEqual(expected.PoseId, actual.PoseId);
+            Assert.AreEqual(expected.PoseFrame, actual.PoseFrame);
+            Assert.AreEqual(expected.PoseSequence, actual.PoseSequence);
+            Assert.AreEqual(expected.WeaponIdHash, actual.WeaponIdHash);
+            Assert.AreEqual(expected.DissolveProgress, actual.DissolveProgress,
+                1.0 / 510.0 + 1e-6, "DissolveProgress is a byte on the wire (1/510 tolerance).");
+            Assert.AreEqual(expected.AimAngle, actual.AimAngle,
+                1.0 / 128.0 + 1e-6, "AimAngle is 1/64-degree fixed point (1/128 degree tolerance).");
         }
 
         [Test]
@@ -233,9 +293,7 @@ namespace PFE.Tests.EditMode.Core
             SimSnapshot restored = SimSnapshotSerializer.Deserialize(
                 SimSnapshotSerializer.Serialize(in source));
 
-            Assert.IsTrue(source.Rooms[0].Units[0].Equals(restored.Rooms[0].Units[0]),
-                "Every Phase 1.5 unit-motion field must survive serialize -> deserialize with its " +
-                "non-default value intact.");
+            AssertUnitStateMatches(in source.Rooms[0].Units[0], in restored.Rooms[0].Units[0]);
 
             var probes = new (string Name, System.Action<SimSnapshot> Mutate)[]
             {
@@ -303,17 +361,159 @@ namespace PFE.Tests.EditMode.Core
         // ── v4 (§10.2 gaps 1 and 2) ───────────────────────────────────────────
 
         [Test]
-        public void V9ProtocolVersion_IsNine()
+        public void V10ProtocolVersion_IsTen()
         {
             // The literal, not the symbol: a test that compares CurrentProtocolVersion against itself
-            // stays green through a silent rollback to v8, which is precisely the change this pins.
-            // v8 appended SimUnitState's avatar fields; v9 appended SimRoomDelta.DoorStates, so a v8
-            // reader would finish LootedObjects and read the new set's length prefix as the NEXT
-            // room's RoomHash — every following room and the tile journal silently misaligned, with
-            // no exception anywhere.
-            Assert.AreEqual(9u, SimSnapshotSerializer.CurrentProtocolVersion,
-                "The replication handshake shares this constant. Rolling back to 8 would let a v8 peer " +
-                "join and then misparse every room delta after the first.");
+            // stays green through a silent rollback to v9, which is precisely the change this pins.
+            // v10 re-encoded the wire in place (SimUnitState flags byte + quantized scalars,
+            // SimMotorState flags ushort, PlayerCommand interned weapon key + conditional target and
+            // cursor), so a v9 peer would misread the first record of every payload — refuse at the
+            // handshake before a single field is interpreted.
+            Assert.AreEqual(10u, SimSnapshotSerializer.CurrentProtocolVersion,
+                "The replication handshake shares this constant. Rolling back to 9 would let a v9 " +
+                "peer join and then misparse every record in every room delta.");
+        }
+
+        /// <summary>
+        /// v10 golden wire sizes. A record's byte width is a protocol fact, not an implementation
+        /// detail: the snapshot body is a run of fixed-width records, so one re-packed field silently
+        /// re-frames every record after it. Pinned as literals so a packing regression is caught by
+        /// name. (PlayerCommand's variable-width sizes are pinned in SimCommandUplinkTests, which
+        /// owns the command codec fixture.)
+        /// </summary>
+        [Test]
+        public void V10RecordWireSizes_ArePinned()
+        {
+            var unit = new SimUnitState();
+            Assert.AreEqual(82, WireSize(in unit),
+                "v10 SimUnitState = hash 8 + generation 4 + lifecycle 4 + slot-bias 2 + definition 2 " +
+                "+ flags 1 + pos 8 + facing 1 + vel 8 + overhang 8 + carry 8 + health 8 + dissolve 1 " +
+                "+ faction 1 + digger 1 + pose 1+2+4 + weapon-hash 8 + aim 2. A different width means " +
+                "a field changed width without the version bump that must accompany it.");
+
+            var motor = new SimMotorState();
+            Assert.AreEqual(64, WireSize(in motor),
+                "v10 SimMotorState = hash 8 + pos 8 + vel 8 + flags 2 + facing 1 + impulse 4 + dash 4 " +
+                "+ dash-vel 8 + drop-timer 4 + ladder-dir 1 + ladder-snap 4 + gravity 4 + carry 8.");
+        }
+
+        private static int WireSize<T>(in T record)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                switch (record)
+                {
+                    case SimUnitState unit: unit.WriteTo(writer); break;
+                    case SimMotorState motor: motor.WriteTo(writer); break;
+                    default: throw new ArgumentException("No wire codec for " + typeof(T).Name);
+                }
+            }
+            return (int)stream.Length;
+        }
+
+        // ── v10 quantization behaviour ─────────────────────────────────────────
+
+        [Test]
+        public void V10FlagsByte_PacksLsbFirstInDocumentedOrder()
+        {
+            // Every bool set → its own bit, and each bit set alone → exactly its own bool. This is
+            // the mutation control for the packing: a swapped bit order passes a round-trip of
+            // all-true but fails here.
+            for (int bit = 0; bit < 7; bit++)
+            {
+                var unit = new SimUnitState();
+                switch (bit)
+                {
+                    case 0: unit.IsGrounded = true; break;
+                    case 1: unit.DropThroughPlatforms = true; break;
+                    case 2: unit.HasRuntimeHealth = true; break;
+                    case 3: unit.IsDead = true; break;
+                    case 4: unit.IsDown = true; break;
+                    case 5: unit.IsDissolving = true; break;
+                    case 6: unit.AmbushArmed = true; break;
+                }
+
+                SimUnitState restored = SimUnitState.ReadFrom(ReaderFor(unit));
+                Assert.AreEqual(bit == 0, restored.IsGrounded, "bit " + bit + " leaked into IsGrounded");
+                Assert.AreEqual(bit == 1, restored.DropThroughPlatforms, "bit " + bit + " leaked into DropThroughPlatforms");
+                Assert.AreEqual(bit == 2, restored.HasRuntimeHealth, "bit " + bit + " leaked into HasRuntimeHealth");
+                Assert.AreEqual(bit == 3, restored.IsDead, "bit " + bit + " leaked into IsDead");
+                Assert.AreEqual(bit == 4, restored.IsDown, "bit " + bit + " leaked into IsDown");
+                Assert.AreEqual(bit == 5, restored.IsDissolving, "bit " + bit + " leaked into IsDissolving");
+                Assert.AreEqual(bit == 6, restored.AmbushArmed, "bit " + bit + " leaked into AmbushArmed");
+            }
+        }
+
+        [Test]
+        public void V10ControllerSlot_SpanningTheAdmittedRange_RoundTripsExactly()
+        {
+            // The admission rule admits peer ids 1..255 as slots (TrySlotForPeer), plus -1 for host
+            // AI — the biased ushort must carry all 257 values losslessly.
+            foreach (int slot in new[] { -1, 0, 1, 7, 127, 128, 255 })
+            {
+                var unit = new SimUnitState { ControllerSlot = slot };
+                Assert.AreEqual(slot, SimUnitState.ReadFrom(ReaderFor(unit)).ControllerSlot,
+                    "ControllerSlot " + slot + " must survive the wire exactly.");
+            }
+        }
+
+        [Test]
+        public void V10ControllerSlot_BiasBeyondTheAdmittedRange_IsRejectedAsCorrupt()
+        {
+            var unit = new SimUnitState { ControllerSlot = 0 };
+            byte[] bytes = BytesFor(unit);
+            // The bias is the 4th field: EntityHash 8 + Generation 4 + LifecycleSequence 4 = bytes
+            // 16..17. 257 (> 256) cannot be a legal slot bias.
+            bytes[16] = 0x01;
+            bytes[17] = 0x01;
+
+            var ex = Assert.Throws<InvalidDataException>(() => SimUnitState.ReadFrom(ReaderFor(bytes)),
+                "A slot bias above 256 names a slot the admission rule can never assign; the reader " +
+                "must refuse rather than fabricate an owner.");
+            StringAssert.Contains("controller slot", ex.Message);
+        }
+
+        [Test]
+        public void V10DissolveAndAim_StayWithinTheirDocumentedWireErrors()
+        {
+            // Endpoints exact, interior within half a step.
+            foreach (float progress in new[] { 0f, 0.25f, 0.5f, 0.999f, 1f })
+            {
+                var unit = new SimUnitState { DissolveProgress = progress };
+                float restored = SimUnitState.ReadFrom(ReaderFor(unit)).DissolveProgress;
+                Assert.AreEqual(progress, restored, 0.5f / 255f + 1e-6f,
+                    "DissolveProgress " + progress + " drifted past the byte wire's half-step.");
+            }
+
+            foreach (float angle in new[] { -180f, -90f, -0.4f, 0f, 12.345f, 90f, 180f })
+            {
+                var unit = new SimUnitState { AimAngle = angle };
+                float restored = SimUnitState.ReadFrom(ReaderFor(unit)).AimAngle;
+                Assert.AreEqual(angle, restored, 0.5f / SimUnitState.AimAngleWireScale + 1e-4f,
+                    "AimAngle " + angle + " drifted past the fixed-point wire's half-step.");
+                Assert.LessOrEqual(Math.Abs(restored), 180.0001f, "The wire angle left the atan2 range.");
+            }
+        }
+
+        private static byte[] BytesFor(in SimUnitState unit)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                unit.WriteTo(writer);
+            }
+            return stream.ToArray();
+        }
+
+        private static BinaryReader ReaderFor(in SimUnitState unit)
+        {
+            return ReaderFor(BytesFor(in unit));
+        }
+
+        private static BinaryReader ReaderFor(byte[] bytes)
+        {
+            return new BinaryReader(new MemoryStream(bytes, false));
         }
 
         [Test]

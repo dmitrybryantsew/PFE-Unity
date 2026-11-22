@@ -96,6 +96,54 @@ namespace PFE.Systems.Replication
         private SimTileMutation[] _tileJournal = Array.Empty<SimTileMutation>();
         private int _tileJournalVersion = -1;
 
+        // The projected frame storage: two buffers alternate (see _frameFlip). While one frame is
+        // published through <see cref="Current"/>, the other is being overwritten, so a reader that
+        // held the previous SimSnapshot keeps valid data for one full extra tick — and the current
+        // frame is what <c>SimReplicationHost</c> serializes, within the same tick it is published.
+        // A frame's inner arrays are exactly the length of the count they carry (the arrays ARE the
+        // wire truth the serializer counts) and are reused only when the next projection needs the
+        // same length — steady state, where room/unit/projectile counts are stable tick to tick,
+        // allocates nothing.
+        private ProjectionFrame _frameEven = new ProjectionFrame();
+        private ProjectionFrame _frameOdd = new ProjectionFrame();
+        private bool _frameFlip;
+
+        /// <summary>
+        /// One tick's projected storage: the room-delta array plus the per-room inner arrays the
+        /// deltas reference. Owned by the projector (never handed to a pool) so the frame is valid
+        /// until the same buffer comes around again two ticks later; the jagged rows are grown, never
+        /// shrunk, because a room-set change is the rare case and stale rows beyond the current room
+        /// count are unreachable through <see cref="Current"/>.
+        /// </summary>
+        private sealed class ProjectionFrame
+        {
+            public SimRoomDelta[] Deltas = Array.Empty<SimRoomDelta>();
+            public SimUnitState[][] Units = Array.Empty<SimUnitState[]>();
+            public SimProjectileState[][] Projectiles = Array.Empty<SimProjectileState[]>();
+            public SimDroppedItem[][] DroppedItems = Array.Empty<SimDroppedItem[]>();
+            public SimObjectState[][] LootedObjects = Array.Empty<SimObjectState[]>();
+            public SimDoorState[][] DoorStates = Array.Empty<SimDoorState[]>();
+        }
+
+        /// <summary>Reuses <paramref name="current"/> when its length already matches the count;
+        /// otherwise allocates an exact-size array. Zero counts use the shared empty array, which is
+        /// also what keeps an empty slot allocation-free.</summary>
+        private static T[] ReuseOrCreate<T>(T[] current, int count)
+        {
+            if (count == 0) return Array.Empty<T>();
+            return current != null && current.Length == count ? current : new T[count];
+        }
+
+        /// <summary>Grows a jagged slot array when the room count exceeded it. Rows beyond the old
+        /// length start null and are allocated by <see cref="ReuseOrCreate{T}"/> on demand.</summary>
+        private static T[][] GrowRows<T>(T[][] rows, int count)
+        {
+            if (rows.Length >= count) return rows;
+            var grown = new T[count][];
+            Array.Copy(rows, grown, rows.Length);
+            return grown;
+        }
+
         // NOT paired with a "resolved" flag: see ResolveStreaming(). MapBridge builds this scene
         // object at the END of a multi-second boot coroutine, long after this tickable's first tick.
         private RoomStreamingManager _streaming;
@@ -310,7 +358,17 @@ namespace PFE.Systems.Replication
             _lastUnaddressableLootedObjectCount = 0;
             _lastSkippedNoIdProjectileCount = 0;
 
-            var deltas = new SimRoomDelta[_rooms.Count];
+            // Write the projection into the idle frame buffer; the previously published frame stays
+            // intact for any reader one tick behind (double buffering), and the current one is
+            // serialized by the host within this same tick.
+            ProjectionFrame frame = _frameFlip ? _frameOdd : _frameEven;
+            _frameFlip = !_frameFlip;
+            frame.Deltas = ReuseOrCreate(frame.Deltas, _rooms.Count);
+            frame.Units = GrowRows(frame.Units, _rooms.Count);
+            frame.Projectiles = GrowRows(frame.Projectiles, _rooms.Count);
+            frame.DroppedItems = GrowRows(frame.DroppedItems, _rooms.Count);
+            frame.LootedObjects = GrowRows(frame.LootedObjects, _rooms.Count);
+            frame.DoorStates = GrowRows(frame.DoorStates, _rooms.Count);
 
             for (int i = 0; i < _rooms.Count; i++)
             {
@@ -323,12 +381,12 @@ namespace PFE.Systems.Replication
                     && (ReferenceEquals(room, streaming.PresentationRoom)
                         || (i == 0 && streaming.PresentationRoom == null));
 
-                SimProjectileState[] projectiles = Array.Empty<SimProjectileState>();
+                SimProjectileState[] projectiles =
+                    ReuseOrCreate(frame.Projectiles[i], ownsProjectiles ? _projectiles.Count : 0);
+                frame.Projectiles[i] = projectiles;
 
                 if (ownsProjectiles && _projectiles.Count > 0)
                 {
-                    projectiles = new SimProjectileState[_projectiles.Count];
-
                     for (int p = 0; p < _projectiles.Count; p++)
                     {
                         ISimTransientStateSource transient = _projectiles[p];
@@ -355,7 +413,8 @@ namespace PFE.Systems.Replication
                     if (ReferenceEquals(_units[u].Room, room)) unitCount++;
                 }
 
-                SimUnitState[] units = unitCount == 0 ? Array.Empty<SimUnitState>() : new SimUnitState[unitCount];
+                SimUnitState[] units = ReuseOrCreate(frame.Units[i], unitCount);
+                frame.Units[i] = units;
 
                 if (unitCount > 0)
                 {
@@ -376,22 +435,29 @@ namespace PFE.Systems.Replication
                     projectedUnits += written;
                 }
 
-                deltas[i] = new SimRoomDelta
+                SimDroppedItem[] droppedItems = ProjectDroppedItems(room, frame.DroppedItems[i]);
+                frame.DroppedItems[i] = droppedItems;
+                SimObjectState[] lootedObjects = ProjectLootedObjects(room, frame.LootedObjects[i]);
+                frame.LootedObjects[i] = lootedObjects;
+                SimDoorState[] doorStates = ProjectDoorStates(room, frame.DoorStates[i]);
+                frame.DoorStates[i] = doorStates;
+
+                frame.Deltas[i] = new SimRoomDelta
                 {
                     RoomHash = SimSnapshotProjectionRules.RoomKey(room.id),
                     LifecycleSequence = streaming != null ? streaming.GetRoomLifecycleSequence(room) : 0,
                     Units = units,
                     Motors = Array.Empty<SimMotorState>(),
                     Projectiles = projectiles,
-                    DroppedItems = ProjectDroppedItems(room),
+                    DroppedItems = droppedItems,
                     RemovedEntityHashes = Array.Empty<ulong>(),
-                    LootedObjects = ProjectLootedObjects(room),
-                    DoorStates = ProjectDoorStates(room),
+                    LootedObjects = lootedObjects,
+                    DoorStates = doorStates,
                 };
 
-                projectedDroppedItems += deltas[i].DroppedItems.Length;
-                projectedLootedObjects += deltas[i].LootedObjects.Length;
-                projectedDoorStates += deltas[i].DoorStates.Length;
+                projectedDroppedItems += droppedItems.Length;
+                projectedLootedObjects += lootedObjects.Length;
+                projectedDoorStates += doorStates.Length;
             }
 
             _lastProjectileCount = projectedProjectiles;
@@ -413,7 +479,7 @@ namespace PFE.Systems.Replication
                 // A full baseline, not a delta against an acked one: delta compression is Phase 3.6 and
                 // the field's contract is 0 for "no baseline".
                 BaselineHash = 0UL,
-                Rooms = deltas,
+                Rooms = frame.Deltas,
                 // The whole reliable journal for this lifetime. Repeated in every snapshot until an ack
                 // exists (Phase 4 owns the ack), which is why it is cached by journal version rather than
                 // copied per tick: an unchanged journal must not cost an allocation per frame.
@@ -451,8 +517,13 @@ namespace PFE.Systems.Replication
         /// the receiver rejects a zero <c>EntityHash</c> — and dropping it silently would make a stack
         /// vanish from the client with no error anywhere. The counter is the only signal that a record
         /// bypassed <c>AddDroppedItem</c>.</para>
+        ///
+        /// <para><b>The destination array is caller-owned frame storage.</b> It is reused when its
+        /// length matches this room's emitted count and replaced with an exact-size array when the
+        /// count changed — the projector's double-buffered frames keep the steady-state tick free of
+        /// loot-array allocations.</para>
         /// </summary>
-        private SimDroppedItem[] ProjectDroppedItems(RoomInstance room)
+        private SimDroppedItem[] ProjectDroppedItems(RoomInstance room, SimDroppedItem[] reuse)
         {
             List<DroppedItemInstance> records = room.droppedItems;
             if (records == null || records.Count == 0)
@@ -489,7 +560,7 @@ namespace PFE.Systems.Replication
                 _droppedScratch.Sort(ByDroppedItemHash);
             }
 
-            var projected = new SimDroppedItem[_droppedScratch.Count];
+            SimDroppedItem[] projected = ReuseOrCreate(reuse, _droppedScratch.Count);
 
             for (int i = 0; i < _droppedScratch.Count; i++)
             {
@@ -531,8 +602,12 @@ namespace PFE.Systems.Replication
         /// <para><b>Only opened containers are emitted.</b> The set is a full replace per room, so
         /// listing every container with its flag would send the closed ones for no information: closed
         /// is the default on both sides. Only a positive <c>lootState</c> is a member.</para>
+        ///
+        /// <para><b>The destination array is caller-owned frame storage</b> — reused when its length
+        /// matches the emitted count, replaced when the count changed (see
+        /// <see cref="ProjectionFrame"/>).</para>
         /// </summary>
-        private SimObjectState[] ProjectLootedObjects(RoomInstance room)
+        private SimObjectState[] ProjectLootedObjects(RoomInstance room, SimObjectState[] reuse)
         {
             List<ObjectInstance> objects = room.objects;
             if (objects == null || objects.Count == 0)
@@ -573,7 +648,7 @@ namespace PFE.Systems.Replication
                 _objectScratch.Sort(ByObjectSpawnIndex);
             }
 
-            var projected = new SimObjectState[_objectScratch.Count];
+            SimObjectState[] projected = ReuseOrCreate(reuse, _objectScratch.Count);
 
             for (int i = 0; i < _objectScratch.Count; i++)
             {
@@ -607,8 +682,12 @@ namespace PFE.Systems.Replication
         /// <c>TilePhysicsType</c> and <c>SetOpen</c> notifies, so the reliable journal already carries
         /// the geometry to the peer. This set exists for the half the journal cannot reach: the
         /// presenter's sprite and its solid projectile collider.</para>
+        ///
+        /// <para><b>The destination array is caller-owned frame storage</b> — reused when its length
+        /// matches the emitted count, replaced when the count changed (see
+        /// <see cref="ProjectionFrame"/>).</para>
         /// </summary>
-        private SimDoorState[] ProjectDoorStates(RoomInstance room)
+        private SimDoorState[] ProjectDoorStates(RoomInstance room, SimDoorState[] reuse)
         {
             List<ObjectInstance> objects = room.objects;
             if (objects == null || objects.Count == 0)
@@ -639,7 +718,7 @@ namespace PFE.Systems.Replication
                 _objectScratch.Sort(ByObjectSpawnIndex);
             }
 
-            var projected = new SimDoorState[_objectScratch.Count];
+            SimDoorState[] projected = ReuseOrCreate(reuse, _objectScratch.Count);
 
             for (int i = 0; i < _objectScratch.Count; i++)
             {

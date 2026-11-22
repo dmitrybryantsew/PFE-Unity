@@ -51,16 +51,17 @@ namespace PFE.Tests.Editor.Core
         {
             string stripped = SourceLint.ReadStripped(ProjectorFile);
 
-            Assert.That(stripped, Does.Contain("DroppedItems = ProjectDroppedItems(room)"),
+            Assert.That(stripped, Does.Contain("ProjectDroppedItems(room, frame.DroppedItems[i])"),
                 "The room delta no longer projects floor loot, so every room reports an empty loot set "
-                + "and a client never sees a drop.");
+                + "and a client never sees a drop. The v10 projector writes into caller-owned frame "
+                + "storage (the pooled double-buffered arrays), so the needle pins the reuse argument.");
             Assert.That(stripped, Does.Contain("LootItemKey("),
                 "The content key must come from the one rule that separates the item and weapon tables.");
             Assert.That(stripped, Does.Contain("entityHash"),
                 "Projecting loot without the record's host-assigned id is exactly the "
                 + "(content id, position) keying §10.2 removed.");
 
-            string body = MethodBody(stripped, "private SimDroppedItem[] ProjectDroppedItems(RoomInstance room)",
+            string body = MethodBody(stripped, "private SimDroppedItem[] ProjectDroppedItems(RoomInstance room, SimDroppedItem[] reuse)",
                 "private void CollectProjectiles()");
 
             Assert.That(body, Does.Contain("_lastUnidentifiedDroppedItemCount++"),

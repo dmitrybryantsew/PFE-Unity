@@ -260,7 +260,43 @@ namespace PFE.Sim.Replication
         [ThreadStatic]
         private static BinaryWriter _serializeWriter;
 
+        /// <summary>
+        /// Serializes <paramref name="envelope"/> into <paramref name="buffer"/> and returns the
+        /// byte count written. Nothing is allocated: the writer state is thread-pooled and the
+        /// bytes are copied straight out of it. Rent the buffer from <c>ArrayPool&lt;byte&gt;</c>
+        /// on hot send paths; the returned count, not the buffer length, is the payload length.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is null.</exception>
+        /// <exception cref="ArgumentException">The buffer is too small for the envelope.</exception>
+        public static int WriteTo(in SimReplicationEnvelope envelope, byte[] buffer)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+
+            MemoryStream stream = RentPooled(out BinaryWriter writer);
+            envelope.WriteTo(writer);
+            writer.Flush();
+            if (stream.Length > buffer.Length)
+            {
+                throw new ArgumentException(
+                    $"Buffer of {buffer.Length} bytes is too small for a {stream.Length}-byte " +
+                    "envelope.", nameof(buffer));
+            }
+            Buffer.BlockCopy(stream.GetBuffer(), 0, buffer, 0, (int)stream.Length);
+            return (int)stream.Length;
+        }
+
         public static byte[] Serialize(in SimReplicationEnvelope envelope)
+        {
+            // The byte[] overload keeps its exact contract (the transport takes ownership of the
+            // returned array); internally it is the same pooled path plus the one exact-size copy
+            // a byte[] return requires.
+            MemoryStream stream = RentPooled(out BinaryWriter writer);
+            envelope.WriteTo(writer);
+            writer.Flush();
+            return stream.ToArray();
+        }
+
+        private static MemoryStream RentPooled(out BinaryWriter writer)
         {
             MemoryStream stream = _serializeStream;
             if (stream == null)
@@ -269,13 +305,11 @@ namespace PFE.Sim.Replication
                 _serializeStream = stream;
                 _serializeWriter = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
             }
-            BinaryWriter writer = _serializeWriter;
-
+            BinaryWriter pooled = _serializeWriter;
             stream.Position = 0;
             stream.SetLength(0);
-            envelope.WriteTo(writer);
-            writer.Flush();
-            return stream.ToArray();
+            writer = pooled;
+            return stream;
         }
 
         public static SimReplicationEnvelope Deserialize(byte[] bytes)

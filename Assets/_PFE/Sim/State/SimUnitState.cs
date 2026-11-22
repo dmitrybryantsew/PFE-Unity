@@ -186,7 +186,8 @@ namespace PFE.Sim.State
         /// (FNV-1a 64 of <c>"weapon:" + weaponId</c>) — the same hash
         /// <see cref="SimDroppedItem"/> uses, so a held weapon and its dropped twin speak one id
         /// language. Zero means "nothing equipped" (unarmed). The owning machine is the only
-        /// authority on what is in hand: it flows player→host inside <c>PlayerCommand.WeaponIdHash</c>
+        /// authority on what is in hand: it flows player→host as the interned key
+        /// <c>PlayerCommand.WeaponKey</c> (converted back to this hash at the host boundary, v10)
         /// and host→client on this field.
         /// </summary>
         [SimReconcile(SimReconcileRule.Snap)]
@@ -201,67 +202,155 @@ namespace PFE.Sim.State
         [SimReconcile(SimReconcileRule.Interpolate)]
         public float AimAngle;
 
-        // ── Wire serialization (Phase 1.4) ────────────────────────────────────
+        // ── Wire serialization (Phase 1.4; v10 codec: packed flags + quantized scalars) ──
+        //
+        // The public fields are unchanged since Phase 1.4 — only the ENCODING changed (protocol v10).
+        // Layout, little-endian:
+        //   EntityHash u64, Generation i32, LifecycleSequence i32,
+        //   ControllerSlotBias u16 (ControllerSlot + 1; 0 = HostAiControllerSlot; the admitted slot
+        //     range is [-1, 255] per SimCommandAdmissionRules.TrySlotForPeer, which a biased byte
+        //     cannot hold, hence u16), DefinitionId u16, Flags u8,
+        //   Px f32, Py f32, FacingDirection i8,
+        //   Vx f32, Vy f32,
+        //   OverhangLeft f32, OverhangRight f32,      // NOT quantized — values are negative when the
+        //                                             // side is fully supported and unbounded above 1
+        //   SupportCarryX f32, SupportCarryY f32,
+        //   Health f32, MaxHealth f32,
+        //   DissolveProgress u8 (0..1 contract * 255, rounded; max wire error 1/510),
+        //   Faction i8 (FactionType + the -1 "authored none" default; both fit sbyte),
+        //   Digger u8 (the AS3 dig attribute, contract 0..3),
+        //   PoseId u8, PoseFrame u16, PoseSequence u32,
+        //   WeaponIdHash u64 (the content hash stays a hash — only the COMMAND carries the interned key),
+        //   AimAngle i16 (fixed point, 1/64 degree; atan2's ±180° maps to ±11 520, far inside short;
+        //     max wire error 1/128 degree)
+        //
+        // Fields whose gameplay range cannot be proven from code (positions, velocities, health,
+        // support carry, overhang) stay f32 — a clamp firing in gameplay would be a desync.
 
-        /// <summary>Appends this record to <paramref name="writer"/> in declaration order.</summary>
+        /// <summary>Flags-byte bit for <see cref="IsGrounded"/> — LSB-first order, bit 0.</summary>
+        private const byte FlagIsGrounded = 1 << 0;
+        /// <summary>Flags-byte bit for <see cref="DropThroughPlatforms"/> — bit 1.</summary>
+        private const byte FlagDropThroughPlatforms = 1 << 1;
+        /// <summary>Flags-byte bit for <see cref="HasRuntimeHealth"/> — bit 2.</summary>
+        private const byte FlagHasRuntimeHealth = 1 << 2;
+        /// <summary>Flags-byte bit for <see cref="IsDead"/> — bit 3.</summary>
+        private const byte FlagIsDead = 1 << 3;
+        /// <summary>Flags-byte bit for <see cref="IsDown"/> — bit 4.</summary>
+        private const byte FlagIsDown = 1 << 4;
+        /// <summary>Flags-byte bit for <see cref="IsDissolving"/> — bit 5.</summary>
+        private const byte FlagIsDissolving = 1 << 5;
+        /// <summary>Flags-byte bit for <see cref="AmbushArmed"/> — bit 6. Bit 7 is reserved and
+        /// written 0, so a v10 reader can tell a flag byte with future bits from a corrupt one.</summary>
+        private const byte FlagAmbushArmed = 1 << 6;
+
+        /// <summary><see cref="DissolveProgress"/> wire scale: the 0..1 contract maps onto 0..255.</summary>
+        private const float DissolveWireScale = 255f;
+        /// <summary><see cref="AimAngle"/> wire scale: 64 fixed-point ticks per degree.</summary>
+        public const float AimAngleWireScale = 64f;
+
+        /// <summary>Appends this record to <paramref name="writer"/> in the v10 layout documented
+        /// above the flag constants.</summary>
         public readonly void WriteTo(System.IO.BinaryWriter writer)
         {
             writer.Write(EntityHash);
             writer.Write(Generation);
             writer.Write(LifecycleSequence);
-            writer.Write(ControllerSlot);
+            writer.Write((ushort)(ControllerSlot + 1));
             writer.Write(DefinitionId);
+            writer.Write(BuildFlags());
             writer.Write(Px); writer.Write(Py);
-            writer.Write(FacingDirection);
+            writer.Write((sbyte)FacingDirection);
             writer.Write(Vx); writer.Write(Vy);
-            writer.Write(IsGrounded); writer.Write(DropThroughPlatforms);
             writer.Write(OverhangLeft); writer.Write(OverhangRight);
             writer.Write(SupportCarryX); writer.Write(SupportCarryY);
             writer.Write(Health); writer.Write(MaxHealth);
-            writer.Write(HasRuntimeHealth);
-            writer.Write(IsDead); writer.Write(IsDown); writer.Write(IsDissolving);
-            writer.Write(DissolveProgress);
-            writer.Write(Faction);
-            writer.Write(Digger);
-            writer.Write(AmbushArmed);
+            writer.Write(EncodeDissolveProgress(DissolveProgress));
+            writer.Write((sbyte)Faction);
+            writer.Write((byte)Digger);
             writer.Write(PoseId);
             writer.Write(PoseFrame);
             writer.Write(PoseSequence);
             writer.Write(WeaponIdHash);
-            writer.Write(AimAngle);
+            writer.Write(EncodeAimAngle(AimAngle));
         }
 
         /// <summary>Reads one record from <paramref name="reader"/> in the same order
         /// <see cref="WriteTo"/> wrote it.</summary>
         public static SimUnitState ReadFrom(System.IO.BinaryReader reader)
         {
-            return new SimUnitState
+            ulong entityHash = reader.ReadUInt64();
+            int generation = reader.ReadInt32();
+            int lifecycleSequence = reader.ReadInt32();
+            ushort slotBias = reader.ReadUInt16();
+            if (slotBias > 256)
             {
-                EntityHash = reader.ReadUInt64(),
-                Generation = reader.ReadInt32(),
-                LifecycleSequence = reader.ReadInt32(),
-                ControllerSlot = reader.ReadInt32(),
-                DefinitionId = reader.ReadUInt16(),
+                throw new System.IO.InvalidDataException(
+                    $"Corrupt unit record: controller slot bias {slotBias} is out of range " +
+                    "[0, 256] (slot [-1, 255]).");
+            }
+            ushort definitionId = reader.ReadUInt16();
+            byte flags = reader.ReadByte();
+
+            var state = new SimUnitState
+            {
+                EntityHash = entityHash,
+                Generation = generation,
+                LifecycleSequence = lifecycleSequence,
+                ControllerSlot = slotBias - 1,
+                DefinitionId = definitionId,
                 Px = reader.ReadSingle(), Py = reader.ReadSingle(),
-                FacingDirection = reader.ReadInt32(),
+                FacingDirection = reader.ReadSByte(),
                 Vx = reader.ReadSingle(), Vy = reader.ReadSingle(),
-                IsGrounded = reader.ReadBoolean(), DropThroughPlatforms = reader.ReadBoolean(),
                 OverhangLeft = reader.ReadSingle(), OverhangRight = reader.ReadSingle(),
                 SupportCarryX = reader.ReadSingle(), SupportCarryY = reader.ReadSingle(),
                 Health = reader.ReadSingle(), MaxHealth = reader.ReadSingle(),
-                HasRuntimeHealth = reader.ReadBoolean(),
-                IsDead = reader.ReadBoolean(), IsDown = reader.ReadBoolean(),
-                IsDissolving = reader.ReadBoolean(),
-                DissolveProgress = reader.ReadSingle(),
-                Faction = reader.ReadInt32(),
-                Digger = reader.ReadInt32(),
-                AmbushArmed = reader.ReadBoolean(),
+                DissolveProgress = reader.ReadByte() / DissolveWireScale,
+                Faction = reader.ReadSByte(),
+                Digger = reader.ReadByte(),
                 PoseId = reader.ReadByte(),
                 PoseFrame = reader.ReadUInt16(),
                 PoseSequence = reader.ReadUInt32(),
                 WeaponIdHash = reader.ReadUInt64(),
-                AimAngle = reader.ReadSingle(),
+                AimAngle = reader.ReadInt16() / AimAngleWireScale,
             };
+
+            state.IsGrounded = (flags & FlagIsGrounded) != 0;
+            state.DropThroughPlatforms = (flags & FlagDropThroughPlatforms) != 0;
+            state.HasRuntimeHealth = (flags & FlagHasRuntimeHealth) != 0;
+            state.IsDead = (flags & FlagIsDead) != 0;
+            state.IsDown = (flags & FlagIsDown) != 0;
+            state.IsDissolving = (flags & FlagIsDissolving) != 0;
+            state.AmbushArmed = (flags & FlagAmbushArmed) != 0;
+            return state;
+        }
+
+        private readonly byte BuildFlags()
+        {
+            byte flags = 0;
+            if (IsGrounded) flags |= FlagIsGrounded;
+            if (DropThroughPlatforms) flags |= FlagDropThroughPlatforms;
+            if (HasRuntimeHealth) flags |= FlagHasRuntimeHealth;
+            if (IsDead) flags |= FlagIsDead;
+            if (IsDown) flags |= FlagIsDown;
+            if (IsDissolving) flags |= FlagIsDissolving;
+            if (AmbushArmed) flags |= FlagAmbushArmed;
+            return flags;
+        }
+
+        /// <summary>Encodes the 0..1 dissolve contract onto a byte (value*255, rounded away from
+        /// zero). The contract bounds the value; the clamp is defence against a corrupt producer,
+        /// not a gameplay path.</summary>
+        public static byte EncodeDissolveProgress(float progress)
+        {
+            float clamped = progress < 0f ? 0f : (progress > 1f ? 1f : progress);
+            return (byte)Math.Round(clamped * DissolveWireScale, MidpointRounding.AwayFromZero);
+        }
+
+        /// <summary>Encodes degrees as 1/64-degree fixed point (round half away from zero).
+        /// atan2's ±180° output maps to ±11 520 — comfortably inside short's ±32 767.</summary>
+        public static short EncodeAimAngle(float angleDegrees)
+        {
+            return (short)Math.Round(angleDegrees * AimAngleWireScale, MidpointRounding.AwayFromZero);
         }
 
         public readonly bool Equals(SimUnitState other)

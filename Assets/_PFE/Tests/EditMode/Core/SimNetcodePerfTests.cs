@@ -369,6 +369,20 @@ namespace PFE.Tests.EditMode.Core
             double clientMsPerSnapshot = codecDecode.Avg + clientReceive.Avg + secondDeserialize.Avg;
             double bandwidthPerPeer = perPeerBytes * TicksPerSecond;
 
+            // v10 wire-size expectation, computed from the fixture so a packing regression is caught
+            // by name at the perf seam too: unit 82 B + motor 64 B (v10 record widths; see
+            // SimSnapshotRoundTripTests.V10RecordWireSizes_ArePinned), projectile 69 B, drop 37 B,
+            // one looted object 8 B, two doors 10 B, room hash+lifecycle 12 B, seven count prefixes
+            // 28 B; snapshot header 44 B (magic 4 + version 4 + tick 8 + seq 4 + revision 8 +
+            // baseline 8 + room count 4 + journal count 4), envelope framing 29 B.
+            int expectedRoomBytes = unitsPerRoom * (82 + 64) + projectiles * 69 + dropped * 37
+                                    + 8 + 10 + 12 + 28;
+            int expectedPerPeerBytes = expectedRoomBytes * rooms + 44 + 29;
+            Assert.AreEqual(expectedPerPeerBytes, (int)perPeerBytes,
+                "The v10 envelope size changed. Either a record codec regressed (see " +
+                "SimSnapshotRoundTripTests.V10RecordWireSizes_ArePinned) or the fixture grew a " +
+                "record the expectation above must name.");
+
             UnityEngine.Debug.Log(
                 $"[NETPERF] {label}\n" +
                 $"[NETPERF]   snapshot envelope: {perPeerBytes / 1024.0:F1} KB/peer/tick " +

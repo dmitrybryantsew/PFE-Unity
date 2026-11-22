@@ -98,24 +98,95 @@ namespace PFE.Sim.State
         /// read. Door state has no command-payload half — the interact edge that toggles a door
         /// rides the v7 target fields verbatim — but the delta layout change alone forces the
         /// bump.</para>
+        ///
+        /// <para>v10 (2026-11-21, wire-format pass): the record codecs changed shape in place.
+        /// <c>SimUnitState</c> folds its seven bools into one flags byte and writes
+        /// <c>ControllerSlot</c> as a biased ushort, <c>FacingDirection</c>/<c>Faction</c> as
+        /// sbytes, <c>DissolveProgress</c>/<c>Digger</c> as bytes and <c>AimAngle</c> as 1/64-degree
+        /// fixed point; <c>SimMotorState</c> folds its nine contact/gait bools into one flags
+        /// ushort and writes <c>FacingDirection</c>/<c>ActiveLadderDirection</c> as sbytes;
+        /// <c>PlayerCommand</c> replaces the 8-byte <c>WeaponIdHash</c> with a 2-byte interned
+        /// weapon key and writes the interact target and the teleport cursor only when the
+        /// corresponding button bit is set. Every one of those changes re-frames the byte stream,
+        /// so a v9 peer would misread the very first record it touched — the version guard must
+        /// reject before a single field is interpreted. The public struct fields are unchanged;
+        /// only the encoding did.</para>
         /// </remarks>
-        public const uint CurrentProtocolVersion = 9;
+        public const uint CurrentProtocolVersion = 10;
 
         /// <summary>"PFES" — PFE Snapshot. Rejects a payload that is not a snapshot at all before the
         /// version is even read.</summary>
         private static readonly byte[] Magic = { (byte)'P', (byte)'F', (byte)'E', (byte)'S' };
 
+        // Per-thread reusable writer state: the host serializes one snapshot per tick per peer, and
+        // a fresh MemoryStream + BinaryWriter per call was a steady source of GC pressure on that
+        // path. [ThreadStatic] keeps the pooled instances thread-confined without any lock; the
+        // streams are never disposed, only rewound — the same pattern as
+        // SimReplicationEnvelopeSerializer. The one allocation that remains in Serialize is the
+        // returned byte[] itself, which the envelope contract owns (a payload array of exactly
+        // Length bytes); WriteTo(buffer) avoids even that for callers who pool their own buffers.
+        [ThreadStatic]
+        private static MemoryStream _serializeStream;
+
+        [ThreadStatic]
+        private static BinaryWriter _serializeWriter;
+
+        /// <summary>
+        /// Serializes <paramref name="snapshot"/> into <paramref name="buffer"/> and returns the
+        /// byte count written. The codec allocates nothing: the intermediate writer state is
+        /// thread-pooled and the bytes are copied straight out of it. Rent the buffer from
+        /// <c>ArrayPool&lt;byte&gt;</c> (or pass any array at least as long as a previous
+        /// serialization of a same-sized snapshot).
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is null.</exception>
+        /// <exception cref="ArgumentException">The buffer is too small for the payload.</exception>
+        public static int WriteTo(in SimSnapshot snapshot, byte[] buffer)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+
+            MemoryStream stream = RentPooledStream(out BinaryWriter writer);
+            WritePayload(writer, in snapshot);
+            if (stream.Length > buffer.Length)
+            {
+                throw new ArgumentException(
+                    $"Buffer of {buffer.Length} bytes is too small for a {stream.Length}-byte " +
+                    "snapshot payload.", nameof(buffer));
+            }
+            Buffer.BlockCopy(stream.GetBuffer(), 0, buffer, 0, (int)stream.Length);
+            return (int)stream.Length;
+        }
+
         /// <summary>Serialize <paramref name="snapshot"/> to a self-describing byte payload.</summary>
         public static byte[] Serialize(in SimSnapshot snapshot)
         {
-            using var stream = new MemoryStream(capacity: 256);
-            using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
-            {
-                writer.Write(Magic);
-                writer.Write(snapshot.ProtocolVersion);
-                WriteBody(writer, in snapshot);
-            }
+            // The thin wrapper over the pooled path — the returned array is the one allocation the
+            // byte[] contract requires (the envelope hands it to the transport verbatim).
+            MemoryStream stream = RentPooledStream(out BinaryWriter writer);
+            WritePayload(writer, in snapshot);
             return stream.ToArray();
+        }
+
+        private static MemoryStream RentPooledStream(out BinaryWriter writer)
+        {
+            MemoryStream stream = _serializeStream;
+            if (stream == null)
+            {
+                stream = new MemoryStream();
+                _serializeStream = stream;
+                _serializeWriter = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+            }
+            stream.Position = 0;
+            stream.SetLength(0);
+            writer = _serializeWriter;
+            return stream;
+        }
+
+        private static void WritePayload(BinaryWriter writer, in SimSnapshot snapshot)
+        {
+            writer.Write(Magic);
+            writer.Write(snapshot.ProtocolVersion);
+            WriteBody(writer, in snapshot);
+            writer.Flush();
         }
 
         /// <summary>

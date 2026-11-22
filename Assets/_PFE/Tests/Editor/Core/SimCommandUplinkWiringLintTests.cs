@@ -56,11 +56,12 @@ namespace PFE.Tests.Editor.Core
         }
 
         [Test]
-        public void ProtocolV9_VersionAndCommandKindsAreDeclaredInShippingSource()
+        public void ProtocolV10_VersionAndCommandKindsAreDeclaredInShippingSource()
         {
-            AssertContains(Read(SerializerPath), "CurrentProtocolVersion = 9;",
-                "The handshake shares this constant. A rollback to 8 admits a peer that cannot parse "
-                + "a room delta's door-state set and would read its length prefix as the next room.");
+            AssertContains(Read(SerializerPath), "CurrentProtocolVersion = 10;",
+                "The handshake shares this constant. A rollback to 9 admits a peer whose first unit "
+                + "record would be re-framed by the v10 flags byte and biased slot — every record "
+                + "after it would be garbage.");
             AssertContains(Read(EnvelopePath), "PlayerCommandBatch = 8",
                 "The first intent-carrying kind must keep a stable wire value.");
             AssertContains(Read(EnvelopePath), "PeerRoomTransition = 9",
@@ -74,8 +75,12 @@ namespace PFE.Tests.Editor.Core
         {
             // The container half of the uplink is two fields and a bit. Pinned as source facts because
             // a command that drops any of them compiles, passes every movement fixture, and silently
-            // leaves every chest closed on the host.
+            // leaves every chest closed on the host. Since v10 the target is CONDITIONAL: it is on the
+            // wire only on ticks whose Buttons carry InteractPressed, and Buttons must be written
+            // before both conditional blocks so ReadFrom can branch on it.
             string source = Read(CommandPath);
+            string body = SourceLint.MethodBody(source, "public readonly void WriteTo(BinaryWriter writer)");
+
             AssertContains(source, "InteractPressed = 1 << 6",
                 "Without the edge bit the host never learns the key was pressed.");
             AssertContains(source, "public ulong TargetRoomHash;",
@@ -86,6 +91,13 @@ namespace PFE.Tests.Editor.Core
                 "A field the codec does not write is a field the host never receives.");
             AssertContains(source, "writer.Write(TargetObjectIndex);",
                 "A field the codec does not write is a field the host never receives.");
+            AssertContains(body, "writer.Write((ushort)Buttons);",
+                "Buttons is the branch key for both conditional blocks and must be on the wire first.");
+            AssertBefore(body, "writer.Write((ushort)Buttons);", "writer.Write(TargetRoomHash);",
+                "The interact target must come after Buttons, inside the InteractPressed branch — " +
+                "a v9-style unconditional write would re-frame every command in the batch.");
+            AssertBefore(body, "writer.Write((ushort)Buttons);", "writer.Write(CursorWorldX);",
+                "The teleport cursor must come after Buttons, inside the TeleportHeld branch.");
         }
 
         [Test]
@@ -247,12 +259,22 @@ namespace PFE.Tests.Editor.Core
             AssertContains(body, "writer.Write(MoveX);", "Horizontal intent must survive the wire.");
             AssertContains(body, "writer.Write(MoveY);", "Vertical intent must survive the wire.");
             AssertContains(body, "writer.Write(AimAngle);", "Aim faces at pointer precision.");
+            AssertContains(body, "writer.Write(WeaponKey);",
+                "v10: the weapon rides as the 2-byte interned key, not the 8-byte hash.");
             AssertContains(body, "writer.Write((ushort)Buttons);",
-                "One-shot edges are the commands a folded tape must not lose.");
+                "One-shot edges are the commands a folded tape must not lose; the batch reader " +
+                "branches on this word for both conditional blocks.");
 
             string reader = SourceLint.MethodBody(source, "public static PlayerCommand ReadFrom(BinaryReader reader)");
             AssertContains(reader, "Buttons = (Button)reader.ReadUInt16()",
                 "The read order must be the exact inverse of the write order.");
+            AssertContains(reader, "WeaponKey = reader.ReadUInt16()",
+                "The reader must recover the interned key the host boundary resolves back to the hash.");
+            AssertContains(reader, "if ((command.Buttons & Button.InteractPressed) != 0)",
+                "The target read must be gated on the same bit the writer branched on, or a " +
+                "non-interact command would consume the next command's bytes.");
+            AssertContains(reader, "if ((command.Buttons & Button.TeleportHeld) != 0)",
+                "The cursor read must be gated on TeleportHeld for the same reason.");
         }
 
         [Test]

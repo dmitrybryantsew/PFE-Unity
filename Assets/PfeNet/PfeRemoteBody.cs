@@ -34,7 +34,7 @@ namespace PFE.Net
         public DamageSystem DamageSystem;
         public IEffectDefinitionResolver EffectResolver;
         public RoomParticleEmitter ParticleEmitter;
-        public CharacterSpriteAssembler VisualSource;
+        public CharacterQuadAssembler VisualSource;
 
         /// <summary>The local player's unit definition — the body box (<c>Width</c>/<c>Height</c>)
         /// the remote weapon view's hold-point rule reads. Set for both body shapes (the rig the
@@ -81,7 +81,7 @@ namespace PFE.Net
     /// <c>SimProjectileSnapshotProjector</c> projects it with no extra hand-over — the body appears in
     /// <c>SimRoomDelta.Units</c> because it is a live unit, not because anything special-cases it.</item>
     /// <item><b>Client (<c>Simulated == false</c>):</b> a display-only ghost — a GameObject wearing a
-    /// <c>CharacterSpriteAssembler</c> pony rig fed from the local player's own definition, style and
+    /// <c>CharacterQuadAssembler</c> pony rig fed from the local player's own definition, style and
     /// appearance, no physics and no <see cref="UnitController"/>. This is deliberate. A client-side
     /// <c>UnitController</c> would run its own step and integrate its own velocity against
     /// the position the host just replicated, so the two writers would fight and the body would jitter
@@ -103,7 +103,7 @@ namespace PFE.Net
         private readonly bool _simulated;
         private readonly Transform _root;
         private readonly TilePhysicsController _motor;
-        private readonly CharacterSpriteAssembler _assembler;
+        private readonly CharacterQuadAssembler _assembler;
         private readonly PfeRemoteWeaponView _weaponView;
         private readonly PeerAvatarViewSource _avatarSource;
         private readonly PFE.Systems.Weapons.EnemyWeaponMount _weaponMount;
@@ -128,7 +128,7 @@ namespace PFE.Net
 
         private PfeRemoteBody(byte slot, EntityId id, Transform root, bool simulated,
             UnitController unit, PlayerLocomotionController locomotion, TilePhysicsController motor,
-            CharacterSpriteAssembler assembler, PfeRemoteWeaponView weaponView,
+            CharacterQuadAssembler assembler, PfeRemoteWeaponView weaponView,
             PeerAvatarViewSource avatarSource, PFE.Systems.Weapons.EnemyWeaponMount weaponMount,
             PFE.Systems.Combat.IProjectileFactory projectileFactory,
             VContainer.IObjectResolver resolver,
@@ -215,7 +215,7 @@ namespace PFE.Net
                 go.transform.position = WorldCoordinates.PixelToUnity(ctx.SpawnPixel);
 
                 AttachVisual(go, ctx);
-                CharacterSpriteAssembler assembler = go.GetComponent<CharacterSpriteAssembler>();
+                CharacterQuadAssembler assembler = go.GetComponent<CharacterQuadAssembler>();
 
                 UnitController unit = null;
                 PlayerLocomotionController locomotion = null;
@@ -310,7 +310,7 @@ namespace PFE.Net
         }
 
         /// <summary>Build the remote avatar's body from the local player's own character rig. The pony
-        /// is a multi-part <see cref="CharacterSpriteAssembler"/> (body/mane/tail/eyes slots) living on
+        /// is a multi-part <see cref="CharacterQuadAssembler"/> rig (body/mane/tail/eyes quads) living on
         /// the player root — the prefab's ONLY static SpriteRenderer is the rifle under the Weapon
         /// child, so the previous "copy the first SpriteRenderer" build drew a floating gun as the
         /// remote player's entire body. Setting a real assembler up from the same definition, style and
@@ -319,10 +319,10 @@ namespace PFE.Net
         /// <c>localScale.x = facing</c> on the root) flips the rig with no extra code here.</summary>
         private static void AttachVisual(GameObject go, in PfeRemoteBodyContext ctx)
         {
-            CharacterSpriteAssembler source = ctx.VisualSource;
+            CharacterQuadAssembler source = ctx.VisualSource;
             if (source == null || source.Definition == null) return;
 
-            var assembler = go.AddComponent<CharacterSpriteAssembler>();
+            var assembler = go.AddComponent<CharacterQuadAssembler>();
             assembler.SortingLayerName = source.SortingLayerName;
             assembler.Setup(source.Definition, source.StyleData,
                 source.Appearance ?? CharacterAppearance.CreateDefault());
@@ -383,23 +383,45 @@ namespace PFE.Net
             Locomotion.SetIntent(PfeRemoteBodyRules.ToBodyIntent(command, Slot));
 
             // Teleport is hold-to-charge, release-to-execute at the cursor — a level and a point the
-            // plain SetIntent(command) path does not carry. Forward both explicitly so the host body
-            // charges toward the same cell the client aimed at instead of standing still while the
-            // peer blinks across the room.
+            // plain SetIntent(command) path does not carry. The cursor rides the wire only while the
+            // level is held (v10 conditional codec), so it is forwarded only on held ticks: the
+            // release executes at the last held tick's cursor, which is at most one tick of cursor
+            // movement away from the release-frame cursor and is snapped to a destination cell by
+            // PlayerTeleportTargetMath anyway. Forwarding an absent cursor as (0,0) would be worse.
             Locomotion.SetTeleportHeld(command.TeleportHeld);
-            Locomotion.SetCursorWorldPixels(new Vector2(command.CursorWorldX, command.CursorWorldY));
+            if (command.TeleportHeld)
+            {
+                Locomotion.SetCursorWorldPixels(new Vector2(command.CursorWorldX, command.CursorWorldY));
+            }
 
-            // The held weapon rides the command; the aim the locomotion already tracks from it. Both
-            // feed the capture seam (for the clients) and the host's own weapon view of this body.
-            if (_avatarSource != null) _avatarSource.SetWeaponIdHash(command.WeaponIdHash);
+            // The held weapon rides the command as an interned key; the aim the locomotion already
+            // tracks from it. The record and the weapon view still speak the content hash, so the
+            // key is resolved back through the content id at this boundary (see ToWeaponHash).
+            ulong weaponHash = ToWeaponHash(command.WeaponKey);
+            if (_avatarSource != null) _avatarSource.SetWeaponIdHash(weaponHash);
             if (_weaponView != null)
             {
-                _weaponView.SetWeapon(command.WeaponIdHash);
+                _weaponView.SetWeapon(weaponHash);
                 _weaponView.SetAim(Locomotion.CurrentSnapshot.AimAngle);
             }
 
-            DriveWeapon(in command);
+            DriveWeapon(in command, weaponHash);
             AppliedCommands++;
+        }
+
+        /// <summary>
+        /// The host boundary of the interned weapon key (protocol v10). The command carries a
+        /// <c>ushort</c> key into <see cref="ContentInternContext.Weapons"/>; the unit record and the
+        /// weapon catalog still speak the content hash, so the key is resolved back through the
+        /// content id — key → id → <c>LootItemKey(id, true)</c> — which is exactly the hash the
+        /// producer sent before v10. An unarmed key (<see cref="PFE.Sim.Content.ContentInternTable.Uninterned"/>)
+        /// or a key this build's table does not hold resolves to 0, "nothing equipped", never a
+        /// guessed hash.
+        /// </summary>
+        private static ulong ToWeaponHash(ushort weaponKey)
+        {
+            return PFE.Sim.Content.SimWeaponKeyRules.ResolveWeaponHash(
+                ContentInternContext.Weapons, weaponKey);
         }
 
         /// <summary>
@@ -413,19 +435,19 @@ namespace PFE.Net
         /// cannot do honestly is spend the peer's ammo (it lives on the client's machine): the
         /// mount's npcOwner mode leaves ammo untracked, the same documented gap as remote container
         /// perks.</para>
-        private void DriveWeapon(in PlayerCommand command)
+        private void DriveWeapon(in PlayerCommand command, ulong weaponHash)
         {
             if (_weaponMount == null) return;
 
-            if (command.WeaponIdHash != _mountedWeaponHash)
+            if (weaponHash != _mountedWeaponHash)
             {
-                _mountedWeaponHash = command.WeaponIdHash;
+                _mountedWeaponHash = weaponHash;
 
                 // Punch/kick and bare hooves stay unarmed: Initialize(null) leaves the mount
                 // unarmed and says nothing (the unarmed case is not a failure).
-                WeaponDefinition def = command.WeaponIdHash == 0UL
+                WeaponDefinition def = weaponHash == 0UL
                     ? null
-                    : PfeRemoteWeaponCatalog.Resolve(command.WeaponIdHash);
+                    : PfeRemoteWeaponCatalog.Resolve(weaponHash);
                 bool armable = def != null && !def.IsUnarmed && _projectileFactory != null;
                 _weaponMount.Initialize(
                     armable ? def : null,
@@ -441,9 +463,9 @@ namespace PFE.Net
                 if (_weaponMount.IsArmed)
                 {
                     Debug.Log($"[PfeRemoteBody] slot {Slot} armed '{def.weaponId}' " +
-                              $"(hash 0x{command.WeaponIdHash:X16}); FireHeld will drive the mount");
+                              $"(hash 0x{weaponHash:X16}); FireHeld will drive the mount");
                 }
-                else if (command.WeaponIdHash != 0UL && !_mountArmWarned)
+                else if (weaponHash != 0UL && !_mountArmWarned)
                 {
                     _mountArmWarned = true;
                     string reason = def == null
@@ -452,7 +474,7 @@ namespace PFE.Net
                             ? "the definition is unarmed"
                             : "no IProjectileFactory in the body context";
                     Debug.LogWarning($"[PfeRemoteBody] slot {Slot} carried weapon hash " +
-                                     $"0x{command.WeaponIdHash:X16} but the mount stayed UNARMED: {reason}. " +
+                                     $"0x{weaponHash:X16} but the mount stayed UNARMED: {reason}. " +
                                      "The peer's FireHeld will do nothing.");
                 }
             }
@@ -646,11 +668,11 @@ namespace PFE.Net
         private sealed class PeerAvatarViewSource : IUnitAvatarViewSource
         {
             private readonly PlayerLocomotionController _locomotion;
-            private readonly CharacterSpriteAssembler _assembler;
+            private readonly CharacterQuadAssembler _assembler;
             private ulong _weaponIdHash;
 
             public PeerAvatarViewSource(PlayerLocomotionController locomotion,
-                CharacterSpriteAssembler assembler)
+                CharacterQuadAssembler assembler)
             {
                 _locomotion = locomotion;
                 _assembler = assembler;

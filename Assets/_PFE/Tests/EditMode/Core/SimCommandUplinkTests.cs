@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 using PFE.Core.Input;
+using PFE.Sim.Content;
 using PFE.Sim.Replication;
 using PFE.Sim.State;
 
@@ -276,7 +277,9 @@ namespace PFE.Tests.EditMode.Core
             using (var reader = new BinaryReader(stream))
             {
                 PlayerCommand command = PlayerCommand.ReadFrom(reader);
-                Assert.AreEqual(stream.Length, stream.Position, "The command codec must be fixed width.");
+                Assert.AreEqual(stream.Length, stream.Position,
+                    "The v10 codec is variable width but exact: a reader must stop precisely where " +
+                    "the writer stopped, never consume a following record's bytes.");
                 return command;
             }
         }
@@ -342,6 +345,150 @@ namespace PFE.Tests.EditMode.Core
                 using (var stream = new MemoryStream(shorter, false))
                 using (var reader = new BinaryReader(stream)) PlayerCommand.ReadFrom(reader);
             }, "A truncated command must throw rather than fabricate a button or an aim angle.");
+        }
+
+        // ── v10 conditional encoding + interned weapon key ──────────────────────
+
+        [Test]
+        public void PlayerCommand_Codec_ConditionalEncoding_RoundTripsEveryBranch()
+        {
+            AssertConditionalRoundTrip(Command(5, 1u));
+
+            PlayerCommand interact = Command(6, 2u);
+            interact.Buttons |= PlayerCommand.Button.InteractPressed;
+            interact.TargetRoomHash = 0xAAAA000000000001UL;
+            interact.TargetObjectIndex = 7;
+            AssertConditionalRoundTrip(interact);
+
+            PlayerCommand teleport = Command(7, 3u);
+            teleport.Buttons |= PlayerCommand.Button.TeleportHeld;
+            teleport.CursorWorldX = 123.5f;
+            teleport.CursorWorldY = -456.25f;
+            AssertConditionalRoundTrip(teleport);
+
+            PlayerCommand both = interact;
+            both.Buttons |= PlayerCommand.Button.TeleportHeld;
+            both.CursorWorldX = 1f;
+            both.CursorWorldY = 2f;
+            AssertConditionalRoundTrip(both);
+        }
+
+        private static void AssertConditionalRoundTrip(PlayerCommand source)
+        {
+            PlayerCommand restored = DeserializeCommand(SerializeCommand(source));
+            Assert.IsTrue(source.Equals(restored),
+                "Every set field must survive the wire; Buttons gate which fields are on it.");
+            if (!source.InteractPressed)
+            {
+                Assert.AreEqual(0UL, restored.TargetRoomHash,
+                    "A non-interact command must read a zero target, not a stale struct value.");
+                Assert.AreEqual(0, restored.TargetObjectIndex);
+            }
+            if (!source.TeleportHeld)
+            {
+                Assert.AreEqual(0f, restored.CursorWorldX,
+                    "A non-teleport command must read a zero cursor, not a stale struct value.");
+                Assert.AreEqual(0f, restored.CursorWorldY);
+            }
+        }
+
+        [Test]
+        public void PlayerCommand_Codec_AnyTruncationInsideAConditionalBlock_Throws()
+        {
+            PlayerCommand both = Command(8, 4u);
+            both.Buttons |= PlayerCommand.Button.InteractPressed | PlayerCommand.Button.TeleportHeld;
+            both.TargetRoomHash = 1UL;
+            both.TargetObjectIndex = 2;
+            both.CursorWorldX = 3f;
+            both.CursorWorldY = 4f;
+            byte[] full = SerializeCommand(both);
+            Assert.AreEqual(39, full.Length, "Both flags set is the 39-byte v10 maximum.");
+
+            // Every cut — inside the head, inside the target block, between the blocks, inside the
+            // cursor block — must throw, not fabricate: the reader branches on Buttons and reads
+            // exactly what the writer wrote.
+            foreach (int cut in new[] { 0, 1, 18, 20, 25, 30, 32, 35, 38 })
+            {
+                var shortened = new byte[cut];
+                Array.Copy(full, shortened, cut);
+                int length = cut;
+                Assert.Throws<EndOfStreamException>(() =>
+                {
+                    using (var stream = new MemoryStream(shortened, false))
+                    using (var reader = new BinaryReader(stream))
+                    {
+                        PlayerCommand.ReadFrom(reader);
+                    }
+                }, "A payload cut to " + length + " of 39 bytes must throw, not fabricate a command.");
+            }
+        }
+
+        [Test]
+        public void PlayerCommand_WeaponKey_RoundTripsAtTheKeySpaceExtremes()
+        {
+            PlayerCommand source = Command(9, 5u);
+            source.WeaponKey = ushort.MaxValue;
+
+            PlayerCommand restored = DeserializeCommand(SerializeCommand(source));
+
+            Assert.AreEqual(ushort.MaxValue, restored.WeaponKey,
+                "The interned key must survive the wire bit-for-bit.");
+            Assert.IsTrue(source.Equals(restored));
+        }
+
+        [Test]
+        public void WeaponKey_HostBoundary_KeyResolvesBackToTheContentHash()
+        {
+            // The identity the whole conversion must preserve: for every weapon the table knows,
+            // key → hash at the host boundary is the same hash the producer sent pre-v10
+            // (SimUnitState.WeaponIdHash keeps speaking LootItemKey(id, true)).
+            ContentInternTable table = ContentInternTable.Build(
+                new[] { "pistol", "plasma_rifle", "rusty_knife" });
+
+            foreach (string id in new[] { "pistol", "plasma_rifle", "rusty_knife" })
+            {
+                ushort key = SimWeaponKeyRules.ResolveWeaponKey(table, id);
+                Assert.AreNotEqual(ContentInternTable.Uninterned, key, id + " must intern.");
+                Assert.AreEqual(SimSnapshotProjectionRules.LootItemKey(id, true),
+                    SimWeaponKeyRules.ResolveWeaponHash(table, key),
+                    "key → content id → LootItemKey(id, true) must reproduce the pre-v10 hash for " + id);
+            }
+        }
+
+        [Test]
+        public void WeaponKey_UnarmedAndUnknownKeysResolveToZeroHash()
+        {
+            ContentInternTable table = ContentInternTable.Build(new[] { "pistol" });
+
+            Assert.AreEqual(0UL, SimWeaponKeyRules.ResolveWeaponHash(table, ContentInternTable.Uninterned),
+                "Unarmed (key 0) is 'nothing equipped' on the unit record.");
+            Assert.AreEqual(0UL, SimWeaponKeyRules.ResolveWeaponHash(table, 42),
+                "A key the table does not hold is a content-version disagreement, not a hash to guess.");
+            Assert.AreEqual(ContentInternTable.Uninterned, SimWeaponKeyRules.ResolveWeaponKey(table, null));
+            Assert.AreEqual(ContentInternTable.Uninterned,
+                SimWeaponKeyRules.ResolveWeaponKey(table, "no_such_weapon"));
+        }
+
+        [Test]
+        public void WeaponKey_SurvivesTheWholeUplink_ToTheHostSink()
+        {
+            var session = new Session();
+            session.Join();
+
+            PlayerCommand command = Command(1, 1u);
+            command.WeaponKey = 7;
+            var batch = new SimPlayerCommandBatch
+            {
+                SessionId = SessionId,
+                PeerId = session.Client.PeerId,
+                Commands = new[] { command },
+            };
+            session.Deliver(Envelope(batch, session.Client.PeerId));
+
+            Assert.AreEqual(1, session.Sink.Applied.Count);
+            Assert.AreEqual((ushort)7, session.Sink.Applied[0].WeaponKey,
+                "The pure layer carries the interned key to the sink unchanged; PfeRemoteBody resolves " +
+                "it back to the content hash at the body boundary.");
         }
 
         [Test]
@@ -891,13 +1038,15 @@ namespace PFE.Tests.EditMode.Core
         // ── Protocol v5 / v6 / v7 / v8 / v9 ─────────────────────────────────────
 
         [Test]
-        public void ProtocolV9_CommandKindAndVersionArePinnedByLiterals()
+        public void ProtocolV10_CommandKindAndVersionArePinnedByLiterals()
         {
-            Assert.AreEqual(9u, SimSnapshotSerializer.CurrentProtocolVersion,
+            Assert.AreEqual(10u, SimSnapshotSerializer.CurrentProtocolVersion,
                 "The literal, not the symbol: a symbol compared against itself cannot see a rollback. " +
-                "v9 grew SimRoomDelta by the door-state set, so a v8 peer would read the set's length " +
-                "prefix as the next room's RoomHash and must be refused at the handshake. (v8 grew " +
-                "SimUnitState by WeaponIdHash + AimAngle; v7 grew the command by the interact target.)");
+                "v10 re-encoded the wire in place (unit flags byte + quantized scalars, motor flags " +
+                "ushort, command interned weapon key + conditional target/cursor), so a v9 peer would " +
+                "misread the first record of every payload and must be refused at the handshake. " +
+                "(v9 grew SimRoomDelta by the door-state set; v8 grew SimUnitState by WeaponIdHash + " +
+                "AimAngle; v7 grew the command by the interact target.)");
             Assert.AreEqual(SimSnapshotSerializer.CurrentProtocolVersion,
                 SimReplicationProtocolRules.CurrentProtocolVersion,
                 "The handshake must share the codec version, not maintain a second number.");
@@ -910,25 +1059,56 @@ namespace PFE.Tests.EditMode.Core
         }
 
         [Test]
-        public void ProtocolV8_TheCommandWireSizeIsPinned()
+        public void ProtocolV10_TheCommandWireSizesArePinned()
         {
             // A command's byte width is a protocol fact, not an implementation detail: the batch is a
-            // run of fixed-width records, so one added field silently re-frames every command after
-            // it. Pinned as a literal so adding a field forces a version bump in the same commit.
-            var command = PlayerCommand.FromIntent(1, 0, 1u, 0f, 0f, false, false, false, false,
-                false, 0f, interactPressed: true, targetRoomHash: 1UL, targetObjectIndex: 2,
-                weaponIdHash: 9UL);
+            // run of variable-width records read back to back, so one reordered field silently
+            // re-frames every command after it. Pinned as literals so a packing regression is caught
+            // by name and forces the version bump in the same commit.
+            //
+            // v10 fixed head: int tick + byte slot + uint seq + 2 sbyte axes + float aim + ushort
+            // weapon key + ushort buttons = 19 bytes. Interact adds targetRoomHash u64 +
+            // targetObjectIndex i32 (+12); TeleportHeld adds cursorWorldX/Y f32 (+8). Maximum 39.
+            PlayerCommand plain = PlayerCommand.FromIntent(1, 0, 1u, 0f, 0f, false, false, false,
+                false, false, 0f, weaponKey: 9);
 
-            using var stream = new System.IO.MemoryStream();
-            using (var writer = new System.IO.BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+            Assert.AreEqual(19, WireSize(in plain),
+                "The v10 fixed head must stay 19 bytes; a different width means a re-frame, " +
+                "not a quiet resize.");
+
+            PlayerCommand interact = PlayerCommand.FromIntent(1, 0, 1u, 0f, 0f, false, false,
+                false, false, false, 0f, interactPressed: true, targetRoomHash: 1UL,
+                targetObjectIndex: 2, weaponKey: 9);
+            PlayerCommand teleport = PlayerCommand.FromIntent(1, 0, 1u, 0f, 0f, false, false,
+                false, false, false, 0f, teleportHeld: true, cursorWorldX: 3f, cursorWorldY: 4f);
+            var both = interact;
+            both.Buttons |= PlayerCommand.Button.TeleportHeld;
+            both.CursorWorldX = 3f;
+            both.CursorWorldY = 4f;
+
+            Assert.AreEqual(31, WireSize(in interact),
+                "InteractPressed must add exactly the 12-byte target to the head.");
+            Assert.AreEqual(27, WireSize(in teleport),
+                "TeleportHeld must add exactly the 8-byte cursor to the head.");
+            Assert.AreEqual(39, WireSize(in both),
+                "Both flags set is the 39-byte maximum.");
+
+            // Absent controls: a non-interact command must NOT carry the 12-byte target even when
+            // the struct's target fields are populated — the encoder branches on the button bit.
+            var carriedButNotPressed = PlayerCommand.FromIntent(1, 0, 1u, 0f, 0f, false, false,
+                false, false, false, 0f, targetRoomHash: 1UL, targetObjectIndex: 2);
+            Assert.AreEqual(19, WireSize(in carriedButNotPressed),
+                "The wire is what Buttons say, not what the struct fields happen to hold.");
+        }
+
+        private static int WireSize(in PlayerCommand command)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
             {
                 command.WriteTo(writer);
             }
-
-            Assert.AreEqual(45, stream.Length,
-                "int tick + byte slot + uint seq + 2 sbyte axes + 3 floats + ulong room + int index " +
-                "+ ulong weapon + ushort buttons. A different width means a v9 bump, not a quiet " +
-                "re-frame.");
+            return (int)stream.Length;
         }
 
         [Test]
