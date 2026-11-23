@@ -1684,7 +1684,7 @@ namespace PFE.Net
             GUILayout.Label("projTick=" + (_projector != null ? _projector.ProjectionCount : 0) +
                 "  rooms=" + (_projector != null ? _projector.ActiveRoomCount : 0) +
                 "  stream=" + (_projector != null && _projector.HasStreaming ? "yes" : "no") +
-                "  live=" + UnitViewRegistry.Count +
+                "  live=" + (_projector != null ? _projector.LiveUnitViewCount : 0) +
                 "  id=" + (_projector != null ? _projector.IdentifiedUnitCount : 0) +
                 "  unattr=" + (_projector != null ? _projector.UnattributedUnitCount : 0) +
                 "  fault=" + CurrentProjectionFault());

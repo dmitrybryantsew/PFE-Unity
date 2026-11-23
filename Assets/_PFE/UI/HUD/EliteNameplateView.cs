@@ -78,6 +78,13 @@ namespace PFE.UI.HUD
         private Transform _canvas;
         private Font _font;
 
+        /// <summary>
+        /// The promoted-unit registry this view mirrors — thread E's replacement for the retired
+        /// static <c>EliteEnemyRegistry</c>. Handed in by <c>HudBootstrapper</c>; null (a fixture) means
+        /// no markers, which is the correct answer outside a session.
+        /// </summary>
+        private EliteEnemyRegistry _eliteRegistry;
+
         /// <summary>Live labels, keyed by the unit they follow.</summary>
         private readonly System.Collections.Generic.Dictionary<UnitController, Label> _labels =
             new System.Collections.Generic.Dictionary<UnitController, Label>();
@@ -92,22 +99,25 @@ namespace PFE.UI.HUD
         /// parented to it directly, because <see cref="WorldAnchoredHudElement"/> writes an
         /// <c>anchoredPosition</c> measured from the canvas pivot.</para>
         /// </summary>
-        public void Construct(Transform canvas, Font font)
+        public void Construct(Transform canvas, Font font, EliteEnemyRegistry eliteRegistry = null)
         {
             if (_canvas != null) return;
 
             _canvas = canvas;
             _font = font;
+            _eliteRegistry = eliteRegistry;
 
-            EliteEnemyRegistry.Registered -= OnRegistered;
-            EliteEnemyRegistry.Registered += OnRegistered;
-            EliteEnemyRegistry.Unregistered -= OnUnregistered;
-            EliteEnemyRegistry.Unregistered += OnUnregistered;
+            if (_eliteRegistry == null) return;
+
+            _eliteRegistry.Registered -= OnRegistered;
+            _eliteRegistry.Registered += OnRegistered;
+            _eliteRegistry.Unregistered -= OnUnregistered;
+            _eliteRegistry.Unregistered += OnUnregistered;
 
             // The HUD can be built after the room that contains the enemies — the bootstrapper runs from
             // its own Start and a test may spawn first. Adopting the live set here is what stops those
             // units from being the only ones with no marker.
-            System.Collections.Generic.IReadOnlyList<UnitController> live = EliteEnemyRegistry.Live;
+            System.Collections.Generic.IReadOnlyList<UnitController> live = _eliteRegistry.Live;
             for (int i = 0; i < live.Count; i++)
             {
                 Build(live[i]);
@@ -116,8 +126,10 @@ namespace PFE.UI.HUD
 
         private void OnDestroy()
         {
-            EliteEnemyRegistry.Registered -= OnRegistered;
-            EliteEnemyRegistry.Unregistered -= OnUnregistered;
+            if (_eliteRegistry == null) return;
+
+            _eliteRegistry.Registered -= OnRegistered;
+            _eliteRegistry.Unregistered -= OnUnregistered;
         }
 
         private void OnRegistered(UnitController unit) => Build(unit);

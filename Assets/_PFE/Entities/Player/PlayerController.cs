@@ -313,6 +313,28 @@ namespace PFE.Entities.Player
         private PlayerInventory _inventoryComponent;
 
         /// <summary>
+        /// The session's registries, held until attach — thread E. Injection is not ordered against
+        /// Awake (the file's standing warning), so both sides call <see cref="AttachPendingRegistriesIfReady"/>.
+        /// </summary>
+        [LocalOnly(Note = "Wiring reference; view registries, never replicated")]
+        private UnitViewRegistry _pendingViewRegistry;
+
+        [LocalOnly(Note = "Wiring reference; view registries, never replicated")]
+        private EliteEnemyRegistry _pendingEliteRegistry;
+
+        /// <summary>
+        /// Joins the session's view registries from whichever of <c>Construct</c>/<c>Awake</c> ran
+        /// second — the same two-sided wire as <see cref="WireInventoryIfReady"/>. Until this runs the
+        /// player's OnEnable could not register anything (no instance yet), and the attach itself is
+        /// retroactive, so either order ends with the player in the projector's unit list.
+        /// </summary>
+        private void AttachPendingRegistriesIfReady()
+        {
+            if (_pendingViewRegistry == null && _pendingEliteRegistry == null) return;
+            AttachViewRegistries(_pendingViewRegistry, _pendingEliteRegistry);
+        }
+
+        /// <summary>
         /// The land's first-acquisition item scripts — AS3 <c>Land.itemScripts</c> +
         /// <c>Invent.takeScript</c> (<c>Land.as:141-149</c>, <c>Invent.as:1554-1560</c>). Created in
         /// <c>Awake</c> alongside the inventory, because it subscribes to the inventory's
@@ -337,6 +359,22 @@ namespace PFE.Entities.Player
         private PFE.Systems.Audio.ISoundService _pendingSoundService;
         [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
         private PFE.Data.ContentRegistry _pendingRegistry;
+
+        /// <summary>
+        /// The campaign singleton held between Construct and Awake — thread E. Feeds the inventory's
+        /// first-take script lookup and the take-script runner; both tolerate null and fall back to
+        /// <c>CampaignManager.Current</c>, the tracked static that serves containerless rigs.
+        /// </summary>
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
+        private PFE.Systems.Campaign.CampaignManager _pendingCampaign;
+
+        /// <summary>
+        /// The script system the take-script runner registers with — thread E. Same held-between-
+        /// Construct-and-Awake wiring as the campaign; the runner falls back to
+        /// <c>ScriptSystem.Current</c> when this is null.
+        /// </summary>
+        [LocalOnly(Note = "Wiring reference; DI-held pre-Awake, never replicated")]
+        private PFE.Systems.Map.Scripting.ScriptSystem _pendingScriptSystem;
 
         // The MessagePipe subscription bag moved into LocalPlayerInputSampler with the subscriptions
         // it disposes (thread F).
@@ -451,13 +489,30 @@ namespace PFE.Entities.Player
             // parameter the player's EffectVisualSink stays null and a burning player shows nothing
             // while a burning enemy shows a flame: the asymmetry is the tell.
             PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter,
-            PFE.Data.ContentRegistry registry = null)
+            PFE.Data.ContentRegistry registry = null,
+            // Thread E: the view/elite registries the player joins like any spawned unit. Optional for
+            // the same reason the registry is: a plain-Awake test rig has no container. Registered
+            // unconditionally in GameLifetimeScope, so production always fills them.
+            UnitViewRegistry viewRegistry = null,
+            EliteEnemyRegistry eliteRegistry = null,
+            // Thread E: the campaign singleton, handed to the inventory (first-take quest scripts)
+            // and the take-script runner. Same optionality as the registries — a bare-Awake rig has
+            // no container, and both consumers fall back to CampaignManager.Current.
+            PFE.Systems.Campaign.CampaignManager campaign = null,
+            // Thread E: the script system the take-script runner registers runners with. Optional
+            // for the same reason the campaign is; the runner falls back to ScriptSystem.Current.
+            PFE.Systems.Map.Scripting.ScriptSystem scriptSystem = null)
         {
             _input = input;
             _debugSettings = debugSettings;
             _pendingLandMap = landMap;
             _pendingSoundService = soundService;
             _pendingRegistry = registry;
+            _pendingViewRegistry = viewRegistry;
+            _pendingEliteRegistry = eliteRegistry;
+            _pendingCampaign = campaign;
+            _pendingScriptSystem = scriptSystem;
+            AttachPendingRegistriesIfReady();
 
             // Held until Awake has built the caster's own collaborators. See WireSpellCasterIfReady.
             _pendingSpellCastSubscriber = spellCastSubscriber;
@@ -629,6 +684,13 @@ namespace PFE.Entities.Player
         }
 
         /// <summary>
+        /// The player's own corpse-dropped loot plays through the injected service — see
+        /// <see cref="UnitController.LootDropSoundService"/>. Thread E: replaces the retired
+        /// <c>SoundBus.Current</c> reach.
+        /// </summary>
+        protected override ISoundService LootDropSoundService => _pendingSoundService;
+
+        /// <summary>
         /// Binds the radiation ticker's collaborators from whichever of <c>Construct</c>/<c>Awake</c>
         /// ran second — the same two-sided wire as <see cref="WireInventoryIfReady"/>.
         ///
@@ -681,7 +743,9 @@ namespace PFE.Entities.Player
 
             // Null before injection; PlayerInventory tolerates it and rebuilds its sink once the real
             // registry arrives, so calling this with null is a no-op rather than a permanent downgrade.
-            _inventoryComponent.Construct(_pendingRegistry);
+            // The sound service rides the same two-sided wire so a dropped item's landing sample plays
+            // through the injected service instead of the retired SoundBus static.
+            _inventoryComponent.Construct(_pendingRegistry, _pendingSoundService, _pendingCampaign);
 
             // RadAway's destination. Null until the radiation ticker is built (it is created later in
             // Awake than this can run), so WireRadiationTickerIfReady sets it again from the other side.
@@ -798,7 +862,8 @@ namespace PFE.Entities.Player
             // ordered against this Awake.
             _itemTakeScripts = GetComponent<PFE.Systems.Map.Scripting.LandItemScriptRunner>()
                 ?? gameObject.AddComponent<PFE.Systems.Map.Scripting.LandItemScriptRunner>();
-            _itemTakeScripts.Construct(_inventoryComponent, () => _pendingLandMap);
+            _itemTakeScripts.Construct(_inventoryComponent, () => _pendingLandMap, campaign: _pendingCampaign,
+                scriptSystem: _pendingScriptSystem);
 
             // AS3 Pers.die() fires from inside damage() / bloodDamage() / manaDamage() when an organ
             // reaches zero (Pers.as:1693-1697, :1793-1797, :1739-1743). CharacterStats raises the
@@ -824,6 +889,10 @@ namespace PFE.Entities.Player
             // no flame even though every enemy does, because the emitter only reaches this class by
             // injection and the sink only installs once _unitStats exists.
             ApplyParticleEmitterIfReady();
+
+            // …and the same for the view registries (thread E): the player is a unit like any other
+            // for the snapshot projector's unit list, and Construct is not ordered against this Awake.
+            AttachPendingRegistriesIfReady();
         }
 
         /// <summary>

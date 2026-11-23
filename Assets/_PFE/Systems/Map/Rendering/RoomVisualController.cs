@@ -101,15 +101,10 @@ namespace PFE.Systems.Map.Rendering
         private RoomTerrainRenderer backgroundTerrainRenderer;
 
         /// <summary>
-        /// The collision-only tile objects. The room's collision no longer rides on the renderer's
-        /// GameObjects: the quarter renderer draws the picture, these objects carry the
-        /// <see cref="TileCollider"/>s.
-        /// </summary>
-        private TileCollisionBuilder tileCollisionBuilder;
-
-        /// <summary>
         /// Where this room's tiles stamp the decals a hit leaves — AS3's <c>Grafon.frontBmp</c>, minus
-        /// the bitmap.
+        /// the bitmap. Exposed to the data side through <see cref="RoomInstance.Decals"/> so a hit that
+        /// arrives without a picture path (the headless harness, a host-simulated room) is real and
+        /// invisible rather than an error.
         ///
         /// <para><b>Created for both terrain paths.</b> The decal is the one piece of the picture that
         /// neither renderer owns: the quarter renderer draws the terrain as a mesh and the shipped path
@@ -352,6 +347,67 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
+        /// The scene's sound service, resolved from the container handed to
+        /// <see cref="SetCombatServices"/>, or null when there is none (a fixture, or a scene without a
+        /// <c>SoundService</c> — which is the legitimate silent answer, same as the retired
+        /// <c>SoundBus.Current</c> returning null). Resolved per call, like
+        /// <c>RoomUnitSpawner.EnsureCombatServices</c>: a missing registration must not take the room
+        /// build down, and one try/catch per room Initialize is free next to the terrain build.
+        /// </summary>
+        private PFE.Systems.Audio.ISoundService ResolveSoundService()
+        {
+            if (resolver == null) return null;
+            try
+            {
+                return (PFE.Systems.Audio.ISoundService)resolver.Resolve(typeof(PFE.Systems.Audio.ISoundService));
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// The container's campaign singleton, resolved the same lazy way as the sound service — this
+        /// controller is AddComponent-built, so [Inject] never runs on it and the resolver is pushed
+        /// by <see cref="SetCombatServices"/>. Thread E: handed to the AreaTriggerSystem this
+        /// controller constructs, so the trigger layer prefers the injected instance over the tracked
+        /// static. A null resolver (fixture-built controller) reads as null, and every consumer's
+        /// static fallback covers that exactly as before.
+        /// </summary>
+        private PFE.Systems.Campaign.CampaignManager ResolveCampaign()
+        {
+            if (resolver == null) return null;
+            try
+            {
+                return (PFE.Systems.Campaign.CampaignManager)resolver.Resolve(typeof(PFE.Systems.Campaign.CampaignManager));
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// The container's script system, resolved the same lazy way as the sound service — this
+        /// controller is AddComponent-built and the resolver is pushed, never injected. Thread E:
+        /// preferred over the <c>ScriptSystem.Current</c> static at the register/unregister sites, and
+        /// handed to the AreaTriggerSystem this controller constructs.
+        /// </summary>
+        private PFE.Systems.Map.Scripting.ScriptSystem ResolveScriptSystem()
+        {
+            if (resolver == null) return null;
+            try
+            {
+                return (PFE.Systems.Map.Scripting.ScriptSystem)resolver.Resolve(typeof(PFE.Systems.Map.Scripting.ScriptSystem));
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// The script system the room publishes its <c>@targ</c> host through — the injected instance
+        /// when the resolver can provide it, otherwise the tracked static the containerless paths
+        /// still serve. A property (re-read per call), not a captured local, so a scene-teardown
+        /// order where the system is disposed before this controller still reads null-tolerantly.
+        /// </summary>
+        private PFE.Systems.Map.Scripting.ScriptSystem ActiveScriptSystem =>
+            ResolveScriptSystem() ?? PFE.Systems.Map.Scripting.ScriptSystem.Current;
+
+        /// <summary>
         /// Hands the room the particle population and its art catalogue, and creates the view.
         ///
         /// <para><b>Why the room owns the particles.</b> AS3 adds each <c>Part</c> to the
@@ -517,7 +573,14 @@ namespace PFE.Systems.Map.Rendering
             // the render-asset guards below. Otherwise a missing tile database leaves
             // AreaTriggerSystem null, which silently kills the OnGotoLand forwarding chain that
             // MapBridge subscribes to.
-            areaTriggerSystem = new PFE.Systems.Map.Scripting.AreaTriggerSystem();
+            areaTriggerSystem = new PFE.Systems.Map.Scripting.AreaTriggerSystem(
+                promptPublisher: null,
+                markerPublisher: null,
+                landTransitionPublisher: null,
+                luaBridge: null,
+                landHost: null,
+                campaign: ResolveCampaign(),
+                scriptSystem: ResolveScriptSystem());
             areaTriggerSystem.OnGotoLand += land => OnGotoLand?.Invoke(land);
 
             // Publish this room's `@targ` host so a script that is NOT owned by a room can still
@@ -527,7 +590,7 @@ namespace PFE.Systems.Map.Rendering
             // (`RoomInstance` is plain map data with no back-reference to its renderer, deliberately).
             // This controller is the only thing that constructs an AreaTriggerSystem, so it is the only
             // place that can publish the pair.
-            PFE.Systems.Map.Scripting.ScriptSystem.Current?.RegisterObjectHost(roomInstance, areaTriggerSystem);
+            ActiveScriptSystem?.RegisterObjectHost(roomInstance, areaTriggerSystem);
 
             if (room == null)
             {
@@ -587,26 +650,19 @@ namespace PFE.Systems.Map.Rendering
                 KonturCalculator.CalculateAll(room);
             }
 
-            // The terrain picture and the collision objects are built separately on purpose: the
-            // quarter renderer draws the room as meshes, and the tile objects exist only to carry
-            // TileColliders — same transforms, same colliders, no sprites, no per-cell compositing.
+            // The terrain picture is a mesh built from the tile grid; the room's collision lives in
+            // the tile grid itself, queried through ITileQueryService — since Stage D there are no
+            // per-tile objects at all (the ~1 136 collider-only GameObjects this used to build went
+            // with TileCollisionBuilder).
             using (Profiler.Region("room.terrain.quad", "quarter renderer — the room's terrain picture"))
             {
                 BuildRoomTerrain(room);
             }
 
-            int mainTiles;
-            using (Profiler.Region("room.tiles.collisionOnly", "collision-only tile objects — no compositing at all"))
-            {
-                tileCollisionBuilder = new TileCollisionBuilder(room, tileParent, debugSettings);
-                tileCollisionBuilder.Decals = tileDecalLayer;
-                mainTiles = tileCollisionBuilder.BuildAll();
-            }
-
             if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
             {
-                Debug.Log($"[RoomVisualController] Built {mainTiles} collision-only tile object(s); " +
-                          "the quarter renderer draws this room's terrain.");
+                Debug.Log($"[RoomVisualController] Quarter renderer built this room's terrain; " +
+                          "collision is served from the tile grid.");
             }
 
             if (room.hasBackgroundLayer && room.backgroundRoom != null)
@@ -622,7 +678,7 @@ namespace PFE.Systems.Map.Rendering
                 roomBackdropRenderer.CreateVisuals();
                 roomBackdropRenderer.SetFogOfWarDisabled(fogOfWarDisabled);
             }
-            roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent, areaTriggerSystem);
+            roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent, areaTriggerSystem, ResolveSoundService());
             roomObjectVisualManager.RefreshAll();
             Profiler.Mark("room.objects.refreshAll");
 
@@ -708,7 +764,8 @@ namespace PFE.Systems.Map.Rendering
             isInitialized = true;
             if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
             {
-                Debug.Log($"[RoomVisualController] Room {room.id} initialized successfully with {mainTiles} tiles!");
+                Debug.Log($"[RoomVisualController] Room {room.id} initialized successfully; " +
+                          "terrain rendered, collision served from the tile grid.");
             }
         }
 
@@ -1192,18 +1249,16 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Update a specific tile: refresh the cell's collider and say the cell changed. The picture
-        /// is a function of the tile grid, so the quarter renderer — which subscribes to
-        /// <c>TilesMutated</c> — redraws the cell from that notification; saying nothing would leave it
-        /// drawing the old shape after an edit, which is the picture-lying failure the subscription
-        /// exists to prevent.
+        /// Update a specific tile: say the cell changed. The picture is a function of the tile grid,
+        /// so the quarter renderer — which subscribes to <c>TilesMutated</c> — redraws the cell from
+        /// that notification, and the chain mirror rebuilds its geometry from the same event; there
+        /// are no per-tile objects left to refresh.
         /// </summary>
         public void UpdateTile(Vector2Int coord)
         {
-            if (!isInitialized || tileCollisionBuilder == null)
+            if (!isInitialized)
                 return;
 
-            tileCollisionBuilder.RebuildCell(coord);
             roomInstance?.NotifyTilesMutated(new RectInt(coord.x - 1, coord.y - 1, 3, 3));
         }
 
@@ -1225,16 +1280,14 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Destroy a specific tile: through its builder, which also tells the room the cell changed.
-        /// Going through <see cref="TileCollider"/> instead is what the runtime path does (the
-        /// projectile hits the collider), so this is the same two steps in the same order.
+        /// Destroy a specific tile: the grid write plus the mutation notification, which is the whole
+        /// of it — the terrain renderer redraws from the event and nothing per-tile remains to drop.
         /// </summary>
         public void DestroyTile(Vector2Int coord)
         {
-            if (!isInitialized || tileCollisionBuilder == null)
+            if (!isInitialized)
                 return;
 
-            tileCollisionBuilder.DestroyTile(coord);
             roomInstance?.NotifyTilesMutated(new RectInt(coord.x - 1, coord.y - 1, 3, 3));
         }
 
@@ -1282,8 +1335,7 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public void DestroyRoom()
         {
-            tileCollisionBuilder?.DestroyAll();
-            tileCollisionBuilder = null;
+            if (roomInstance != null) roomInstance.Decals = null;
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
             roomObjectVisualManager = null;
@@ -1313,14 +1365,13 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Get total number of tile objects this room built — the collision-only objects.
+        /// Get total number of tile objects this room built — zero since Stage D, which is the point:
+        /// collision is served from the tile grid and the answer to "how many tile GameObjects exist"
+        /// must stay 0 so the question cannot regress unnoticed.
         /// </summary>
         public int GetTileCount()
         {
-            if (!isInitialized || tileCollisionBuilder == null)
-                return 0;
-
-            return tileCollisionBuilder.Count;
+            return 0;
         }
 
         public string BuildRoomDebugString(bool longFormat)
@@ -1344,8 +1395,7 @@ namespace PFE.Systems.Map.Rendering
             if (particleRenderer != null) Destroy(particleRenderer.gameObject);
             particleRenderer = null;
 
-            tileCollisionBuilder?.DestroyAll();
-            tileCollisionBuilder = null;
+            if (roomInstance != null) roomInstance.Decals = null;
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
             roomObjectVisualManager = null;
@@ -1495,6 +1545,10 @@ namespace PFE.Systems.Map.Rendering
             tileDecalLayer.transform.localPosition = Vector3.zero;
             tileDecalLayer.transform.localRotation = Quaternion.identity;
             tileDecalLayer.transform.localScale = Vector3.one;
+
+            // Publish the layer to the data side so a hit arriving without this picture path (the
+            // headless harness) stamps nothing instead of throwing — the room is the shared object.
+            if (roomInstance != null) roomInstance.Decals = tileDecalLayer;
         }
 
         private const string DecalLayerName = "TileDecals";
@@ -1821,11 +1875,6 @@ namespace PFE.Systems.Map.Rendering
                 backgroundTerrainRenderer = null;
             }
 
-            // The collider-only objects are the only thing standing between the next room and this
-            // one's walls.
-            tileCollisionBuilder?.DestroyAll();
-            tileCollisionBuilder = null;
-
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
 
@@ -1858,7 +1907,7 @@ namespace PFE.Systems.Map.Rendering
             // what made the pairing, so it is what unpairs it. `roomInstance` is still the OLD room at
             // this point (Initialize reassigns it after calling ClearVisuals), which is exactly the one
             // whose entry must go.
-            PFE.Systems.Map.Scripting.ScriptSystem.Current?.UnregisterObjectHost(roomInstance);
+            ActiveScriptSystem?.UnregisterObjectHost(roomInstance);
 
             // The room's tile query goes with it. An adapter still holding the old room would convert
             // every later particle against a stale origin — and a stale origin is ZERO in the first

@@ -58,6 +58,14 @@ namespace PFE.Systems.Map
         public const float GroundStopPixelsPerSecond =
             GroundStopPixelsPerFrame * PFE.Core.SimClock.CanonicalTicksPerSecond;
 
+        /// <summary>
+        /// The service prop landing samples play through — thread E, replacing the retired
+        /// <c>SoundBus.Current</c>. Pushed by the room heartbeat (<see cref="RoomInstance.SoundService"/>,
+        /// stamped by <c>LandMap</c>); null is the legitimate soundless-scene answer, and the offline
+        /// fixtures that build a bare layer get silence for free.
+        /// </summary>
+        public ISoundService SoundService { get; set; }
+
         // ── TelekinesisFollowSpeed: REMOVED ──────────────────────────────────────────────────────
         //
         // <b>Removed.</b> This used to be <c>const float TelekinesisFollowSpeed = 14f</c> — an invented
@@ -1421,7 +1429,7 @@ namespace PFE.Systems.Map
                 if (MapObjectSoundRule.PlaysOnLanding(state.velocity.y, soundId, state.soundOn))
                 {
                     Vector2 origin = WorldCoordinates.RoomOriginPixel(room);
-                    SoundBus.Current?.Play(
+                    SoundService?.Play(
                         soundId,
                         WorldCoordinates.PixelToUnity(obj.position + origin),
                         MapObjectSoundRule.LandingVolume(state.velocity.y));

@@ -36,7 +36,8 @@ namespace PFE.Systems.Map
     /// The single implementation of tile destruction — AS3 <c>Tile.udar(param1:int)</c>.
     ///
     /// <para><b>Why this exists as its own type.</b> The rule was implemented twice:
-    /// <c>TileCollider.DamageThisTile</c> and <c>TileCollisionSystem.ApplyDamage</c> each carried their
+    /// <c>TileCollider.DamageThisTile</c> and <c>TileCollisionSystem.ApplyDamage</c> (both since deleted)
+    /// each carried their
     /// own copy of the gate order, and they had already drifted — one refused <c>damage &lt;= 0</c> and the
     /// other reported "damaged" for a zero-damage hit, one rounded the float and the other could not.
     /// Two copies of an oracle rule is how "bullets stopped breaking ladders" gets in, and the drift was

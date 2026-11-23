@@ -839,7 +839,9 @@ namespace PFE.Entities.Enemies.Archetypes
             float radius = DamagerTrapRules.BombRadiusPixels * DamagerTrapRules.PixelToUnit;
 
             // `if(this.destroy > 0) this.explDestroy()` — the charge's 1000 is tile hp per hit.
-            ExplosionTileDamage.Apply(centre, radius, DamagerTrapRules.BombDestroyTiles,
+            // The trap's own room binding feeds the tile sweep; a trap with no room (a bare test
+            // spawn) still sweeps props, and finds no tiles — the oracle's answer for no Location.
+            ExplosionTileDamage.Apply(_tileQuery, centre, radius, DamagerTrapRules.BombDestroyTiles,
                                       DamageType.Explosive, DecalType.None);
 
             var context = DamageContext.Blast(DamagerTrapRules.BombDamage, DamageType.Explosive,

@@ -275,8 +275,10 @@ namespace PFE.Tests.Editor.Core
                 + "nothing a client can render.");
 
             string collect = SourceLint.MethodBody(projector, "private void CollectUnits(");
-            AssertContains(collect, "UnitViewRegistry.Live",
-                "CollectUnits must read the live-view list; the registry cannot answer for units.");
+            AssertContains(collect, "_unitViews.Live",
+                "CollectUnits must read the injected live-view registry; the registry cannot answer " +
+                "for units. (Thread E: the static UnitViewRegistry.Live became the container-owned " +
+                "instance handed to the constructor.)");
             AssertContains(collect, "HasEntityId",
                 "A controller is in the list before the spawner stamps it, so the collector must skip "
                 + "the anonymous ones rather than emit EntityHash 0.");
@@ -292,11 +294,13 @@ namespace PFE.Tests.Editor.Core
             string source = Read(UnitControllerPath);
 
             AssertContains(SourceLint.MethodBody(source, "protected virtual void OnEnable("),
-                "UnitViewRegistry.Register(this)",
-                "A live unit must be in the projector's list; without this every snapshot has zero units.");
+                "_viewRegistry?.Register(this)",
+                "A live unit must be in the projector's list; without this every snapshot has zero " +
+                "units. (Thread E: against the registry instance RoomUnitSpawner attaches, not the " +
+                "retired static.)");
 
             AssertContains(SourceLint.MethodBody(source, "protected virtual void OnDestroy("),
-                "UnitViewRegistry.Unregister(this)",
+                "_viewRegistry?.Unregister(this)",
                 "A destroyed unit left in the list is a fake-null the projector would project every "
                 + "tick — the same failure SimLoop's unregister exists for.");
         }

@@ -795,37 +795,36 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
-        /// AS3's <c>loc.getAbsTile(X + storona*60, Y - 30|50)</c> (<c>WKick.as:60-61</c>), as a physics
-        /// probe.
+        /// AS3's <c>loc.getAbsTile(X + storona*60, Y - 30|50)</c> (<c>WKick.as:60-61</c>), read off
+        /// the tile grid.
         ///
         /// <para><b>Air is a tile with <c>thre</c> 0, not a missing tile.</b> <c>getAbsTile</c> returns
         /// the cell's <c>Tile</c> object whatever is in it (<c>Location.as:2333-2340</c>), and
-        /// <c>Tile.thre</c> defaults to 0 (<c>Tile.as:24</c>) — so "no collider here" must answer
+        /// <c>Tile.thre</c> defaults to 0 (<c>Tile.as:24</c>) — so "nothing solid here" must answer
         /// <c>(exists: true, threshold: 0)</c>, which is exactly what makes the probe fire for the case
         /// it exists for: a wall at 30 px and air at 50 px. Answering "no tile" would invert the flag
         /// on every wall in the game.</para>
         ///
-        /// <para>The 2 px box is the same idiom <c>MeleeHitVolume.DestructibleColliderAtPixel</c> uses,
-        /// and for the same reason: <c>Physics2D</c> has no cheap non-deprecated point query, and 2 px
-        /// is well inside a 40 px cell.</para>
+        /// <para><b>Why the grid and not a collider probe.</b> This used to overlap the scene for a
+        /// per-tile <c>TileCollider</c>; tiles have had no colliders since Stage D, and the wielder's
+        /// room binding (<see cref="UnitController.TileQuery"/>) answers the same question from the
+        /// data — including for platforms and stairs, which the collider probe used to find.</para>
         /// </summary>
-        private static HoofTileProbe ProbeTileForHoofStrike(Vector2 world)
+        private HoofTileProbe ProbeTileForHoofStrike(Vector2 world)
         {
-            Collider2D[] hits = Physics2D.OverlapBoxAll(world, new Vector2(0.02f, 0.02f), 0f);
-
-            for (int i = 0; i < hits.Length; i++)
+            PFE.Systems.Map.TileQuery.ITileQueryService query =
+                _ownerUnit != null ? _ownerUnit.TileQuery : null;
+            if (query == null || query.Room == null || query.Room.tiles == null)
             {
-                Collider2D hit = hits[i];
-                if (hit == null || hit.isTrigger) continue;
-
-                var tile = hit.GetComponent<PFE.Systems.Map.Rendering.TileCollider>();
-                if (tile == null) continue;
-
-                PFE.Systems.Map.TileData data = tile.GetTileData();
-                return new HoofTileProbe(true, data != null ? data.damageThreshold : 0f);
+                return new HoofTileProbe(true, 0f);
             }
 
-            return new HoofTileProbe(true, 0f);
+            Vector2 worldPx = world * PFE.Systems.Map.TileQuery.TileQueryConstants.UnitToPixel;
+            Vector2 localPx = worldPx - query.OriginPixel;
+            PFE.Systems.Map.TileData data = query.Room.GetTileAtCoord(
+                PFE.Systems.Map.WorldCoordinates.PixelToTile(localPx));
+
+            return new HoofTileProbe(true, data != null ? data.damageThreshold : 0f);
         }
 
         /// <summary>

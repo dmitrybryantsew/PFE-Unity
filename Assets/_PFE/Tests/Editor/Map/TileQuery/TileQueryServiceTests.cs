@@ -152,26 +152,6 @@ namespace PFE.Tests.Editor.Map.TileQuery
         }
 
         [Test]
-        public void Seam_Unified_Raycast_MatchesTileCollisionSystem()
-        {
-            TileCollisionSystem reference = new TileCollisionSystem(_room);
-            ITileQueryService subject = new UnifiedTileQueryService(_room);
-
-            foreach (Vector2 origin in ProbePoints())
-            {
-                (TileData tile, Vector2 point)? expected = reference.Raycast(origin, Vector2.right, 400f);
-                TileRaycastHit? actual = subject.Raycast(origin, Vector2.right, 400f);
-
-                Assert.AreEqual(expected.HasValue, actual.HasValue, "Raycast hit presence diverged at " + origin);
-                if (expected.HasValue && actual.HasValue)
-                {
-                    Assert.AreEqual(expected.Value.point, actual.Value.Point, "Raycast point diverged at " + origin);
-                    Assert.AreSame(expected.Value.tile, actual.Value.Tile, "Raycast tile diverged at " + origin);
-                }
-            }
-        }
-
-        [Test]
         public void Seam_Unified_GetGroundHeight_MatchesTileCollisionMath()
         {
             ITileQueryService subject = new UnifiedTileQueryService(_room);

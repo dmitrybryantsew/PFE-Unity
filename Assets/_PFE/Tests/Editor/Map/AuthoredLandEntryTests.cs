@@ -7,8 +7,10 @@ using UnityEngine;
 namespace PFE.Tests.Editor.Map
 {
     /// <summary>
-    /// Tests for <see cref="MapBridge.ResolveDefaultEntryCell"/> — which room a land is entered at when
-    /// the caller names none and no checkpoint applies.
+    /// Tests for <see cref="LandSessionService.ResolveDefaultEntryCell"/> — which room a land is
+    /// entered at when the caller names none and no checkpoint applies. (The method moved here from
+    /// <c>MapBridge</c> in the Wave 2 thread-G split: the entry decision is authoritative simulation
+    /// input, not scene choreography.)
     ///
     /// <para><b>The bug this pins.</b> The port answered that question with a shape heuristic
     /// (<c>ResolveEntrancePosition</c>): first <c>beg0</c> template, else the first template carrying a
@@ -73,7 +75,7 @@ namespace PFE.Tests.Editor.Map
                 Room("room_-1_0", new Vector3Int(-1, 0, 0), playerSpawn: true)
             };
 
-            Vector3Int cell = MapBridge.ResolveDefaultEntryCell(
+            Vector3Int cell = new LandSessionService().ResolveDefaultEntryCell(
                 Land("nio", -1, 0), templates, "rooms_nio");
 
             Assert.AreEqual(new Vector3Int(-1, 0, 0), cell,
@@ -92,7 +94,7 @@ namespace PFE.Tests.Editor.Map
                 Room("bossraider", new Vector3Int(2, 3, 1), playerSpawn: true)
             };
 
-            Vector3Int cell = MapBridge.ResolveDefaultEntryCell(
+            Vector3Int cell = new LandSessionService().ResolveDefaultEntryCell(
                 Land("somewhere", 2, 3), templates, "rooms_somewhere");
 
             Assert.AreEqual(new Vector3Int(2, 3, 0), cell);
@@ -110,7 +112,7 @@ namespace PFE.Tests.Editor.Map
                 Room("room_4_2", new Vector3Int(4, 2, 0), playerSpawn: true)
             };
 
-            Vector3Int cell = MapBridge.ResolveDefaultEntryCell(null, templates, "rooms_unknown");
+            Vector3Int cell = new LandSessionService().ResolveDefaultEntryCell(null, templates, "rooms_unknown");
 
             Assert.AreEqual(new Vector3Int(4, 2, 0), cell,
                 "With no land definition the first template carrying a player spawn is still the best " +

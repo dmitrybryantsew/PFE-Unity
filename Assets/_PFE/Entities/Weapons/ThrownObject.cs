@@ -20,32 +20,29 @@ namespace PFE.Entities.Weapons
     /// Physics-based thrown projectile — grenades, bottles, sticky bombs.
     /// Mirrors <c>PhisBullet.as</c> from AS3.
     ///
-    /// <para><b>Stage C — two tile-collision paths, selected by
-    /// <c>PfeDebugSettings.ThrownObjectsUseTileSeam</c>.</b> With the flag OFF (default) nothing here
-    /// changed: tile hits arrive through <see cref="OnTriggerEnter2D"/> from Unity's per-tile
-    /// <c>BoxCollider2D</c> grid, and the object integrates in <see cref="FixedUpdate"/> against
-    /// <c>Time.fixedDeltaTime</c> — 50 Hz where AS3 runs at 30, so every bounce, settle and fuse
-    /// runs 1.67× fast. With it ON, the integration and the tile decision both come from
-    /// <see cref="ThrownObjectPhysics"/>, driven from <see cref="SimLoop"/> at exactly
-    /// <c>SimClock.SimDt</c>.</para>
+    /// <para><b>The tile path is permanent since Stage D.</b> What Stage C introduced behind
+    /// <c>PfeDebugSettings.ThrownObjectsUseTileSeam</c> is the only path now: the integration and the
+    /// tile decision both come from <see cref="ThrownObjectPhysics"/>, driven from <see cref="SimLoop"/>
+    /// at exactly <c>SimClock.SimDt</c> (AS3's 30 Hz). The per-tile <c>BoxCollider2D</c> grid and the
+    /// <c>FixedUpdate</c> integration are gone with the flag.</para>
     ///
-    /// <para><b>Why the flipped path is a point sweep and not the chain mirror.</b> AS3's thrown
+    /// <para><b>Why the tile path is a point sweep and not the chain mirror.</b> AS3's thrown
     /// object has no collision shape: <c>PhisBullet.run()</c> moves a <b>point</b> and asks
     /// <c>loc.getAbsTile(X, Y)</c> whether the cell it landed in is <c>phis == 1</c>. Tunnelling is
     /// prevented by sub-stepping at <c>World.maxdelta</c> (9 px), not by a swept shape. The chain
     /// mirror exists to sweep the projectile's 93×6 needle hitbox (<c>ProjectileTemplateSpec.ColliderSize</c>)
     /// — a shape a grenade does not
-    /// have — so sweeping one here would change the game, not just the implementation. What the flip
+    /// have — so sweeping one here would change the game, not just the implementation. What this path
     /// takes from the same seam is the room's own <see cref="ITileQueryService"/>, so "is this tile in
     /// my way" still resolves through one definition of tile semantics.</para>
     ///
-    /// <para><b>What the flip deliberately does NOT change.</b> Entity hits and the explosion.
+    /// <para><b>What this deliberately does NOT change.</b> Entity hits and the explosion.
     /// Enemies, the player and destructible props are still Unity colliders, so <c>IDamageable</c>
     /// resolution keeps coming from <see cref="OnTriggerEnter2D"/> and the AoE keeps coming from
-    /// <see cref="Physics2D.OverlapCircleAll"/>, in both modes. Moving entities into the Box2D world
-    /// is not Stage C's job.</para>
+    /// <see cref="Physics2D.OverlapCircleAll"/>. Moving entities into the Box2D world was never this
+    /// path's job.</para>
     ///
-    /// <para><b>The legacy path's bounce axis is a port invention, but it is NOT the "dinamit jiggle".</b>
+    /// <para><b>The collider-bounce path's axis test is a port invention, but it is NOT the "dinamit jiggle".</b>
     /// It derives the axis from <c>|diff.x| &gt; |diff.y|</c> against the collider's <i>bounds centre</i>,
     /// which is not a contact normal. That looked like the obvious cause of the owner's report, so it was
     /// measured (10-04) before being changed: sweeping all 18 304 points on the contact circle around one
@@ -54,18 +51,17 @@ namespace PFE.Entities.Weapons
     /// disagree: a floor contact puts the object's centre ~0.7 units from the tile centre vertically, and
     /// no reachable horizontal offset (at most the tile's own half-width, 0.2) can exceed that. The
     /// proposed normal-based rewrite was therefore <b>reverted as a no-op</b> rather than landed with a
-    /// wrong story. See <c>TOPIC_open_work.md</c> row 2 for what was ruled out and what is still open.</para>
+    /// wrong story. See <c>TOPIC_open_work.md</c> row 2 for what was ruled out and what is still open.
+    /// Since Stage D this path only ever fires for non-tile solids — doors and props — because tiles
+    /// have no colliders to trigger it; the bounce writes are inert for a sim-registered instance, whose
+    /// motion lives in <c>_simState</c>, and the sound plus the <c>bumc</c> detonation are the parts
+    /// that still land.</para>
     ///
-    /// <para><b>The real divergence from AS3 is point-versus-circle, not the axis test.</b> AS3's
-    /// <c>PhisBullet.run()</c> moves a <b>point</b> and asks whether the cell that point now occupies is
-    /// solid (<c>PhisBullet.as:242/263/286/315</c>), resolving X before Y and choosing the axis from the
-    /// <i>direction of travel</i> plus that test order — there is no contact normal anywhere in the
-    /// oracle. This path instead lets a 0.5-unit (100 px) circle trigger against 40 px tiles, so it
-    /// detects a contact up to 50 px before AS3's point would, and comes to rest with its centre 50 px
-    /// above the surface where AS3's point sits 1 px above it (<c>:325</c>). The faithful model already
-    /// exists as <see cref="ThrownObjectPhysics"/>, which reproduces the point sweep with sub-steps and
-    /// is covered by fixtures; it is reached by turning <c>ThrownObjectsUseTileSeam</c> on, which defaults
-    /// off. Whether to flip that default is the owner's call, not a silent change.</para>
+    /// <para><b>The old FixedUpdate path's real divergence from AS3 was point-versus-circle.</b> It let
+    /// a 0.5-unit (100 px) circle trigger against 40 px tiles, detecting a contact up to 50 px before
+    /// AS3's point would and coming to rest with its centre 50 px above the surface where AS3's point
+    /// sits 1 px above it (<c>:325</c>). <see cref="ThrownObjectPhysics"/> reproduces the point sweep
+    /// with sub-steps and is covered by fixtures, and it is the only integration path now.</para>
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
     public sealed class ThrownObject : MonoBehaviour, ISimTickable, PFE.Systems.Replication.ISimTransientStateSource
@@ -103,22 +99,18 @@ namespace PFE.Entities.Weapons
         /// the squared-frame-rate factor → 18 units/s². The old <c>brake / SimClock.FramesPerSecond * 60f</c> (= 4)
         /// was neither idiom and left friction 4.5× too weak.</para>
         /// </summary>
-        private float   _brake     = ProjectilePhysicsMath.SlidingFriction(ProjectilePhysicsMath.BrakePxPerFrame2);
-
         /// <summary>The same <c>brake</c>, unconverted, for <see cref="ThrownObjectPhysics"/>.</summary>
         private float   _brakePxPerFrame2 = ProjectilePhysicsMath.BrakePxPerFrame2;
 
         private bool    _bumc;               // detonate on contact
         private bool    _sticky;             // AS3 `lip` — latch on first tile contact (throwTip == 2)
-        private bool    _stay;               // resting on floor
 
         // ── Fuse ──────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Legacy fuse, in <b>seconds of wall clock</b>. Deliberately unchanged by the flip: the
-        /// legacy path's defect is that its clock is wrong, and a wall-clock fuse reproduces the
-        /// pre-flip duration exactly, so a flag-off/flag-on comparison isolates the clock change
-        /// instead of confounding it with a fuse change.
+        /// The fuse in <b>seconds</b> — the snapshot's <c>LifetimeRemaining</c>, so a receiver
+        /// interpolating a flying grenade sees the same countdown. The countdown itself runs on
+        /// <see cref="_fuseTicks"/>, the oracle's integer frame count.
         /// </summary>
         private float _fuseTimer;
 
@@ -315,6 +307,10 @@ namespace PFE.Entities.Weapons
         /// <summary>The tile world, resolved once at spawn from the room the object was spawned in.</summary>
         private IThrownTileProbe _probe;
 
+        /// <summary>The room's own tile seam, kept alongside <see cref="_probe"/> for the blast sweep —
+        /// the same lifetime (one room per flight) and nulled with it.</summary>
+        private ITileQueryService _tileQuery;
+
         /// <summary>True while this instance is registered on SimLoop and must be unregistered.</summary>
         private bool _registeredOnSimLoop;
 
@@ -481,13 +477,11 @@ namespace PFE.Entities.Weapons
         public int TickOrder => SimTickOrder.Projectiles;
 
         /// <summary>
-        /// True when this instance is actually running the flipped path.
+        /// True when this instance is registered on <see cref="SimLoop"/> and actually driven by it.
         ///
-        /// <para>Keyed off the registration rather than off the settings flag on purpose. If the flag
-        /// is on but SimLoop or the tile seam was unavailable, <see cref="RegisterOnSimLoop"/> leaves
-        /// this false and the instance stays wholly on the legacy path. Reading the flag instead would
-        /// leave such an instance driven by <i>neither</i> loop — motionless in mid-air — which is a
-        /// far worse failure than quietly staying on the old path.</para>
+        /// <para>Keyed off the registration rather than assumed, because registration can fail (no
+        /// SimLoop, or a spawn point outside every mirrored room) — and an instance nothing drives is
+        /// visibly broken rather than quietly wrong.</para>
         /// </summary>
         private bool FlipActive => _registeredOnSimLoop;
 
@@ -544,9 +538,7 @@ namespace PFE.Entities.Weapons
             _sticky           = sticky;
             _skok             = skok;
             _tormoz           = tormoz;
-            _brake            = ProjectilePhysicsMath.SlidingFriction(brake);
             _brakePxPerFrame2 = brake;
-            _stay             = false;
             _armed            = true;
             _isInitialized    = true;
             _detonated        = false;
@@ -567,17 +559,15 @@ namespace PFE.Entities.Weapons
 
             _rb.linearVelocity = _velocity;
 
-            // ── Stage C: hand this flight to the sim, or leave it on the legacy path ───────────
+            // ── Hand this flight to the sim ─────────────────────────────────────────────────────
             _simState            = default;
             _probe               = null;
+            _tileQuery           = null;
             _viewDirty           = false;
             _pendingDetonate     = false;
             _pendingReturnToPool = false;
 
-            if (_debugSettings?.ThrownObjectsUseTileSeam == true)
-            {
-                RegisterOnSimLoop();
-            }
+            RegisterOnSimLoop();
         }
 
         public void SetDamageContext(DamageContext ctx)
@@ -591,8 +581,9 @@ namespace PFE.Entities.Weapons
         ///
         /// <para>Both are all-or-nothing. A registered instance with no probe would step through
         /// every wall; a probe with no registration would never step at all. So a failure to resolve
-        /// either one leaves <see cref="FlipActive"/> false and the instance on the legacy path,
-        /// which is the failure mode that is merely <i>old</i> rather than <i>broken</i>.</para>
+        /// either one leaves <see cref="FlipActive"/> false and the instance inert — the sim is the
+        /// only integration path, and an instance nothing drives is visibly broken rather than
+        /// quietly wrong.</para>
         ///
         /// <para>The room is resolved from the spawn point, once — which is also AS3's lifetime for
         /// the binding: <c>PhisBullet</c> holds one <c>loc</c> for its whole flight and is removed
@@ -617,6 +608,7 @@ namespace PFE.Entities.Weapons
             }
 
             _probe = new ThrownTileProbe(room.Service, room.WorldBoundsPx);
+            _tileQuery = room.Service;
 
             // AS3-native state: position in world pixels, velocity in px/frame. The conversion
             // happens exactly here and in LateUpdate, and nowhere else.
@@ -636,8 +628,8 @@ namespace PFE.Entities.Weapons
             if (_debugSettings?.LogProjectileLifecycle != true) return;
 
             Debug.LogWarning(
-                $"[ThrownObject] '{name}' has ThrownObjectsUseTileSeam on but {reason}; " +
-                "staying on the FixedUpdate path.");
+                $"[ThrownObject] '{name}' could not join the sim because {reason}; it will not " +
+                "move or detonate.");
         }
 
         /// <summary>Releases the SimLoop registration. Idempotent, and safe before any registration.</summary>
@@ -729,70 +721,13 @@ namespace PFE.Entities.Weapons
 
         // ── Unity lifecycle ───────────────────────────────────────────────────
 
-        /// <summary>
-        /// Legacy integration path. Active only when the Stage C flip is <i>not</i> running for this
-        /// instance — see <see cref="FlipActive"/>, which is keyed off the SimLoop registration rather
-        /// than off the settings flag so an instance whose registration failed is still driven.
-        /// </summary>
-        private void FixedUpdate()
-        {
-            if (!_isInitialized) return;
-
-            // With the flip running, SimLoop owns integration. Standing down here is essential:
-            // leaving both drivers active would step the object twice per frame, at two rates.
-            if (FlipActive) return;
-
-            // The legacy twin of SimTick's pulse branch. The legacy path has no deferred view pass for
-            // this, so the pulse runs inline — FixedUpdate is a Unity callback, not a sim tick, so
-            // resolving damage and emitting particles here is safe. `Time.fixedDeltaTime` is not used:
-            // the pulse schedule is in canonical 30 Hz frames, exactly as it is on the flipped path.
-            if (_pulseActive)
-            {
-                _pulsesElapsed++;
-
-                int due = ExplosionPulseRules.PulseDueAt(_explKol, _pulsesElapsed);
-                if (due >= 0) RunPulse(due);
-
-                if (ExplosionPulseRules.IsFinished(_explKol, _pulsesElapsed))
-                {
-                    _pulseActive = false;
-                    ReturnToPool();
-                }
-                return;
-            }
-
-            float dt = Time.fixedDeltaTime;
-
-            // ── Fuse countdown ────────────────────────────────────────────────
-            _fuseTimer -= dt;
-            if (_fuseTimer <= 0f)
-            {
-                Detonate();
-                return;
-            }
-
-            // ── Sliding friction while resting ────────────────────────────────
-            if (_stay)
-            {
-                float sign = Mathf.Sign(_velocity.x);
-                float reduction = _brake * dt;
-                if (Mathf.Abs(_velocity.x) > reduction)
-                    _velocity.x -= sign * reduction;
-                else
-                    _velocity.x = 0f;
-
-                _rb.linearVelocity = _velocity;
-                return;
-            }
-
-            // ── Gravity integration ───────────────────────────────────────────
-            _velocity.y -= GravityPerSec * dt;
-
-            _rb.linearVelocity = _velocity;
-        }
+        // ── Unity lifecycle ───────────────────────────────────────────────────
+        // Integration lives in SimTick — AS3's 30 Hz frame step — and the view write lives in
+        // LateUpdate below. There is deliberately no FixedUpdate path: the per-tile collider grid it
+        // integrated against is gone (Stage D), and a second driver would only be a second clock.
 
         /// <summary>
-        /// The flipped path's view pass: writes sim state out to the Transform and the Rigidbody, and
+        /// The view pass: writes sim state out to the Transform and the Rigidbody, and
         /// performs the detonation and pool return that <see cref="SimTick"/> deferred.
         ///
         /// <para><b>Position is written and velocity is zeroed, never both set.</b> A kinematic body
@@ -982,19 +917,15 @@ namespace PFE.Entities.Weapons
         /// Spins the view — AS3 <c>PhisBullet.as:100 vis.rotation += this.dr</c>.
         ///
         /// <para>Reads the live flight state but never writes it, and writes only the <b>child's</b>
-        /// local rotation. The two source fields differ per path because the flip keeps its position
-        /// and velocity in AS3 units (<see cref="ThrownObjectState"/>) while the legacy path keeps
-        /// them in Unity units, so the legacy read converts once — the same conversion, and the same
-        /// direction, as <see cref="RegisterOnSimLoop"/>.</para>
+        /// local rotation. The source fields are <see cref="ThrownObjectState"/>'s own — the flight
+        /// state lives in AS3 units on the only integration path there is.</para>
         /// </summary>
         private void UpdateThrownSpin()
         {
             if (_visualTransform == null) return;
 
-            bool  resting = FlipActive ? _simState.Stay : _stay;
-            float dxNowPxPerFrame = FlipActive
-                ? _simState.VelocityPxPerFrame.x
-                : _velocity.x / ProjectilePhysicsMath.VelocityScale;
+            bool  resting = _simState.Stay;
+            float dxNowPxPerFrame = _simState.VelocityPxPerFrame.x;
 
             _spinDegrees += ProjectilePhysicsMath.ThrownSpinDeltaDegrees(
                 _sticky, resting, _spinDxAtSpawnPx, dxNowPxPerFrame);
@@ -1035,12 +966,8 @@ namespace PFE.Entities.Weapons
                 return;
             }
 
-            // With the flip running, tile contacts are the sim's own point sweep. Without this the
-            // per-tile collider would report the same surface and every bounce would resolve twice —
-            // two velocity flips, so the object would come off the wall with the wrong sign.
-            if (FlipActive && other.GetComponent<TileCollider>() != null) return;
-
-            // Solid surface.
+            // Tiles have no colliders to report anything — this callback only ever resolves entity
+            // hits (above) and non-tile solids (below): doors and props, whose colliders survive.
             HandleSurfaceCollision(other);
         }
 
@@ -1069,8 +996,9 @@ namespace PFE.Entities.Weapons
             // popadalo()` and before the bounce rewrites the velocity (PhisBullet.as:244-248) — so a
             // contact detonation sounds on its way into the blast rather than instead of it. `_velocity`
             // is units/s here and the oracle's volume is |d|/10 with `d` in px/frame, hence the one
-            // conversion. The legacy path cannot tell a floor bounce from a settle the way the oracle
-            // does, so it sounds on any contact; see the class note on this path's known roughness.
+            // conversion. On a sim-registered instance the bounce writes below are inert — the flight
+            // state lives in `_simState`, which the point sweep already resolved against the stamped
+            // door cells — and the sound plus the `bumc` detonation are the parts that land.
             float axisSpeedPxPerFrame =
                 (hitHorizontal ? Mathf.Abs(_velocity.x) : Mathf.Abs(_velocity.y))
                 / ProjectilePhysicsMath.VelocityScale;
@@ -1104,7 +1032,6 @@ namespace PFE.Entities.Weapons
                     {
                         // Settle.
                         _velocity.y = 0f;
-                        _stay       = true;
                     }
                 }
                 else
@@ -1188,7 +1115,8 @@ namespace PFE.Entities.Weapons
             // AS3 `explRun()` (`Bullet.as:707-710`): `if(this.destroy > 0) this.explDestroy()` runs on
             // **every** pulse and is not gated on the blast's shape — a gas-only pulse still chews the
             // wall. Placed first because the oracle sweeps tiles before it damages bodies.
-            ExplosionTileDamage.Apply(centre, _explRadius, _destroyTiles, _damageType, _decalType);
+            ExplosionTileDamage.Apply(
+                _tileQuery, centre, _explRadius, _destroyTiles, _damageType, _decalType, _debugSettings);
 
             if (ExplosionPulseRules.DamagesAt(_explTip, pulseIndex))
             {
@@ -1329,7 +1257,6 @@ namespace PFE.Entities.Weapons
         {
             _isInitialized    = false;
             _hasDamageContext = false;
-            _stay             = false;
             _armed            = false;
             _velocity         = Vector2.zero;
             _fuseTimer        = 0f;
@@ -1357,12 +1284,13 @@ namespace PFE.Entities.Weapons
             _pulsesElapsed    = 0;
             _pendingPulse     = -1;
 
-            // Stage C: a released instance must not stay registered. SimLoop.Register de-duplicates,
+            // A released instance must not stay registered. SimLoop.Register de-duplicates,
             // so leaving it registered would not double-register — it would keep the released
             // instance ticked, which is worse: a parked object would keep integrating and could
             // report contacts from wherever it was parked.
             UnregisterFromSimLoop();
             _probe               = null;
+            _tileQuery           = null;
             _simState            = default;
             _viewDirty           = false;
             _pendingDetonate     = false;

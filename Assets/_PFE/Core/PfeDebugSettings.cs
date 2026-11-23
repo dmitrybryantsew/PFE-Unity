@@ -137,10 +137,6 @@ namespace PFE.Core
         private bool logTileVisualCreationSummary = false;
 
         [SerializeField]
-        [Tooltip("Logs each generated tile collider (TileCollider).")]
-        private bool logTileColliderCreation = false;
-
-        [SerializeField]
         [Tooltip("Logs every hit a tile or a door REFUSED, with the reason and the two numbers. " +
                  "AS3 Tile.udar is `if (indestruct || thre > param1) return false` — damage below the " +
                  "form's `thre` is ignored ENTIRELY, there is no chip damage and no accumulation, so a " +
@@ -258,20 +254,6 @@ namespace PFE.Core
         private bool simTickDamage = false;
 
         [SerializeField]
-        [Tooltip("Stage C flip: moves a projectile's TILE collision onto the LowLevelPhysics2D chain mirror, and its integration onto SimLoop at exactly SimClock.SimDt (AS3's 30 Hz). " +
-                 "OFF = unchanged: tile hits come from Unity's per-tile BoxCollider2D grid via OnTriggerEnter2D, and the projectile integrates in FixedUpdate at Time.fixedDeltaTime. " +
-                 "ON = the hit decision comes from a swept query against the chain mirror (single-sourced from ITileQueryService, no ghost collisions at tile seams), and the projectile integrates once per sim tick. " +
-                 "Entity hits (IDamageable) are unaffected in both modes — they still come from Unity colliders. Behaviour toggle, NOT gated by runtimeLoggingEnabled. This is the Stage C rollback switch; it stays until Stage D removes the old path.")]
-        private bool projectilesUseLowLevelPhysics = false;
-
-        [SerializeField]
-        [Tooltip("Stage C flip: moves a thrown object's (grenade, bottle, sticky bomb) TILE collision onto the tile-query seam and its integration onto SimLoop at exactly SimClock.SimDt (AS3's 30 Hz). " +
-                 "OFF = unchanged: tile hits come from Unity's per-tile BoxCollider2D grid via OnTriggerEnter2D, and the object integrates in FixedUpdate at Time.fixedDeltaTime (50 Hz, i.e. 1.67x fast). " +
-                 "ON = the hit decision comes from the tile seam, reproduced from AS3 PhisBullet.run() exactly — a point swept in sub-steps of at most World.maxdelta (9 px), X resolved before Y, bounce retention skok=0.4, floor damping tormoz=0.6, and settle below 2 px/frame of fall speed. " +
-                 "Entity hits (IDamageable) and the AoE detonation are unaffected in both modes. The fuse is 72 canonical frames either way, so it burns for 2.4 s with the flag on and 1.44 s with it off — the same 1.67x clock error the rest of the legacy path has. Behaviour toggle, NOT gated by runtimeLoggingEnabled. This is the Stage C rollback switch; it stays until Stage D removes the old path.")]
-        private bool thrownObjectsUseTileSeam = false;
-
-        [SerializeField]
         [Tooltip("Logs each field-level divergence found by the dual-run harness, with tick index. Very noisy — opt in only while diffing Stage B.")]
         private bool simTickLogDivergence = false;
 
@@ -293,13 +275,6 @@ namespace PFE.Core
                  "The random draw STILL HAPPENS while this is on, because AS3 discards the result on the line after the roll (:4086-4089); skipping the draw would shift every later roll on the shared combat stream, so this flag changes the number shown, never the stream. " +
                  "Debug toggle, NOT gated by runtimeLoggingEnabled.")]
         private bool testDamage = false;
-
-        // ── Tile Collision Query (P2) ────────────────────────────────────────
-
-        [Header("Tile Collision Query (P2)")]
-        [SerializeField]
-        [Tooltip("Enables the UnifiedTileQueryService seam for tile collision consumers. Retained as the escape hatch for the P2 migration; Unified is the only implementation left, so this is a display/behaviour toggle only.")]
-        private bool tileQueryUnified = true;
 
         // ── Public accessors ─────────────────────────────────────────────────
 
@@ -331,15 +306,9 @@ namespace PFE.Core
         public bool LogMapBridgeLifecycle                        => runtimeLoggingEnabled && logMapBridgeLifecycle;
         public bool LogRoomRenderingLifecycle                    => runtimeLoggingEnabled && logRoomRenderingLifecycle;
         public bool LogTileVisualCreationSummary                 => runtimeLoggingEnabled && logTileVisualCreationSummary;
-        public bool LogTileColliderCreation                      => runtimeLoggingEnabled && logTileColliderCreation;
 
         /// <summary>
         /// Traces every tile or door hit that was refused, and why.
-        ///
-        /// <para><b>Why this is a separate flag from <see cref="LogTileColliderCreation"/>.</b> Collider
-        /// creation fires ~1 136 times per room at load; refusals fire only when a weapon actually hits
-        /// something and does nothing, which is the moment someone is asking "did I break this?". Sharing
-        /// one flag would either flood the log at load or require the other side to be silent.</para>
         /// </summary>
         public bool LogTileDamageRefusals                        => runtimeLoggingEnabled && logTileDamageRefusals;
 
@@ -541,14 +510,8 @@ namespace PFE.Core
         /// </summary>
         public bool TestDamage                                   => testDamage;
 
-        public bool ProjectilesUseLowLevelPhysics                => projectilesUseLowLevelPhysics;
-        public bool ThrownObjectsUseTileSeam                     => thrownObjectsUseTileSeam;
-
         /// <summary>Divergence logging is a log, so it does respect the master toggle.</summary>
         public bool SimTickLogDivergence                         => runtimeLoggingEnabled && simTickLogDivergence;
-
-        // Tile Query flags (P2)
-        public bool TileQueryUnified                             => tileQueryUnified;
 
         // RNG & Entity ID flags (P3)
         [Header("RNG & Entity IDs (P3)")]

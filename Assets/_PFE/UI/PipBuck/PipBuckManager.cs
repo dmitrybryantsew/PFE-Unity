@@ -52,16 +52,25 @@ namespace PFE.UI.PipBuck
         private readonly UiSoundService _sound;
         private readonly InterfacePauseGate _pause;
 
+        /// <summary>
+        /// The container's campaign singleton (thread E) — the <c>loc.base</c> half of the travel-arm
+        /// rule. Null in fixtures (the constructor default); the read falls back to the tracked
+        /// static, which serves exactly the containerless paths.
+        /// </summary>
+        private readonly CampaignManager _campaign;
+
         /// <summary>Pages by id, 1..9. A null slot is a page that has not been ported yet.</summary>
         private readonly IPipPage[] _pages = new IPipPage[MaxPageId + 1];
 
         private readonly Dictionary<int, string> _tabLabels = new Dictionary<int, string>();
 
-        public PipBuckManager(PipBuckViewModel viewModel, UiSoundService sound, InterfacePauseGate pause)
+        public PipBuckManager(PipBuckViewModel viewModel, UiSoundService sound, InterfacePauseGate pause,
+                              CampaignManager campaign = null)
         {
             _vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
             _sound = sound;
             _pause = pause ?? throw new ArgumentNullException(nameof(pause));
+            _campaign = campaign;
         }
 
         /// <summary>The state this device publishes. Read by <see cref="PipBuckView"/>.</summary>
@@ -221,7 +230,7 @@ namespace PFE.UI.PipBuck
             // `loc` itself is the port's "we know which land the player is in". With no campaign there is
             // no answer, and AS3 writes nothing in that case either — hence the flag rather than a
             // fallback to `false`, which would be a write the Oracle does not make.
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = _campaign ?? CampaignManager.Current;
             bool haveLocation = campaign != null;
             bool inBaseLand = haveLocation && campaign.IsCurrentLandBase;
 

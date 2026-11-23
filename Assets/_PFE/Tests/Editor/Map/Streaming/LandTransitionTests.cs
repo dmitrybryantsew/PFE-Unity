@@ -146,12 +146,16 @@ namespace PFE.Tests.Editor.Map.Streaming
 
         private static string ResolveCollectionName(string landId)
         {
-            var method = typeof(MapBridge).GetMethod(
+            // The table moved from MapBridge to LandSessionService in the Wave 2 thread-G split (the
+            // land-id -> collection resolution is an authoritative decision, not scene choreography).
+            // It is a public instance method there; the fixture constructs the service directly, the
+            // same way the offline seams do.
+            var method = typeof(LandSessionService).GetMethod(
                 "ResolveCollectionName",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
-            Assert.That(method, Is.Not.Null, "MapBridge.ResolveCollectionName should exist as a private static method.");
-            return (string)method.Invoke(null, new object[] { landId });
+            Assert.That(method, Is.Not.Null, "LandSessionService.ResolveCollectionName should exist as a public instance method.");
+            return (string)method.Invoke(new LandSessionService(), new object[] { landId });
         }
 
         [TestCase("rbl", "rooms_rbl", TestName = "ResolveCollectionName_Camp_IsTheRblLand")]

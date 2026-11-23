@@ -140,14 +140,36 @@ namespace PFE.UI.PipBuck
         /// cast. Also the only page whose context (<c>pip.workTip</c>) is written from outside it.</summary>
         private PipPageWorkView _workPage;
 
+        /// <summary>
+        /// The container's campaign singleton (thread E) — quest grants, mission begins, vendor and
+        /// clinic lookups, trigger reads and the <c>loc.base</c> travel half all read it. Injected
+        /// here rather than re-found per call: it IS the container's instance, so capturing it cannot
+        /// go stale the way the old <c>CampaignManager.Current</c> reads guarded against.
+        /// </summary>
+        private PFE.Systems.Campaign.CampaignManager _campaign;
+
+        /// <summary>
+        /// The campaign every provider reads — the injected instance when there is one, otherwise
+        /// the tracked static the containerless paths still serve. A property (re-read per call),
+        /// not a captured local, so the fallback stays live in fixtures.
+        /// </summary>
+        private PFE.Systems.Campaign.CampaignManager Campaign => _campaign ?? PFE.Systems.Campaign.CampaignManager.Current;
+
         [Inject]
         public void Construct(InputReader input, PipBuckManager manager, IObjectResolver resolver,
-                              PFE.Systems.Combat.Sats.SatsController sats)
+                              PFE.Systems.Combat.Sats.SatsController sats,
+                              PFE.Systems.Campaign.CampaignManager campaign = null)
         {
             _input = input;
             _manager = manager;
             _resolver = resolver;
             _sats = sats;
+
+            // Thread E: the container's campaign singleton. Every read below goes through the
+            // Campaign property, which falls back to CampaignManager.Current — so a provider still
+            // re-reads the live object, and a bootstrapper built without a container (fixture) reads
+            // the tracked static exactly as before.
+            _campaign = campaign;
         }
 
         private void Start()
@@ -420,7 +442,7 @@ namespace PFE.UI.PipBuck
             // own Awake order and the player is assembled in PlayerController.Awake — so every provider
             // below re-reads through to the live object rather than capturing one.
             var infoSource = new PlayerPipInfoSource(
-                () => CampaignManager.Current,
+                () => Campaign,
                 () => ResolvePlayer())
             {
                 // MapBridge.CurrentLandMap — the same resolution path the F2 debug overlay uses, so the
@@ -498,7 +520,8 @@ namespace PFE.UI.PipBuck
             {
                 TextTable = _text,
                 HardInventoryProvider = ResolveHardInventory,
-                InBaseProvider = () => CampaignManager.Current != null && CampaignManager.Current.IsCurrentLandBase,
+                InBaseProvider = () => Campaign != null && Campaign.IsCurrentLandBase,
+                CampaignProvider = () => Campaign,
                 TriggerIsOneProvider = name => ResolveTriggerAsInt(name) == 1,
 
                 // `AllData.d.weapon` — the table the item resolver cannot answer for. Without it the
@@ -690,7 +713,7 @@ namespace PFE.UI.PipBuck
 
             _vendorSubscription = subscriber.Subscribe(message =>
             {
-                CampaignManager campaign = CampaignManager.Current;
+                CampaignManager campaign = Campaign;
                 VendorRuntime vendor = campaign?.Vendors.Get(message.VendorId);
 
                 if (vendor == null)
@@ -764,7 +787,7 @@ namespace PFE.UI.PipBuck
                 // stock, which is `onoff(4)`'s job.
                 if (_vendorPage != null && !string.IsNullOrEmpty(message.VendorId))
                 {
-                    VendorRuntime clinicVendor = CampaignManager.Current?.Vendors.Get(message.VendorId);
+                    VendorRuntime clinicVendor = Campaign?.Vendors.Get(message.VendorId);
                     if (clinicVendor != null)
                     {
                         _vendorPage.SetContext(clinicVendor, message.NpcId, message.NpcInter);
@@ -840,7 +863,7 @@ namespace PFE.UI.PipBuck
                     string vendorId = _medPage?.ClinicVendorId;
                     return string.IsNullOrEmpty(vendorId)
                         ? null
-                        : CampaignManager.Current?.Vendors.Get(vendorId);
+                        : Campaign?.Vendors.Get(vendorId);
                 },
             };
         }
@@ -1125,7 +1148,7 @@ namespace PFE.UI.PipBuck
 
         private int ResolveTriggerAsInt(string name, int absent)
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = Campaign;
             return campaign != null ? campaign.GetTrigger(name).AsInt(absent) : absent;
         }
 
@@ -1147,7 +1170,7 @@ namespace PFE.UI.PipBuck
         /// </summary>
         private bool BeginMission(string landId)
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = Campaign;
             if (campaign == null)
             {
                 Debug.LogWarning("[PipBuckBootstrapper] Cannot travel to '" + landId +
@@ -1173,7 +1196,7 @@ namespace PFE.UI.PipBuck
         /// </summary>
         private void GrantQuests(System.Collections.Generic.IReadOnlyList<string> questIds)
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = Campaign;
             if (campaign == null)
             {
                 Debug.LogWarning("[PipBuckBootstrapper] Cannot grant " + questIds.Count +
@@ -1407,7 +1430,7 @@ namespace PFE.UI.PipBuck
         /// </summary>
         private bool ResolveInBase()
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = Campaign;
             return campaign != null && campaign.IsCurrentLandBase;
         }
 

@@ -5,6 +5,7 @@ using UnityEngine;
 using PFE.Data;
 using PFE.Data.Definitions;
 using PFE.ModAPI;          // ContentType lives here, not in PFE.Data (ContentRegistry implements IContentRegistry)
+using PFE.Systems.Audio;
 using PFE.Systems.Campaign;
 using PFE.Systems.Items;
 using PFE.Systems.Loot;
@@ -82,6 +83,20 @@ namespace PFE.Systems.Inventory
         private ContentRegistry _registry;
 
         /// <summary>
+        /// The service a dropped item's landing sample plays through — thread E, replacing the retired
+        /// <c>SoundBus.Current</c>. Arrives with the registry from <c>PlayerController</c>'s wire;
+        /// null is the legitimate soundless-scene answer.
+        /// </summary>
+        private ISoundService _soundService;
+
+        /// <summary>
+        /// The campaign the take-quest check reads — thread E, replacing a bare
+        /// <c>CampaignManager.Current</c> read. Arrives from <c>PlayerController</c>'s wire; a null
+        /// (no container) falls back to the tracked static at the read site.
+        /// </summary>
+        private PFE.Systems.Campaign.CampaignManager _campaign;
+
+        /// <summary>
         /// Cached result of <see cref="AvailableItemIds"/>. The overlay draws every frame and would
         /// otherwise re-materialise and re-sort all ~500 ids per repaint; the registry is populated once
         /// at boot, so one cache is enough. Cleared by <see cref="InvalidateAvailableItems"/>.
@@ -103,8 +118,22 @@ namespace PFE.Systems.Inventory
         /// over the registry and are invoked later, so it is fine that
         /// <c>GameDatabase.Initialize()</c> has not populated it yet at boot.</para>
         /// </summary>
-        public void Construct(ContentRegistry registry)
+        public void Construct(ContentRegistry registry, ISoundService soundService = null,
+                              PFE.Systems.Campaign.CampaignManager campaign = null)
         {
+            // Same non-wiping rule as the registry below: Construct runs from both sides of the
+            // Construct/Awake ordering, and a later null must not erase a service that already arrived.
+            if (soundService != null)
+            {
+                _soundService = soundService;
+            }
+
+            // Same non-wiping rule again — thread E's campaign rides the same two-sided wire.
+            if (campaign != null)
+            {
+                _campaign = campaign;
+            }
+
             if (_inventory == null)
             {
                 _inventory = new GameInventory();
@@ -217,7 +246,7 @@ namespace PFE.Systems.Inventory
             string itemId = item?.Definition != null ? item.Definition.itemId : null;
             if (string.IsNullOrEmpty(itemId)) return;
 
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = _campaign ?? CampaignManager.Current;
             campaign?.CheckQuests(CountOfItem, itemId);
         }
 
@@ -575,7 +604,8 @@ namespace PFE.Systems.Inventory
             WorldItemPickup pickup = WorldItemPickup.Spawn(
                 definition, amount, position, autoCollect: false, jump: true,
                 room: WorldItemPickup.RoomProvider?.Invoke(),
-                fallSoundId: FallSoundForItem(definition));
+                fallSoundId: FallSoundForItem(definition),
+                soundService: _soundService);
             if (pickup == null) { error = "the world refused the pickup"; return false; }
 
             InventoryCommandResult result = Submit(InventoryCommand.DropItem(itemId, amount));

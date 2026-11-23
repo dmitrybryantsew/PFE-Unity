@@ -40,6 +40,13 @@ namespace PFE.Core
     {
         private IObjectResolver _resolver;
 
+        /// <summary>
+        /// The container's campaign singleton (thread E) — written by Construct, read by the pickup-
+        /// feedback trigger stamp. Null-tolerant: the read falls back to the tracked static
+        /// (<c>CampaignManager.Current</c>), which serves exactly the containerless paths.
+        /// </summary>
+        private PFE.Systems.Campaign.CampaignManager _campaign;
+
         private HUDViewModel _viewModel;
         private HudLayoutScaler _layout;
         private HealthBarView _healthBar;
@@ -187,9 +194,14 @@ namespace PFE.Core
         private const float RescanInterval = 0.5f;
 
         [Inject]
-        public void Construct(IObjectResolver resolver)
+        public void Construct(IObjectResolver resolver, PFE.Systems.Campaign.CampaignManager campaign = null)
         {
             _resolver = resolver;
+
+            // Thread E: the container's campaign singleton. The pickup-feedback trigger write falls
+            // back to CampaignManager.Current when this is null, which is exactly the containerless
+            // path that static still serves.
+            _campaign = campaign;
         }
 
         private void Start()
@@ -1081,8 +1093,20 @@ namespace PFE.Core
         private EliteNameplateView BuildEliteNameplates(Transform canvas)
         {
             var view = gameObject.AddComponent<EliteNameplateView>();
-            view.Construct(canvas, ResolveFont());
+            view.Construct(canvas, ResolveFont(), ResolveEliteRegistry());
             return view;
+        }
+
+        /// <summary>
+        /// The session's promoted-unit registry, resolved from the container — thread E's replacement
+        /// for the static the view used to reach. Optional (a fixture bootstrapper, or a container
+        /// without the registration) leaves the view marker-less rather than failing the HUD build.
+        /// </summary>
+        private EliteEnemyRegistry ResolveEliteRegistry()
+        {
+            if (_resolver == null) return null;
+            try { return _resolver.Resolve<EliteEnemyRegistry>(); }
+            catch { return null; }
         }
 
         /// <summary>
@@ -1310,7 +1334,7 @@ namespace PFE.Core
 
             // Invent.as:1296 — `triggers["mess_" + l.mess] = 1`. Through the campaign trigger store so
             // it round-trips in a save exactly as the oracle's does.
-            CampaignManager.Current?.SetTrigger(PickupFeedbackRules.MessTriggerKey(messKey), 1);
+            (_campaign ?? CampaignManager.Current)?.SetTrigger(PickupFeedbackRules.MessTriggerKey(messKey), 1);
 
             _impMess?.Show(title, body, icon);
             // Snd.ps("quest") — GUI.as:1928. The same clip the quest-given chime uses, which is why

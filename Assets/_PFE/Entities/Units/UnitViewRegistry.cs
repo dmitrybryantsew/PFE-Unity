@@ -4,7 +4,7 @@ namespace PFE.Entities.Units
 {
     /// <summary>
     /// Every live <see cref="UnitController"/> in the session — the list the snapshot projector
-    /// enumerates to project units.
+    /// enumerates to project units, the brains sweep for targets, and S.A.T.S. scans for candidates.
     ///
     /// <para><b>Why this exists at all.</b> The identity registry is keyed on the <i>record</i>
     /// (<c>UnitInstance</c>), by row 3.2's decision, because <c>RefreshAll</c> destroys and rebuilds the
@@ -14,27 +14,38 @@ namespace PFE.Entities.Units
     /// this is. It is the mirror of <see cref="EliteEnemyRegistry"/>'s shape, for a different audience:
     /// that one holds promoted units for the nameplate, this one holds every unit for replication.</para>
     ///
+    /// <para><b>An instance, not a static — thread E.</b> The class used to be a process-wide static that
+    /// every controller reached from <c>OnEnable</c>; that made tests share one mutable list (a spawn in
+    /// fixture A was visible to fixture B's brains) and needed a manual <c>Reset()</c> in teardown. The
+    /// container owns ONE instance (<c>GameLifetimeScope</c>, singleton) and hands it down the spawn
+    /// chain: <c>RoomUnitSpawner</c> attaches it to every unit it builds, the player attaches it from
+    /// its injection, and consumers read it through their unit or their constructor. A fixture builds
+    /// <c>new UnitViewRegistry()</c> and owns it outright — no reset, no leakage.</para>
+    ///
     /// <para><b>Populated from the lifecycle, not from the spawner.</b> <c>UnitController.OnEnable</c>
-    /// registers and <c>OnDestroy</c> unregisters, so a pooled or re-enabled unit is tracked correctly
-    /// without a second hand-over point — the same reason <c>OnEnable</c> already re-registers with
-    /// <c>SimLoop</c>. A controller is in this list <i>before</i> it has an entity id (Unity runs
-    /// <c>OnEnable</c> inside <c>AddComponent</c>, before the spawner stamps it), so every consumer must
-    /// filter on <see cref="UnitController.HasEntityId"/> rather than assume.</para>
+    /// registers and <c>OnDisable</c> unregisters against the attached instance, so a pooled or
+    /// re-enabled unit is tracked correctly without a second hand-over point — the same reason
+    /// <c>OnEnable</c> already re-registers with <c>SimLoop</c>. A controller is in this list <i>before</i>
+    /// it has an entity id (Unity runs <c>OnEnable</c> inside <c>AddComponent</c>, before the spawner
+    /// stamps it), so every consumer must filter on <see cref="UnitController.HasEntityId"/> rather than
+    /// assume. Because the instance arrives just AFTER <c>AddComponent</c> returns, <c>OnEnable</c> skips
+    /// registration when no instance is attached yet and <c>UnitController.AttachViewRegistries</c>
+    /// registers retroactively for an already-active unit.</para>
     ///
     /// <para><b>Unity-side only.</b> <see cref="Live"/> prunes Unity fake-nulls with the engine's
     /// <c>==</c> overload, which is an ECall outside the editor. No offline fixture may touch this type;
     /// the projector's arithmetic is pinned separately in <c>SimSnapshotProjectionRules</c> and its
     /// wiring by <c>SimReplicationWiringLintTests</c>.</para>
     /// </summary>
-    public static class UnitViewRegistry
+    public sealed class UnitViewRegistry
     {
-        private static readonly List<UnitController> _live = new List<UnitController>();
+        private readonly List<UnitController> _live = new List<UnitController>();
 
         /// <summary>How many live views are tracked. No pruning; for diagnostics and lints.</summary>
-        public static int Count => _live.Count;
+        public int Count => _live.Count;
 
         /// <summary>The live views. Prunes destroyed entries first; never null, may be empty.</summary>
-        public static IReadOnlyList<UnitController> Live
+        public IReadOnlyList<UnitController> Live
         {
             get
             {
@@ -44,21 +55,21 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>Track a view. Idempotent.</summary>
-        public static void Register(UnitController unit)
+        public void Register(UnitController unit)
         {
             if (unit == null || _live.Contains(unit)) return;
             _live.Add(unit);
         }
 
         /// <summary>Stop tracking a view. Safe for one that was never registered.</summary>
-        public static void Unregister(UnitController unit)
+        public void Unregister(UnitController unit)
         {
             if (unit == null) return;
             _live.Remove(unit);
         }
 
         /// <summary>Drop every entry — for a new session or a scene unload.</summary>
-        public static void Reset()
+        public void Reset()
         {
             _live.Clear();
         }
@@ -68,7 +79,7 @@ namespace PFE.Entities.Units
         /// <c>MonoBehaviour</c> compares equal to null through the engine's overload, which is why this
         /// cannot be a plain reference check.
         /// </summary>
-        private static void Prune()
+        private void Prune()
         {
             for (int i = _live.Count - 1; i >= 0; i--)
             {

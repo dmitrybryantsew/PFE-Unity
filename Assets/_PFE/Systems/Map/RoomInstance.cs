@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Systems.Audio;
 using PFE.Systems.Physics;
+using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
 
 namespace PFE.Systems.Map
@@ -214,13 +216,39 @@ namespace PFE.Systems.Map
         [NonSerialized]
         private RoomObjectPhysicsLayer _objectPhysicsLayer;
 
+        /// <summary>
+        /// The service this room's physics layer plays prop landing samples through — thread E,
+        /// replacing the retired <c>SoundBus.Current</c>. Stamped each heartbeat by <c>LandMap</c> (the
+        /// one owner that sees every live room, generated or save-restored), so both the lazy creation
+        /// below and an already-created layer receive it.
+        /// </summary>
+        [NonSerialized]
+        private ISoundService _soundService;
+
+        /// <summary>
+        /// The service prop landing samples in this room play through; null is the soundless-scene
+        /// answer. The setter propagates to a layer that already exists, so a late stamp is not lost.
+        /// </summary>
+        public ISoundService SoundService
+        {
+            get => _soundService;
+            set
+            {
+                _soundService = value;
+                if (_objectPhysicsLayer != null)
+                {
+                    _objectPhysicsLayer.SoundService = value;
+                }
+            }
+        }
+
         public RoomObjectPhysicsLayer ObjectPhysicsLayer
         {
             get
             {
                 if (_objectPhysicsLayer == null)
                 {
-                    _objectPhysicsLayer = new RoomObjectPhysicsLayer();
+                    _objectPhysicsLayer = new RoomObjectPhysicsLayer { SoundService = _soundService };
                 }
 
                 return _objectPhysicsLayer;
@@ -309,8 +337,8 @@ namespace PFE.Systems.Map
         /// <c>:2586</c>) and the room's step gate ORs <c>isRebuild</c> into the condition that runs
         /// the full <c>lighting()</c> pass (<c>Location.as:3398</c>) — so destroying a wall re-lights
         /// the room. The port raises this notification from exactly those paths (tile destruction in
-        /// <c>TileCollider</c>, the damage path in <c>UnifiedTileQueryService</c>), so it is the same
-        /// trigger, fed to the same request the door raises.</para>
+        /// <c>TileDamageApplicator</c>, the damage path in <c>UnifiedTileQueryService</c>), so it is
+        /// the same trigger, fed to the same request the door raises.</para>
         ///
         /// <para><b>The door is the exception, and the parameter exists for it.</b> AS3's
         /// <c>Box.setDoor</c> sets <c>isRebuild</c>/<c>isRelight</c> only when the door is OPENING
@@ -330,6 +358,20 @@ namespace PFE.Systems.Map
 
             TilesMutated?.Invoke(this, tileRegion);
         }
+
+        /// <summary>
+        /// Where this room's tiles stamp the decals a hit leaves — AS3's <c>Grafon.frontBmp</c>, minus
+        /// the bitmap. Owned by the room's <c>RoomVisualController</c>, which sets it when it builds
+        /// the decal layer and clears it when the visuals are torn down.
+        ///
+        /// <para><b>Nullable on purpose, and not a missing-feature apology.</b> AS3 guards every decal
+        /// with <c>if(this.active)</c> — a hit in a room nobody is looking at is real and invisible.
+        /// The port's equivalent of "nobody is looking" is "no layer to stamp into": a test, the
+        /// headless harness and a host-simulated room the host is not drawing all leave this null,
+        /// and <see cref="TileDamageApplicator"/> treats that as the oracle's guard rather than an
+        /// error.</para>
+        /// </summary>
+        public TileDecalLayer Decals { get; set; }
 
         /// <summary>
         /// "The light field is stale — re-run the full pass next frame." The port of AS3's

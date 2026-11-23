@@ -117,8 +117,9 @@ namespace PFE.Tests.Editor.Core
             Assert.That(body, Does.Not.Contain("ProjectDroppedItems("),
                 "The method-body window is not scoped: assertions about ProjectDroppedItems would then "
                 + "be satisfiable from anywhere in the file.");
-            Assert.That(body, Does.Contain("UnitViewRegistry.Live"),
-                "The window missed the method it names, so every scoped assertion is meaningless.");
+            Assert.That(body, Does.Contain("_unitViews.Live"),
+                "The window missed the method it names, so every scoped assertion is meaningless. " +
+                "(Thread E: the static UnitViewRegistry.Live became the injected _unitViews field.)");
         }
 
         [Test]

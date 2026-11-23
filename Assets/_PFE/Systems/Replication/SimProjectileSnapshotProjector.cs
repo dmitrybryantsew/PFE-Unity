@@ -93,6 +93,42 @@ namespace PFE.Systems.Replication
         private readonly List<DroppedItemInstance> _droppedScratch = new List<DroppedItemInstance>(16);
         private readonly List<ObjectInstance> _objectScratch = new List<ObjectInstance>(16);
 
+        /// <summary>
+        /// The live-view list units are projected from — thread E's replacement for the retired static
+        /// <c>UnitViewRegistry</c>. The container injects the session singleton; a null (a fixture that
+        /// never supplies one) projects zero units rather than throwing.
+        /// </summary>
+        private readonly UnitViewRegistry _unitViews;
+
+        /// <summary>
+        /// The entity-id service the registry walk reads — thread E's instance-level replacement for
+        /// the static <c>RuntimeEntityIdContext.Registry</c>. Optional for the same fixture reason as
+        /// <paramref name="unitViews"/>; when null the walk falls back to
+        /// <see cref="RuntimeEntityIdContext.Active"/>, which the lifetime scope's Bind points at the
+        /// same singleton, so both paths enumerate one registry.
+        /// </summary>
+        private readonly RuntimeEntityIdService _entityIds;
+
+        /// <summary>The service the registry walk enumerates — injected when present, ambient otherwise.</summary>
+        private RuntimeEntityIdService EntityIds => _entityIds ?? RuntimeEntityIdContext.Active;
+
+        /// <summary>How many live views the registry currently tracks — the net session's F-12 readback,
+        /// replacing the static <c>UnitViewRegistry.Count</c> the overlay used to read.</summary>
+        public int LiveUnitViewCount => _unitViews != null ? _unitViews.Count : 0;
+
+        /// <summary>
+        /// <paramref name="unitViews"/> and <paramref name="entityIds"/> are optional so the offline
+        /// fixtures that build the projector around a fake loop keep compiling; production registers
+        /// both as container singletons and VContainer fills them in.
+        /// </summary>
+        public SimProjectileSnapshotProjector(
+            UnitViewRegistry unitViews = null,
+            RuntimeEntityIdService entityIds = null)
+        {
+            _unitViews = unitViews;
+            _entityIds = entityIds;
+        }
+
         private SimTileMutation[] _tileJournal = Array.Empty<SimTileMutation>();
         private int _tileJournalVersion = -1;
 
@@ -741,7 +777,7 @@ namespace PFE.Systems.Replication
         {
             _projectiles.Clear();
 
-            foreach (KeyValuePair<EntityId, object> entry in RuntimeEntityIdContext.Registry.GetAll())
+            foreach (KeyValuePair<EntityId, object> entry in EntityIds.Registry.GetAll())
             {
                 // Every kind is collected, not just fired rounds. A thrown object and a mine have no
                 // room record either, so the registry is the only place they exist — before this they
@@ -773,7 +809,9 @@ namespace PFE.Systems.Replication
         {
             _units.Clear();
 
-            IReadOnlyList<UnitController> live = UnitViewRegistry.Live;
+            // Thread E: the registry is the container-owned instance handed down the spawn chain; null
+            // (a fixture with no registry) means "no live views", the same answer an empty room gives.
+            IReadOnlyList<UnitController> live = _unitViews != null ? _unitViews.Live : Array.Empty<UnitController>();
 
             for (int i = 0; i < live.Count; i++)
             {

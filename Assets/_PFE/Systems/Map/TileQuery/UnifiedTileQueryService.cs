@@ -16,10 +16,13 @@ namespace PFE.Systems.Map.TileQuery
     ///   3. Provides swept-move physics (ResolveMove) with sub-stepping
     ///   4. Classifies tile cells into TileQueryFlags
     ///   5. Tracks mutations for P4 replication
+    ///
+    /// <para><b>Stage D: the last of the three models it replaced is gone.</b> <c>TileCollisionSystem</c>
+    /// survived as this class's inner reader for the sight ray and the radius-damage loop; both moved
+    /// here verbatim, so there is now exactly one tile-query implementation in the project.</para>
     /// </summary>
     public sealed class UnifiedTileQueryService : ITileQueryService
     {
-        private readonly TileCollisionSystem _legacyInner;
         private readonly HashSet<Vector2Int> _dirty = new HashSet<Vector2Int>();
 
         public TileQueryBackend Backend => TileQueryBackend.Unified;
@@ -29,7 +32,6 @@ namespace PFE.Systems.Map.TileQuery
         public UnifiedTileQueryService(RoomInstance room)
         {
             Room = room;
-            _legacyInner = new TileCollisionSystem(room);
         }
 
         // ── Queries ────────────────────────────────────────────────────────────────────────
@@ -105,11 +107,52 @@ namespace PFE.Systems.Map.TileQuery
                 out supportRightWorldPx);
         }
 
+        /// <summary>
+        /// The line-of-sight ray, AS3 <c>Unit.look()</c>'s predicate (<c>phis == 1</c>, sample inside
+        /// the tile's own box). Moved verbatim from <c>TileCollisionSystem</c> — the sight question and
+        /// its exact answer live here now, not in a second implementation the seam kept as an inner.
+        ///
+        /// <para><b>Deliberately not <c>TileData.IsSolid()</c>.</b> That helper is "blocks movement"
+        /// and includes platforms and stairs; sight in the oracle is <c>phis == 1</c> exactly, so a
+        /// ladder, a catwalk and a closed grate (<c>levelTwoSolid</c>) are all transparent here.</para>
+        /// </summary>
         public TileRaycastHit? Raycast(Vector2 originPx, Vector2 direction, float maxDistancePx)
         {
-            (TileData tile, Vector2 point)? hit = _legacyInner.Raycast(originPx, direction, maxDistancePx);
-            if (!hit.HasValue) return null;
-            return new TileRaycastHit(hit.Value.tile, hit.Value.point);
+            if (Room == null) return null;
+
+            Vector2 origin = OriginPixel;
+            float distance = 0f;
+            Vector2 currentPos = originPx;
+            Vector2 step = direction.normalized * WorldConstants.TILE_SIZE * 0.25f;
+
+            while (distance < maxDistancePx)
+            {
+                // Convert world pixel coordinates to room-local tile coordinates
+                Vector2 localPos = new Vector2(currentPos.x - origin.x, currentPos.y - origin.y);
+                Vector2Int tileCoord = WorldCoordinates.PixelToTile(localPos);
+                TileData tile = Room.GetTileAtCoord(tileCoord);
+
+                // AS3 `if(_loc15_.phis == 1 && ...bounds...) return 0;` (Unit.as:4626) — a wall stops
+                // sight outright…
+                if (tile != null && tile.physicsType == TilePhysicsType.Wall && !tile.levelTwoSolid)
+                {
+                    // …but only if the sample point is actually INSIDE the tile's own box — AS3 tests
+                    // against phX1..phX2/phY1..phY2, and phY1 is lowered by a quarter cell per zForm
+                    // level. Testing the cell instead made a half-height step opaque across its whole
+                    // cell.
+                    Rect box = tile.GetBounds();
+                    if (localPos.x >= box.xMin && localPos.x <= box.xMax &&
+                        localPos.y >= box.yMin && localPos.y <= box.yMax)
+                    {
+                        return new TileRaycastHit(tile, currentPos);
+                    }
+                }
+
+                currentPos += step;
+                distance += step.magnitude;
+            }
+
+            return null;
         }
 
         public TileQueryFlags Classify(Vector2Int tileCoord)
@@ -258,9 +301,57 @@ namespace PFE.Systems.Map.TileQuery
 
         // ── Mutations (host-only) ──────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Applies damage in a tile-radius around a point, destroying tiles that reach zero HP.
+        /// Returns true when anything was damaged.
+        /// Implementations that cache derived geometry MUST refresh the affected region here,
+        /// and MUST record the affected tiles in the pending mutation set.
+        /// </summary>
         public bool ApplyDamage(Vector2 positionPx, int damage, int radiusTiles = 1)
         {
-            bool damaged = _legacyInner.ApplyDamage(positionPx, damage, radiusTiles);
+            // Inlined from TileCollisionSystem.ApplyDamage — the port of AS3 Location.hitTile()'s
+            // radius loop, so the seam is the only tile-damage implementation left. The rule is
+            // TileHitRules' and nowhere else; `TileHitDecision` distinguishes "refused because the hit
+            // is too weak" from "refused because this is a ladder" — neither counts as damaged.
+            //
+            // This path has no weapon behind it and no decal to stamp (the oracle's own default for a
+            // scripted area is `Area.damTiles(..., 11)` — decal type 0); weapon hits reach decals
+            // through TileDamageApplicator instead.
+            bool damaged = false;
+            if (Room != null)
+            {
+                Vector2 origin = OriginPixel;
+                Vector2Int centerTile = WorldCoordinates.PixelToTile(
+                    new Vector2(positionPx.x - origin.x, positionPx.y - origin.y));
+
+                bool destroyOn = Room.environment == null || Room.environment.destroyOn;
+
+                for (int x = centerTile.x - radiusTiles; x <= centerTile.x + radiusTiles; x++)
+                {
+                    for (int y = centerTile.y - radiusTiles; y <= centerTile.y + radiusTiles; y++)
+                    {
+                        TileData tile = Room.GetTileAtCoord(new Vector2Int(x, y));
+                        TileHitDecision decision =
+                            TileHitRules.Resolve(tile, damage, 0, destroyOn, Room.isActive);
+
+                        if (decision.Outcome == TileHitOutcome.Ignored ||
+                            decision.Outcome == TileHitOutcome.Refused ||
+                            decision.Outcome == TileHitOutcome.VisualOnly)
+                        {
+                            continue;
+                        }
+
+                        damaged = true;
+
+                        // AS3 `Tile.die()`: the tile grid is authoritative, so death is a data write;
+                        // the visual side and the derived geometry both react to the notification below.
+                        if (decision.ShouldDie)
+                        {
+                            tile.Destroy();
+                        }
+                    }
+                }
+            }
 
             Vector2Int centre = WorldCoordinates.PixelToTile(new Vector2(
                 positionPx.x - OriginPixel.x,

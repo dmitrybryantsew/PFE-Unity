@@ -16,7 +16,7 @@ namespace PFE.Systems.Map
     /// <see cref="Stair"/> / <see cref="Platform"/> here but <c>phis == 0</c> in the oracle, so the
     /// oracle leaves them transparent to light and to line of sight. Every predicate asking "does
     /// this block light / sight / damage" must test <see cref="Wall"/> — see
-    /// <c>FogOcclusionMath</c>, <c>TileCollisionSystem.Raycast</c> and <c>TileData.IsDamageable</c>.
+    /// <c>FogOcclusionMath</c>, <c>UnifiedTileQueryService.Raycast</c> and <c>TileData.IsDamageable</c>.
     /// <c>TileData.IsSolid()</c> is a different question ("blocks movement") and is wide on
     /// purpose.</para>
     /// </summary>

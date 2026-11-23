@@ -117,6 +117,23 @@ namespace PFE.Core
             _debugSettings = debugSettings;
         }
 
+        private RuntimeEntityIdService _entityIds;
+
+        /// <summary>
+        /// The host entity-id service whose tick stamp precedes every tickable — thread E's
+        /// instance-level replacement for the ambient <see cref="RuntimeEntityIdContext"/> call.
+        /// <b>Pushed, not injected</b>: the same six-fixture constructor constraint as
+        /// <see cref="WorldGate"/> rules out a third constructor parameter. Null in fixtures, which
+        /// keep stamping through the ambient facade; <c>GameLifetimeScope</c> pushes the container's
+        /// singleton at build time, and its Bind of the facade means both paths address the same
+        /// allocator anyway.
+        /// </summary>
+        public RuntimeEntityIdService EntityIds
+        {
+            get => _entityIds;
+            set => _entityIds = value;
+        }
+
         /// <summary>Configured simulation clock. Canonical constants live on <see cref="SimClock"/>.</summary>
         public SimClock Clock => _clock;
 
@@ -239,7 +256,14 @@ namespace PFE.Core
             // SimLoop in the process cannot rewind the allocator. The increment used to live just below
             // `EnsureOrder()`; it moved here so the stamp and the index can never disagree.
             _tickIndex++;
-            RuntimeEntityIdContext.AdvanceTick(_tickIndex);
+            if (_entityIds != null)
+            {
+                _entityIds.AdvanceTick(_tickIndex);
+            }
+            else
+            {
+                RuntimeEntityIdContext.AdvanceTick(_tickIndex);
+            }
 
             // Phase 2.4: scope the whole dispatch so guarded mutators can tell a host tick from a
             // client prediction tick. The #if is the release half of the contract: with

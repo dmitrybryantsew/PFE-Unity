@@ -136,6 +136,13 @@ namespace PFE.UI.PipBuck
         /// <summary><c>World.w.game.triggers</c>, for the <c>trigger</c> gate (<c>:147</c>).</summary>
         public Func<string, bool> TriggerIsOneProvider { get; set; }
 
+        /// <summary>
+        /// The live campaign — thread E's replacement for reading <c>CampaignManager.Current</c>
+        /// inside this source. Set by the PipBuck bootstrapper (injected there); when unset, the
+        /// sites below fall back to the tracked static, which serves the containerless paths.
+        /// </summary>
+        public Func<CampaignManager> CampaignProvider { get; set; }
+
         /// <summary>AS3 <c>pers.priceRepArmor</c> (<c>Pers.as:105</c>, default 0.5).</summary>
         public Func<float> RepairArmorMultiplierProvider { get; set; }
 
@@ -484,7 +491,7 @@ namespace PFE.UI.PipBuck
         /// </summary>
         public int QuestState(string questId)
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = CampaignProvider?.Invoke();
             if (campaign == null || string.IsNullOrEmpty(questId)) return 0;
 
             if (!campaign.TryGetQuestState(questId, out int state, out _, out _)) return 0;
@@ -496,7 +503,7 @@ namespace PFE.UI.PipBuck
 
         public string QuestName(string questId)
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = CampaignProvider?.Invoke();
             if (campaign == null || string.IsNullOrEmpty(questId)) return null;
 
             QuestDefinition quest = campaign.Catalog?.GetQuest(questId);
@@ -515,7 +522,7 @@ namespace PFE.UI.PipBuck
 
         public void ActivateQuest(string questId, int state)
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = CampaignProvider?.Invoke();
             if (campaign == null || string.IsNullOrEmpty(questId)) return;
 
             // PipPageVend.as:861-880 — an existing quest runs chGive + chReport; a new one is added.

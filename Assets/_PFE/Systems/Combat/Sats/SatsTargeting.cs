@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using PFE.Entities.Units;
 using PFE.Sim.Combat.Sats;
-
 namespace PFE.Systems.Combat.Sats
 {
     /// <summary>
@@ -55,6 +54,13 @@ namespace PFE.Systems.Combat.Sats
         public IReadOnlyList<SatsCandidate> Candidates => _candidates;
 
         /// <summary>
+        /// The live-view list S.A.T.S. scans — thread E's replacement for the retired static
+        /// <c>UnitViewRegistry</c>. Pushed by <c>SatsController</c> (container singleton in production,
+        /// null in a fixture, which simply finds no candidates).
+        /// </summary>
+        public UnitViewRegistry ViewRegistry { get; set; }
+
+        /// <summary>
         /// Rebuild the target set. <paramref name="meleeReachPx"/> is <c>pers.meleeR</c>; the melee
         /// branch multiplies it by 1.2 and adds 100 (<c>Sats.as:466-472</c>) — an explicit override,
         /// not the vision range.
@@ -70,8 +76,11 @@ namespace PFE.Systems.Combat.Sats
 
             // `for each (u in World.w.loc.units)` — the port's flat list of live views. Units without
             // an entity id are still mid-spawn (see UnitViewRegistry) and are skipped by
-            // IsSatsTargetable's aliveness test rather than by an id check here.
-            IReadOnlyList<UnitController> live = UnitViewRegistry.Live;
+            // IsSatsTargetable's aliveness test rather than by an id check here. Thread E: the registry
+            // is the container-owned instance; null (no registry wired) means no candidates, which is
+            // the correct answer for a mode opened outside a session.
+            IReadOnlyList<UnitController> live = ViewRegistry != null ? ViewRegistry.Live : null;
+            if (live == null) return;
 
             for (int i = 0; i < live.Count; i++)
             {

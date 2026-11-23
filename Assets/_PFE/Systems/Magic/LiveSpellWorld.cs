@@ -63,7 +63,7 @@ namespace PFE.Systems.Magic
         /// (<c>WeaponMounts.MagicHoldPoint</c>), and the target is the same aim point
         /// <c>MagicWeaponController</c> rotates toward — both Unity world positions. The port's tile
         /// primitive, however, is documented and implemented in <b>world pixels</b>
-        /// (<c>TileCollisionSystem.Raycast</c> subtracts the room origin from a pixel position). So the
+        /// (<c>ITileQueryService.Raycast</c> subtracts the room origin from a pixel position). So the
         /// ×<see cref="TileQueryConstants.UnitToPixel"/> belongs at the boundary between the two, which
         /// is this method — not at the caster, which would then disagree with the magic-weapon path, and
         /// not at the caller, which cannot know.</para>

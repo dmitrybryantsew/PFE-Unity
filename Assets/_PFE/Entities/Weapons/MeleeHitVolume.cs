@@ -183,17 +183,20 @@ namespace PFE.Entities.Weapons
 
             if (!MeleeTileSweepMath.TryFirstTileHit(
                     prevPx.x, prevPx.y, deltaPx.x, deltaPx.y,
-                    IsTileAtPixel, out float hitPx, out float hitPy))
+                    IsSurfaceAtPixel, out float hitPx, out float hitPy))
                 return;
 
             // Latch BEFORE applying: AS3 sets `tilehit = true` (Bullet.as:491) in the same block that
             // calls hitTile, so a tile that refuses the damage (indestructible, or below its `thre`)
             // still consumes the swing's one tile — which is exactly the oracle's behaviour, and the
-            // reason this is not inside the `destructible != null` guard.
+            // reason this is not inside the destructible guard.
             _tileHitThisSwing = true;
 
-            Collider2D destructibleCollider = DestructibleColliderAtPixel(hitPx, hitPy);
-            if (destructibleCollider == null) return;
+            // The surface is one of two things: a door or barricade prop (which still owns a
+            // collider carrying IDestructibleTile), or a plain tile read from the room's grid —
+            // tiles have had no colliders since Stage D, so the grid is their identity.
+            Collider2D doorProp = DoorPropAtPixel(hitPx, hitPy);
+            TileData tile = doorProp == null ? GridTileAtPixel(hitPx, hitPy) : null;
 
             Vector2 hitWorld = new Vector2(hitPx, hitPy) * TileQueryConstants.PixelToUnit;
 
@@ -201,35 +204,38 @@ namespace PFE.Entities.Weapons
             // `loc.hitTile(...)` (`weapon/Bullet.as:480-491`), so the impact sound lands <b>before</b>
             // the damage and <b>whatever the damage does</b> — a wall too tough for this blade still
             // rings. The tile arm passes `_loc3_.mat`, i.e. the tile's own material, which is the
-            // collider's `TileSurface` on the port's side.
+            // grid tile's raw `mat` on this path and the prop's TileSurface on the door's.
             //
             // The sparks come first, in the same order: `popadalo` is the burst that makes the contact
             // visible, and the port had no equivalent at all until now — a crowbar into a wall drew a
             // decal and a sound and nothing else. See BulletImpactRules.
-            EmitImpactSparks(destructibleCollider, hitWorld, deltaPx);
+            EmitImpactSparks(tile, hitWorld, deltaPx);
 
-            // Placed after the latch and before the destructible lookup, because both of those are
-            // part of "was there a tile here at all": the latch is the oracle's own
-            // `if(!this.tilehit ...)`, and a collider that is not an `IDestructibleTile` is still a
-            // solid surface AS3 would have sounded.
-            PlayImpactSound(destructibleCollider, hitWorld, surfaceSound: true);
+            // Placed after the latch and before the damage, because both of those are part of
+            // "was there a surface here at all": the latch is the oracle's own
+            // `if(!this.tilehit ...)`, and a solid surface AS3 would have sounded is still this sweep's
+            // answer even when no damage lands.
+            PlaySurfaceImpactSound(doorProp, tile, hitWorld);
 
-            var destructible = destructibleCollider.GetComponent<IDestructibleTile>();
-            if (destructible == null) return;
-
-            // TileCollider.ApplyDestruction is AS3 Tile.udar(): `if (indestruct || thre > param1)
-            // return false; hp -= param1`. It already owns the `phis >= 1` gate and the destroy
-            // sequence, so routing through it keeps melee and projectiles on ONE destruction path
-            // rather than two that can drift.
-            //
-            // The decal is the WEAPON's, not the damage type's: `setBullet` copies `Weapon.tipDecal`
-            // onto the bullet (`Weapon.as:1669-1670`) and a swing *is* a bullet, so a blade carries the
-            // blade decal and not whatever its damage type would suggest.
             DecalType decal = _hasDamageContext && _damageContext.Weapon != null
                 ? _damageContext.Weapon.decalType
                 : DecalType.None;
 
-            destructible.ApplyDestruction(hitWorld, _damageContext.DestroyTiles, _damageContext.DamageType, decal);
+            if (doorProp != null)
+            {
+                // TileCollider.ApplyDestruction was AS3 Tile.udar() — routing doors through the
+                // interface keeps melee and projectiles on ONE destruction path rather than two that
+                // can drift. The decal is the WEAPON's, not the damage type's: `setBullet` copies
+                // `Weapon.tipDecal` onto the bullet (Weapon.as:1669-1670) and a swing *is* a bullet.
+                doorProp.GetComponent<IDestructibleTile>()?.ApplyDestruction(
+                    hitWorld, _damageContext.DestroyTiles, _damageContext.DamageType, decal);
+            }
+            else if (tile != null)
+            {
+                TileDamageApplicator.ApplyHit(
+                    tile, _damageContext.DestroyTiles, decal, OwnerRoom,
+                    OwnerRoom?.Decals, hitWorld, debugSettings: null);
+            }
         }
 
         /// <summary>
@@ -239,32 +245,75 @@ namespace PFE.Entities.Weapons
         ///
         /// <para><b>A door box answers this too, and that is the oracle's own answer.</b> A closed
         /// door's cells <i>are</i> <c>phis == 1</c> in AS3 — <c>Box.initDoor</c> put them there
-        /// (<c>Box.as:666</c>) — so the swing stops on the door's tile and damages it. The port has no
-        /// collider on those cells (they are <c>_</c> in the shipped room maps; see
-        /// <c>DoorPropPresenter._solidCollider</c>), so the door box's own surface stands in for them.
-        /// Without that the swing passed straight through a closed door, exactly as a bullet did.</para>
+        /// (<c>Box.as:666</c>) — so the swing stops on the door's surface and damages it. The port has
+        /// no tile on those cells (they are <c>_</c> in the shipped room maps), so the door box's own
+        /// surface stands in for them — without that the swing passed straight through a closed
+        /// door, exactly as a bullet did.</para>
+        ///
+        /// <para><b>Plain tiles answer from the grid.</b> The wielder's room binding
+        /// (<see cref="UnitController.TileQuery"/>) is the seam — a swing with no room (a bare test
+        /// spawn) finds no tiles, the same reduced answer the unit's own motor gives.</para>
         /// </summary>
-        private static bool IsTileAtPixel(float px, float py) => DestructibleColliderAtPixel(px, py) != null;
+        private bool IsSurfaceAtPixel(float px, float py)
+        {
+            if (DoorPropAtPixel(px, py) != null) return true;
+
+            TileData tile = GridTileAtPixel(px, py);
+
+            // Wall covers phis == 1 and phis == 2 (a closed grate is level-2 solid: a blade stops on
+            // it exactly as the oracle's phis == 2 says, where a bullet flies through). Platforms and
+            // ladders are phis == 0 — never a surface for a swing.
+            if (tile == null ||
+                (tile.physicsType != TilePhysicsType.Wall && tile.physicsType != TilePhysicsType.Stair))
+            {
+                return false;
+            }
+
+            Vector2 localPx = LocalPixel(px, py, out _);
+            Rect bounds = tile.GetBounds();
+            return localPx.x >= bounds.xMin && localPx.x <= bounds.xMax &&
+                   localPx.y >= bounds.yMin && localPx.y <= bounds.yMax;
+        }
+
+        // The grid tile containing a world-pixel position, through the wielder's room binding —
+        // null with no room, which is the honest "no tiles here" answer for a bare test spawn.
+        private TileData GridTileAtPixel(float px, float py)
+        {
+            ITileQueryService query = OwnerQuery;
+            if (query == null || query.Room == null) return null;
+
+            return query.Room.GetTileAtCoord(
+                WorldCoordinates.PixelToTile(LocalPixel(px, py, out _)));
+        }
+
+        private Vector2 LocalPixel(float px, float py, out ITileQueryService query)
+        {
+            query = OwnerQuery;
+            return query != null
+                ? new Vector2(px, py) - query.OriginPixel
+                : new Vector2(px, py);
+        }
+
+        private ITileQueryService OwnerQuery =>
+            _ownerUnit != null ? _ownerUnit.TileQuery : null;
+
+        private RoomInstance OwnerRoom => _ownerUnit != null ? _ownerUnit.Room : null;
 
         /// <summary>
-        /// The destructible surface at a world-pixel position, identified by component rather than by
-        /// layer — the same idiom (and the same reason) as <c>Projectile.FindTileCollider</c>: the tile
-        /// layers are private constants inside <see cref="TileCollider"/>, and a probe that silently
-        /// stopped matching if they were renumbered would present as "melee no longer breaks tiles".
+        /// A door or barricade prop at a world-pixel position — identified by the
+        /// <see cref="IDestructibleTile"/> its own collider carries, the same idiom (and the same
+        /// reason) as <c>Projectile.FindDestructibleAt</c>: component, not layer number, so a
+        /// renumbering cannot silently present as "melee no longer breaks doors".
         ///
-        /// <para><b>Two components qualify, because the port has two things that are a tile's solid
-        /// surface.</b> A real tile carries <see cref="TileCollider"/>; an authored door or barricade
-        /// box carries a solid <c>BoxCollider2D</c> on a <c>DoorPropPresenter</c>, which is the
-        /// <see cref="IDestructibleTile"/> for the cells AS3 stamped <c>phis = 1</c> and the port
-        /// cannot (see <c>DoorPropPresenter._solidCollider</c>). Testing the interface rather than
-        /// either concrete type is what keeps a door and a wall on one path — the same reason
-        /// <c>Projectile.HandleImpact</c> resolves its target by interface.</para>
+        /// <para><b>Tiles are not asked here.</b> They have had no colliders since Stage D; the grid
+        /// answers for them (<see cref="GridTileAtPixel"/>), and this probe is what keeps a door on
+        /// the same path a wall takes.</para>
         ///
         /// <para>The probe is a 2 px box rather than a true point. <c>Physics2D</c> has no point-overlap
         /// query that is both non-allocating and not deprecated on this engine version, and 2 px is well
         /// inside a 40 px tile — AS3's own test is a point against bounds it has already resolved.</para>
         /// </summary>
-        private static Collider2D DestructibleColliderAtPixel(float px, float py)
+        private static Collider2D DoorPropAtPixel(float px, float py)
         {
             var centre = new Vector2(
                 px * TileQueryConstants.PixelToUnit,
@@ -276,8 +325,7 @@ namespace PFE.Entities.Weapons
             {
                 Collider2D hit = hits[i];
                 if (hit == null || hit.isTrigger) continue;
-                if (hit.GetComponent<TileCollider>() == null &&
-                    hit.GetComponent<IDestructibleTile>() == null) continue;
+                if (hit.GetComponent<IDestructibleTile>() == null) continue;
                 return hit;
             }
 
@@ -439,6 +487,41 @@ namespace PFE.Entities.Weapons
         }
 
         /// <summary>
+        /// Both impact-sound layers for one melee tile contact — the sweep's flavour of
+        /// <see cref="PlayImpactSound(Collider2D, Vector2, bool)"/>. A door prop resolves its material
+        /// off its own collider (it carries a <c>TileSurface</c>); a grid tile arrives with its raw
+        /// AS3 <c>mat</c> already resolved, since it has no collider to read.
+        /// </summary>
+        private void PlaySurfaceImpactSound(Collider2D doorProp, TileData tile, Vector2 worldPos)
+        {
+            if (_soundService == null) return;
+
+            // The decal is the WEAPON's (`setBullet` copies `Weapon.tipDecal` onto the bullet,
+            // `Weapon.as:1669-1670`), so it is read off the context rather than off the target. With
+            // no context there is no decal to test — `DecalType.None` fails the gate, which leaves
+            // only the weapon layer, and that layer has no weapon either.
+            DecalType decal = _hasDamageContext && _damageContext.Weapon != null
+                ? _damageContext.Weapon.decalType
+                : DecalType.None;
+
+            bool materialAllowed = ImpactSoundResolver.PlaysMaterialSound(decal);
+
+            if (doorProp != null)
+            {
+                ImpactSoundResolver.Resolve(
+                    doorProp, _hasDamageContext, _damageContext, worldPos,
+                    _soundService, _impactSoundTable, materialAllowed);
+            }
+            else if (tile != null)
+            {
+                ImpactSoundResolver.Resolve(
+                    TileSurface.FromAs3Material((int)tile.material),
+                    _hasDamageContext, _damageContext, worldPos,
+                    _soundService, _impactSoundTable, materialAllowed);
+            }
+        }
+
+        /// <summary>
         /// AS3 <c>Bullet.popadalo(mat)</c>'s spark arm (<c>weapon/Bullet.as:339-365</c>) at a tile
         /// contact — the burst of <c>iskr_bul</c> a blade throws off the surface it stops on.
         ///
@@ -462,17 +545,16 @@ namespace PFE.Entities.Weapons
         /// <c>PlayerInventory.AlicornProvider</c> defaults to <c>false</c> and nothing sets it — so
         /// <c>false</c> here is the current world's answer rather than a missing branch.</para>
         /// </summary>
-        /// <param name="surface">The collider the swing stopped on, already known to be a destructible
-        /// surface.</param>
+        /// <param name="tileData">The grid tile the swing stopped on, or null for a door prop (a door
+        /// answers material 0 and stays silent, exactly as before — AS3 never imported the material
+        /// it stamped those cells with).</param>
         /// <param name="hitWorld">The contact point, in world units.</param>
         /// <param name="deltaPx">The blade tip's travel this frame in <b>Unity</b> pixels (Y up) — the
         /// sparks are thrown back along it, so the mirror to AS3 space happens here, once.</param>
-        private void EmitImpactSparks(Collider2D surface, Vector2 hitWorld, Vector2 deltaPx)
+        private void EmitImpactSparks(TileData tileData, Vector2 hitWorld, Vector2 deltaPx)
         {
             if (_particles == null || !_hasDamageContext) return;
 
-            var tile = surface != null ? surface.GetComponent<TileCollider>() : null;
-            TileData tileData = tile != null ? tile.GetTileData() : null;
             int as3Material = tileData != null ? (int)tileData.material : 0;
 
             int decal = _damageContext.Weapon != null ? (int)_damageContext.Weapon.decalType : 0;

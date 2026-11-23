@@ -64,6 +64,13 @@ namespace PFE.Systems.Map.Rendering
         private SpriteRenderer _debugSpriteRenderer;
         private CheckpointAreaTrigger _checkpointArea;
 
+        /// <summary>
+        /// The service the die sample plays through — thread E, replacing the retired
+        /// <c>SoundBus.Current</c>. Handed in by <see cref="RoomObjectVisualManager"/> at admission;
+        /// null is the soundless-scene answer.
+        /// </summary>
+        private ISoundService _soundService;
+
         // AS3's `vischeckpoint` is one MovieClip with three named children
         // (`vischeckpoint.as`: osn / lock / fiol), at display-list depths 1 / 13 / 15. The port's
         // regenerated visual asset carries them as three sprite arrays on ONE shared 130x229
@@ -730,13 +737,15 @@ namespace PFE.Systems.Map.Rendering
             ObjectInstance obj,
             MapObjectVisualDefinition visual,
             SpriteRenderer renderer,
-            AreaTriggerSystem triggerSystem)
+            AreaTriggerSystem triggerSystem,
+            ISoundService soundService = null)
         {
             _room = room;
             _objectInstance = obj;
             _visual = visual;
             _renderer = renderer;
             _triggerSystem = triggerSystem;
+            _soundService = soundService;
 
             _triggerCollider = GetComponent<BoxCollider2D>();
             if (_triggerCollider != null)
@@ -1415,7 +1424,7 @@ namespace PFE.Systems.Map.Rendering
             string dieSound = MapObjectSoundRule.DieSound(_objectInstance.definition?.legacyAttributes);
             if (MapObjectSoundRule.PlaysOnDie(dieSound, (int)damageType))
             {
-                SoundBus.Current?.Play(dieSound, transform.position);
+                _soundService?.Play(dieSound, transform.position);
             }
 
             if (_room != null)

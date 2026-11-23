@@ -56,6 +56,13 @@ namespace PFE.Systems.Map.Rendering
         private SpriteRenderer _renderer;
         private BoxCollider2D _triggerCollider;
 
+        /// <summary>
+        /// The service the open click and the ejected loot's landing samples play through — thread E,
+        /// replacing the retired <c>SoundBus.Current</c>. Handed in by
+        /// <see cref="RoomObjectVisualManager"/> at admission; null is the soundless-scene answer.
+        /// </summary>
+        private ISoundService _soundService;
+
         private int _lastInteractFrame = -1;
 
         /// <summary>
@@ -187,12 +194,14 @@ namespace PFE.Systems.Map.Rendering
             RoomInstance room,
             ObjectInstance obj,
             MapObjectVisualDefinition visual,
-            SpriteRenderer renderer)
+            SpriteRenderer renderer,
+            ISoundService soundService = null)
         {
             _room = room;
             _objectInstance = obj;
             _visual = visual;
             _renderer = renderer;
+            _soundService = soundService;
 
             ResolvedCont = ContainerRule.ResolveCont(
                 obj?.GetAttribute("cont", null),
@@ -381,8 +390,8 @@ namespace PFE.Systems.Map.Rendering
         /// <para><b>The gate is <c>!World.w.testLoot</c>, and it is on the open branch only.</b>
         /// <see cref="MapObjectSoundRule.PlaysOnOpen"/> owns that rule; the close branch deliberately has
         /// no such gate. A scene with no <c>SoundService</c> is already silent
-        /// (<c>SoundBus.Current</c> is null), which is the same answer the oracle gives for a prop with no
-        /// <c>@open</c>.</para>
+        /// (<see cref="_soundService"/> is null), which is the same answer the oracle gives for a prop
+        /// with no <c>@open</c>.</para>
         /// </summary>
         private void PlayOpenSound()
         {
@@ -392,7 +401,7 @@ namespace PFE.Systems.Map.Rendering
 
             if (!MapObjectSoundRule.PlaysOnOpen(OpenSoundId, testLoot)) return;
 
-            SoundBus.Current?.Play(OpenSoundId, transform.position);
+            _soundService?.Play(OpenSoundId, transform.position);
         }
 
         /// <summary>
@@ -482,7 +491,8 @@ namespace PFE.Systems.Map.Rendering
                 {
                     string fall = FallSoundFor(false, itemDefinition.legacyTip, row.id);
                     if (WorldItemPickup.Spawn(itemDefinition, count, where, autoCollect: true,
-                                              jump: true, room: _room, fallSoundId: fall) != null) spawned++;
+                                              jump: true, room: _room, fallSoundId: fall,
+                                              soundService: _soundService) != null) spawned++;
                     continue;
                 }
 
@@ -493,7 +503,8 @@ namespace PFE.Systems.Map.Rendering
                     // whatever the row asked for — AS3 forces weapons to kol 1 (Item.as:176-178).
                     string fall = FallSoundFor(true, LootTips.Weapon, row.id);
                     if (WorldItemPickup.Spawn(weaponDefinition, 1, where, autoCollect: true,
-                                              jump: true, room: _room, fallSoundId: fall) != null) spawned++;
+                                              jump: true, room: _room, fallSoundId: fall,
+                                              soundService: _soundService) != null) spawned++;
                     continue;
                 }
 
@@ -639,7 +650,8 @@ namespace PFE.Systems.Map.Rendering
                     Vector3 weaponWhere = transform.position;
                     if (WorldItemPickup.Spawn(weapon, 1, weaponWhere, autoCollect: true,
                                               jump: true, room: _room,
-                                              fallSoundId: FallSoundFor(true, LootTips.Weapon, roll.ItemId)) != null)
+                                              fallSoundId: FallSoundFor(true, LootTips.Weapon, roll.ItemId),
+                                              soundService: _soundService) != null)
                     {
                         spawned++;
                     }
@@ -662,7 +674,8 @@ namespace PFE.Systems.Map.Rendering
                 Vector3 where = transform.position;
                 if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true,
                                           jump: true, room: _room,
-                                          fallSoundId: FallSoundFor(false, roll.Tip, roll.ItemId)) != null)
+                                          fallSoundId: FallSoundFor(false, roll.Tip, roll.ItemId),
+                                          soundService: _soundService) != null)
                 {
                     spawned++;
                 }

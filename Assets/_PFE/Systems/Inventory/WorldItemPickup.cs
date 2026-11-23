@@ -236,6 +236,14 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public static Func<RoomInstance> RoomProvider { get; set; }
 
+        /// <summary>
+        /// The service the splash and landing samples play through, handed in by <c>Spawn</c> (thread E —
+        /// the retired <c>SoundBus.Current</c>). Null is the legitimate "this scene has no sound" answer:
+        /// a pickup spawned where nobody passed a service lands silently, exactly like a prop whose
+        /// landing the layer gates off.
+        /// </summary>
+        public ISoundService SoundService { get; private set; }
+
         /// <summary>Room-local pixels → world units. Same scale as <see cref="PixelsToUnits"/>.</summary>
         private RoomInstance _room;
 
@@ -626,7 +634,8 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public static WorldItemPickup Spawn(ItemDefinition definition, int quantity, Vector3 position,
                                             bool autoCollect = false, bool jump = false,
-                                            RoomInstance room = null, string fallSoundId = null)
+                                            RoomInstance room = null, string fallSoundId = null,
+                                            ISoundService soundService = null)
         {
             if (definition == null)
             {
@@ -643,7 +652,8 @@ namespace PFE.Systems.Inventory
                              icon: definition.icon, fallbackColor: definition.fallbackColor,
                              itemDefinition: definition, weaponDefinition: null,
                              variant: 0, condition: 1f,
-                             jump: jump, room: room, fallSoundId: fallSoundId);
+                             jump: jump, room: room, fallSoundId: fallSoundId,
+                             soundService: soundService);
         }
 
         /// <summary>
@@ -672,7 +682,8 @@ namespace PFE.Systems.Inventory
         public static WorldItemPickup Spawn(WeaponDefinition weaponDefinition, int quantity, Vector3 position,
                                             bool autoCollect = false, int variant = 0, float condition = 1f,
                                             bool jump = false, RoomInstance room = null,
-                                            string fallSoundId = null)
+                                            string fallSoundId = null,
+                                            ISoundService soundService = null)
         {
             if (weaponDefinition == null)
             {
@@ -693,7 +704,8 @@ namespace PFE.Systems.Inventory
                              icon: icon, fallbackColor: WeaponFallbackColor,
                              itemDefinition: null, weaponDefinition: weaponDefinition,
                              variant: variant, condition: condition,
-                             jump: jump, room: room, fallSoundId: fallSoundId);
+                             jump: jump, room: room, fallSoundId: fallSoundId,
+                             soundService: soundService);
         }
 
         /// <summary>
@@ -706,6 +718,7 @@ namespace PFE.Systems.Inventory
                                                  WeaponDefinition weaponDefinition,
                                                  int variant, float condition,
                                                  bool jump, RoomInstance room, string fallSoundId,
+                                                 ISoundService soundService = null,
                                                  DroppedItemInstance existingRecord = null,
                                                  bool settled = false,
                                                  bool replicated = false)
@@ -714,6 +727,7 @@ namespace PFE.Systems.Inventory
             go.transform.position = position;
 
             var pickup = go.AddComponent<WorldItemPickup>();
+            pickup.SoundService = soundService;
             pickup.ItemId = id;
             pickup.Quantity = quantity;
             pickup.Definition = itemDefinition;
@@ -1424,9 +1438,9 @@ namespace PFE.Systems.Inventory
                 float downwardSpeed = -_vy;
                 if (downwardSpeed > LootFallRules.WaterSoundMinDy)
                 {
-                    SoundBus.Current?.Play(LootFallRules.WaterFallSound,
-                                           (Vector2)transform.position,
-                                           LootFallRules.WaterVolume(downwardSpeed));
+                    SoundService?.Play(LootFallRules.WaterFallSound,
+                                       (Vector2)transform.position,
+                                       LootFallRules.WaterVolume(downwardSpeed));
                 }
             }
 
@@ -1446,7 +1460,7 @@ namespace PFE.Systems.Inventory
         private void PlayFallSound(float volumeScale)
         {
             if (string.IsNullOrEmpty(_fallSoundId)) return;
-            SoundBus.Current?.Play(_fallSoundId, (Vector2)transform.position, volumeScale);
+            SoundService?.Play(_fallSoundId, (Vector2)transform.position, volumeScale);
         }
 
         /// <summary>

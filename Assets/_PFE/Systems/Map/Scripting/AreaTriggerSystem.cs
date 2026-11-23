@@ -142,7 +142,7 @@ namespace PFE.Systems.Map.Scripting
         /// why a test that injects a fake host is unaffected: an injected host always wins.</para>
         /// </summary>
         private ILandScriptHost LandHost =>
-            _landHost ?? PFE.Systems.Campaign.CampaignManager.Current;
+            _landHost ?? _campaign ?? PFE.Systems.Campaign.CampaignManager.Current;
 
         private readonly Dictionary<string, string> _localizedTextOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -158,6 +158,21 @@ namespace PFE.Systems.Map.Scripting
         /// <summary>Raised for every <c>openland</c> (<c>Script.as:458-468</c>).</summary>
         public event Action<string> OnOpenLand;
 
+        /// <summary>
+        /// The container's campaign singleton (thread E) — the fallback every static-shaped read
+        /// below prefers over <c>CampaignManager.Current</c>. Null in the bare-constructor fixtures,
+        /// which keep reading the tracked static exactly as they did before this parameter existed.
+        /// </summary>
+        private readonly PFE.Systems.Campaign.CampaignManager _campaign;
+
+        /// <summary>
+        /// The container's script system (thread E) — the clock this room's runner registers with,
+        /// preferred over the <c>ScriptSystem.Current</c> static. Handed down by
+        /// <c>RoomVisualController</c>, the only production constructor; null in fixtures, which keep
+        /// the static fallback exactly as before.
+        /// </summary>
+        private readonly ScriptSystem _scriptSystem;
+
         public AreaTriggerSystem() : this(null, null, null, null, null)
         {
         }
@@ -167,13 +182,17 @@ namespace PFE.Systems.Map.Scripting
             IPublisher<ObjectiveMarkerMessage> markerPublisher,
             IPublisher<LandTransitionMessage> landTransitionPublisher = null,
             LuaTriggerBridge luaBridge = null,
-            ILandScriptHost landHost = null)
+            ILandScriptHost landHost = null,
+            PFE.Systems.Campaign.CampaignManager campaign = null,
+            ScriptSystem scriptSystem = null)
         {
             _promptPublisher = promptPublisher;
             _markerPublisher = markerPublisher;
             _landTransitionPublisher = landTransitionPublisher;
             _luaBridge = luaBridge;
             _landHost = landHost;
+            _campaign = campaign;
+            _scriptSystem = scriptSystem;
         }
 
         public void SetTextOverride(string key, string text)
@@ -371,12 +390,12 @@ namespace PFE.Systems.Map.Scripting
                 if (_runner != null) return _runner;
                 if (_disposed) return null;
 
-                ScriptSystem system = ScriptSystem.Current;
+                ScriptSystem system = _scriptSystem ?? ScriptSystem.Current;
                 _runner = system != null
                     ? system.CreateRunner(this, () => this, this)
                     : new ScriptRunner(
                         campaign: () => this,
-                        quests: () => PFE.Systems.Campaign.CampaignManager.Current,
+                        quests: () => _campaign ?? PFE.Systems.Campaign.CampaignManager.Current,
                         objects: this,
                         // The unit half is forwarded through THIS type rather than handed the spawner
                         // directly, so the off-clock fallback and the clocked path resolve `@targ`
@@ -414,7 +433,7 @@ namespace PFE.Systems.Map.Scripting
 
             if (_runner != null)
             {
-                ScriptSystem.Current?.Unregister(_runner);
+                (_scriptSystem ?? ScriptSystem.Current)?.Unregister(_runner);
                 _runner = null;
             }
 
@@ -1154,7 +1173,7 @@ namespace PFE.Systems.Map.Scripting
             return _allActDispatcher ??= ObjectActionDispatcher.CreateFull(
                 transition: null,
                 reportUnhandled: message => Debug.LogWarning(message),
-                travelMapHost: PFE.Systems.Campaign.CampaignManager.Current,
+                travelMapHost: _campaign ?? PFE.Systems.Campaign.CampaignManager.Current,
                 exitHost: LandHost,
                 // AS3 `loc.prob` — the detached-room half of `Land.gotoProb` (Land.as:1391-1438), which
                 // lives on the scene singleton that owns the room registry. Null before the first land is

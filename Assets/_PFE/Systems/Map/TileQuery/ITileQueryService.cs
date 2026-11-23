@@ -97,17 +97,17 @@ namespace PFE.Systems.Map.TileQuery
     /// <summary>
     /// The single seam every tile-collision consumer depends on.
     ///
-    /// Purpose: today three models disagree about what "solid" means and even about which
+    /// Purpose: three models once disagreed about what "solid" means and even about which
     /// coordinate space they operate in:
     ///   1. <c>TilePhysicsController</c>  - private sampling, own porog/step-up, world pixels
-    ///   2. <c>TileCollisionSystem</c>    - world pixels (subtracts room origin)
+    ///   2. <c>TileCollisionSystem</c>    - world pixels (subtracts room origin); deleted at Stage D,
+    ///      its sight ray and radius damage inlined into <see cref="UnifiedTileQueryService"/>
     ///   3. <c>RoomInstance.CheckCollision</c> - ROOM-LOCAL pixels (does NOT subtract room origin)
-    /// Consumers should depend on this interface and contain no backend-specific branching.
+    /// Consumers depend on this interface and contain no backend-specific branching; Unified is the
+    /// only implementation.
     ///
     /// COORDINATE SPACE: every method below takes and returns WORLD PIXELS unless the parameter
-    /// is explicitly named <c>tileCoord</c>. Note this is a CHANGE for existing
-    /// <c>RoomInstance.CheckCollision</c> callers, which are room-local today. Migrating them is
-    /// P2 work and is a behaviour change, so it must not happen inside Stage A.
+    /// is explicitly named <c>tileCoord</c>.
     ///
     /// See docs/Roadmap/03_P2_UNIFIED_TILE_COLLISION.md.
     /// </summary>

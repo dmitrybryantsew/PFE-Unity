@@ -10,8 +10,8 @@ namespace PFE.Systems.Combat
     /// (<c>AllData.as:4859-4860</c>) — does not. In this port that fact lives in two places, because a
     /// door's cells are <c>_</c> (air) in the shipped room maps: <c>TileVisualManager</c> built them no
     /// collider, so the surface a round actually meets is <c>DoorPropPresenter</c>'s own solid
-    /// <c>BoxCollider2D</c>, not a <c>TileCollider</c>. <c>ProjectileOcclusionRule</c> covers the tile
-    /// half; this interface covers the collider half, and a door answers it from the same
+    /// <c>BoxCollider2D</c> — tiles have no colliders at all. <c>ProjectileOcclusionRule</c> covers
+    /// the tile half; this interface covers the collider half, and a door answers it from the same
     /// <c>@phis</c> value that stamps its tiles.</para>
     ///
     /// <para><b>It gates the stop, not the damage.</b> A round that reaches a pass-through surface

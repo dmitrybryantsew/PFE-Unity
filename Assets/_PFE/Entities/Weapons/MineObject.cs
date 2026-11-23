@@ -1079,7 +1079,7 @@ namespace PFE.Entities.Weapons
             if (_explRadius > 0f)
             {
                 // AS3 `explRun()`'s first statement (`Bullet.as:707-710`) — tiles before bodies.
-                ExplosionTileDamage.Apply(centre, _explRadius, _destroyTiles, _damageType, _decalType);
+                ExplosionTileDamage.Apply(_tileQuery, centre, _explRadius, _destroyTiles, _damageType, _decalType);
 
                 Collider2D[] hits = Physics2D.OverlapCircleAll(centre, _explRadius);
                 foreach (var hit in hits)

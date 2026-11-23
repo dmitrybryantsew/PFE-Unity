@@ -644,6 +644,12 @@ namespace PFE.Entities.Enemies
         protected override ISoundService DeathSoundService => _soundService;
 
         /// <summary>
+        /// Corpse-dropped loot lands through the same service — see
+        /// <see cref="UnitController.LootDropSoundService"/>.
+        /// </summary>
+        protected override ISoundService LootDropSoundService => _soundService;
+
+        /// <summary>
         /// AS3 <c>Unit.as:4316-4318</c> — <c>if(param1 == 0 &amp;&amp; sost == 1 &amp;&amp; sndDie)
         /// sound(sndDie)</c>, i.e. the unit's <c>&lt;snd die='…'/&gt;</c> row, played at the unit.
         ///

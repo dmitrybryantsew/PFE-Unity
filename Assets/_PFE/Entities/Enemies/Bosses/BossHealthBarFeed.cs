@@ -69,9 +69,9 @@ namespace PFE.Entities.Enemies.Bosses
         }
 
         /// <summary>
-        /// Drop every subscriber — for a test, or for a new session. The static counterpart of
-        /// <c>EliteEnemyRegistry.Reset</c>: a view that was destroyed without unsubscribing would
-        /// otherwise keep a delegate alive across play-mode runs in the editor.
+        /// Drop every subscriber — for a test, or for a new session. The static counterpart of the
+        /// retired <c>EliteEnemyRegistry</c>'s instance events: a view that was destroyed without
+        /// unsubscribing would otherwise keep a delegate alive across play-mode runs in the editor.
         /// </summary>
         public static void Reset()
         {

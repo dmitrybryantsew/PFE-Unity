@@ -7,6 +7,16 @@ namespace PFE.Systems.Map.Serialization
     /// <summary>
     /// High-level save/load API for the world.
     /// Manages save slots, auto-save, and quick save/load.
+    ///
+    /// <para><b>Why the self-creating static survived thread E.</b> Thread E evaluated moving this to
+    /// the container and rejected it: the MAIN MENU scene has no lifetime scope (its bootstrapper is
+    /// a bare <c>MonoBehaviour</c>), and it is where <c>GetAllSaves()</c> runs — so a menu-born
+    /// instance must persist into the game scene via <c>DontDestroyOnLoad</c> and be ADOPTED there,
+    /// not duplicated by a container registration (a second instance self-destructs in
+    /// <c>Awake</c>, leaving the container's singleton a destroyed object). The developer console
+    /// also relies on the self-creating property for save commands in scenes with no save host.
+    /// Game-scene consumers that could take it by injection were migrated to prefer a handed-down
+    /// instance where one exists; everything else reads <see cref="Instance"/>.</para>
     /// </summary>
     public class SaveManager : MonoBehaviour
     {

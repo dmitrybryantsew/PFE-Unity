@@ -21,8 +21,9 @@ namespace PFE.Core
     /// (<c>UnitController</c>, the enemy brains, <c>SecurityRuntime</c>) are built by
     /// <c>RoomUnitSpawner</c> with <c>AddComponent</c>, which VContainer never observes, so neither
     /// constructor injection nor an <c>[Inject]</c> field can reach them — the same constraint that
-    /// put <c>SoundBus.Current</c> and <c>CharacterStats.CombatRng</c> on a push-at-build static in
-    /// <c>GameLifetimeScope</c>. The container builds the context and pushes it here once; consumers
+    /// put <c>CharacterStats.CombatRng</c> on a push-at-build static in
+    /// <c>GameLifetimeScope</c> (and, until thread E retired it, <c>SoundBus.Current</c>). The container
+    /// builds the context and pushes it here once; consumers
     /// read it back. Under multiplayer a different implementation is pushed instead, and no consumer
     /// changes. <see cref="Current"/> falls back to a fresh single-player context when nothing has
     /// been pushed (an offline fixture with no container), which is exactly today's behaviour.</para>

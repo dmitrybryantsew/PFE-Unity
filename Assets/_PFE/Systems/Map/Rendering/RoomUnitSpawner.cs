@@ -284,7 +284,7 @@ namespace PFE.Systems.Map.Rendering
         /// first spawn. Shared rather than per-unit because it is a stateless reader over
         /// <c>RoomInstance.tiles</c> — which it reads live, so one instance stays correct as tiles are
         /// destroyed — and because constructing one per unit would rebuild a
-        /// <c>TileCollisionSystem</c> for each.
+        /// <c>UnifiedTileQueryService</c> for each.
         /// </summary>
         ITileQueryService _tileQuery;
 
@@ -443,6 +443,8 @@ namespace PFE.Systems.Map.Rendering
 
         IProjectileFactory _projectileFactory;
         ISoundService      _soundService;
+        UnitViewRegistry   _unitViewRegistry;
+        EliteEnemyRegistry _eliteRegistry;
         PfeDebugSettings   _debugSettings;
         PFE.Core.Rng.IRngService _rng;
 
@@ -869,6 +871,11 @@ namespace PFE.Systems.Map.Rendering
 
             try { _projectileFactory = _resolver.Resolve<IProjectileFactory>(); } catch { _projectileFactory = null; }
             try { _soundService      = _resolver.Resolve<ISoundService>(); }      catch { _soundService      = null; }
+            // Thread E: the view/elite registries are container singletons now, resolved the same
+            // try/catch way — a scene without the registration (or a fixture without a container) spawns
+            // units that simply never appear in either list, which is the honest containerless answer.
+            try { _unitViewRegistry  = _resolver.Resolve<UnitViewRegistry>(); }   catch { _unitViewRegistry  = null; }
+            try { _eliteRegistry     = _resolver.Resolve<EliteEnemyRegistry>(); } catch { _eliteRegistry     = null; }
             try { _debugSettings     = _resolver.Resolve<PfeDebugSettings>(); }   catch { _debugSettings     = null; }
             try { _rng               = _resolver.Resolve<PFE.Core.Rng.IRngService>(); } catch { _rng         = null; }
         }
@@ -898,7 +905,16 @@ namespace PFE.Systems.Map.Rendering
 
             foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
             {
-                if (pair.Value != null && pair.Value.TryGetComponent(out EnemyController enemy))
+                if (pair.Value == null) continue;
+
+                // Thread E: retroactive like SetWeaponServices below — a unit built before the resolver
+                // arrived must land in the same registries as every later spawn.
+                if (pair.Value.TryGetComponent(out UnitController unitController))
+                {
+                    unitController.AttachViewRegistries(_unitViewRegistry, _eliteRegistry);
+                }
+
+                if (pair.Value.TryGetComponent(out EnemyController enemy))
                 {
                     enemy.SetWeaponServices(
                         _projectileFactory, _resolver, _soundService, _debugSettings, _rng);
@@ -1391,6 +1407,16 @@ namespace PFE.Systems.Map.Rendering
             {
                 controller.AssignEntityId(unitEntityId, unitLifetime);
             }
+
+            // ── Thread E: the view/elite registries, stamped like the id above ───────────────────
+            //
+            // AddComponent already ran OnEnable, before any handover could — so the controller could
+            // not register itself and AttachViewRegistries does it retroactively for this active unit.
+            // Before Initialize on purpose: an archetype that promotes in ApplyPlacement (ApplyHeroTier)
+            // or targets in its first tick needs both registries already attached. A fixture spawner
+            // with no resolver attaches nothing and the unit lives outside both lists.
+            EnsureCombatServices();
+            controller.AttachViewRegistries(_unitViewRegistry, _eliteRegistry);
 
             // The interned definition id, from the same content id the definition lookup used. `unitType`
             // is `RoomPopulator`'s resolved content id (RoomPopulator.cs:511) and is what SimUnitState's

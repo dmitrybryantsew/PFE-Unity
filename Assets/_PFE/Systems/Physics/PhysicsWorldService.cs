@@ -155,9 +155,9 @@ namespace PFE.Systems.Physics
             geometry.Build();
             _roomGeometry[room] = geometry;
 
-            // Keep the mirror in sync with tile destruction. RoomInstance is the one object the
-            // visual side (TileCollider) and this service already share, so the notification needs
-            // no new plumbing and no query service on the collider.
+            // Keep the mirror in sync with tile destruction. RoomInstance is the one object every
+            // side (the damage applicator, the terrain renderer, this service) already shares, so
+            // the notification needs no new plumbing and no query service on the caller.
             room.TilesMutated += OnRoomTilesMutated;
         }
 

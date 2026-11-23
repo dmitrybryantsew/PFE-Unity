@@ -18,6 +18,19 @@ namespace PFE.Systems.Map
             _music = music;
         }
 
+        /// <summary>
+        /// The service active rooms play prop landing samples through — thread E, replacing the retired
+        /// <c>SoundBus.Current</c>. Pushed once by <c>GameLifetimeScope</c> (optional scene service, so
+        /// a soundless scene leaves this null and every room stays silent, the oracle's answer for a
+        /// prop with no <c>@fall</c>).
+        ///
+        /// <para><b>Stamped per heartbeat rather than at room creation.</b> Rooms come from two births —
+        /// <c>RoomGenerator</c> and save restore — and this is the one owner that sees both, because only
+        /// <see cref="currentRoom"/> ever steps its physics layer (<c>Land.step()</c>'s port) and the
+        /// stamp lands in the same call that steps it.</para>
+        /// </summary>
+        public ISoundService SoundService { get; set; }
+
         // Room storage
         private Dictionary<Vector3Int, RoomInstance> rooms = new Dictionary<Vector3Int, RoomInstance>();
 
@@ -244,6 +257,7 @@ namespace PFE.Systems.Map
         {
             if (currentRoom != null)
             {
+                currentRoom.SoundService = SoundService;
                 currentRoom.Update(deltaTime);
             }
 

@@ -22,7 +22,8 @@ namespace PFE.Entities.Weapons
     /// Replaces Bullet.as from ActionScript (1,037 lines).
     ///
     /// Physics model: always Kinematic Rigidbody2D.
-    /// Velocity is integrated manually each FixedUpdate matching AS3 frame-by-frame simulation:
+    /// Velocity is integrated manually on the sim tick (AS3's 30 Hz frame step), matching AS3
+    /// frame-by-frame simulation:
     ///   dx += ddx  (acceleration)
     ///   dy += ddy  (gravity / flame lift)
     ///   x  += dx
@@ -46,22 +47,25 @@ namespace PFE.Entities.Weapons
     /// AoE (Explosive archetype): on any impact, additionally overlaps a circle and
     /// damages all IDamageable + IDestructibleTile within explRadius.
     ///
-    /// <para><b>Stage C — two tile-collision paths, selected by
-    /// <c>PfeDebugSettings.ProjectilesUseLowLevelPhysics</c>.</b> With the flag OFF (default) nothing
-    /// here changed: tile hits arrive through <see cref="OnTriggerEnter2D"/> from Unity's per-tile
-    /// <c>BoxCollider2D</c> grid, and the integration runs in <see cref="FixedUpdate"/> against
-    /// <c>Time.fixedDeltaTime</c>. With it ON, the tile-hit <i>decision</i> comes from a swept query
-    /// against the LowLevelPhysics2D chain mirror (single-sourced from <c>ITileQueryService</c>, so it
-    /// cannot drift from the motor's notion of solid, and a chain has no seam to produce ghost
-    /// collisions), and the integration runs on <see cref="SimLoop"/> at the clock's own tick rate —
-    /// <c>SimClock.SimDt</c> per tick, which is exactly AS3's 1/30 s at the default canonical rate, so
-    /// a 0.7 s flame lifetime is 21 ticks rather than the 35 that <c>FixedUpdate</c>'s 50 Hz produced.
-    /// </para>
+    /// <para><b>The tile-collision path is permanent since Stage D.</b> What Stage C introduced behind
+    /// <c>PfeDebugSettings.ProjectilesUseLowLevelPhysics</c> is the only path now: the tile-hit
+    /// <i>decision</i> comes from a swept query against the LowLevelPhysics2D chain mirror
+    /// (single-sourced from <c>ITileQueryService</c>, so it cannot drift from the motor's notion of
+    /// solid, and a chain has no seam to produce ghost collisions), and the integration runs on
+    /// <see cref="SimLoop"/> at the clock's own tick rate — <c>SimClock.SimDt</c> per tick, which is
+    /// exactly AS3's 1/30 s at the default canonical rate. The per-tile <c>BoxCollider2D</c> grid and
+    /// the <c>FixedUpdate</c> integration left with the flag.</para>
     ///
-    /// <para><b>What the flip deliberately does NOT change.</b> Entity hits. Enemies, the player and
+    /// <para><b>Tile identity resolves from the grid, not from a collider.</b> The chain decides
+    /// <i>whether</i> a tile was hit and <i>where</i>; the tile itself is read from the room's tile
+    /// grid at the contact point — its <c>material</c> feeds the impact sound and its
+    /// <see cref="TileData"/> feeds <see cref="TileDamageApplicator"/>. A door-stamped cell routes to
+    /// the door prop, which still owns a collider carrying <c>IDestructibleTile</c>.</para>
+    ///
+    /// <para><b>What this deliberately does NOT change.</b> Entity hits. Enemies, the player and
     /// destructible props are still Unity colliders, so <c>IDamageable</c> resolution keeps coming
-    /// from <see cref="OnTriggerEnter2D"/> in both modes. Moving entities into the Box2D world is not
-    /// Stage C's job, and doing it here would have coupled the flip to every entity type at once.</para>
+    /// from <see cref="OnTriggerEnter2D"/>. Moving entities into the Box2D world was never this
+    /// path's job.</para>
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class Projectile : MonoBehaviour, ISimTickable, PFE.Systems.Replication.ISimTransientStateSource
@@ -254,7 +258,7 @@ namespace PFE.Entities.Weapons
         private static ContactFilter2D    _unitFilter;
         private static bool               _unitFilterBuilt;
 
-        // ── Stage C: sim-owned state (only used when ProjectilesUseLowLevelPhysics is on) ──────
+        // ── Sim-owned state ─────────────────────────────────────────────────
         // The simulation owns the position; the Transform is a *view* of it, written in LateUpdate.
         // ISimTickable's contract forbids a tick from reading Transform, so SimTick touches neither
         // transform nor _rb — everything it produces goes through the deferred write below.
@@ -426,11 +430,10 @@ namespace PFE.Entities.Weapons
         /// than at each field read is what keeps one conversion constant in one place.</para>
         ///
         /// <para><b>The captured position is <see cref="DrawnPosition"/>, never the raw sim
-        /// field.</b> <c>_simPosition</c> is integrated only while <see cref="FlipActive"/> is true;
-        /// on the legacy path <see cref="FixedUpdate"/> moves <c>transform.position</c> and the sim
-        /// field stays frozen at the spawn point. Reading it directly replicated every round at its
-        /// muzzle — or at (0,0) when the spawn pose was never staged — which is play-test #7's
-        /// "every projectile clusters in the bottom-left on the client".</para>
+        /// field.</b> <c>_simPosition</c> is the integrated position of the only flight path there is;
+        /// reading the raw field would replicate every round at its muzzle — or at (0,0) when the spawn
+        /// pose was never staged — which is play-test #7's "every projectile clusters in the
+        /// bottom-left on the client".</para>
         ///
         /// <para><b><paramref name="sequence"/> is passed in, not read from the instance.</b> The sample
         /// number belongs to the projection, so the projector owns the counter; a capture that
@@ -447,8 +450,8 @@ namespace PFE.Entities.Weapons
         {
             const float toPixels = TileQueryConstants.UnitToPixel;
 
-            // DrawnPosition is the authority on BOTH integration paths: _simPosition while the
-            // low-level sim owns the flight, transform.position on the legacy FixedUpdate path.
+            // DrawnPosition is the authority for the view: _simPosition, which the sim integrates and
+            // LateUpdate writes to the transform.
             Vector2 posUnits = DrawnPosition;
 
             return new SimProjectileState
@@ -543,13 +546,11 @@ namespace PFE.Entities.Weapons
         // ── Stage C: sim registration and tick ───────────────────────────────────────────────
 
         /// <summary>
-        /// True when this instance is actually running the flipped path.
+        /// True when this instance is registered on <see cref="SimLoop"/> and actually driven by it.
         ///
-        /// <para>Keyed off the registration rather than off the settings flag on purpose. If the flag
-        /// is on but SimLoop was unavailable, <see cref="RegisterOnSimLoop"/> leaves this false and the
-        /// instance stays wholly on the legacy path. Reading the flag instead would leave such an
-        /// instance driven by <i>neither</i> loop — it would hang motionless in mid-air, which is a far
-        /// worse failure than quietly staying on the old path.</para>
+        /// <para>Keyed off the registration rather than assumed, because registration can fail (no
+        /// SimLoop in the scene) — and an instance nothing drives is visibly broken rather than
+        /// quietly wrong. The pool-return deferral and the entity-probe gating both read this.</para>
         /// </summary>
         private bool FlipActive => _registeredOnSimLoop;
 
@@ -571,8 +572,8 @@ namespace PFE.Entities.Weapons
                 if (_debugSettings?.LogProjectileLifecycle == true)
                 {
                     Debug.LogWarning(
-                        "[Projectile] ProjectilesUseLowLevelPhysics is on but SimLoop/SimClock is " +
-                        "unavailable; staying on the FixedUpdate path.");
+                        "[Projectile] SimLoop/SimClock is unavailable; the sim is the only " +
+                        "integration path, so this round will not move.");
                 }
                 return;
             }
@@ -605,7 +606,7 @@ namespace PFE.Entities.Weapons
             // The per-tick advance is SimDt (a duration in seconds), NOT StepScale, and the two are
             // NOT interchangeable here. StepScale converts a rate stored per canonical 30 Hz frame
             // into a per-tick advance; this file does not store rates that way. _velocity is Unity
-            // units/s and _ddx/_ddy are units/s², because FixedUpdate hands _velocity straight to
+            // units/s and _ddx/_ddy are units/s², because the view pass hands _velocity straight to
             // Rigidbody2D.linearVelocity, which is units/s. For a units/s rate the advance is simply
             // the tick's duration. Substituting StepScale would be a 30x error at the canonical rate
             // (SimDt is 1/30 where StepScale is 1) — the velocity-vs-acceleration confusion
@@ -835,8 +836,9 @@ namespace PFE.Entities.Weapons
         /// damage the same unit on every tick it spent inside the box.</para>
         ///
         /// <para>Bounds come from the collider's world AABB, the closest thing the port has to AS3's
-        /// <c>X1..X2</c>/<c>Y1..Y2</c> logical box. That is a Unity read, like the tile-identity lookup
-        /// in <see cref="FindTileCollider"/> — a read, not a decision, and Stage D is what moves it.</para>
+        /// <c>X1..X2</c>/<c>Y1..Y2</c> logical box. That is a Unity read, like every entity lookup this
+        /// probe makes — entity positions live outside the sim, so the probe must ask the physics
+        /// scene rather than derive anything.</para>
         /// </summary>
         private int GatherUnitBoxes(Vector2 fromPx, Vector2 deltaPx)
         {
@@ -859,7 +861,6 @@ namespace PFE.Entities.Weapons
                 if (candidate == null) continue;
                 if (candidate.isTrigger) continue;
                 if (candidate == _triggerCollider) continue;
-                if (candidate.GetComponent<TileCollider>() != null) continue;
                 if (_struckUnits.Contains(candidate)) continue;
 
                 Bounds bounds = candidate.bounds;
@@ -931,17 +932,14 @@ namespace PFE.Entities.Weapons
         }
 
         /// <summary>
-        /// Resolves a tile contact found by the chain sweep, reusing the legacy impact path verbatim so
-        /// sound, damage, tile destruction, AoE and the impact animation all behave identically.
+        /// Resolves a tile contact found by the chain sweep. Identity comes from the room's tile
+        /// grid — a plain tile is damaged straight from its <see cref="TileData"/>; a door-stamped
+        /// cell routes to the door prop, which still owns a collider carrying
+        /// <c>IDestructibleTile</c>. Either way the impact path's order is reused so sound, damage,
+        /// tile destruction, AoE and the impact animation all behave as they did when a per-tile
+        /// collider brokered them.
         ///
-        /// <para><b>The one step that is not single-sourced.</b> The chain decides <i>whether</i> a tile
-        /// was hit and <i>where</i>; the tile's identity still comes from Unity. That is not laziness:
-        /// <c>ImpactSoundResolver</c> reads the collider's <c>TileSurface</c> material, and
-        /// <c>IDestructibleTile</c> is implemented on <c>TileCollider</c>, which lives on the tile's
-        /// GameObject. Neither is reachable from a chain. Keeping the lookup on Unity is deliberate —
-        /// it is a lookup, not a decision — and Stage D is what removes the per-tile colliders.</para>
-        ///
-        /// <para>If no collider can be identified the projectile still stops. Stopping is the safe
+        /// <para>If nothing can be identified the projectile still stops. Stopping is the safe
         /// failure; continuing would fly it through a wall it demonstrably hit.</para>
         /// </summary>
         private void ResolveTileImpact(Vector2 contactPx)
@@ -953,27 +951,134 @@ namespace PFE.Entities.Weapons
                 contactPx.y * TileQueryConstants.PixelToUnit,
                 _spawnPosition.z);
 
-            Collider2D tile = FindTileCollider(contactPx);
-            if (tile != null)
+            if (TryGridTileAt(contactPx, out TileData tile, out RoomInstance room))
             {
-                HandleImpact(tile, impactWorld);
+                if (tile.doorOcclusion == TileData.NoDoorOcclusion)
+                {
+                    // A plain wall cell: damaged straight from its TileData — the same priority the
+                    // TileCollider probe used to have, so an overlapping door collider can never
+                    // move a wall hit.
+                    HandleGridTileImpact(tile, room, impactWorld);
+                    return;
+                }
+
+                // A door-stamped cell — but the stamp OUTLIVES the door's solidity: Box.setDoor and
+                // Box.die write physicsType = Air while leaving doorOcclusion at 0 (the sentinel is
+                // -1), so "stamped" names the doorway, not a surface. AS3's bullet test requires
+                // phis >= 1 (Bullet.as:476) and an open or wrecked doorway has phis == 0 — the round
+                // flies on through, silently, as if the chain were not there. Stopping here is what
+                // sealed every doorway a shot had already opened.
+                if (tile.physicsType != TilePhysicsType.Wall)
+                {
+                    return;
+                }
+
+                // A closed door: the prop's own solid collider stands in for the cells AS3 stamped
+                // and the shipped maps author as air.
+                Collider2D door = FindDestructibleAt(contactPx);
+                if (door != null)
+                {
+                    HandleImpact(door, impactWorld);
+                    return;
+                }
+
+                if (_debugSettings?.LogProjectileLifecycle == true)
+                {
+                    Debug.LogWarning(
+                        $"[Projectile] '{name}' chain contact at {contactPx} px landed on a closed " +
+                        "door cell but no IDestructibleTile answered the probe; stopping without " +
+                        "surface sound or door damage.");
+                }
+
+                StartImpactAnimation();
+                return;
+            }
+
+            // A contact outside every mirrored room (one being streamed out mid-flight): the door
+            // probe may still name a prop. If nothing answers, the round still stops — stopping is
+            // the safe failure; continuing would fly it through a wall it demonstrably hit.
+            Collider2D destructible = FindDestructibleAt(contactPx);
+            if (destructible != null)
+            {
+                HandleImpact(destructible, impactWorld);
                 return;
             }
 
             if (_debugSettings?.LogProjectileLifecycle == true)
             {
                 Debug.LogWarning(
-                    $"[Projectile] '{name}' chain contact at {contactPx} px identified neither a tile " +
-                    "collider nor any IDestructibleTile; stopping without surface sound or tile " +
+                    $"[Projectile] '{name}' chain contact at {contactPx} px identified neither a " +
+                    "plain tile nor any IDestructibleTile; stopping without surface sound or tile " +
                     "destruction. A closed door produces this if its solid collider is also disabled.");
             }
 
             StartImpactAnimation();
         }
 
+        // The grid tile at a world-pixel contact, with the room that owns it. False when the contact
+        // is outside every mirrored room — the chain can report a surface the query seam cannot
+        // name (a room being streamed out mid-flight), and the caller's door probe / stop-safe
+        // fallback covers that.
+        private bool TryGridTileAt(Vector2 contactPx, out TileData tile, out RoomInstance room)
+        {
+            tile = null;
+            room = null;
+
+            // The sweep reports the touch point, which lies exactly ON a tile-face boundary, and a
+            // raw floor() there names the air cell on the far side for half of the approach
+            // directions — the round then resolves to nothing and the wall survives untouched (the
+            // "plasma can't break walls" regression). Nudging the point 2 px into the surface along
+            // the contact normal — the same convention FindDestructibleAt uses for its overlap
+            // probe — names the solid cell that owns the face. No normal (the initial-overlap case)
+            // means the contact IS the shape centre, already inside the solid.
+            Vector2 probePx = _lastContactNormal.sqrMagnitude > 0f
+                ? contactPx - _lastContactNormal * 2f
+                : contactPx;
+
+            if (_physicsWorld == null ||
+                !_physicsWorld.TryGetRoomTileQueryAt(
+                    probePx, out PFE.Systems.Physics.RoomTileQuery roomQuery) ||
+                roomQuery.Service.Room == null)
+            {
+                return false;
+            }
+
+            ITileQueryService query = roomQuery.Service;
+            room = query.Room;
+            Vector2 localPx = probePx - query.OriginPixel;
+            tile = room.GetTileAtCoord(WorldCoordinates.PixelToTile(localPx));
+            return tile != null;
+        }
+
         /// <summary>
-        /// Maps a world-pixel contact point back to the tile collider that owns it, supplying the
-        /// identity the chain cannot carry (surface material, destructibility).
+        /// A tile impact when the tile comes from the grid rather than a collider — the same order
+        /// as <see cref="HandleImpact"/>'s tile arm: sound (the tile's own material), the hit itself,
+        /// the AoE, then the stop.
+        /// </summary>
+        private void HandleGridTileImpact(TileData tile, RoomInstance room, Vector3 impactWorld)
+        {
+            // AS3 Bullet.sound()'s tile arm passes the tile's own `mat` — the raw AS3 index stored
+            // on TileData, converted exactly as the retired TileSurface component did.
+            PlayImpactSound(TileSurface.FromAs3Material((int)tile.material), impactWorld, surfaceSound: true);
+
+            // AS3 Bullet.as:489 hands `this.destroy` to hitTile unconditionally — a weapon that
+            // cannot breach a wall still leaves a mark.
+            TileDamageApplicator.ApplyHit(
+                tile, _destroyTiles, _decalType, room, room?.Decals, impactWorld, _debugSettings);
+
+            if (_explRadius > 0f && !_hasDetonated)
+            {
+                Detonate(impactWorld);
+                EmitExplosionVisuals(impactWorld);
+            }
+
+            StartImpactAnimation();
+        }
+
+        /// <summary>
+        /// One overlap probe at a chain contact for any <see cref="IDestructibleTile"/> — today a
+        /// door or barricade prop, which owns the collider the stamped cells cannot carry. Interface,
+        /// not a concrete type, so a future destructible prop needs no edit here.
         ///
         /// <para>The probe is offset slightly <i>behind</i> the contact along the surface normal,
         /// because the contact point lies exactly on the chain — the boundary of the solid — where a
@@ -981,38 +1086,7 @@ namespace PFE.Entities.Weapons
         /// point itself. The probe box is 6 px, comfortably inside a 40 px tile and inside the 10 px
         /// one-way platform slab.</para>
         /// </summary>
-        private Collider2D FindTileCollider(Vector2 contactPx)
-        {
-            Collider2D realTile = FindTileColliderAt(contactPx, requiresTileCollider: true);
-            if (realTile != null) return realTile;
-
-            // No `TileCollider` owns this contact — the case a door produces. A closed door stamps
-            // `TilePhysicsType.Wall` over the cells it covers, so the chain reports it as solid, but
-            // those cells are air in the shipped room maps and `TileVisualManager.CreateAllTiles`
-            // only adds a `TileCollider` for a non-air cell (TileVisualManager.cs:188-196). The
-            // result was a surface that stops a round and resolves to nothing: `ResolveTileImpact`
-            // fell through to `StartImpactAnimation()` with no `HandleImpact`, so the round neither
-            // exploded nor damaged the door. That is the owner's "grenade launcher doesn't hit some
-            // doors, the grenade just disappears".
-            //
-            // A second probe for ANY `IDestructibleTile` closes it — the same widening
-            // `MeleeHitVolume.DestructibleColliderAtPixel` already makes for the melee sweep. It is
-            // asked second so a real tile resolves exactly as it always did; only the previously-null
-            // case can change behaviour.
-            return FindTileColliderAt(contactPx, requiresTileCollider: false);
-        }
-
-        /// <summary>
-        /// One overlap probe at a chain contact, asking for either a real <see cref="TileCollider"/>
-        /// or any <see cref="IDestructibleTile"/>.
-        /// </summary>
-        /// <param name="requiresTileCollider">
-        /// <c>true</c> answers only for a <see cref="TileCollider"/> — the original, narrow query,
-        /// kept so a wall's identity (its <see cref="TileSurface"/> material for impact sound) cannot
-        /// be resolved to some other object that happens to overlap the probe. <c>false</c> is the
-        /// door fallback.
-        /// </param>
-        private Collider2D FindTileColliderAt(Vector2 contactPx, bool requiresTileCollider)
+        private Collider2D FindDestructibleAt(Vector2 contactPx)
         {
             Vector2 probePx = _lastContactNormal.sqrMagnitude > 0f
                 ? contactPx - _lastContactNormal * 2f
@@ -1028,15 +1102,6 @@ namespace PFE.Entities.Weapons
                 Collider2D hit = hits[i];
                 if (hit == null || hit.isTrigger) continue;
 
-                // Identified by component rather than by layer number: the tile layers are private
-                // constants inside TileCollider, and a lookup that silently stops matching if those
-                // numbers are ever renumbered would present as "bullets no longer break tiles".
-                if (hit.GetComponent<TileCollider>() != null) return hit;
-                if (requiresTileCollider) continue;
-
-                // The fallback, for a surface the chain reports but no TileCollider owns — a door's
-                // stamped cell, or the door presenter's own solid collider. Interface, not a second
-                // concrete type, so a future destructible prop needs no edit here.
                 if (hit.GetComponent<PFE.Systems.Combat.IDestructibleTile>() != null) return hit;
             }
 
@@ -1189,7 +1254,7 @@ namespace PFE.Entities.Weapons
             transform.rotation = Quaternion.Euler(0f, 0f, angle);
             _rb.rotation       = angle;
 
-            // ── Stage C: hand this flight to the sim, or leave it on the legacy path ───────────
+            // ── Hand this flight to the sim ─────────────────────────────────────────────────────
             _tileContactActive   = false;
             _viewDirty           = false;
             _pendingReturnToPool = false;
@@ -1200,10 +1265,7 @@ namespace PFE.Entities.Weapons
             _beamFadeTimer       = 0f;
             _simPosition         = _spawnPosition;   // world units — the sim's origin for this flight
 
-            if (_debugSettings?.ProjectilesUseLowLevelPhysics == true)
-            {
-                RegisterOnSimLoop();
-            }
+            RegisterOnSimLoop();
 
             if (_debugSettings?.LogProjectileLifecycle == true)
             {
@@ -1289,51 +1351,13 @@ namespace PFE.Entities.Weapons
 
         // ── Unity lifecycle ──────────────────────────────────────────────────
 
-        /// <summary>
-        /// Legacy integration path. Active only when the Stage C flip is <i>not</i> running for this
-        /// instance — see <see cref="FlipActive"/>, which is keyed off the SimLoop registration rather
-        /// than off the settings flag so an instance whose registration failed is still driven.
-        /// </summary>
-        private void FixedUpdate()
-        {
-            if (!_isInitialized) return;
-
-            // With the flip running, SimLoop owns integration. Standing down here is essential:
-            // leaving both drivers active would step the projectile twice per frame, at two rates.
-            if (FlipActive) return;
-
-            float dt = Time.fixedDeltaTime;
-
-            // ── Manual velocity integration (AS3: dx+=ddx, dy+=ddy, x+=dx, y+=dy) ──
-            _velocity.x += _ddx * dt;
-            _velocity.y += _ddy * dt;
-
-            // ── Homing (navod) ────────────────────────────────────────────────
-            if (_navod > 0f)
-                ApplyHoming(dt, transform.position);
-
-            _rb.linearVelocity = _velocity;
-
-            // AS3 accumulates `dist` from the step it just took (`Bullet.as:416`); the legacy path's
-            // step is the velocity handed to the rigidbody for this frame. See
-            // _traveledDistancePixels for why this is arc length rather than start-to-target.
-            _traveledDistancePixels += _velocity.magnitude * dt * TileQueryConstants.UnitToPixel;
-
-            // ── Rotate sprite to face direction of travel ─────────────────────
-            if (!_isImpacting && _velocity.sqrMagnitude > 0.0001f)
-            {
-                float angle = Mathf.Atan2(_velocity.y, _velocity.x) * Mathf.Rad2Deg;
-                _rb.rotation       = angle;
-                transform.rotation = Quaternion.Euler(0f, 0f, angle);
-            }
-
-            // ── Lifetime ──────────────────────────────────────────────────────
-            _lifetimeTimer -= dt;
-            if (_lifetimeTimer <= 0f) ReturnToPool();
-        }
+        // ── Unity lifecycle ──────────────────────────────────────────────────
+        // Integration lives in SimTick — AS3's 30 Hz frame step — and the view write lives in
+        // LateUpdate below. There is deliberately no FixedUpdate path: the per-tile collider grid it
+        // integrated against is gone (Stage D), and a second driver would only be a second clock.
 
         /// <summary>
-        /// The flipped path's view pass: writes sim state out to the Transform and the Rigidbody, and
+        /// The view pass: writes sim state out to the Transform and the Rigidbody, and
         /// performs the pool return that <see cref="SimTick"/> deferred.
         ///
         /// <para><b>Position is written and velocity is zeroed, never both set.</b> A kinematic body
@@ -1581,42 +1605,20 @@ namespace PFE.Entities.Weapons
         /// The round's world position as it will be <i>drawn</i> this frame — the input to the beam's
         /// length.
         ///
-        /// <para><b>Why not just <c>transform.position</c>.</b> On the flipped path the Transform is
-        /// written in <see cref="LateUpdate"/> from <c>_simPosition</c>, i.e. <i>after</i> the
-        /// <see cref="Update"/> that measures the beam. Reading the Transform there would size the beam
-        /// from the previous tick while the round is drawn at the current one — one tick of lag, which
-        /// at a laser's 20 units/tick is a beam that visibly misses its own gun. The legacy path moves
-        /// the Transform from the Rigidbody before <see cref="Update"/>, so there it is already
-        /// current.</para>
+        /// <para><b>Why not just <c>transform.position</c>.</b> The Transform is written in
+        /// <see cref="LateUpdate"/> from <c>_simPosition</c>, i.e. <i>after</i> the <see cref="Update"/>
+        /// that measures the beam. Reading the Transform there would size the beam from the previous
+        /// tick while the round is drawn at the current one — one tick of lag, which at a laser's
+        /// 20 units/tick is a beam that visibly misses its own gun.</para>
         /// </summary>
-        private Vector2 DrawnPosition => FlipActive ? _simPosition : (Vector2)transform.position;
+        private Vector2 DrawnPosition => _simPosition;
 
         private void OnTriggerEnter2D(Collider2D other)
         {
             if (!_isInitialized) return;
 
-            // A tile collider only stops a bullet when the tile is a WALL — see
-            // ProjectileOcclusionRule for the AS3 citations and for why this is not
-            // `TileData.IsSolid()` (that helper includes Platform and Stair, which is how bullets
-            // came to stop in mid-air on every catwalk and ladder).
-            //
-            // The rule lives in one shared place because RoomChainGeometry.IsSolidAt is the flipped
-            // path's half of it: the two must agree or the Stage C flag would change gameplay rather
-            // than only the implementation.
-            TileCollider tileCollider = other.GetComponent<TileCollider>();
-            if (tileCollider != null)
-            {
-                // With the flip running, tile contacts are the chain sweep's job. Without this the
-                // per-tile collider would report the same surface and every wall hit would be
-                // resolved twice — two impact sounds, two damage rolls, two destruction calls, two
-                // AoE detonations.
-                if (FlipActive) return;
-
-                if (!ProjectileOcclusionRule.BlocksProjectile(tileCollider.GetTileData())) return;
-            }
-            // Entity hits are NOT filtered by surface kind — enemies, the player and destructible props
-            // are still Unity colliders in both modes. They ARE filtered by which path owns them, and
-            // that gate sits below the trigger diagnostic so the log keeps working in both modes.
+            // Tile contacts are the chain sweep's job (TryTileContact / ResolveTileImpact) — this
+            // callback only ever resolves entity hits, which are still Unity colliders.
 
             if (other.isTrigger)
             {
@@ -1927,6 +1929,30 @@ namespace PFE.Entities.Weapons
         }
 
         /// <summary>
+        /// The tile-arm flavour of <see cref="PlayImpactSound(Collider2D, Vector3, bool)"/> — the
+        /// surface is a tile from the grid, which has no collider to read a material off, so the
+        /// material arrives already resolved (the tile's raw AS3 <c>mat</c>).
+        /// </summary>
+        private void PlayImpactSound(SurfaceMaterial material, Vector3 impactPos, bool surfaceSound)
+        {
+            ImpactSoundResolver.Resolve(material, _hasDamageContext, _damageContext,
+                impactPos, _soundService, _impactSoundTable, surfaceSound);
+        }
+
+        // The tile seam of the room holding a world-space point — what a blast sweeps. Null when the
+        // point is outside every mirrored room; the sweep then finds no tiles, which is the oracle's
+        // answer for a blast outside any Location.
+        private ITileQueryService TileQueryNear(Vector3 world)
+        {
+            if (_physicsWorld == null) return null;
+
+            Vector2 worldPx = (Vector2)world * TileQueryConstants.UnitToPixel;
+            return _physicsWorld.TryGetRoomTileQueryAt(worldPx, out PFE.Systems.Physics.RoomTileQuery roomQuery)
+                ? roomQuery.Service
+                : null;
+        }
+
+        /// <summary>
         /// The damage context carrying this round's <b>current</b> damage rather than its listed damage.
         /// </summary>
         /// <remarks>
@@ -1993,8 +2019,8 @@ namespace PFE.Entities.Weapons
                 if (BeginBeamFade()) return;
 
                 // A tick must not deactivate a GameObject — the tickable list is being iterated while
-                // this runs. With the flip active the release is deferred to LateUpdate; on the legacy
-                // path (called from OnTriggerEnter2D) it is safe to do immediately.
+                // this runs. When registered on SimLoop the release defers to LateUpdate; an
+                // unregistered instance (no SimLoop in the scene) can release immediately.
                 if (FlipActive) _pendingReturnToPool = true;
                 else            ReturnToPool();
             }
@@ -2124,7 +2150,9 @@ namespace PFE.Entities.Weapons
             // i.e. the tiles are swept *before* the bodies. It is the same call a thrown explosive and a
             // mine make, so all three blasts finally agree — see ExplosionTileDamage for why that had to
             // become one method.
-            ExplosionTileDamage.Apply(centre, _explRadius, _destroyTiles, _damageType, _decalType);
+            ExplosionTileDamage.Apply(
+                TileQueryNear(centre), centre, _explRadius, _destroyTiles, _damageType, _decalType,
+                _debugSettings);
 
             Collider2D[] hits = Physics2D.OverlapCircleAll(centre, _explRadius);
             foreach (var hit in hits)

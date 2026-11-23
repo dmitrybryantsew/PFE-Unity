@@ -759,7 +759,7 @@ namespace PFE.Entities.Units
             // The name is NOT drawn here. It arrives as the placement's `name` attribute, because the
             // draw belongs to the spawn stream that RoomPopulator owns — the same reason the tier
             // itself is rolled there. See RoomPopulator.RollEliteTier.
-            EliteEnemyRegistry.Register(this);
+            _eliteRegistry?.Register(this);
         }
 
         /// <summary>
@@ -938,6 +938,63 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// The flat list of live views this unit registers with — the snapshot projector's unit source
+        /// and every brain's candidate pool. Null until <see cref="AttachViewRegistries"/>; consumers
+        /// reach it through the unit so a fixture can substitute its own registry. Thread E replaced
+        /// the old static registry with this injected instance; a fixture-built unit that never
+        /// attaches simply never appears, which is the honest containerless answer.
+        /// </summary>
+        [LocalOnly(Note = "Wiring reference; view registries, never replicated")]
+        private UnitViewRegistry _viewRegistry;
+
+        /// <summary>
+        /// The promoted-unit registry this unit reports its hero tier to — thread E. Null until the
+        /// spawner (or the player, from injection) attaches the container's instance.
+        /// </summary>
+        [LocalOnly(Note = "Wiring reference; view registries, never replicated")]
+        private EliteEnemyRegistry _eliteRegistry;
+
+        /// <summary>Consumers reach the registry through the unit so a fixture can substitute its own.</summary>
+        internal UnitViewRegistry ViewRegistry => _viewRegistry;
+
+        /// <summary>
+        /// Attach the session's registries, handed down the spawn chain by <c>RoomUnitSpawner</c> (or by
+        /// <c>PlayerController</c>'s injection) — thread E's replacement for the old static registries.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Called after <c>AddComponent</c>, which means after <c>OnEnable</c>.</b> Unity runs
+        /// <c>OnEnable</c> inside <c>AddComponent</c>, before any handover can run, so the first enable
+        /// cannot register and this method does it retroactively for a unit that is already active. A
+        /// unit whose GameObject starts inactive is NOT registered here — its later <c>OnEnable</c>
+        /// registers through the attached instance, which keeps membership exactly the active set, the
+        /// invariant <c>EnemyBrain.RefreshTargetCandidates</c> relies on.</para>
+        ///
+        /// <para><b>Idempotent and order-free.</b> Either argument may be null (a fixture with no
+        /// container); nulls are ignored, not an error, so a partial handover never wipes a previous
+        /// one. Re-attaching the same instances is a no-op.</para>
+        /// </remarks>
+        public void AttachViewRegistries(UnitViewRegistry viewRegistry, EliteEnemyRegistry eliteRegistry)
+        {
+            if (viewRegistry != null)
+            {
+                _viewRegistry?.Unregister(this);
+                _viewRegistry = viewRegistry;
+                if (isActiveAndEnabled)
+                {
+                    _viewRegistry.Register(this);
+                }
+            }
+
+            if (eliteRegistry != null)
+            {
+                _eliteRegistry?.Unregister(this);
+                _eliteRegistry = eliteRegistry;
+                // Promotion is decided in ApplyHeroTier, which runs after this handover on every spawn
+                // path — so there is deliberately no retroactive Register here.
+            }
+        }
+
+        /// <summary>
         /// Re-register with <c>SimLoop</c> across a disable/enable cycle, so a pooled or
         /// streamed-out-then-back unit does not silently stop ticking. <c>SimLoop.Register</c>
         /// de-duplicates, so a double call is harmless.
@@ -951,8 +1008,10 @@ namespace PFE.Entities.Units
 
             // The snapshot projector's flat list of live views. Registered here rather than in the
             // spawner for the same reason as the SimLoop line above: a pooled or re-enabled unit must
-            // come back, and OnEnable is the one hook that fires on every path.
-            UnitViewRegistry.Register(this);
+            // come back, and OnEnable is the one hook that fires on every path. Thread E: against the
+            // attached instance, so fixtures own their own list; the first enable (before the handover)
+            // has no instance yet and is covered retroactively by AttachViewRegistries.
+            _viewRegistry?.Register(this);
         }
 
         /// <summary>
@@ -972,7 +1031,7 @@ namespace PFE.Entities.Units
         /// </summary>
         protected virtual void OnDisable()
         {
-            UnitViewRegistry.Unregister(this);
+            _viewRegistry?.Unregister(this);
         }
 
         /// <summary>
@@ -996,11 +1055,11 @@ namespace PFE.Entities.Units
             // A destroyed unit must not stay on the nameplate's list: the HUD would keep projecting a
             // label onto a destroyed transform (a fake-null entry, exactly the shape this method's own
             // remarks describe for SimLoop). Harmless for a unit that was never promoted.
-            EliteEnemyRegistry.Unregister(this);
+            _eliteRegistry?.Unregister(this);
 
             // ...and the projector's list, for exactly the reason above: a destroyed unit left in it
             // is a fake-null the projector would project every tick.
-            UnitViewRegistry.Unregister(this);
+            _viewRegistry?.Unregister(this);
 
             if (SimDriven)
             {
@@ -1245,6 +1304,14 @@ namespace PFE.Entities.Units
         {
             _tileQuery = tileQuery;
         }
+
+        /// <summary>
+        /// The tile seam of the room this unit belongs to — the same handover as
+        /// <see cref="SetTileQuery"/>, read side. Used by attachments of the unit's rig (a melee hit
+        /// volume asking the tile grid whether the blade entered a wall) so they share the unit's
+        /// room binding instead of carrying their own.
+        /// </summary>
+        public ITileQueryService TileQuery => _tileQuery;
 
         /// <summary>
         /// The room this unit currently belongs to — AS3 <c>Unit.loc</c>, read through the tile query
@@ -5515,6 +5582,19 @@ namespace PFE.Entities.Units
         protected virtual ISoundService DeathSoundService => null;
 
         /// <summary>
+        /// The audio service corpse-dropped loot plays its landing samples through, or <c>null</c> for
+        /// silence. Thread E (<c>SoundBus.Current</c>'s retirement): the drop path used to reach the
+        /// ambient static; now each spawn carries the service its unit was handed.
+        /// </summary>
+        /// <remarks>
+        /// Same forwarding shape as <see cref="DeathSoundService"/>: <c>EnemyController</c> already
+        /// holds the service from <c>SetWeaponServices</c> and forwards it here; the base answer is
+        /// <c>null</c>, which is correct for the player (wired explicitly by <c>PlayerController</c>)
+        /// and for a headless fixture.
+        /// </remarks>
+        protected virtual ISoundService LootDropSoundService => null;
+
+        /// <summary>
         /// Called when this unit dies.
         /// Base implementation logs death. Subclasses can override for death effects.
         /// </summary>
@@ -5524,7 +5604,7 @@ namespace PFE.Entities.Units
 
             // The star goes out with the unit. AS3 hides the whole hpBar when `hp <= 0`
             // (Unit.visDetails():2985), so a corpse keeps neither the bar nor the star.
-            EliteEnemyRegistry.Unregister(this);
+            _eliteRegistry?.Unregister(this);
 
             // AS3 Unit.as:4392-4394 — runScript(), dropLoot(), incStat(). The drop comes BEFORE the XP
             // award (:4397), and that order is observable: the gem chance reads `this.xp`, which the
@@ -6344,7 +6424,8 @@ namespace PFE.Entities.Units
                                               variant: roll.Variant,
                                               condition: roll.Condition * roll.HpMultiplier,
                                               jump: true, room: Room,
-                                              fallSoundId: FallSoundFor(roll.Tip, roll.ItemId, isWeapon: true)) != null)
+                                              fallSoundId: FallSoundFor(roll.Tip, roll.ItemId, isWeapon: true),
+                                              soundService: LootDropSoundService) != null)
                     {
                         spawned++;
                     }
@@ -6367,7 +6448,8 @@ namespace PFE.Entities.Units
                 // falls rather than appearing already at rest.
                 if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true,
                                           jump: true, room: Room,
-                                          fallSoundId: FallSoundFor(roll.Tip, roll.ItemId, isWeapon: false)) != null)
+                                          fallSoundId: FallSoundFor(roll.Tip, roll.ItemId, isWeapon: false),
+                                          soundService: LootDropSoundService) != null)
                 {
                     spawned++;
                 }

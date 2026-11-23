@@ -63,6 +63,20 @@ namespace PFE.Systems.Map.Scripting
         /// during <c>Awake</c>, which Unity does not order against that injection.</summary>
         private Func<PFE.Systems.Map.LandMap> _landMap;
 
+        /// <summary>
+        /// The campaign the per-call land read prefers — thread E, replacing a bare
+        /// <c>CampaignManager.Current</c> read. Rides the same Construct wire as the inventory; a null
+        /// keeps the tracked-static fallback at the read site.
+        /// </summary>
+        private PFE.Systems.Campaign.CampaignManager _campaign;
+
+        /// <summary>
+        /// The script system runners are registered with — thread E, replacing bare
+        /// <c>ScriptSystem.Current</c> reads. Rides the same Construct wire; a null keeps the static
+        /// fallback, which serves the containerless rigs.
+        /// </summary>
+        private ScriptSystem _scriptSystem;
+
         private Action<string> _report;
 
         /// <summary>The inventory instance this is currently subscribed to. The subscription is moved
@@ -89,11 +103,22 @@ namespace PFE.Systems.Map.Scripting
         public int AcquisitionsWithoutScript { get; private set; }
 
         public void Construct(PlayerInventory inventory, Func<PFE.Systems.Map.LandMap> landMap,
-                              Action<string> report = null)
+                              Action<string> report = null,
+                              PFE.Systems.Campaign.CampaignManager campaign = null,
+                              ScriptSystem scriptSystem = null)
         {
             _inventory = inventory;
             _landMap = landMap;
             _report = report ?? (message => Debug.LogWarning(message));
+            if (campaign != null)
+            {
+                _campaign = campaign;
+            }
+
+            if (scriptSystem != null)
+            {
+                _scriptSystem = scriptSystem;
+            }
         }
 
         /// <summary>
@@ -135,7 +160,7 @@ namespace PFE.Systems.Map.Scripting
                 _subscribed = null;
             }
 
-            ScriptSystem system = ScriptSystem.Current;
+            ScriptSystem system = _scriptSystem ?? ScriptSystem.Current;
             if (system != null)
             {
                 for (int i = 0; i < _registered.Count; i++) system.Unregister(_registered[i]);
@@ -182,7 +207,7 @@ namespace PFE.Systems.Map.Scripting
             MapObjectScriptData script = ScriptCatalogHost.Convert(authored.actions);
             if (script == null || script.actions.Count == 0) return false;
 
-            ScriptSystem system = ScriptSystem.Current;
+            ScriptSystem system = _scriptSystem ?? ScriptSystem.Current;
             if (system == null)
             {
                 ReportOnce("(script system)",
@@ -238,7 +263,7 @@ namespace PFE.Systems.Map.Scripting
         {
             if (_registered.Count == 0) return;
 
-            ScriptSystem system = ScriptSystem.Current;
+            ScriptSystem system = _scriptSystem ?? ScriptSystem.Current;
             for (int i = _registered.Count - 1; i >= 0; i--)
             {
                 ScriptRunner runner = _registered[i];
@@ -262,7 +287,7 @@ namespace PFE.Systems.Map.Scripting
         /// </summary>
         private LandItemScript FindItemScript(string itemId)
         {
-            CampaignManager campaign = CampaignManager.Current;
+            CampaignManager campaign = _campaign ?? CampaignManager.Current;
             // `CurrentValue`, not `Value` — R3's ReadOnlyReactiveProperty exposes the latest emission
             // under that name (the same accessor DevConsoleCommands.cs:471 uses for ArmourId).
             LandDefinition land = campaign?.CurrentLand?.CurrentValue;

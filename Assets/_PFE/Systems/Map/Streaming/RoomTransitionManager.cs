@@ -11,6 +11,18 @@ namespace PFE.Systems.Map.Streaming
     /// Manages room transitions when the player uses doors.
     /// Handles coordinate conversion, player repositioning, and camera transitions.
     /// From AS3: Room transition system (fe/land/Land.as lines 1800-2100)
+    ///
+    /// <para><b>Why the locating static survived thread E.</b> This component is placed IN the scene
+    /// with inspector-serialized references (<c>landMap</c>, <c>streamingManager</c>,
+    /// <c>visualController</c>), which a container-created copy could not carry; its consumers are
+    /// physics callbacks (<see cref="DoorTrigger"/>), per-unit components
+    /// (<c>TilePhysicsController</c>), AddComponent-built presenters and a boot-order lint that pins
+    /// the lazy <c>FindFirstObjectByType</c> resolution (<c>MapBridgeBootOrderLintTests</c>) —
+    /// "the manager may not exist yet" is a designed state, not an accident. Thread E's other
+    /// migrations hand instances down where a container can reach; this one cannot be reached, and
+    /// <see cref="Instance"/> is its documented seam, the same pattern
+    /// <c>CampaignManager.Current</c>'s doc cites as the project's answer for scene components.
+    /// </para>
     /// </summary>
     public class RoomTransitionManager : MonoBehaviour, IRoomLayerTransition, PFE.Systems.Map.Actions.IProbRoomHost
     {

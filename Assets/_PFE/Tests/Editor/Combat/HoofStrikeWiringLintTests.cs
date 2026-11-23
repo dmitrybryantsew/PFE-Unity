@@ -370,8 +370,9 @@ namespace PFE.Tests.Editor.Combat
                 "the die attribute is authored on every shipped door and had no caller");
             Assert.That(body, Does.Contain("PlaysOnDie"),
                 "the oracle only plays it for damage types 0..9 (Box.as:848)");
-            Assert.That(body, Does.Contain("SoundBus.Current?.Play"),
-                "reading the id is not playing it");
+            Assert.That(body, Does.Contain("_soundService?.Play"),
+                "reading the id is not playing it (thread E: the service arrives via Initialize, " +
+                "replacing the retired SoundBus.Current)");
         }
 
         /// <summary>

@@ -136,7 +136,7 @@ namespace PFE.Tests.Editor.Core
             { "Systems/Audio/CharacterAudioEventHandler.cs", RngClass.LocalOnly },
             { "Systems/Audio/ImpactSoundResolver.cs", RngClass.LocalOnly },
             { "Systems/Audio/SoundService.cs", RngClass.LocalOnly },
-            { "Systems/Map/Rendering/TileCollider.cs", RngClass.LocalOnly },
+            { "Systems/Map/Rendering/TileDamageApplicator.cs", RngClass.LocalOnly },
             { "UI/MainMenu/MainMenuBackgroundRenderer.cs", RngClass.LocalOnly },
             { "Editor/Importers/SWF/MainMenuCompositionPreviewWindow.cs", RngClass.LocalOnly },
         };

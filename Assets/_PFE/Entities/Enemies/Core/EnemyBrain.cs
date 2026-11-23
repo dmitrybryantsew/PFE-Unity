@@ -2075,14 +2075,17 @@ namespace PFE.Entities.Enemies
             // considers `this`, since `findCel` compares factions and a unit's own faction always
             // matches), `sost > 1` (dead — `IsAlive`), and `doop` (`IsNonLiving`).
             //
-            // The candidate pool is UnitViewRegistry, not FindObjectsByType: the registry is the
+            // The candidate pool is this controller's attached UnitViewRegistry instance, not
+            // FindObjectsByType: the registry is the
             // same flat lifecycle list the snapshot projector uses, maintained by OnEnable/OnDisable,
             // so reading it here costs a list walk instead of a whole-scene object scan PER BRAIN
             // PER TICK (measured 2026-11-18: ~0.4 ms per brain per tick, 8+ brains per tick — the
             // dominant line of the whole sim tick). Membership is active-only, which is exactly what
-            // FindObjectsByType returned.
-            IReadOnlyList<UnitController> units = UnitViewRegistry.Live;
-            for (int i = 0; i < units.Count; i++)
+            // FindObjectsByType returned. Thread E made the registry an instance handed down the
+            // spawn chain; a fixture unit with no registry attached simply sees no pool.
+            IReadOnlyList<UnitController> units = _controller != null ? _controller.ViewRegistry?.Live : null;
+            int unitCount = units?.Count ?? 0;
+            for (int i = 0; i < unitCount; i++)
             {
                 UnitController candidate = units[i];
                 if (candidate == null || ReferenceEquals(candidate, _controller))

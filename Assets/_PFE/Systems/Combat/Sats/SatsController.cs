@@ -141,9 +141,16 @@ namespace PFE.Systems.Combat.Sats
         private int _apBarTicksLeft;
         private Vector2 _pointerWorldPx;
 
-        public SatsController(PFE.Core.InterfacePauseGate pause)
+        /// <summary>
+        /// <paramref name="unitViews"/> is optional so the offline fixtures that build the controller
+        /// with a bare pause gate keep compiling; production registers the registry as a container
+        /// singleton and VContainer fills it in. Thread E: replaces the retired static
+        /// <c>UnitViewRegistry</c> the targeting scan used to read.
+        /// </summary>
+        public SatsController(PFE.Core.InterfacePauseGate pause, UnitViewRegistry unitViews = null)
         {
             _pause = pause;
+            Targeting.ViewRegistry = unitViews;
         }
 
         // ── Scene bindings, pushed by SatsBootstrapper ────────────────────────────────────

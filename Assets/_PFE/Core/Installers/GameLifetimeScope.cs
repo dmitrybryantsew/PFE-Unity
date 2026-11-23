@@ -135,15 +135,16 @@ public class GameLifetimeScope : LifetimeScope
         if (_soundService != null)
         {
             builder.RegisterComponent(_soundService).AsImplementedInterfaces();
-
-            // ...and publish it to the static bus, because a container's open sound and a loot pile's
-            // landing sound are played by objects the container builds with `new GameObject`, which
-            // VContainer never constructs and so can never inject. See SoundBus for why this is a
-            // static and not a registration.
-            SoundBus.Current = _soundService;
         }
         else
             Debug.LogWarning("[GameLifetimeScope] SoundService not assigned — audio will be silent. Add a SoundService component to the scene and assign it.");
+
+        // Wave 2 thread E: the SoundBus.Current static is retired. Every consumer now receives the
+        // service through its build chain — the presenters through RoomObjectVisualManager, corpse
+        // drops through UnitController.LootDropSoundService, player drops through PlayerInventory —
+        // except the room physics layer, which LandMap stamps per heartbeat (see the LandMap block
+        // below). A scene without a SoundService leaves every one of those null and the game plays
+        // silent, exactly as before.
 
         if (_impactSoundTable != null)
             builder.RegisterInstance(_impactSoundTable);
@@ -175,13 +176,30 @@ public class GameLifetimeScope : LifetimeScope
         // === Entity Registry (P3) ===
         builder.Register<IEntityRegistry, EntityRegistry>(Lifetime.Singleton);
 
+        // === Entity-id service (Wave 2 thread E) ===
+        // Every runtime-id allocation, record registration and lifetime stamp runs on this one
+        // instance. Static spawners and AddComponent-built presenters that VContainer cannot reach
+        // keep calling the RuntimeEntityIdContext facade; the build callback Bind()s that facade
+        // to this singleton, so there is exactly one allocator per run on every path — two
+        // allocators would mint colliding runtime ids.
+        builder.Register<RuntimeEntityIdService>(Lifetime.Singleton);
+
+        // === Unit view registries (Wave 2 thread E) ===
+        // The flat live-view list the snapshot projector projects, brains sweep for targets and S.A.T.S.
+        // scans — and its promoted-subset twin the elite nameplate mirrors. Both are plain instance
+        // singletons now (they used to be process-wide statics); RoomUnitSpawner and PlayerController
+        // receive them down their build chains, so a scene reload or a test fixture can never inherit
+        // the previous session's list.
+        builder.Register<PFE.Entities.Units.UnitViewRegistry>(Lifetime.Singleton);
+        builder.Register<PFE.Entities.Units.EliteEnemyRegistry>(Lifetime.Singleton);
+
         // === Player slot context (F-09 / Phase 2.2) ===
         // The slot-indexed answer to "which player is mine", replacing the single-player global
         // scan in Sim-facing code. Single-player today: exactly one slot. Registered for the
         // container's own factories below, and pushed to SinglePlayerSlotContext.Current so the
         // AddComponent-built consumers (RoomUnitSpawner units, SecurityRuntime) that VContainer
-        // never observes can read it back — the same push-at-build shape as SoundBus.Current and
-        // CharacterStats.CombatRng. Under multiplayer a different IPlayerSlotContext is pushed and
+        // never observes can read it back — the same push-at-build shape as SimAuthorityContext.
+        // Under multiplayer a different IPlayerSlotContext is pushed and
         // no consumer changes.
         builder.Register<IPlayerSlotContext, SinglePlayerSlotContext>(Lifetime.Singleton);
         builder.RegisterBuildCallback(container =>
@@ -198,8 +216,12 @@ public class GameLifetimeScope : LifetimeScope
             // Phase 3.2 (F-05): push the container's real singletons into the ambient id carrier.
             // Runtime spawners are static classes and the room presenters are AddComponent-built, so
             // neither can be reached by constructor injection; they read RuntimeEntityIdContext
-            // instead. Configure also resets the allocator, so a scene reload starts a fresh run
-            // rather than inheriting a process-lifetime serial.
+            // instead. Thread E turned the carrier into a facade over the registered
+            // RuntimeEntityIdService singleton: Bind() points the facade at that instance BEFORE
+            // Configure, so the container's registry and a fresh allocator land on the same object
+            // injected consumers receive. Configure also resets the allocator, so a scene reload
+            // starts a fresh run rather than inheriting a process-lifetime serial.
+            RuntimeEntityIdContext.Bind(container.Resolve<RuntimeEntityIdService>());
             RuntimeEntityIdContext.Configure(
                 container.Resolve<IEntityRegistry>(), new RuntimeEntityIdAllocator());
 
@@ -352,6 +374,13 @@ public class GameLifetimeScope : LifetimeScope
         // Pushed at build time, so the loop holds the container's instance before the first tick.
         builder.RegisterBuildCallback(container =>
             container.Resolve<SimLoop>().WorldGate = container.Resolve<InterfacePauseGate>());
+
+        // Thread E: the entity-id service reaches SimLoop by the same push shape as the pause gate
+        // (its constructor is fixture-built, so no third parameter). With this set, StepOnce stamps
+        // ticks on the container's instance; without it (fixtures) the loop falls back to the
+        // ambient facade, which the build callback above already pointed at the same singleton.
+        builder.RegisterBuildCallback(container =>
+            container.Resolve<SimLoop>().EntityIds = container.Resolve<RuntimeEntityIdService>());
 
         // Push the seeded combat RNG into CharacterStats. Its two damage rolls (ApplyOrganDamage's
         // head/torso/legs split and ApplyBloodDamage's bleed roll) were drawing from
@@ -554,10 +583,12 @@ public class GameLifetimeScope : LifetimeScope
             // from the campaign and the level from a scene MonoBehaviour, and neither may exist when
             // the container is built. Returning `null` for an unknown land is the oracle's own
             // `Boolean(lands[val])` guard, not a fallback — the panel then shows the name only.
-            .WithParameter<Func<string, LandLevelFacts?>>(_ => landId =>
+            .WithParameter<Func<string, LandLevelFacts?>>(resolver => landId =>
             {
+                // Thread E: resolved from the container rather than read off the static — the
+                // factory's own resolver is in hand, so no ambient lookup is needed.
                 PFE.Systems.Campaign.CampaignManager campaign =
-                    PFE.Systems.Campaign.CampaignManager.Current;
+                    resolver.Resolve<PFE.Systems.Campaign.CampaignManager>();
                 PFE.Data.Definitions.Campaign.LandDefinition land =
                     campaign != null && campaign.Catalog != null
                         ? campaign.Catalog.GetLand(landId)
@@ -597,10 +628,12 @@ public class GameLifetimeScope : LifetimeScope
             .WithParameter<Action<string>>(_ => null);
 
         // The clock and the registry. AsSelf() is REQUIRED, not decoration: SimTickRegistrar reads the
-        // IAutoRegisteredSimTickable marker to put it on SimLoop, and AreaTriggerSystem reaches the
-        // system through the static ScriptSystem.Current (it is constructed by RoomVisualController,
-        // which the container never observes). As<IAutoRegisteredSimTickable> is what makes "the
-        // interpreter advances at 30 Hz" a declaration instead of a line someone must remember.
+        // IAutoRegisteredSimTickable marker to put it on SimLoop, and the AddComponent-built consumers
+        // reach the system through RoomVisualController's pushed resolver — which hands it to the
+        // AreaTriggerSystem it constructs and registers each room's @targ host with it directly
+        // (thread E), falling back to the ScriptSystem.Current static only on the containerless path.
+        // As<IAutoRegisteredSimTickable> is what makes "the interpreter advances at 30 Hz" a
+        // declaration instead of a line someone must remember.
         builder.RegisterEntryPoint<ScriptSystem>()
             .AsSelf()
             .As<IAutoRegisteredSimTickable>()
@@ -780,7 +813,8 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterEntryPoint<SimTickRegistrar>();
 
         // Phase 3.3 (F-05 closure): the host-side snapshot producer, and the first shipping reader of
-        // RuntimeEntityIdContext.Registry. AsSelf() so the debug overlay and the offline lint can
+        // the entity registry — via the thread-E RuntimeEntityIdService it now takes instead of the
+        // ambient static. AsSelf() so the debug overlay and the offline lint can
         // resolve the concrete type for its counters; As<IAutoRegisteredSimTickable> is what puts it on
         // SimLoop — without that marker it would be constructed, injected and never ticked, which is
         // the silent failure SimTickRegistrar exists to prevent.
@@ -824,6 +858,17 @@ public class GameLifetimeScope : LifetimeScope
 
         // === Map System ===
         builder.Register<LandMap>(Lifetime.Singleton);
+        // Wave 2 thread E (SoundBus retirement): LandMap stamps the active room's physics layer with
+        // the sound service each heartbeat. TryResolve, not a constructor parameter, because the
+        // service is optional — a scene without a SoundService must still boot silent rather than
+        // fail the whole container (the UiSoundService block above documents the same trap).
+        builder.RegisterBuildCallback(container =>
+        {
+            if (container.TryResolve<PFE.Systems.Audio.ISoundService>(out PFE.Systems.Audio.ISoundService soundService))
+            {
+                container.Resolve<LandMap>().SoundService = soundService;
+            }
+        });
         builder.Register<RoomGenerator>(Lifetime.Singleton);
         builder.Register<WorldBuilder>(Lifetime.Singleton);
         builder.RegisterInstance(_tileFormDatabase);
@@ -838,6 +883,27 @@ public class GameLifetimeScope : LifetimeScope
             builder.RegisterInstance(runtimeBackgroundLookup);
             Debug.LogWarning("[GameLifetimeScope] RoomBackgroundLookup is not assigned. Created empty runtime lookup.");
         }
+
+        // Wave 2 thread G — the MapBridge split. The render lookups travel as ONE injected bundle
+        // (built from the instances registered above; VContainer resolves both constructor
+        // parameters from those registrations), and the authoritative land-transition decisions
+        // (entry plan, checkpoint activation, the visited/firstroom campaign writes) live on a
+        // constructible service instead of inside the scene bridge. MapBridge's [Inject] Construct
+        // takes both CONCRETELY — see the AsSelf() note above SimLoop for why any `As<>` on these
+        // would break the scene bootstrap.
+        // The bundle's two ScriptableObject slots are deliberately container-UNREGISTERED:
+        // TileTextureLookup stays scene-serialized on RoomVisualController (the backdrop reader)
+        // and TileMaskLookup belongs to the per-tile pipeline thread C retires. But VContainer
+        // resolves EVERY constructor parameter and never consults a `= null` default (the note
+        // above DamageSystem documents the mechanism) — without the two explicit nulls the throw
+        // escapes LifetimeScope.Awake's AutoInjectAll and NO entry point starts, which reads as
+        // "[MapBridge] GameManager was never injected" and an unseeded starting inventory, not as
+        // "the bundle is missing a lookup". When a slot gains a real owner, replace the matching
+        // line with a registration and drop the WithParameter.
+        builder.Register<RoomRenderAssetBundle>(Lifetime.Singleton)
+            .WithParameter<TileTextureLookup>(_ => null)
+            .WithParameter<TileMaskLookup>(_ => null);
+        builder.Register<LandSessionService>(Lifetime.Singleton);
         // === Game Managers ===
         //builder.Register<GameManager>(Lifetime.Singleton);
         //builder.RegisterEntryPoint<GameManager>();

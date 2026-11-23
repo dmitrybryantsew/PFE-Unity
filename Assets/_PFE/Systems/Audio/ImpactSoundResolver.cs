@@ -67,6 +67,24 @@ namespace PFE.Systems.Audio
             ImpactSoundTable       table,
             bool                   surfaceSound = true)
         {
+            Resolve(DetectMaterial(hitCollider), hasDamageContext, ctx, worldPos, snd, table, surfaceSound);
+        }
+
+        /// <summary>
+        /// The tile-arm flavour of <see cref="Resolve(UnityEngine.Collider2D, bool, DamageContext, Vector2, ISoundService, ImpactSoundTable, bool)"/>:
+        /// the surface arrives already resolved, because a tile read from the grid has no collider to
+        /// detect a material on. Everything else — the two layers, the spam throttle, the cooldown — is
+        /// the same AS3 <c>Bullet.sound()</c>.
+        /// </summary>
+        public static void Resolve(
+            SurfaceMaterial        material,
+            bool                   hasDamageContext,
+            DamageContext          ctx,
+            Vector2                worldPos,
+            ISoundService          snd,
+            ImpactSoundTable       table,
+            bool                   surfaceSound = true)
+        {
             if (snd == null) return;
 
             // ── Layer 1: weapon-specific hit sound (always plays) ─────────────
@@ -82,12 +100,11 @@ namespace PFE.Systems.Audio
             if (table == null) return;
             if (Time.time < _nextAllowedTime) return;
 
-            SurfaceMaterial mat = DetectMaterial(hitCollider);
-            if (mat == SurfaceMaterial.Default) return;
+            if (material == SurfaceMaterial.Default) return;
 
             DamageType dmgType = hasDamageContext ? ctx.DamageType : DamageType.PhysicalBullet;
 
-            if (table.TryGetSound(mat, dmgType, out string soundId, out float volume))
+            if (table.TryGetSound(material, dmgType, out string soundId, out float volume))
             {
                 snd.Play(soundId, worldPos, volume);
                 _nextAllowedTime = Time.time + Random.Range(CooldownMin, CooldownMax);

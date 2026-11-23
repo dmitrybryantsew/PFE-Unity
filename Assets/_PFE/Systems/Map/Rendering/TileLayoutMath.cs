@@ -14,11 +14,10 @@ namespace PFE.Systems.Map.Rendering
     /// that they never drift: two copies that disagree do not read as "the physics moved" or "the
     /// picture moved", they read as "the player floats" next to a perfect-looking room.</para>
     ///
-    /// <para><b>What is pinned where.</b> The existing call sites keep their public API and delegate
-    /// here, so the tests that pin them (<c>TileCollisionBuilderTests.LocalPositionFor_*</c>,
-    /// <c>RoomTerrainWiringTests.CellSize_MatchesTheShippedTileSize</c>,
-    /// <c>RoomTerrainGeometryTests.HeightScale_And_Drop_MatchTheShippedRenderer</c>) now pin this
-    /// class through them. New code should call this class directly rather than add a fourth copy.</para>
+    /// <para><b>What is pinned where.</b> The surviving call sites keep their public API and delegate
+    /// here, so the tests that pin them (<c>RoomTerrainGeometryTests.HeightScale_And_Drop_MatchTheShippedRenderer</c>,
+    /// <c>RoomTerrainWiringTests.CellSize_MatchesTheShippedTileSize</c>) now pin this
+    /// class through them. New code should call this class directly rather than add another copy.</para>
     ///
     /// <para><b>The one formula that changed.</b> <see cref="HeightScale(TileData)"/> clamps
     /// <c>heightLevel</c> to <c>[0, 3]</c> before scaling. The two copies in the shipped sprite path

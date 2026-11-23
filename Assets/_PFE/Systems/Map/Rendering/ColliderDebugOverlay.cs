@@ -22,13 +22,12 @@ namespace PFE.Systems.Map.Rendering
     /// objects and the four text readouts. <c>col on doors,triggers</c> adds two overlays and leaves
     /// everything else exactly as it was.</para>
     ///
-    /// <para><b>What it draws, and why both boxes.</b> For every tile it draws the box the physics
-    /// engine actually has (<c>Collider2D.bounds</c>) <i>and</i> the box the eye actually sees
-    /// (<c>SpriteRenderer.bounds</c>). The two are drawn together on purpose: "the player stands on
-    /// air" is a statement about the gap between them, and a tool that showed only one of the two
-    /// could not tell the difference between "the collider is in the wrong place", "the sprite is
-    /// in the wrong place", and "there is no collider at all". A solid tile with no collider is
-    /// drawn in magenta rather than simply omitted, because the omission is the bug.</para>
+    /// <para><b>What the tile channel draws, and why one box.</b> Since Stage D a tile has no
+    /// GameObject at all — the grid is the collision — so the tile channel draws the box the tile
+    /// <i>data</i> describes (<see cref="TileData.GetBounds"/> through the room origin), which is the
+    /// box the physics actually queries. What the Box2D side of that same geometry looks like is the
+    /// physics channel's job (<c>col on physics</c>); comparing the two is how a chain-mirror drift
+    /// is seen now.</para>
     ///
     /// <para><b>Why it reads its state from <see cref="PfeDebugSettings"/>.</b> So the Inspector
     /// checkboxes, the console commands and the F5/F6 hotkeys are three views of one value rather
@@ -142,7 +141,6 @@ namespace PFE.Systems.Map.Rendering
         // numbers the second one looks exactly like the overlay being off.
         private int _tilesMatched;
         private int _tilesDrawn;
-        private int _tilesWithoutCollider;
         private int _unitsDrawn;
         private int _playersDrawn;
         private int _npcsDrawn;
@@ -360,9 +358,8 @@ namespace PFE.Systems.Map.Rendering
             if (Instance == null) return "counts: the overlay has not run a scan yet.";
 
             var sb = new StringBuilder();
-            sb.Append($"counts: tiles {Instance._tilesMatched} matched in the room, " +
-                      $"{Instance._tilesDrawn} drawn in view, " +
-                      $"{Instance._tilesWithoutCollider} WITHOUT a collider");
+            sb.Append($"counts: tiles {Instance._tilesMatched} matched in the mirrored rooms, " +
+                      $"{Instance._tilesDrawn} drawn in view");
             sb.Append($"\n        units {Instance._unitsDrawn} drawn in view " +
                       $"({Instance._playersDrawn} player, {Instance._npcsDrawn} npc)");
             sb.Append($"\n        room boundary {(Instance._transitionsDrawn ? "drawn" : "not drawn")}");
@@ -422,7 +419,6 @@ namespace PFE.Systems.Map.Rendering
             _usedQuads = 0;
             _tilesMatched = 0;
             _tilesDrawn = 0;
-            _tilesWithoutCollider = 0;
             _unitsDrawn = 0;
             _playersDrawn = 0;
             _npcsDrawn = 0;
@@ -491,42 +487,59 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// A tile as this overlay can see it: the collision-only GameObject and its data.
-        ///
-        /// <para><b>Why the probe is the collider and not a renderer.</b> A tile object no longer has to
-        /// be drawn to be collided with: the quarter renderer draws the room's terrain, and the tile
-        /// objects are built by <see cref="TileCollisionBuilder"/> to carry a <see cref="TileCollider"/>
-        /// and nothing else. Probing renderers would find zero tiles — and a diagnostic that silently
-        /// measures nothing is worse than no diagnostic, because `col` is the tool used to verify that
-        /// collision survived the swap.</para>
+        /// A tile as this overlay can see it since Stage D: no GameObject exists — the tile's data
+        /// and the world rect derived from it (<see cref="TileData.GetBounds"/> plus the room origin)
+        /// are the whole population, read from the same mirrored rooms the chain geometry is built
+        /// from. Probing scene objects would find zero tiles, and a diagnostic that silently measures
+        /// nothing is worse than no diagnostic.
         /// </summary>
         private sealed class TileProbe
         {
-            public GameObject go;
+            public Rect rect;
             public TileData data;
         }
 
         /// <summary>
-        /// Every tile object in the scene — the collision-only objects the quarter terrain path
-        /// builds. A tile no longer carries a renderer at all, so the tile colliders are the whole
-        /// population.
+        /// Every solid tile of every mirrored room, as data rects. Rooms come from
+        /// <see cref="IPhysicsWorldService.MirroredRooms"/> — the same set the chain mirror covers —
+        /// so a room the physics does not know about is not drawn either, and the two channels cannot
+        /// disagree about which room exists.
         /// </summary>
         private static List<TileProbe> CollectTiles()
         {
             var probes = new List<TileProbe>(1024);
 
-            TileCollider[] colliders = FindObjectsByType<TileCollider>(
-                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            IPhysicsWorldService service = ResolvePhysicsWorldService();
+            if (service == null) return probes;
 
-            for (int i = 0; i < colliders.Length; i++)
+            foreach (var entry in service.MirroredRooms)
             {
-                TileCollider collider = colliders[i];
-                if (collider == null) continue;
+                RoomInstance room = entry.Key;
+                if (room == null || room.tiles == null) continue;
 
-                TileData data = collider.GetTileData();
-                if (data == null) continue;
+                float originX = WorldCoordinates.RoomOriginPixelX(room.landPosition.x, room.borderOffset);
+                float originY = WorldCoordinates.RoomOriginPixelY(room.landPosition.y, room.borderOffset);
+                const float toUnits = TileQueryConstants.PixelToUnit;
 
-                probes.Add(new TileProbe { go = collider.gameObject, data = data });
+                for (int x = 0; x < room.width; x++)
+                {
+                    for (int y = 0; y < room.height; y++)
+                    {
+                        TileData tile = room.tiles[x, y];
+                        if (tile == null || tile.physicsType == TilePhysicsType.Air) continue;
+
+                        Rect solidLocal = tile.GetBounds();
+                        probes.Add(new TileProbe
+                        {
+                            data = tile,
+                            rect = new Rect(
+                                (solidLocal.x + originX) * toUnits,
+                                (solidLocal.y + originY) * toUnits,
+                                solidLocal.width * toUnits,
+                                solidLocal.height * toUnits),
+                        });
+                    }
+                }
             }
 
             return probes;
@@ -548,54 +561,12 @@ namespace PFE.Systems.Map.Rendering
 
                 _tilesMatched++;
 
-                Collider2D collider = tr.go.GetComponent<Collider2D>();
-                SpriteRenderer sprite = tr.go.GetComponent<SpriteRenderer>();
-
-                Rect colliderRect = collider != null ? WorldRect(collider.bounds) : Rect.zero;
-                Rect visualRect = ResolveVisualRect(tr.go.transform, sprite, colliderRect);
-
-                // The mismatch pair. TileCollisionBuilder attaches a TileCollider only when
-                // physicsType != Air, so "solid in the data, absent in physics" is the shape of a
-                // tile that renders as floor and cannot be stood on, which is the whole question.
-                //
                 // Counted BEFORE the view test, so the number in the legend is a property of the
                 // room rather than of where the camera happens to be. A count that silently changes
                 // when you scroll is a count that cannot be compared between two screenshots.
-                bool missingCollider = data.physicsType != TilePhysicsType.Air && collider == null;
-                bool unexpectedCollider = data.physicsType == TilePhysicsType.Air && collider != null;
+                if (!view.Overlaps(tr.rect)) continue;
 
-                if (missingCollider || unexpectedCollider) _tilesWithoutCollider++;
-
-                if (!view.Overlaps(colliderRect) && !view.Overlaps(visualRect)) continue;
-
-                if (missingCollider || unexpectedCollider)
-                {
-                    EmitBox(visualRect, TileLineWidth * 2f, TileMismatchColor);
-                    _tilesDrawn++;
-                    continue;
-                }
-
-                if (collider != null)
-                {
-                    EmitBox(colliderRect, TileLineWidth, ColorForPhysicsType(data.physicsType));
-                }
-                else
-                {
-                    // Only reachable for an air tile, which has no collider by construction
-                    // (TileCollisionBuilder attaches one only when physicsType != Air).
-                    // Drawing its cell is the only thing there is to show, and it is what makes the
-                    // air flag useful rather than an empty toggle.
-                    EmitBox(visualRect, TileLineWidth, TileAirColor);
-                }
-
-                // The eye's box, drawn thin and white over the physics box — but only when it is a
-                // different box. Where the two agree there is nothing to compare and four more quads
-                // is just a slower frame; where they differ, that difference IS the finding.
-                bool sameBox = collider != null && SameRect(colliderRect, visualRect, VisualBoxEpsilon);
-                if (!sameBox)
-                {
-                    EmitBox(visualRect, TileLineWidth * VisualLineWidthScale, TileVisualColor);
-                }
+                EmitBox(tr.rect, TileLineWidth, ColorForPhysicsType(data.physicsType));
 
                 _tilesDrawn++;
             }
@@ -777,44 +748,6 @@ namespace PFE.Systems.Map.Rendering
 
             return maxX >= view.xMin && minX <= view.xMax
                 && maxY >= view.yMin && minY <= view.yMax;
-        }
-
-        /// <summary>
-        /// Do two world rects describe the same box, to within <paramref name="epsilon"/> on every
-        /// edge? Used to skip the duplicate box rather than to decide anything about physics.
-        /// </summary>
-        private static bool SameRect(Rect a, Rect b, float epsilon)
-        {
-            return Mathf.Abs(a.xMin - b.xMin) <= epsilon
-                && Mathf.Abs(a.xMax - b.xMax) <= epsilon
-                && Mathf.Abs(a.yMin - b.yMin) <= epsilon
-                && Mathf.Abs(a.yMax - b.yMax) <= epsilon;
-        }
-
-        /// <summary>
-        /// The "what the eye sees" box for a tile, with a fallback for the case where there is
-        /// nothing to measure.
-        ///
-        /// <para>A tile object can legitimately have no sprite (the quarter renderer draws the terrain;
-        /// the tile objects are collision-only) and no collider at the same time — an air tile. Returning
-        /// an empty rect there
-        /// would make the tile silently vanish from the overlay — and worse, it would be filtered out
-        /// by the camera-view test, because <c>Rect.zero</c> is at the world origin. So the fallback
-        /// is a one-cell marker centred on the tile's own transform: an approximation, but an
-        /// approximation that is visible and labelled by its colour, which is the property that
-        /// matters for a diagnostic.</para>
-        /// </summary>
-        private static Rect ResolveVisualRect(Transform tileTransform, SpriteRenderer sprite, Rect colliderRect)
-        {
-            if (sprite != null && sprite.sprite != null) return WorldRect(sprite.bounds);
-            if (colliderRect.width > 0f && colliderRect.height > 0f) return colliderRect;
-
-            // One tile cell, centred on the tile's own world position. TileData.GetBounds() would
-            // give the same answer, but it is in room-local pixel space and would need the room
-            // origin — this needs no convention at all.
-            const float halfCell = 0.2f; // 40 px / 2 / 100
-            Vector3 p = tileTransform.position;
-            return new Rect(p.x - halfCell, p.y - halfCell, halfCell * 2f, halfCell * 2f);
         }
 
         private static Color ColorForPhysicsType(TilePhysicsType type)
@@ -1015,44 +948,20 @@ namespace PFE.Systems.Map.Rendering
 
             TileProbe physicsTile = null;
             float physicsTileTop = float.NegativeInfinity;
-            Collider2D physicsCollider = null;
 
-            TileProbe visualTile = null;
-            float visualTileTop = float.NegativeInfinity;
-
-            // Whether ANY tile in this room carries a sprite. On the quarter terrain path none does —
-            // the terrain is a mesh — and "collider only" is then the expected shape rather than the
-            // invisible-floor defect this probe exists to find. Without this the verdict would cry wolf
-            // on every step in the default mode, and a diagnostic that always alarms gets ignored.
-            bool anyTileSprite = false;
-
+            // The feet question is answered from the tile data alone since Stage D: the probe rect IS
+            // the solid box the physics queries (TileData.GetBounds through the room origin), and no
+            // tile carries a sprite — the quarter renderer draws the terrain as a mesh, so the
+            // visual half of this probe is permanently "not applicable" rather than measured.
             for (int i = 0; i < tiles.Count; i++)
             {
                 TileProbe tr = tiles[i];
                 if (tr == null || tr.data == null) continue;
 
-                Collider2D collider = tr.go.GetComponent<Collider2D>();
-                if (collider != null)
+                if (Contains(tr.rect, footPoint) && tr.rect.yMax > physicsTileTop)
                 {
-                    Rect cr = WorldRect(collider.bounds);
-                    if (Contains(cr, footPoint) && cr.yMax > physicsTileTop)
-                    {
-                        physicsTileTop = cr.yMax;
-                        physicsTile = tr;
-                        physicsCollider = collider;
-                    }
-                }
-
-                SpriteRenderer sprite = tr.go.GetComponent<SpriteRenderer>();
-                if (sprite != null && sprite.sprite != null)
-                {
-                    anyTileSprite = true;
-                    Rect vr = WorldRect(sprite.bounds);
-                    if (Contains(vr, footPoint) && vr.yMax > visualTileTop)
-                    {
-                        visualTileTop = vr.yMax;
-                        visualTile = tr;
-                    }
+                    physicsTileTop = tr.rect.yMax;
+                    physicsTile = tr;
                 }
             }
 
@@ -1066,16 +975,14 @@ namespace PFE.Systems.Map.Rendering
 
             if (physicsTile == null)
             {
-                sb.Append("\n  physics  tile : NONE — no tile collider contains the point under the feet.");
+                sb.Append("\n  physics  tile : NONE — no solid tile contains the point under the feet.");
             }
             else
             {
                 float gapPixels = (bounds.min.y - physicsTileTop) * PixelsPerUnit;
 
                 sb.Append($"\n  physics  tile : {Describe(physicsTile)}");
-                sb.Append($"\n                  collider={physicsCollider.GetType().Name}" +
-                          $" usedByEffector={physicsCollider.usedByEffector}" +
-                          $" top={physicsTileTop * PixelsPerUnit:0.#} px");
+                sb.Append($"\n                  top={physicsTileTop * PixelsPerUnit:0.#} px (the tile data's own box)");
                 sb.Append($"\n                  gap feet->top = {gapPixels:0.#} px");
                 sb.Append($"\n                  AS3 porog HERE = {TileQueryConstants.PlayerPorogGrounded:0.#} px" +
                           "  (grounded player, UnitPlayer.as:2530)");
@@ -1087,225 +994,28 @@ namespace PFE.Systems.Map.Rendering
                           " running or holding Up (UnitPlayer.as:2533)");
             }
 
-            sb.Append(visualTile != null
-                ? $"\n  visual   tile : {Describe(visualTile)}" +
-                  $" spriteTop={visualTileTop * PixelsPerUnit:0.#} px"
-                : anyTileSprite
-                    ? "\n  visual   tile : NONE — nothing is drawn under the feet."
-                    : "\n  visual   tile : not applicable — no tile in this room has a sprite " +
+            sb.Append("\n  visual   tile : not applicable — no tile in this room has a sprite " +
                       "(the quarter terrain renderer draws the room as a mesh)");
 
             sb.Append("\n  verdict       : ").Append(Verdict(
-                physicsTile, visualTile, physicsTileTop, bounds.min.y, anyTileSprite));
+                physicsTile, physicsTileTop, bounds.min.y));
 
             return sb.ToString();
         }
 
-        // ── Gaps: the same question asked of every tile at once ──────────────
-
-        /// <summary>Alpha above which a texture row counts as "drawn".</summary>
-        private const float OpaqueThreshold = 0.05f;
-
-        private struct GapStats
-        {
-            public int Count;
-            public int SpriteOnly;      // has a sprite, no collider
-            public int ColliderOnly;    // has a collider, no sprite
-            public int Unreadable;      // sprite texture not readable, so not measured
-            public float Min;
-            public float Max;
-            public float Sum;
-
-            public float Mean => Count > 0 ? Sum / Count : 0f;
-
-            public void Add(float gapPixels)
-            {
-                if (Count == 0) { Min = gapPixels; Max = gapPixels; }
-                else { if (gapPixels < Min) Min = gapPixels; if (gapPixels > Max) Max = gapPixels; }
-                Count++;
-                Sum += gapPixels;
-            }
-        }
+        // ── Gaps: retired with the per-tile objects ──────────────────────────
 
         /// <summary>
-        /// For every tile in the scene, compare the collider's top edge with the <b>visible</b> top edge
-        /// of the sprite — the topmost texture row that is not transparent — grouped by physics type.
-        ///
-        /// <para><b>Why this exists, and why it is not just <see cref="Probe"/> in a loop.</b> The
-        /// probe answers "what is under the player right now", which needs the player to be standing in
-        /// the interesting place and produces one number per screenshot. This answers "is the drawn
-        /// surface where the collider says it is" for <i>every</i> tile, so the §5 discriminator in
-        /// <c>docs/Research/SHELF_CATWALK_DIAGNOSIS_2026-09-30.md</c> ("is the gap the same on a plain
-        /// floor tile as on a catwalk?") is a single command rather than a walk-around.</para>
-        ///
-        /// <para><b>The one measurement the earlier passes could not make.</b> Everything so far used
-        /// <c>SpriteRenderer.bounds</c>, which is the full 40x40 cell rect and therefore always lands
-        /// exactly on the collider top — it cannot see a texture whose opaque region does not fill its
-        /// cell. This samples the texture's alpha, so a plank drawn only in the top 29 of 40 rows, or
-        /// drawn offset, shows up as a number instead of a guess. The earlier screenshot measurement
-        /// was taken at roughly 0.5 screen px per game px, where the 4-6 px question at stake is 2-3
-        /// screen px — below what the image can resolve. This is the same question asked at full
-        /// resolution.</para>
-        ///
-        /// <para><b>How to read it.</b> A positive gap means the visible surface sits <i>below</i> the
-        /// collision surface, so a body correctly resting on the collider appears to stand on air —
-        /// the reported symptom, as arithmetic. Near-zero everywhere means the art and the collider
-        /// agree and the fault is elsewhere. Grouped by physics type so "only the shelves" and "every
-        /// tile" are different answers, which is exactly the fork §5 describes.</para>
+        /// Retired with the per-tile objects. The measurement compared each tile's collider top with
+        /// the topmost opaque row of its own sprite; since Stage D a tile has neither — the collision
+        /// is the tile data and the art lives in the quarter renderer's mesh — so there is nothing to
+        /// pair and nothing to sample. Use <see cref="Probe"/> for the tile under the player.
         /// </summary>
         public static string Gaps()
         {
-            List<TileProbe> tiles = CollectTiles();
-
-            var byType = new Dictionary<TilePhysicsType, GapStats>();
-            var unreadableTypes = new HashSet<string>();
-            int considered = 0;
-
-            for (int i = 0; i < tiles.Count; i++)
-            {
-                TileProbe tr = tiles[i];
-                if (tr == null || tr.data == null) continue;
-
-                TilePhysicsType type = tr.data.physicsType;
-                if (!byType.TryGetValue(type, out GapStats stats)) stats = new GapStats();
-
-                Collider2D collider = tr.go.GetComponent<Collider2D>();
-                SpriteRenderer sprite = tr.go.GetComponent<SpriteRenderer>();
-                bool hasSprite = sprite != null && sprite.sprite != null;
-
-                if (collider == null && hasSprite) stats.SpriteOnly++;
-                else if (collider != null && !hasSprite) stats.ColliderOnly++;
-
-                if (collider != null && hasSprite)
-                {
-                    considered++;
-                    if (TryGetOpaqueTopWorld(sprite, out float visibleTop))
-                    {
-                        float colliderTop = WorldRect(collider.bounds).yMax;
-                        stats.Add((colliderTop - visibleTop) * PixelsPerUnit);
-                    }
-                    else
-                    {
-                        stats.Unreadable++;
-                        if (sprite.sprite.texture != null && !sprite.sprite.texture.isReadable)
-                        {
-                            unreadableTypes.Add($"{type}:{sprite.sprite.texture.name}");
-                        }
-                    }
-                }
-
-                byType[type] = stats;
-            }
-
-            var sb = new StringBuilder();
-            sb.Append("[collider] Tile surface gaps — collider top minus VISIBLE sprite top, in game px.");
-            sb.Append("\n  positive = the drawn surface is BELOW the collision surface");
-            sb.Append(" (a body on the collider looks like it stands on air).");
-            sb.Append($"\n  tiles with both a collider and a sprite: {considered}");
-
-            if (considered == 0)
-            {
-                sb.Append("\n  NOTHING to measure. Either no tile has a collider, or none has a sprite,");
-                sb.Append("\n  or the room is not built. On the quarter terrain path the tiles have NO");
-                sb.Append("\n  sprites at all by design, so this is the expected answer there — use");
-                sb.Append("\n  `col probe` for the tile under the player, or `col tiles` for the boxes.");
-                return sb.ToString();
-            }
-
-            sb.Append("\n");
-            sb.Append("\n  physicsType   count   min      mean     max     flags");
-
-            // Ordered so the interesting types read first rather than in enum order.
-            var order = new[]
-            {
-                TilePhysicsType.Platform, TilePhysicsType.Wall,
-                TilePhysicsType.Stair, TilePhysicsType.Air,
-            };
-
-            foreach (TilePhysicsType type in order)
-            {
-                if (!byType.TryGetValue(type, out GapStats s)) continue;
-                AppendGapRow(sb, type.ToString(), s);
-                byType.Remove(type);
-            }
-
-            foreach (KeyValuePair<TilePhysicsType, GapStats> leftover in byType)
-            {
-                AppendGapRow(sb, leftover.Key.ToString(), leftover.Value);
-            }
-
-            if (unreadableTypes.Count > 0)
-            {
-                sb.Append("\n  UNREADABLE textures (not measured): ");
-                foreach (string name in unreadableTypes) sb.Append(name).Append(' ');
-            }
-
-            sb.Append("\n  note: only tiles with BOTH a collider and a sprite are measured.");
-            sb.Append(" Air tiles have no collider, so they appear only as counts.");
-            return sb.ToString();
-        }
-
-        private static void AppendGapRow(StringBuilder sb, string label, GapStats s)
-        {
-            string flags = (s.SpriteOnly > 0 ? $"spriteOnly={s.SpriteOnly} " : string.Empty) +
-                           (s.ColliderOnly > 0 ? $"colliderOnly={s.ColliderOnly} " : string.Empty) +
-                           (s.Unreadable > 0 ? $"unreadable={s.Unreadable}" : string.Empty);
-
-            sb.Append($"\n  {label,-12}  {s.Count,5}");
-            if (s.Count == 0)
-            {
-                sb.Append("       —        —        —     ").Append(flags);
-                return;
-            }
-
-            sb.Append($"  {s.Min,7:0.##}  {s.Mean,7:0.##}  {s.Max,7:0.##}   ").Append(flags);
-        }
-
-        /// <summary>
-        /// The world-space Y of the topmost non-transparent row of a sprite, or false if the texture
-        /// cannot be read or is fully transparent.
-        ///
-        /// <para>Reads only the sprite's own sub-rect, not the whole texture: tiles are packed into a
-        /// shared 2048x2048 atlas, and reading that per tile would be 4M colours each.</para>
-        /// </summary>
-        private static bool TryGetOpaqueTopWorld(SpriteRenderer spriteRenderer, out float worldTop)
-        {
-            worldTop = 0f;
-
-            Sprite sprite = spriteRenderer.sprite;
-            if (sprite == null) return false;
-
-            Texture2D texture = sprite.texture;
-            if (texture == null || !texture.isReadable) return false;
-
-            Rect rect = sprite.textureRect;
-            int x0 = Mathf.Clamp(Mathf.RoundToInt(rect.x), 0, Mathf.Max(0, texture.width - 1));
-            int y0 = Mathf.Clamp(Mathf.RoundToInt(rect.y), 0, Mathf.Max(0, texture.height - 1));
-            int w = Mathf.Clamp(Mathf.RoundToInt(rect.width), 1, texture.width - x0);
-            int h = Mathf.Clamp(Mathf.RoundToInt(rect.height), 1, texture.height - y0);
-
-            Color[] pixels = texture.GetPixels(x0, y0, w, h);   // row 0 is the BOTTOM row
-            if (pixels == null || pixels.Length < w * h) return false;
-
-            int rowsFromTop = -1;
-            for (int row = h - 1; row >= 0 && rowsFromTop < 0; row--)
-            {
-                int rowBase = row * w;
-                for (int x = 0; x < w; x++)
-                {
-                    if (pixels[rowBase + x].a > OpaqueThreshold)
-                    {
-                        rowsFromTop = (h - 1) - row;
-                        break;
-                    }
-                }
-            }
-
-            if (rowsFromTop < 0) return false;   // fully transparent
-
-            Bounds bounds = spriteRenderer.bounds;
-            worldTop = bounds.max.y - (rowsFromTop / (float)h) * bounds.size.y;
-            return true;
+            return "[collider] Tile surface gaps: retired — per-tile colliders and sprites went with " +
+                   "Stage D. The collision box is the tile data (see `col tiles` / `col probe`); the " +
+                   "drawn surface lives in the quarter renderer's terrain mesh.";
         }
 
         private static string Describe(TileProbe tr)
@@ -1319,27 +1029,11 @@ namespace PFE.Systems.Map.Rendering
                    $" slope={data.slopeType}";
         }
 
-        private static string Verdict(TileProbe physicsTile, TileProbe visualTile,
-                                      float physicsTileTop, float feetY, bool anyTileSprite)
+        private static string Verdict(TileProbe physicsTile, float physicsTileTop, float feetY)
         {
-            if (physicsTile == null && visualTile == null)
-                return "NOTHING here — neither a collider nor a sprite. The feet are in empty space.";
-
             if (physicsTile == null)
-                return "SPRITE ONLY — something is drawn here but no collider is. " +
-                       "This is the 'standing on air' shape: the floor is visible and not solid.";
-
-            if (visualTile == null && !anyTileSprite)
-                return "COLLIDER ONLY, and no tile in this room has a sprite at all — the terrain is " +
-                       "drawn by the quarter renderer, so this is the EXPECTED shape, not a defect. " +
-                       "The gap number below is the part that still means something.";
-
-            if (visualTile == null)
-                return "COLLIDER ONLY — the feet are supported by a tile that is not drawn. " +
-                       "Invisible floor.";
-
-            if (physicsTile != visualTile)
-                return "DISAGREEMENT — physics and the sprite put a DIFFERENT tile under the feet.";
+                return "NOTHING here — no solid tile contains the point under the feet. " +
+                       "The feet are in empty space.";
 
             // The yardstick is the PLAYER's allowance, not the unit's. The probe always describes the
             // player, and AS3 gives a grounded player porog = 0 (UnitPlayer.as:2530) where a generic
@@ -1364,8 +1058,8 @@ namespace PFE.Systems.Map.Rendering
                        "with the shelf beyond that (Unit.as:2578), so a player RESTING here should be " +
                        $"falling. The unit's {UnitPorogPixels:0.#} px is a different mover's allowance.";
 
-            return $"SUPPORTED — collider and sprite agree, gap {gapPixels:0.#} px is within the " +
-                   $"player's {allowancePixels:0.#} px porog, so AS3 seats the feet on the surface.";
+            return $"SUPPORTED — gap {gapPixels:0.#} px is within the player's " +
+                   $"{allowancePixels:0.#} px porog, so AS3 seats the feet on the surface.";
         }
 
         private static bool Contains(Rect rect, Vector2 point)
@@ -1426,11 +1120,10 @@ namespace PFE.Systems.Map.Rendering
               .Append("    <i>F5 tiles</i>=").Append(tiles)
               .Append("  <i>F6 units</i>=").Append(units);
 
-            // "matched" and "WITHOUT a collider" are whole-room counts; "drawn" is view-limited.
-            // Labelled explicitly, because "41 matched, 37 drawn" otherwise invites the subtraction
-            // 41 - 37 = 4 and the conclusion that four tiles lost their collider.
-            sb.Append($"\ntiles: {_tilesMatched} matched in the room, {_tilesDrawn} drawn in view, " +
-                      $"{_tilesWithoutCollider} <color=#ff00ff>WITHOUT a collider</color>");
+            // "matched" is a whole-room count; "drawn" is view-limited. Labelled explicitly, because
+            // "41 matched, 37 drawn" otherwise invites the subtraction 41 - 37 = 4 and the conclusion
+            // that four tiles vanished.
+            sb.Append($"\ntiles: {_tilesMatched} matched in the mirrored rooms, {_tilesDrawn} drawn in view");
 
             sb.Append($"\nunits: {_unitsDrawn} drawn ({_playersDrawn} player, {_npcsDrawn} npc)" +
                       $"    room boundary: {(_transitionsDrawn ? "drawn" : "not drawn")}");

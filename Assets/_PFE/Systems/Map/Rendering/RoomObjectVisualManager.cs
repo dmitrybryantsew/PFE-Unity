@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using PFE.Data.Definitions;
+using PFE.Systems.Audio;
 using PFE.Systems.Map.Actions;
 using PFE.Systems.Map.Scripting;
 using UnityEngine;
@@ -283,12 +284,20 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
-        public RoomObjectVisualManager(RoomInstance room, Transform staticParent, Transform physicalParent, AreaTriggerSystem triggerSystem = null)
+        /// <summary>
+        /// The service presenters play their open/die samples and ejected loot's landings through —
+        /// thread E, replacing the retired <c>SoundBus.Current</c>. Optional so the offline fixtures
+        /// that build a manager over a bare room keep compiling; production passes the scene's service.
+        /// </summary>
+        private readonly ISoundService _soundService;
+
+        public RoomObjectVisualManager(RoomInstance room, Transform staticParent, Transform physicalParent, AreaTriggerSystem triggerSystem = null, ISoundService soundService = null)
         {
             _room = room;
             _staticParent = staticParent;
             _physicalParent = physicalParent != null ? physicalParent : staticParent;
             TriggerSystem = triggerSystem;
+            _soundService = soundService;
         }
 
         public void RefreshAll()
@@ -523,7 +532,7 @@ namespace PFE.Systems.Map.Rendering
                 {
                     containerPresenter = presenter.gameObject.AddComponent<ContainerPropPresenter>();
                 }
-                containerPresenter.Initialize(_room, obj, visual, presenter.renderer);
+                containerPresenter.Initialize(_room, obj, visual, presenter.renderer, _soundService);
             }
             else if (usesDoorPresenter)
             {
@@ -532,7 +541,7 @@ namespace PFE.Systems.Map.Rendering
                 {
                     doorPresenter = presenter.gameObject.AddComponent<DoorPropPresenter>();
                 }
-                doorPresenter.Initialize(_room, obj, visual, presenter.renderer, TriggerSystem);
+                doorPresenter.Initialize(_room, obj, visual, presenter.renderer, TriggerSystem, _soundService);
 
                 // Hand over the dispatcher the admission test above was answered from, so the presenter
                 // runs the same one. Without this each presenter would build its own from the same

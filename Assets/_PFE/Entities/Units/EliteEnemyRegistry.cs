@@ -20,24 +20,28 @@ namespace PFE.Entities.Units
     /// <see cref="UnitController.HeroTier"/>, which also reports a <c>hero="1"</c> placement the oracle
     /// refuses to promote.</para>
     ///
-    /// <para><b>Static state, and why it is safe.</b> The list holds <c>UnitController</c> references
-    /// only for units that are alive and promoted. Both ends unregister — <c>OnDeath</c> and
-    /// <c>OnDestroy</c> — and <see cref="Live"/> prunes anything Unity has destroyed in the meantime, so
-    /// a missed unregister degrades to one stale entry rather than a <c>MissingReferenceException</c> per
-    /// frame. <see cref="Reset"/> exists for a test that needs a clean session.</para>
+    /// <para><b>An instance, not a static — thread E.</b> The class used to keep a process-wide list plus
+    /// two static events; a view destroyed without unsubscribing leaked into every later session and a
+    /// <c>Reset()</c> in teardown papered over it. The container owns ONE instance
+    /// (<c>GameLifetimeScope</c>, singleton) and pushes it down the same spawn chain as
+    /// <see cref="UnitViewRegistry"/>: a unit registers/unregisters against the attached instance, and
+    /// <c>EliteNameplateView</c> subscribes to that instance's events. Both ends unregister —
+    /// <c>OnDeath</c> and <c>OnDestroy</c> — and <see cref="Live"/> prunes anything Unity has destroyed
+    /// in the meantime, so a missed unregister degrades to one stale entry rather than a
+    /// <c>MissingReferenceException</c> per frame. <see cref="Reset"/> remains for a session rebuild.</para>
     /// </summary>
-    public static class EliteEnemyRegistry
+    public sealed class EliteEnemyRegistry
     {
-        private static readonly List<UnitController> _live = new List<UnitController>();
+        private readonly List<UnitController> _live = new List<UnitController>();
 
         /// <summary>Raised once per promoted unit, after its stats and name are final.</summary>
-        public static event Action<UnitController> Registered;
+        public event Action<UnitController> Registered;
 
         /// <summary>Raised when a promoted unit dies or is destroyed.</summary>
-        public static event Action<UnitController> Unregistered;
+        public event Action<UnitController> Unregistered;
 
         /// <summary>The promoted units that still exist. Never null; may be empty.</summary>
-        public static IReadOnlyList<UnitController> Live
+        public IReadOnlyList<UnitController> Live
         {
             get
             {
@@ -47,7 +51,7 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>Add a promoted unit. Idempotent.</summary>
-        public static void Register(UnitController unit)
+        public void Register(UnitController unit)
         {
             if (unit == null || _live.Contains(unit)) return;
 
@@ -56,7 +60,7 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>Remove a unit. Safe for one that was never promoted.</summary>
-        public static void Unregister(UnitController unit)
+        public void Unregister(UnitController unit)
         {
             if (unit == null) return;
             if (!_live.Remove(unit)) return;
@@ -65,7 +69,7 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>Drop every entry and every subscriber — for a test, or a new session.</summary>
-        public static void Reset()
+        public void Reset()
         {
             _live.Clear();
             Registered = null;
@@ -76,7 +80,7 @@ namespace PFE.Entities.Units
         /// Drop entries Unity has destroyed without reaching <see cref="Unregister"/> — the fake-null
         /// case the rest of the entity layer already guards against.
         /// </summary>
-        private static void Prune()
+        private void Prune()
         {
             for (int i = _live.Count - 1; i >= 0; i--)
             {
