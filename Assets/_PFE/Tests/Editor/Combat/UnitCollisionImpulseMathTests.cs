@@ -227,5 +227,48 @@ namespace PFE.Tests.Editor.Combat
             Assert.IsTrue(UnitCollisionImpulseMath.CollisionTipDefault,
                 "AS3 declares `public var collisionTip:int = 1` (Unit.as:196)");
         }
+
+        /// <summary>
+        /// The id-keyed half of the oracle's <c>collisionTip = 0</c> list — the three archetype rows
+        /// whose deleted leaf controllers used to answer per class, plus <c>scythe</c>, the recorded
+        /// gap the id rule closes (<c>UnitScythe.as:44</c>). Behavioural, so it runs where the source
+        /// lint it replaces could not assert the negative case.
+        /// </summary>
+        [Test]
+        public void DisablesContactExchange_ListsTheIdKeyedClasses()
+        {
+            foreach (string id in new[]
+            {
+                "spectre",   // UnitSpectre.as:33
+                "necros",    // UnitNecros.as:29
+                "slime",     // UnitSlime.as:65
+                "cryoslime",
+                "pinkslime",
+                "scythe",    // UnitScythe.as:44
+            })
+            {
+                Assert.IsTrue(UnitCollisionImpulseMath.DisablesContactExchange(id),
+                    $"'{id}' authors collisionTip = 0 in its AS3 constructor");
+            }
+        }
+
+        /// <summary>
+        /// The negative control for <see cref="DisablesContactExchange_ListsTheIdKeyedClasses"/> —
+        /// an ordinary attacker (a zombie claw, a raider bash, the player) keeps the exchange, and an
+        /// empty id (a definition-less test spawn) must not silently disable it either.
+        /// </summary>
+        [Test]
+        public void DisablesContactExchange_KeepsOrdinaryUnitsAndUnknownIds()
+        {
+            foreach (string id in new[]
+            {
+                "zombie0", "raider1", "merc3", "turret2", "fish1",
+                "", null,
+            })
+            {
+                Assert.IsFalse(UnitCollisionImpulseMath.DisablesContactExchange(id),
+                    $"'{id}' must keep the momentum exchange");
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ using PFE.Data.Definitions;
 using PFE.Entities.Enemies;
 using PFE.Entities.Enemies.Archetypes;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 using PFE.Systems.Combat;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;

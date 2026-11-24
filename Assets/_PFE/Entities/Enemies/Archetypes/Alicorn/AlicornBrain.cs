@@ -2,6 +2,7 @@ using System;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 using PFE.Systems.Combat;
 using PFE.Systems.Magic;
 using PFE.Systems.Weapons;

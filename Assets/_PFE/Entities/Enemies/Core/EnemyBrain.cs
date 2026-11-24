@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 using PFE.Systems.Campaign;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Actions;
@@ -215,7 +216,7 @@ namespace PFE.Entities.Enemies
         {
             if (_simLoop != null)
             {
-                _simLoop.Unregister(this);
+                UnregisterSimDrive();
                 _simLoop = null;
             }
         }
@@ -248,11 +249,44 @@ namespace PFE.Entities.Enemies
                         this);
                 }
 
-                _simLoop.Register(this);
+                RegisterSimDrive();
             }
 
             _blackboard.FacingDirection = _controller != null ? _controller.FacingDirection : 1;
             SetState(EnemyAIState.Idle);
+        }
+
+        /// <summary>
+        /// Registers this brain with the batch brain lane when the loop carries one (thread J,
+        /// Phase 2), else directly with the loop — the fixture fallback documented on
+        /// <see cref="PFE.Core.SimLoop.UnitDrives"/>. See <see cref="UnitDriveLanes"/> for why the
+        /// lane replaces per-brain <c>SimLoop</c> registration.
+        /// </summary>
+        private void RegisterSimDrive()
+        {
+            UnitDriveLanes drives = _simLoop.UnitDrives;
+            if (drives != null)
+            {
+                drives.Brains.Register(this);
+            }
+            else
+            {
+                _simLoop.Register(this);
+            }
+        }
+
+        /// <summary>The unregister half of <see cref="RegisterSimDrive"/> — same lane-or-loop choice.</summary>
+        private void UnregisterSimDrive()
+        {
+            UnitDriveLanes drives = _simLoop.UnitDrives;
+            if (drives != null)
+            {
+                drives.Brains.Unregister(this);
+            }
+            else
+            {
+                _simLoop.Unregister(this);
+            }
         }
 
         /// <summary>
@@ -593,14 +627,14 @@ namespace PFE.Entities.Enemies
                     continue;
                 }
 
-                Vector2 jitter = NoiseMath.RandomisedOffset(
+                NoiseMath.NoiseOffset jitter = NoiseMath.RandomisedOffset(
                     NoiseMath.UnitAlarmSpreadPixels,
                     UnityEngine.Random.value,
                     UnityEngine.Random.value);
 
                 neighbour._sensors.RaiseAlarm(
                     neighbour._blackboard,
-                    selfPx + jitter,
+                    selfPx + new Vector2(jitter.X, jitter.Y),
                     durationTicks: _patrolDurationTicks,
                     // The RECEIVER's state decides, not the shouter's: `alarma()` gates on the
                     // receiving unit's own `aiState`. A neighbour already chasing is not startled

@@ -1,6 +1,6 @@
 using System;
 
-namespace PFE.Entities.Units
+namespace PFE.Sim.Units
 {
     /// <summary>
     /// AS3's <b>target-side</b> stealth model — <c>Unit.visibility</c>, <c>Unit.stealthMult</c>,

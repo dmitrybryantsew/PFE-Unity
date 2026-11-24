@@ -45,8 +45,8 @@ namespace PFE.Entities.Enemies.Archetypes
         [SerializeField] protected RobotKind _kind = RobotKind.Standard;
 
         /// <summary>
-        /// Which <c>attack()</c> override this robot runs — set by <c>GutsyController</c> and
-        /// <c>SentinelController</c> in <c>Awake</c>, beside <see cref="Kind"/>. Defaults to
+        /// Which <c>attack()</c> override this robot runs — resolved from the unit id beside
+        /// <see cref="Kind"/> in <c>ApplyDefinitionTuning</c>. Defaults to
         /// <see cref="RobotSecondaryKind.None"/>, i.e. <c>UnitAIRobot.attack()</c>.
         /// </summary>
         [SerializeField] protected RobotSecondaryKind _secondaryKind = RobotSecondaryKind.None;
@@ -160,6 +160,11 @@ namespace PFE.Entities.Enemies.Archetypes
         {
             if (_controller == null || _controller.Definition == null) return;
             UnitDefinition def = _controller.Definition;
+
+            // The kind the deleted leaf controllers used to stamp in their Awake — resolved from the
+            // unit id the spawner composed, like every other class fact. See UnitArchetypeRules.
+            _kind = UnitArchetypeRules.RobotKindFor(def.id);
+            _secondaryKind = UnitArchetypeRules.RobotSecondaryKindFor(def.id);
 
             float spd = def.moveSpeed > 0 ? def.moveSpeed : 2f;
             _patrolSpeed = spd;

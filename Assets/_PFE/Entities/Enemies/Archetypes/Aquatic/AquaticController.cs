@@ -2,6 +2,10 @@ using UnityEngine;
 
 namespace PFE.Entities.Enemies.Archetypes
 {
+    /// <summary>
+    /// Controller for aquatic units (AS3 <c>fe/unit/UnitFish.as</c>). Every fish id routes here;
+    /// the family's only variant fact (which row the unit is) already lives on the definition.
+    /// </summary>
     [RequireComponent(typeof(AquaticBrain))]
     public class AquaticController : EnemyController
     {
@@ -18,12 +22,5 @@ namespace PFE.Entities.Enemies.Archetypes
                 _brain = GetComponent<AquaticBrain>();
             }
         }
-    }
-
-    [RequireComponent(typeof(AquaticBrain))]
-    public class FishController : AquaticController
-    {
-        public new const string ControllerId = "UnitFish";
-        public new const string ControllerAlias = "fish";
     }
 }

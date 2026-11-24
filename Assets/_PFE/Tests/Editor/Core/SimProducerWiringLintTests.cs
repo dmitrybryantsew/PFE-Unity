@@ -112,14 +112,14 @@ namespace PFE.Tests.Editor.Core
             // SourceLint strips comments — but not other methods. This control proves the scoping works
             // by taking a body that must NOT contain the other method's text.
             string stripped = SourceLint.ReadStripped(ProjectorFile);
-            string body = MethodBody(stripped, "private void CollectUnits()", "private RoomStreamingManager ResolveStreaming()");
+            string body = MethodBody(stripped, "private void CollectUnits(", "private RoomStreamingManager ResolveStreaming()");
 
             Assert.That(body, Does.Not.Contain("ProjectDroppedItems("),
                 "The method-body window is not scoped: assertions about ProjectDroppedItems would then "
                 + "be satisfiable from anywhere in the file.");
-            Assert.That(body, Does.Contain("_unitViews.Live"),
-                "The window missed the method it names, so every scoped assertion is meaningless. " +
-                "(Thread E: the static UnitViewRegistry.Live became the injected _unitViews field.)");
+            Assert.That(body, Does.Contain("UnitRecordAt("),
+                "The window missed the method it names, so every scoped assertion is meaningless. "
+                + "(Thread J Phase 3: CollectUnits reads the world slots the sync pass stamped.)");
         }
 
         [Test]

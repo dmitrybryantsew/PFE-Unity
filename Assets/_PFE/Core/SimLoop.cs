@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using VContainer.Unity;
+using PFE.Entities.Units;
+using PFE.Sim.Units;
 // Alias, not `using System.Diagnostics;` — that namespace also declares Debug, which would make
 // `Debug.Log` ambiguous with UnityEngine.Debug in every file that copies this header.
 using Stopwatch = System.Diagnostics.Stopwatch;
@@ -132,6 +134,59 @@ namespace PFE.Core
         {
             get => _entityIds;
             set => _entityIds = value;
+        }
+
+        private UnitDriveLanes _unitDrives;
+
+        /// <summary>
+        /// The per-population batch drive lanes (thread J, Phase 2), or null off-container. When set,
+        /// lifecycle-bound tickables — <see cref="PFE.Entities.Units.UnitController"/>,
+        /// <see cref="PFE.Entities.Enemies.EnemyBrain"/>, unit-owned
+        /// <see cref="PFE.Systems.Physics.TilePhysicsController"/> — register with their lane instead of
+        /// directly with this loop, so spawning and despawning no longer churn the dispatch order or the
+        /// cost table; when null, those same entities fall back to direct
+        /// <see cref="Register"/>/<see cref="Unregister"/>, which is what every fixture and offline
+        /// harness (a bare <c>new SimLoop</c>) keeps doing.
+        ///
+        /// <para><b>Pushed, not injected, for the same reason as <see cref="WorldGate"/> and
+        /// <see cref="EntityIds"/>.</b> The same six-fixture constructor constraint rules out another
+        /// constructor parameter, and the entities that consume the lanes reach the loop only through
+        /// <c>AttachSimulation(clock, loop)</c> — the lanes travel with the loop, so a settable seam is
+        /// the honest shape. <c>GameLifetimeScope</c> pushes the container's lanes at build time; the
+        /// default hard <c>null</c> keeps every existing fixture on the legacy direct-registration
+        /// path with zero changes to their behaviour.</para>
+        /// </summary>
+        public UnitDriveLanes UnitDrives
+        {
+            get => _unitDrives;
+            set => _unitDrives = value;
+        }
+
+        private UnitWorld _unitWorld;
+
+        /// <summary>
+        /// The unit sim-state store (thread J, Phase 2), or null off-container. When set, units
+        /// keep their migrated domain blocks — today the stealth/noise/suspicion record
+        /// (<see cref="PFE.Sim.Units.UnitStealthData"/>) and the corpse lifecycle
+        /// (<see cref="PFE.Sim.Units.UnitCorpseData"/>) on the slot a unit's controller acquires,
+        /// and the movement motor record (<see cref="PFE.Sim.State.SimMotorState"/>) on the slot its
+        /// <c>TilePhysicsController</c> acquires, more as their systems are extracted — in dense
+        /// slot arrays here instead of in fields on the components, keyed by the
+        /// <see cref="PFE.Sim.Units.UnitHandle"/> each registers its drive under. When null, the
+        /// same units keep a local copy of the record and behave exactly as they did before the
+        /// migration; that fallback is what keeps every bare
+        /// <c>new SimLoop</c> fixture working unchanged.
+        ///
+        /// <para><b>Pushed, not injected, for the same reason as <see cref="UnitDrives"/>.</b> The
+        /// entities that consume it reach the loop only through
+        /// <c>AttachSimulation(clock, loop)</c>, so the store travels with the loop;
+        /// <c>GameLifetimeScope</c> pushes the container's singleton at build time, right beside
+        /// the lanes push.</para>
+        /// </summary>
+        public UnitWorld UnitWorld
+        {
+            get => _unitWorld;
+            set => _unitWorld = value;
         }
 
         /// <summary>Configured simulation clock. Canonical constants live on <see cref="SimClock"/>.</summary>

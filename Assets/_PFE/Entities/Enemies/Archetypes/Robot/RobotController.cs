@@ -285,8 +285,8 @@ namespace PFE.Entities.Enemies.Archetypes
         }
 
         /// <summary>
-        /// Per-<c>tr</c> weapon adjustments, applied once the mounts exist. Empty for every robot whose
-        /// variant changes nothing about its weapons.
+        /// Per-<c>tr</c> weapon adjustments, applied once the mounts exist — today only the gutsy's
+        /// doubled flamethrower (<c>UnitGutsy.as:29-33</c>).
         /// </summary>
         /// <remarks>
         /// <para><b>Why a hook and not a line in each subclass's <c>Awake</c>.</b> These adjustments
@@ -294,22 +294,49 @@ namespace PFE.Entities.Enemies.Archetypes
         /// <c>Initialize</c> and again from <c>OnWeaponServicesReady</c> and <c>ApplyPlacement</c>, so a
         /// one-shot <c>Awake</c> would miss every rebuild after the first and double-apply on the
         /// rebuilds it did catch. Running here means the tuning is re-applied to whichever mount exists,
-        /// and the writers below are all idempotent assignments rather than multiplications.</para>
+        /// and the writer below is an idempotent assignment rather than a multiplication.</para>
+        ///
+        /// <para><b>An assignment, not a multiply.</b> <c>WeaponRuntimeState.DamageScale</c> starts at 1
+        /// and this hook runs again on every mount rebuild (<c>OnWeaponServicesReady</c>,
+        /// <c>ApplyPlacement</c>), so <c>*= 2</c> here would compound to 4, then 8. AS3's own
+        /// <c>*= 2</c> is safe only because it runs once, in a constructor, on a freshly created
+        /// weapon.</para>
         /// </remarks>
-        protected virtual void ApplyVariantTuning()
+        private void ApplyVariantTuning()
         {
+            if (UnitArchetypeRules.RobotSecondaryKindFor(DefinitionId) != RobotSecondaryKind.Flamer) return;
+
+            EnemyWeaponMount mount = SecondaryMount;
+            if (mount == null || mount.Controller == null) return;
+
+            // Only the tr == 1 variant doubles: Location.randomCid returns "1" when the room's
+            // tipEnemy == 7 and "0" otherwise, and the id suffix is appended only for a non-zero tr —
+            // so `gutsy` is the plain flamethrower and `gutsy1` is the hot one.
+            mount.Controller.State.DamageScale = VariantTr == 1 ? 2f : 1f;
         }
 
         /// <summary>
-        /// The subclass's second weapon — AS3's <c>dopWeapon</c>, created by name in the constructor
+        /// The robot's second weapon — AS3's <c>dopWeapon</c>, created by name in the constructor
         /// rather than rolled, and therefore present on every instance of that class.
         ///
         /// <para><b>Two robots have one, and the row proves it:</b> <c>gutsy</c>'s <c>robofire</c> and
         /// <c>sentinel</c>'s <c>robomlau</c> are the <c>f='1'</c> rows the roll steps over, and
         /// <c>UnitGutsy.as:28</c> / <c>UnitSentinel.as:27</c> both create them unconditionally — no
-        /// ammo gate, unlike the mercenary's <c>mercgr</c>.</para>
+        /// ammo gate, unlike the mercenary's <c>mercgr</c>. Resolved from the unit id, the same fact
+        /// the deleted <c>GutsyController</c>/<c>SentinelController</c> used to answer by class.</para>
         /// </summary>
-        protected virtual string SecondaryWeaponId => null;
+        private string SecondaryWeaponId
+        {
+            get
+            {
+                switch (UnitArchetypeRules.RobotSecondaryKindFor(DefinitionId))
+                {
+                    case RobotSecondaryKind.Flamer: return "robofire";
+                    case RobotSecondaryKind.Rocket: return "robomlau";
+                    default: return null;
+                }
+            }
+        }
 
         /// <summary>The mount for <see cref="SecondaryWeaponId"/>, or null.</summary>
         public EnemyWeaponMount SecondaryMount =>
@@ -317,12 +344,29 @@ namespace PFE.Entities.Enemies.Archetypes
 
         /// <summary>
         /// A weapon this class builds in its constructor instead of rolling one — AS3
-        /// <c>UnitSpriteBot.as:31</c>: <c>currentWeapon = new Weapon(this,"robolaser");</c>.
+        /// <c>UnitSpriteBot.as:31</c>: <c>currentWeapon = new Weapon(this,"robolaser");</c>, and the
+        /// mega dron's by-name <c>ttweapN</c> (<c>UnitDron.as:84-91</c>).
         ///
         /// <para>Used only when the row's own <c>&lt;w&gt;</c> roll produced nothing, which is exactly
-        /// spritebot's case: it authors no <c>&lt;w&gt;</c> rows at all, and the oracle still arms it.</para>
+        /// spritebot's and <c>dront</c>'s case: spritebot authors no <c>&lt;w&gt;</c> rows at all, and
+        /// the mega dron's row carries none because its weapon is built when <c>tr == 100</c>.</para>
+        ///
+        /// <para><b>The dront arm is a roll, so it must stay a single draw.</b> It is drawn here, in
+        /// the property <see cref="RollWeapon"/> reads once per roll — a caller that read it twice
+        /// would get two different answers and a silent double draw.</para>
         /// </summary>
-        protected virtual string HardCodedPrimaryWeaponId => null;
+        private string HardCodedPrimaryWeaponId
+        {
+            get
+            {
+                string id = DefinitionId;
+                if (id != null && id.StartsWith("spritebot", System.StringComparison.Ordinal))
+                {
+                    return "robolaser";
+                }
+                return VariantTr >= 100 ? "ttweap" + UnityEngine.Random.Range(1, 7) : null;
+            }
+        }
 
         /// <summary>
         /// AS3 <c>Unit.isFly</c> for the three robots that set it in their constructors and never clear
@@ -365,221 +409,20 @@ namespace PFE.Entities.Enemies.Archetypes
                 _brain = GetComponent<RobotBrain>();
             }
         }
-    }
 
-    [RequireComponent(typeof(RobotBrain))]
-    public class RobobrainController : RobotController
-    {
-        public new const string ControllerId = "UnitRobobrain";
-        public new const string ControllerAlias = "robobrain";
 
         /// <summary>
-        /// <c>UnitRobobrain.as:5</c> is <c>extends UnitAIRobot</c>, whose constructor reads the
-        /// placement <c>ai</c> as <c>quiet</c> only (<c>UnitAIRobot.as:49-52</c>).
+        /// The placement-<c>ai</c> vocabulary this robot reads — AS3 <c>UnitAIRobot.as:49-52</c> reads
+        /// <c>quiet</c> and nothing else, but only on the five <c>extends UnitAIRobot</c> classes
+        /// (<c>robobrain</c>, <c>protect</c>, <c>gutsy</c>, <c>sentinel</c>, <c>eqd</c>). The flying and
+        /// rolling robots extend <c>Unit</c> and read no <c>aiTip</c> at all, so they keep
+        /// <see cref="UnitAiFamily.Generic"/>. Resolved from the unit id — the same fact the deleted
+        /// per-class controllers used to answer by inheritance.
         /// </summary>
-        protected override UnitAiFamily AiFamily => UnitAiFamily.Robot;
-    }
+        protected override UnitAiFamily AiFamily =>
+            UnitArchetypeRules.UsesRobotAiFamily(DefinitionId) ? UnitAiFamily.Robot : UnitAiFamily.Generic;
 
-    /// <summary>
-    /// <c>UnitEqd</c> (Эквидроид) — <c>UnitEqd.as:5</c> is <c>extends UnitAIRobot</c>, so it is the same
-    /// brain as <c>robobrain</c> and inherits the same <see cref="RobotKind.Standard"/> shape. Its own
-    /// additions are <c>isPort = true</c> and a speed ladder (<c>walkSpeed = maxSpeed</c>,
-    /// <c>sitSpeed = maxSpeed * 0.35</c>, <c>runSpeed = maxSpeed * 2.5</c>); the port has no
-    /// <c>isPort</c> yet (`families/13_Robot.md` §9), so there is nothing to override here — the class
-    /// exists to give the id a registered home rather than to add behaviour.
-    ///
-    /// <para><b>Why it is needed at all.</b> <c>eqd.asset</c> has an empty <c>controllerId</c> AND an
-    /// empty <c>parentId</c>, so <c>RoomUnitSpawner</c>'s 4-step chain falls all the way through to
-    /// <c>unitId</c> → <c>"eqd"</c>, which was in no registry — leaving the unit on the brain-less base
-    /// <c>UnitController</c>. It is reachable two ways: 7 shipped rooms place it, and
-    /// <c>LocationEnemySelector.RandomUnit</c> returns it from the <c>enl2</c> / biome-2 / level-12
-    /// rung. This is F2 in <c>REVIEW_2026-10-11_random_room_spawn_audit.md</c>.</para>
-    /// </summary>
-    [RequireComponent(typeof(RobotBrain))]
-    public class EqdController : RobobrainController
-    {
-        public new const string ControllerId = "UnitEqd";
-        public new const string ControllerAlias = "eqd";
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class DronController : RobotController
-    {
-        public new const string ControllerId = "UnitDron";
-        public new const string ControllerAlias = "dron";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = RobotKind.Drone;
-        }
-
-        /// <summary>
-        /// The mega dron's weapon — <c>UnitDron.as:84-91</c>:
-        /// <c>currentWeapon = Weapon.create(this,"ttweap" + floor(random*6+1));</c>, taken <i>instead of</i>
-        /// <c>getXmlWeapon</c> when <c>tr == 100</c>.
-        /// </summary>
-        /// <remarks>
-        /// <para><b>Reached because <c>dront</c> has no <c>&lt;w&gt;</c> row at all</b>
-        /// (<c>AllData.txt:1975-1982</c> — the mega dron's row carries <c>&lt;phis&gt;</c>,
-        /// <c>&lt;move&gt;</c>, <c>&lt;comb&gt;</c>, <c>&lt;snd&gt;</c> and <c>&lt;vulner&gt;</c> and
-        /// nothing else). So the roll finds no candidates, <see cref="RobotController.RollWeapon"/> falls
-        /// through to the hard-coded id, and the six <c>ttweapN</c> rows do the rest. Before this the
-        /// mega dron spawned unarmed and fought with the direct-damage fallback.</para>
-        ///
-        /// <para><b>Not the same thing as <c>HardCodedPrimaryWeaponId</c> being a constant.</b> It is a
-        /// roll, so it must not be a property that a caller could read twice and get two answers — hence
-        /// the value is drawn once, in <c>RollWeapon</c>, through this property. Two reads in one roll
-        /// would be a silent double draw.</para>
-        /// </remarks>
-        protected override string HardCodedPrimaryWeaponId =>
-            VariantTr == 100 ? "ttweap" + UnityEngine.Random.Range(1, 7) : null;
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class ProtectController : RobotController
-    {
-        public new const string ControllerId = "UnitProtect";
-        public new const string ControllerAlias = "protect";
-
-        /// <summary>
-        /// <c>UnitProtect.as:5</c> is <c>extends UnitAIRobot</c> — same <c>ai</c> vocabulary as the base
-        /// robot (<c>UnitAIRobot.as:49-52</c>). Seven shipped placements author <c>ai="quiet"</c> on it.
-        /// </summary>
-        protected override UnitAiFamily AiFamily => UnitAiFamily.Robot;
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class GutsyController : RobotController
-    {
-        public new const string ControllerId = "UnitGutsy";
-        public new const string ControllerAlias = "gutsy";
-
-        /// <summary>
-        /// <c>UnitGutsy.as:7</c> is <c>extends UnitAIRobot</c>. Seven shipped placements author
-        /// <c>ai="quiet"</c> on it.
-        /// </summary>
-        protected override UnitAiFamily AiFamily => UnitAiFamily.Robot;
-
-        /// <summary>
-        /// <c>UnitGutsy.as:28</c> — <c>this.dopWeapon = Weapon.create(this,"robofire");</c>, granted
-        /// unconditionally (no ammo gate, unlike the mercenary's <c>mercgr</c>).
-        /// </summary>
-        protected override string SecondaryWeaponId => "robofire";
-
-        /// <summary>
-        /// <c>UnitGutsy.as:29-33</c>:
-        /// <code>
-        /// this.dopWeapon = Weapon.create(this,"robofire");
-        /// if(tr == 1) { this.dopWeapon.damage *= 2; }
-        /// </code>
-        /// </summary>
-        /// <remarks>
-        /// <para><b>Only the <c>tr == 1</c> variant doubles.</b> <c>Location.randomCid("gutsy")</c>
-        /// returns <c>"1"</c> when the room's <c>tipEnemy == 7</c> and <c>"0"</c> otherwise
-        /// (<c>Location.as:1812-1817</c>), and the id composition appends the suffix only for a
-        /// non-zero <c>tr</c> — so <c>gutsy</c> is the plain flamethrower and <c>gutsy1</c> is the hot
-        /// one. Reading the suffix back off the id is what makes the two distinguishable at all.</para>
-        ///
-        /// <para><b>An assignment, not a multiply.</b> <c>WeaponRuntimeState.DamageScale</c> starts at 1
-        /// and this hook runs again on every mount rebuild (<c>OnWeaponServicesReady</c>,
-        /// <c>ApplyPlacement</c>), so <c>*= 2</c> here would compound to 4, then 8. AS3's own
-        /// <c>*= 2</c> is safe only because it runs once, in a constructor, on a freshly created
-        /// weapon.</para>
-        /// </remarks>
-        protected override void ApplyVariantTuning()
-        {
-            EnemyWeaponMount mount = SecondaryMount;
-            if (mount == null || mount.Controller == null) return;
-
-            mount.Controller.State.DamageScale = VariantTr == 1 ? 2f : 1f;
-        }
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.SecondaryKind = RobotSecondaryKind.Flamer;
-        }
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class SentinelController : RobotController
-    {
-        public new const string ControllerId = "UnitSentinel";
-        public new const string ControllerAlias = "sentinel";
-
-        /// <summary>
-        /// <c>UnitSentinel.as:6</c> is <c>extends UnitAIRobot</c>. <b>Eleven</b> shipped placements
-        /// author <c>ai="quiet"</c> on it — the single largest group of <c>quiet</c> placements in the
-        /// game, so this one override carries more data than the rest of the family combined.
-        /// </summary>
-        protected override UnitAiFamily AiFamily => UnitAiFamily.Robot;
-
-        /// <summary><c>UnitSentinel.as:27</c> — <c>this.dopWeapon = Weapon.create(this,"robomlau");</c></summary>
-        protected override string SecondaryWeaponId => "robomlau";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.SecondaryKind = RobotSecondaryKind.Rocket;
-        }
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class SpriteBotController : RobotController
-    {
-        public new const string ControllerId = "UnitSpriteBot";
-        public new const string ControllerAlias = "spritebot";
-
-        /// <summary>
-        /// <c>UnitSpriteBot.as:31</c> — <c>currentWeapon = new Weapon(this,"robolaser");</c>. The row
-        /// authors no <c>&lt;w&gt;</c> at all, so this is the only thing that arms it.
-        /// </summary>
-        protected override string HardCodedPrimaryWeaponId => "robolaser";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = RobotKind.SpriteBot;
-        }
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class VortexController : RobotController
-    {
-        public new const string ControllerId = "UnitVortex";
-        public new const string ControllerAlias = "vortex";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = RobotKind.Vortex;
-        }
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class RollerController : RobotController
-    {
-        public new const string ControllerId = "UnitRoller";
-        public new const string ControllerAlias = "roller";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = RobotKind.Roller;
-        }
-    }
-
-    [RequireComponent(typeof(RobotBrain))]
-    public class MspController : RobotController
-    {
-        public new const string ControllerId = "UnitMsp";
-        public new const string ControllerAlias = "msp";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = RobotKind.Msp;
-        }
+        /// <summary>The unit id this robot was initialized with, or null before <c>Initialize</c>.</summary>
+        private string DefinitionId => Definition != null ? Definition.id : null;
     }
 }

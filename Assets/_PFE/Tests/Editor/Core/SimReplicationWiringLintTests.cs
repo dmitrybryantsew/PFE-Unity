@@ -261,27 +261,34 @@ namespace PFE.Tests.Editor.Core
         /// <summary>
         /// The projector emitted projectiles only, and the reason was structural: the identity registry
         /// is keyed on the <c>UnitInstance</c> record, so nothing walked from a record to its controller.
-        /// <c>UnitViewRegistry</c> is that walk, and the two halves have to be connected in both
-        /// directions — the projector must read the list, and the lifecycle must fill it.
+        /// Thread E added that walk (<c>UnitViewRegistry</c>) and thread J Phase 3 retired it from the
+        /// projector: the view→world sync stamps each live unit's record and room attribution into
+        /// <c>UnitWorld</c>, and the projector reads the dense slots. This test pins BOTH halves of
+        /// the new contract — sync-then-read inside the tick, and the slot sweep itself.
         /// </summary>
         [Test]
-        public void Projector_ProjectsUnitsThroughTheLiveViewList()
+        public void Projector_ProjectsUnitsThroughTheWorldSlots()
         {
             string projector = Read(ProjectorPath);
 
-            AssertContains(SourceLint.MethodBody(projector, "public void SimTick(int tickIndex)"),
-                "CollectUnits(",
-                "SimTick must collect units as well as projectiles; a snapshot with no units replicates "
-                + "nothing a client can render.");
+            string tick = SourceLint.MethodBody(projector, "public void SimTick(int tickIndex)");
+            AssertContains(tick, "SyncAll(",
+                "The tick must stamp view truth into the world BEFORE reading it; reading first "
+                + "projects one-tick-stale positions to every client.");
+            AssertContains(tick, "CollectUnits(_unitWorld)",
+                "SimTick must collect units from the pushed UnitWorld; a snapshot with no units "
+                + "replicates nothing a client can render.");
 
             string collect = SourceLint.MethodBody(projector, "private void CollectUnits(");
-            AssertContains(collect, "_unitViews.Live",
-                "CollectUnits must read the injected live-view registry; the registry cannot answer " +
-                "for units. (Thread E: the static UnitViewRegistry.Live became the container-owned " +
-                "instance handed to the constructor.)");
-            AssertContains(collect, "HasEntityId",
-                "A controller is in the list before the spawner stamps it, so the collector must skip "
-                + "the anonymous ones rather than emit EntityHash 0.");
+            AssertContains(collect, "UnitRecordAt(",
+                "CollectUnits must read the dense slot array the sync pass stamped — thread J "
+                + "Phase 3: the projector no longer walks UnitViewRegistry.");
+            AssertContains(collect, "RoomKeyAt(",
+                "Room attribution travels with the slot; without reading it every unit is "
+                + "unattributed and the wire carries zero units.");
+            AssertContains(collect, "EntityHash == 0",
+                "A slot acquired before the spawner stamps the id must be skipped, not emitted "
+                + "as a malformed hash-0 record the receiver rejects.");
         }
 
         /// <summary>
@@ -332,8 +339,8 @@ namespace PFE.Tests.Editor.Core
                 + "holds the definition.");
 
             AssertContains(SourceLint.MethodBody(Read(UnitControllerPath), "public void AssignDefinitionId("),
-                "_sim.DefinitionId",
-                "The stamp must reach the live record, or CaptureSimState projects the previous value.");
+                "SimData.DefinitionId",
+                "The stamp must reach the live record, or the projection carries the previous value.");
 
             AssertContains(SourceLint.MethodBody(Read(ProjectilePath), "public SimProjectileState CaptureSimState("),
                 "DefinitionId = DefinitionId",

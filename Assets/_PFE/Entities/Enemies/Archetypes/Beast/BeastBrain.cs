@@ -33,14 +33,14 @@ namespace PFE.Entities.Enemies.Archetypes
         protected int _tPunch;
         protected int _familyState; // Critter: 0..3; Hound: 0..3; Slime: 0..2
 
+        /// <summary>
+        /// Which beast body this is — resolved from the unit id by
+        /// <see cref="UnitArchetypeRules.BeastKindFor"/> on every definition assignment, so a pooled
+        /// unit re-initialized with a new id cannot keep its previous body.
+        /// </summary>
         public BeastKind Kind
         {
-            get
-            {
-                if (_controller is HellhoundController || GetComponent<HellhoundController>() != null) return BeastKind.Hound;
-                if (_controller is SlimeController || GetComponent<SlimeController>() != null) return BeastKind.Slime;
-                return _kind;
-            }
+            get => _kind;
             set => _kind = value;
         }
         public bool IsCeilingHanging { get => _isCeilingHanging; set => _isCeilingHanging = value; }
@@ -48,20 +48,9 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected override bool StopsToAttack => false;
 
-        public override void AttachController(UnitController controller)
-        {
-            base.AttachController(controller);
-            if (controller is HellhoundController) _kind = BeastKind.Hound;
-            else if (controller is SlimeController) _kind = BeastKind.Slime;
-            else if (controller is MonstrikController) _kind = BeastKind.Critter;
-        }
-
         protected override void Awake()
         {
             base.Awake();
-            if (_controller is HellhoundController) _kind = BeastKind.Hound;
-            else if (_controller is SlimeController) _kind = BeastKind.Slime;
-            else if (_controller is MonstrikController) _kind = BeastKind.Critter;
             ApplyDefinitionTuning();
         }
 
@@ -90,6 +79,10 @@ namespace PFE.Entities.Enemies.Archetypes
         {
             if (_controller == null || _controller.Definition == null) return;
             UnitDefinition def = _controller.Definition;
+
+            // The kind the deleted leaf controllers used to stamp in their Awake — resolved from the
+            // unit id the spawner composed, like every other class fact. See UnitArchetypeRules.
+            _kind = UnitArchetypeRules.BeastKindFor(def.id);
 
             float spd = def.moveSpeed > 0 ? def.moveSpeed : 2f;
             float runMult = def.runMultiplier > 0 ? def.runMultiplier : 2f;

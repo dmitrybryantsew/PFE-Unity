@@ -108,9 +108,11 @@ namespace PFE.Tests.Editor.Core
         }
 
         /// <summary>
-        /// Phase 1.5 (F-02): the 22 mapped controller members are no longer fields but forwarding
-        /// properties onto <c>SimMotorState</c>. This pins the join at the expression level: a member
-        /// that quietly became a plain field again (truth back on the MonoBehaviour), or one that
+        /// Phase 1.5 (F-02), storage moved in Phase 2 (thread J): the 22 mapped controller members
+        /// are forwarding properties onto <c>SimMotorState</c> — through the <c>MotorData</c> ref
+        /// seam, which names the record's <c>UnitWorld</c> slot when a world is pushed and the
+        /// local fallback otherwise. This pins the join at the expression level: a member that
+        /// quietly became a plain field again (truth back on the MonoBehaviour), or one that
         /// forwards to the wrong record field (e.g. <c>dx</c> onto <c>Vy</c>), fails here. The
         /// declaration-shape half is <c>DeclaresField</c> below; this is the storage half.
         /// </summary>
@@ -129,17 +131,17 @@ namespace PFE.Tests.Editor.Core
                     continue;
                 }
 
-                if (!body.Contains("_motor." + record))
+                if (!body.Contains("MotorData." + record))
                 {
-                    broken.Add(controller + " (does not forward to _motor." + record + ")");
+                    broken.Add(controller + " (does not forward to MotorData." + record + ")");
                 }
 
                 // The two Vector2 splits must carry both halves, not just the X the map names.
-                if (record == "DashVelocityX" && !body.Contains("_motor.DashVelocityY"))
+                if (record == "DashVelocityX" && !body.Contains("MotorData.DashVelocityY"))
                 {
                     broken.Add(controller + " (missing the Y half of dashVelocity)");
                 }
-                if (record == "SupportCarryX" && !body.Contains("_motor.SupportCarryY"))
+                if (record == "SupportCarryX" && !body.Contains("MotorData.SupportCarryY"))
                 {
                     broken.Add(controller + " (missing the Y half of supportCarryPixels)");
                 }

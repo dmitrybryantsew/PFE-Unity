@@ -3,6 +3,7 @@ using System.Text;
 using PFE.Core;
 using PFE.Entities.Enemies;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 using PFE.Systems.Map;
 using PFE.Systems.Weapons;
 using UnityEngine;

@@ -147,6 +147,10 @@ namespace PFE.Entities.Enemies.Archetypes
             if (_controller == null || _controller.Definition == null) return;
             UnitDefinition def = _controller.Definition;
 
+            // The kind the deleted leaf controllers used to stamp in their Awake — resolved from the
+            // unit id the spawner composed, like every other class fact. See UnitArchetypeRules.
+            _kind = UnitArchetypeRules.FlyerKindFor(def.id);
+
             _maxSpeed = def.moveSpeed > 0f ? def.moveSpeed : 5f;
             _accel = def.Acceleration > 0f ? def.Acceleration : 2f;
             _brake = UnitFlyPhysics.ResolveBrake(def.braking);

@@ -119,7 +119,21 @@ namespace PFE.Entities.Enemies.Archetypes
                 ? GetWeaponMount(_secondaryWeaponIds[index])
                 : null;
 
-        protected override UnitAiFamily AiFamily => UnitAiFamily.Raider;
+        /// <summary>AS3 <c>UnitMerc.arm</c> — the griffin's separate aiming limb, built in
+        /// <see cref="Initialize"/> and hidden on death.</summary>
+        private GriffinArmRig _arm;
+
+        /// <summary>
+        /// The placement-<c>ai</c> vocabulary — <see cref="UnitAiFamily.Raider"/> for the six
+        /// <c>extends UnitRaider</c> classes, and <see cref="UnitAiFamily.Necros"/> for <c>necros</c>
+        /// alone: AS3 <c>UnitNecros extends Unit</c>, not <c>UnitRaider</c> (<c>UnitNecros.as:102</c>),
+        /// so it reads the placement <c>ai</c> as <c>stay</c> and nothing else. Resolved from the unit
+        /// id, the same fact the deleted <c>NecrosController</c> used to answer by inheritance.
+        /// </summary>
+        protected override UnitAiFamily AiFamily =>
+            UnitArchetypeRules.IsNecros(Definition != null ? Definition.id : null)
+                ? UnitAiFamily.Necros
+                : UnitAiFamily.Raider;
 
         /// <summary>
         /// This unit as an <see cref="ArmedShooterBrain"/> — the holder of the runtime <c>isFly</c>
@@ -294,6 +308,48 @@ namespace PFE.Entities.Enemies.Archetypes
             base.Initialize(definition, stats);
 
             EquipRolledWeapon();
+
+            // AS3 UnitMerc.arm — after base.Initialize, because the rig reads the sheet's cell size and
+            // registration point off Stats, which only exist once the base has assigned the definition.
+            // Only merc assets carry armSprite, so this is a no-op for the rest of the family.
+            AttachGriffinArm(definition);
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitMerc.arm</c> — the griffin's separate aiming limb, or null for every unit whose
+        /// art has none (<see cref="PFE.Data.Definitions.UnitDefinition.armSprite"/> is written by
+        /// <c>UnitSpriteImporter</c>'s griffin-arm pass and is empty for the other rows, so the sprite
+        /// field IS the gate — the deleted <c>MercController</c> checked exactly this and nothing else).
+        ///
+        /// <para>It is built here rather than inside the weapon mount because the limb belongs to the
+        /// <i>body</i>: AS3 adds it to the same layer as <c>vis</c> and mirrors it with the unit's own
+        /// <c>storona</c>, not with the weapon's aim. The mount then asks it where the weapon goes
+        /// through <c>IWeaponHoldPointSource</c>.</para>
+        /// </summary>
+        private void AttachGriffinArm(UnitDefinition definition)
+        {
+            if (definition == null || definition.armSprite == null)
+            {
+                return;
+            }
+
+            int variant = GriffinArmMath.VariantIndexForSpriteSheet(definition.spriteSheetId);
+            _arm = GriffinArmRig.Attach(this, definition.armSprite, variant);
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitMerc.as:164-166</c> — <c>if(sost == 2 || sost == 3) arm.visible = false</c>. The
+        /// death animation is drawn without the limb, so leaving the arm on leaves a gun-holding hand
+        /// floating over a corpse. No-op for every unit that never grew an arm.
+        /// </summary>
+        protected override void OnDeath()
+        {
+            if (_arm != null)
+            {
+                _arm.SetVisible(false);
+            }
+
+            base.OnDeath();
         }
 
         /// <summary>
@@ -341,9 +397,13 @@ namespace PFE.Entities.Enemies.Archetypes
             // reads. No shipped necros placement authors `weap` today — the nineteen that do are
             // raider/ranger/merc/slaver/zebra — which is precisely why the bug would have been invisible
             // until someone authored one.
-            PlacementWeaponMode mode = AiFamily == UnitAiFamily.Raider
-                ? PlacementWeaponMode
-                : PlacementWeaponMode.Roll;
+            //
+            // The family answer comes from the row being rolled, not from the AiFamily property:
+            // this runs BEFORE base.Initialize assigns Definition, so the property has nothing to
+            // read yet. (The property itself is id-driven; see AiFamily.)
+            PlacementWeaponMode mode = UnitArchetypeRules.IsNecros(definition != null ? definition.id : null)
+                ? PlacementWeaponMode.Roll
+                : PlacementWeaponMode;
 
             switch (mode)
             {
@@ -700,123 +760,4 @@ namespace PFE.Entities.Enemies.Archetypes
         }
     }
 
-    [RequireComponent(typeof(ArmedShooterBrain))]
-    public class RaiderController : ArmedShooterController
-    {
-        public new const string ControllerId = "UnitRaider";
-        public new const string ControllerAlias = "raider";
-    }
-
-    [RequireComponent(typeof(ArmedShooterBrain))]
-    public class SlaverController : ArmedShooterController
-    {
-        public new const string ControllerId = "UnitSlaver";
-        public new const string ControllerAlias = "slaver";
-    }
-
-    [RequireComponent(typeof(ArmedShooterBrain))]
-    public class ZebraController : ArmedShooterController
-    {
-        public new const string ControllerId = "UnitZebra";
-        public new const string ControllerAlias = "zebra";
-    }
-
-    [RequireComponent(typeof(ArmedShooterBrain))]
-    public class RangerController : ArmedShooterController
-    {
-        public new const string ControllerId = "UnitRanger";
-        public new const string ControllerAlias = "ranger";
-    }
-
-    [RequireComponent(typeof(ArmedShooterBrain))]
-    public class EnclController : ArmedShooterController
-    {
-        public new const string ControllerId = "UnitEncl";
-        public new const string ControllerAlias = "encl";
-    }
-
-    [RequireComponent(typeof(ArmedShooterBrain))]
-    public class MercController : ArmedShooterController
-    {
-        public new const string ControllerId = "UnitMerc";
-        public new const string ControllerAlias = "merc";
-
-        /// <summary>
-        /// AS3 <c>UnitMerc.arm</c> — the griffin's separate aiming limb, or null when the arm art has
-        /// not been imported (<c>UnitDefinition.armSprite</c> is written by
-        /// <c>UnitSpriteImporter</c>'s griffin-arm pass).
-        ///
-        /// <para>It is built here rather than inside the weapon mount because the limb belongs to the
-        /// <i>body</i>: AS3 adds it to the same layer as <c>vis</c> and mirrors it with the unit's own
-        /// <c>storona</c>, not with the weapon's aim. The mount then asks it where the weapon goes
-        /// through <c>IWeaponHoldPointSource</c>.</para>
-        /// </summary>
-        private GriffinArmRig _arm;
-
-        /// <summary>
-        /// Build the arm <b>after</b> <c>base.Initialize</c>: the rig reads
-        /// <see cref="PFE.Entities.Units.UnitController.Stats"/> for the sheet's cell size and
-        /// registration point, and those only exist once the base has assigned the definition. The
-        /// weapon mount resolves its hold-point source lazily, so building the limb a step after the
-        /// weapon is built costs nothing and needs no ordering contract between the two.
-        /// </summary>
-        public override void Initialize(UnitDefinition definition, UnitStats stats)
-        {
-            base.Initialize(definition, stats);
-
-            if (definition == null || definition.armSprite == null)
-            {
-                return;
-            }
-
-            int variant = GriffinArmMath.VariantIndexForSpriteSheet(definition.spriteSheetId);
-            _arm = GriffinArmRig.Attach(this, definition.armSprite, variant);
-        }
-
-        /// <summary>
-        /// AS3 <c>UnitMerc.as:164-166</c> — <c>if(sost == 2 || sost == 3) arm.visible = false</c>. The
-        /// death animation is drawn without the limb, so leaving the arm on leaves a gun-holding hand
-        /// floating over a corpse.
-        /// </summary>
-        protected override void OnDeath()
-        {
-            if (_arm != null)
-            {
-                _arm.SetVisible(false);
-            }
-
-            base.OnDeath();
-        }
-    }
-
-    [RequireComponent(typeof(ArmedShooterBrain))]
-    public class NecrosController : ArmedShooterController
-    {
-        public new const string ControllerId = "UnitNecros";
-        public new const string ControllerAlias = "necros";
-
-        /// <summary>
-        /// <c>UnitNecros</c> reads <c>stay</c> and nothing else — it extends <c>Unit</c>, <b>not</b>
-        /// <c>UnitRaider</c> (<c>UnitNecros.as:102</c>: <c>if(aiTip != "stay" &amp;&amp; isrnd())</c>), and
-        /// has no <c>stroll</c> or <c>quiet</c> field behind it.
-        /// </summary>
-        /// <remarks>
-        /// <para><b>Why the override is mandatory rather than cosmetic.</b> This controller derives from
-        /// <see cref="ArmedShooterController"/> because it shares the weapon-rolling controller — a port
-        /// convenience, not an oracle fact. Without this override it would inherit
-        /// <see cref="UnitAiFamily.Raider"/> and answer <c>quiet</c>/<c>sniper</c> as well, so a
-        /// hypothetical <c>ai="quiet"</c> necros would stand still where the oracle lets it wander. The
-        /// shipped data authors <c>stay</c> on seven necros placements and <c>quiet</c> on none, so the
-        /// divergence is latent rather than visible — which is exactly the kind that survives a
-        /// play-test.</para>
-        /// </remarks>
-        protected override UnitAiFamily AiFamily => UnitAiFamily.Necros;
-
-        /// <summary>
-        /// <c>UnitNecros.as:29</c> — <c>collisionTip = 0</c>. A necrosprite's contact hit damages
-        /// without exchanging momentum, so it neither shoves its target nor recoils off it. See
-        /// <see cref="PFE.Entities.Units.UnitController.CollisionTip"/>.
-        /// </summary>
-        public override bool CollisionTip => false;
-    }
 }

@@ -87,11 +87,14 @@ namespace PFE.Systems.Combat
         /// carrying two states (<c>1</c> and <c>0</c>) that mean "yes" and "no", plus a third that never
         /// occurs. <c>bool</c> says the same thing with no unreachable value.</para>
         ///
-        /// <para><b>The five that are ported, and why the sixth is not.</b> Slime, spectre, necros,
-        /// megadron and thunderhead all answer <c>false</c> on their controllers.
-        /// <c>UnitScythe</c> is not ported at all — it is a self-propelled blade entity whose
-        /// <c>forces()</c> is empty (<c>UnitScythe.as:56-58</c>), not an enemy archetype — so there is
-        /// no controller to override. That is a recorded gap, not an oversight.</para>
+        /// <para><b>The five that answer false, and how.</b> Slime, spectre, necros, megadron and
+        /// thunderhead all answer <c>false</c>: the boss pair keeps the answer on its own controllers,
+        /// and the three archetype rows get it from <see cref="DisablesContactExchange"/> — the id-keyed
+        /// rule that replaced their deleted leaf controllers.
+        /// <c>UnitScythe</c> authors <c>collisionTip = 0</c> as well (<c>UnitScythe.as:44</c>) and is
+        /// the one the id rule closes for free: it is a self-propelled blade entity whose
+        /// <c>forces()</c> is empty (<c>UnitScythe.as:56-58</c>), so its contact hit — should one ever
+        /// land — must not exchange momentum either.</para>
         ///
         /// <para><b>Why the gate is on the ATTACKER.</b> <c>param1</c> is the striker, so a slime that
         /// claws a player pushes nobody, while a player who walks into a slime still gets the full
@@ -100,6 +103,34 @@ namespace PFE.Systems.Combat
         /// enough to survive a play-test.</para>
         /// </remarks>
         public const bool CollisionTipDefault = true;
+
+        /// <summary>
+        /// The unit ids whose AS3 class constructors write <c>collisionTip = 0</c> — a contact hit
+        /// from one of them damages without exchanging momentum (<c>Unit.as:4151-4159</c>). Keyed by
+        /// id because the leaf controllers that used to answer this per class are deleted; the spawner
+        /// composes the id from the same data AS3 read, so the id answers what the class answered.
+        /// </summary>
+        /// <remarks>
+        /// The slime family is three rows in the oracle (<c>slime</c>, <c>cryoslime</c>,
+        /// <c>pinkslime</c>) and all three extend <c>UnitSlime</c>. The boss half of the oracle's list
+        /// (<c>megadron</c>, <c>thunderhead</c>) is answered on the boss controllers, not here.
+        /// </remarks>
+        public static bool DisablesContactExchange(string unitId)
+        {
+            if (string.IsNullOrEmpty(unitId)) return false;
+            switch (unitId)
+            {
+                case "spectre":     // UnitSpectre.as:33
+                case "necros":      // UnitNecros.as:29
+                case "slime":       // UnitSlime.as:65
+                case "cryoslime":
+                case "pinkslime":
+                case "scythe":      // UnitScythe.as:44 — the recorded gap the id rule closes
+                    return true;
+                default:
+                    return false;
+            }
+        }
 
         /// <summary>
         /// AS3 <c>Unit.as:4153-4158</c> — the two new velocities, in <b>pixels per 30 Hz frame</b> on

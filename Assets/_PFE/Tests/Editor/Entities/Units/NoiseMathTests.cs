@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 using UnityEngine;
 
 namespace PFE.Tests.Editor.Entities.Units
@@ -524,22 +525,23 @@ namespace PFE.Tests.Editor.Entities.Units
         {
             const float spread = NoiseMath.SoundOnlyCommitSpreadPixels;   // 200
 
-            Vector2 low = NoiseMath.RandomisedOffset(spread, 0f, 0f);
-            Assert.That(low.x, Is.EqualTo(-100f).Within(1e-4f));
-            Assert.That(low.y, Is.EqualTo(-100f).Within(1e-4f));
+            // NoiseOffset is the pure PFE.Sim pair — X/Y, not Vector2's x/y.
+            NoiseMath.NoiseOffset low = NoiseMath.RandomisedOffset(spread, 0f, 0f);
+            Assert.That(low.X, Is.EqualTo(-100f).Within(1e-4f));
+            Assert.That(low.Y, Is.EqualTo(-100f).Within(1e-4f));
 
-            Vector2 high = NoiseMath.RandomisedOffset(spread, 1f, 1f);
-            Assert.That(high.x, Is.EqualTo(100f).Within(1e-4f));
-            Assert.That(high.y, Is.EqualTo(100f).Within(1e-4f));
+            NoiseMath.NoiseOffset high = NoiseMath.RandomisedOffset(spread, 1f, 1f);
+            Assert.That(high.X, Is.EqualTo(100f).Within(1e-4f));
+            Assert.That(high.Y, Is.EqualTo(100f).Within(1e-4f));
 
-            Vector2 mixed = NoiseMath.RandomisedOffset(spread, 0f, 1f);
-            Assert.That(mixed.x, Is.EqualTo(-100f).Within(1e-4f));
-            Assert.That(mixed.y, Is.EqualTo(100f).Within(1e-4f),
+            NoiseMath.NoiseOffset mixed = NoiseMath.RandomisedOffset(spread, 0f, 1f);
+            Assert.That(mixed.X, Is.EqualTo(-100f).Within(1e-4f));
+            Assert.That(mixed.Y, Is.EqualTo(100f).Within(1e-4f),
                 "Two independent draws — the error is a square, not a diagonal. Reusing one roll for both " +
                 "axes would put every investigation on the 45° line.");
 
-            Vector2 centre = NoiseMath.RandomisedOffset(spread, 0.5f, 0.5f);
-            Assert.That(centre.sqrMagnitude, Is.EqualTo(0f).Within(1e-6f),
+            NoiseMath.NoiseOffset centre = NoiseMath.RandomisedOffset(spread, 0.5f, 0.5f);
+            Assert.That(centre.X * centre.X + centre.Y * centre.Y, Is.EqualTo(0f).Within(1e-6f),
                 "A 0.5 draw is the exact centre, so the offset is never biased by a rounding choice.");
         }
 

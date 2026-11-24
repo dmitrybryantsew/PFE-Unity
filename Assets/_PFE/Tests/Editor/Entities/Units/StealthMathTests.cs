@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 
 namespace PFE.Tests.Editor.Entities.Units
 {

@@ -272,7 +272,8 @@ namespace PFE.Editor.Importers
                     // -> definition.parentId -> unit id, and for the units that have no <obj> row
                     // (raider5, slaver1, zebra1, merc1, scorp1, turret0, …) the placement carries no `cl`
                     // at all — so this field is what currently picks their controller. Dropping the write
-                    // would move slaver*/zebra*/merc* off RaiderController and onto their own, which is a
+                    // would move slaver*/zebra*/merc* off the shared ArmedShooterController and onto
+                    // their own, which is a
                     // combat change, not a loot one. Fixing it is its own task; the loot path no longer
                     // depends on it.
                     var contMatch = Regex.Match(attributesStr, @"cont='([^']+)'");

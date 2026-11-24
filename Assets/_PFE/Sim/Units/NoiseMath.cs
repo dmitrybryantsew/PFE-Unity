@@ -1,13 +1,14 @@
-using UnityEngine;
+using System;
 
-namespace PFE.Entities.Units
+namespace PFE.Sim.Units
 {
     /// <summary>
     /// AS3's acoustic model — <c>Unit.noise</c>, <c>Unit.makeNoise()</c>, <c>Unit.listen()</c>,
     /// <c>Unit.budilo()</c> and <c>UnitPlayer.observation()</c> — as pure functions of their numbers.
     ///
-    /// <para><b>Why extracted.</b> Same reason as <see cref="StaggerMath"/> and
-    /// <see cref="ContactInvulnerabilityMath"/>: every one of these quantities lives on a
+    /// <para><b>Why extracted.</b> Same reason as <c>PFE.Entities.Units.StaggerMath</c> and
+    /// <c>PFE.Entities.Units.ContactInvulnerabilityMath</c> (still view-side siblings): every one
+    /// of these quantities lives on a
     /// <c>MonoBehaviour</c> in the shipping code, so while the arithmetic sat inside the brain and the
     /// sensors it could not be executed without a scene, and every way to get it wrong is silent. A
     /// hearing radius that is 6× too large does not throw — it presents as "the enemy always knows where
@@ -95,7 +96,7 @@ namespace PFE.Entities.Units
         /// else if(stay &amp;&amp; (dx &gt; 3 || dx &lt; -3)) this.makeNoise(this.noiseRun / 4);
         /// </code>
         /// In <b>pixels per frame</b> — which is exactly the quantity <c>Unit.dx</c> holds and exactly
-        /// what <see cref="PFE.Entities.Units.UnitController.VelocityPixelsPerFrame"/> returns, so these
+        /// what <c>PFE.Entities.Units.UnitController.VelocityPixelsPerFrame</c> returns, so these
         /// are used verbatim with no rescaling.
         ///
         /// <para><b>The comparisons are strict, and the boundaries are reachable.</b> A unit whose run
@@ -307,12 +308,12 @@ namespace PFE.Entities.Units
         /// <summary>
         /// AS3's per-tick noise decay, <c>if(this.noise &gt; 0) this.noise -= 20;</c>
         /// (<c>:124876-124878</c>), clamped at zero for the same reason
-        /// <see cref="StaggerMath.Tick"/> is: a negative noise would be an inaudible <i>and</i> wrong
+        /// <c>PFE.Entities.Units.StaggerMath.Tick</c> is: a negative noise would be an inaudible <i>and</i> wrong
         /// value that nothing else in the system can explain.
         /// </summary>
         public static int TickNoise(int noise)
         {
-            return noise > 0 ? Mathf.Max(0, noise - NoiseDecayPerTick) : 0;
+            return noise > 0 ? Math.Max(0, noise - NoiseDecayPerTick) : 0;
         }
 
         /// <summary>
@@ -374,7 +375,7 @@ namespace PFE.Entities.Units
                 return 0;
             }
 
-            float speed = Mathf.Abs(dxPixelsPerFrame);
+            float speed = Math.Abs(dxPixelsPerFrame);
 
             if (speed > RunNoiseDx)
             {
@@ -412,7 +413,7 @@ namespace PFE.Entities.Units
                 return 0;
             }
 
-            float speed = Mathf.Abs(dyPixelsPerFrame);
+            float speed = Math.Abs(dyPixelsPerFrame);
 
             if (speed > HardLandingDy)
             {
@@ -831,7 +832,7 @@ namespace PFE.Entities.Units
 
             // `0.5 + 0.5 * |dx/dy|`, with |dx| < |dy| so the factor lands in (0.5, 1).
             return BelowEyeRangePenaltyFloor
-                + (1f - BelowEyeRangePenaltyFloor) * Mathf.Abs(deltaXPixels / deltaYPixels);
+                + (1f - BelowEyeRangePenaltyFloor) * Math.Abs(deltaXPixels / deltaYPixels);
         }
 
         /// <summary>
@@ -980,10 +981,35 @@ namespace PFE.Entities.Units
         /// are reachable and the average error is larger than <c>spread/2</c> per axis. Reusing one draw
         /// for both would confine the enemy to the diagonal, which is subtle enough to survive a
         /// play-test and obvious in a fixture.
+        ///
+        /// <b>Returns <see cref="NoiseOffset"/>, not <c>Vector2</c></b> — thread J's Phase 2 move of this
+        /// file into <c>PFE.Sim</c> keeps the acoustic model pure C# (the store it now backs,
+        /// <c>UnitWorld</c>, must stay engine-free); the two callers convert at their own Unity
+        /// boundary.
         /// </remarks>
-        public static Vector2 RandomisedOffset(float spread, float rollX, float rollY)
+        public static NoiseOffset RandomisedOffset(float spread, float rollX, float rollY)
         {
-            return new Vector2((rollX - 0.5f) * spread, (rollY - 0.5f) * spread);
+            return new NoiseOffset((rollX - 0.5f) * spread, (rollY - 0.5f) * spread);
+        }
+
+        /// <summary>
+        /// A pure 2D offset in pixels — the <c>PFE.Sim</c> stand-in for <c>Vector2</c> on
+        /// <see cref="RandomisedOffset"/>. Two floats and no engine types, the same convention the
+        /// float pairs on <c>SimUnitState</c> use for positions.
+        /// </summary>
+        public readonly struct NoiseOffset
+        {
+            /// <summary>The offset on the caller's X axis, pixels.</summary>
+            public readonly float X;
+
+            /// <summary>The offset on the caller's Y axis, pixels.</summary>
+            public readonly float Y;
+
+            public NoiseOffset(float x, float y)
+            {
+                X = x;
+                Y = y;
+            }
         }
     }
 }

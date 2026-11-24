@@ -151,9 +151,9 @@ namespace PFE.Tests.Editor.Entities.Enemies
         {
             string source = ReadCode(SpawnerPath);
 
-            Assert.That(source, Does.Contain("[\"damexpl1\"] = typeof(DamagerController)"),
-                "damexpl1 no longer resolves to DamagerController; the charge would spawn with a " +
-                "controller that cannot answer `dam`.");
+            Assert.That(source, Does.Contain("[\"damexpl1\"] = typeof(TrapController)"),
+                "damexpl1 no longer resolves to a controller that answers `dam`; the charge would " +
+                "spawn inert and pressing the detonator in rooms_begin/room_1_4 would do nothing again.");
         }
 
         /// <summary>

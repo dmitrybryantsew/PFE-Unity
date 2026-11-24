@@ -6,6 +6,7 @@ using PFE.Entities.Weapons;
 using PFE.Sim.Content;
 using PFE.Sim.Replication;
 using PFE.Sim.State;
+using PFE.Sim.Units;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Streaming;
 using UnityEngine;
@@ -34,12 +35,14 @@ namespace PFE.Systems.Replication
     /// fired round, a thrown object, a placed mine — are found through
     /// <c>RuntimeEntityIdContext.Registry.GetAll()</c>: none of them has a room record, so the registry
     /// is the only place they exist, and all three reach this class through
-    /// <see cref="ISimTransientStateSource"/> rather than three parallel lists. <i>Units</i> are found
-    /// through <see cref="UnitViewRegistry"/>, because the registry is keyed on the <c>UnitInstance</c>
-    /// record (row 3.2's decision) and nothing walks from a record back to its controller. Both are
-    /// filtered to entities that actually carry an id, and both are sorted by <c>EntityHash</c>:
-    /// <c>Dictionary</c> enumeration order is unspecified, and two hosts projecting the same state must
-    /// produce byte-identical payloads or the state hash is a coin flip.</para>
+    /// <see cref="ISimTransientStateSource"/> rather than three parallel lists. <i>Units</i> are read
+    /// from the <see cref="UnitWorld"/> slot array (thread J, Phase 3): the sync pass
+    /// (<see cref="UnitRecordSyncSystem"/>) stamps each live unit's record and room attribution into
+    /// the dense slots first — position and the avatar extras are view truth, readable only through
+    /// the controller, so the registry walk survives inside that pass and nowhere else. Units are
+    /// filtered to slots that actually carry an id, and each room's emitted array is sorted by
+    /// <c>EntityHash</c>: slot order is not an order two hosts share, and two hosts projecting the
+    /// same state must produce byte-identical payloads or the state hash is a coin flip.</para>
     ///
     /// <para><b>Phase 4 connects it to the loop through one interface, not through a transport.</b>
     /// This projector implements <see cref="ISimReplicationSnapshotSource"/>, so
@@ -55,14 +58,42 @@ namespace PFE.Systems.Replication
         private static readonly Comparison<ISimTransientStateSource> ByTransientHash =
             (a, b) => a.SimEntityHash.CompareTo(b.SimEntityHash);
 
-        /// <summary>Deterministic order for units, by the same key.</summary>
-        private static readonly Comparison<UnitController> ByUnitHash =
-            (a, b) => a.EntityId.Hash.CompareTo(b.EntityId.Hash);
-
         private readonly List<ISimTransientStateSource> _projectiles =
             new List<ISimTransientStateSource>(64);
-        private readonly List<UnitController> _units = new List<UnitController>(64);
         private readonly List<RoomInstance> _rooms = new List<RoomInstance>(4);
+
+        /// <summary>Deterministic order for a room's emitted units, by the same key the old
+        /// controller sort used — slot order is not an order two hosts share.</summary>
+        private static readonly Comparison<SimUnitState> ByUnitHash =
+            (a, b) => a.EntityHash.CompareTo(b.EntityHash);
+
+        /// <summary>The <see cref="IComparer{T}"/> shape of <see cref="ByUnitHash"/> — the range
+        /// overload of <c>Array.Sort</c> takes a comparer, not a comparison delegate.</summary>
+        private sealed class UnitHashComparer : IComparer<SimUnitState>
+        {
+            public static readonly UnitHashComparer Instance = new UnitHashComparer();
+
+            public int Compare(SimUnitState x, SimUnitState y) => ByUnitHash(x, y);
+        }
+
+        /// <summary>
+        /// One unit the sync pass stamped and this tick may emit: the record copy plus the room
+        /// attribution key (0 = in no room). Value type, reused through <see cref="_unitScratch"/>,
+        /// so collecting the live slots costs no allocation in steady state.
+        /// </summary>
+        private readonly struct ProjectedUnit
+        {
+            public readonly SimUnitState State;
+            public readonly ulong RoomKey;
+
+            public ProjectedUnit(SimUnitState state, ulong roomKey)
+            {
+                State = state;
+                RoomKey = roomKey;
+            }
+        }
+
+        private readonly List<ProjectedUnit> _unitScratch = new List<ProjectedUnit>(64);
 
         /// <summary>
         /// Deterministic order for loot: <c>List</c> order follows drop time, which differs between two
@@ -94,9 +125,9 @@ namespace PFE.Systems.Replication
         private readonly List<ObjectInstance> _objectScratch = new List<ObjectInstance>(16);
 
         /// <summary>
-        /// The live-view list units are projected from — thread E's replacement for the retired static
-        /// <c>UnitViewRegistry</c>. The container injects the session singleton; a null (a fixture that
-        /// never supplies one) projects zero units rather than throwing.
+        /// The live-view list — kept for the F-12 readback (<see cref="LiveUnitViewCount"/>) only;
+        /// unit projection itself reads the world, and the registry enumeration that feeds the sync
+        /// pass lives in <see cref="UnitRecordSyncSystem"/>.
         /// </summary>
         private readonly UnitViewRegistry _unitViews;
 
@@ -109,6 +140,21 @@ namespace PFE.Systems.Replication
         /// </summary>
         private readonly RuntimeEntityIdService _entityIds;
 
+        /// <summary>
+        /// The unit store the sync pass stamps and unit projection reads — thread J, Phase 3's
+        /// replacement for this class's own registry walk. Optional so the offline fixtures that
+        /// build the projector around a fake loop keep compiling; a null world (or one the sync
+        /// never stamped) projects zero units, the same answer a missing registry gave before.
+        /// </summary>
+        private readonly UnitWorld _unitWorld;
+
+        /// <summary>
+        /// The stamping pass the tick drives before reading the slots. Optional for the fixture
+        /// reason as everything else here; production registers it beside this projector and
+        /// VContainer fills it in.
+        /// </summary>
+        private readonly UnitRecordSyncSystem _recordSync;
+
         /// <summary>The service the registry walk enumerates — injected when present, ambient otherwise.</summary>
         private RuntimeEntityIdService EntityIds => _entityIds ?? RuntimeEntityIdContext.Active;
 
@@ -117,16 +163,20 @@ namespace PFE.Systems.Replication
         public int LiveUnitViewCount => _unitViews != null ? _unitViews.Count : 0;
 
         /// <summary>
-        /// <paramref name="unitViews"/> and <paramref name="entityIds"/> are optional so the offline
-        /// fixtures that build the projector around a fake loop keep compiling; production registers
-        /// both as container singletons and VContainer fills them in.
+        /// All parameters are optional so the offline fixtures that build the projector around a
+        /// fake loop keep compiling; production registers each as a container singleton and
+        /// VContainer fills them in.
         /// </summary>
         public SimProjectileSnapshotProjector(
             UnitViewRegistry unitViews = null,
-            RuntimeEntityIdService entityIds = null)
+            RuntimeEntityIdService entityIds = null,
+            UnitWorld unitWorld = null,
+            UnitRecordSyncSystem recordSync = null)
         {
             _unitViews = unitViews;
             _entityIds = entityIds;
+            _unitWorld = unitWorld;
+            _recordSync = recordSync;
         }
 
         private SimTileMutation[] _tileJournal = Array.Empty<SimTileMutation>();
@@ -223,11 +273,11 @@ namespace PFE.Systems.Replication
         public int ActiveRoomCount => _rooms.Count;
 
         /// <summary>
-        /// How many live units passed the <c>HasEntityId</c> filter on the last projection. A non-zero
-        /// value here with <see cref="ProjectedUnitCount"/> == 0 means every unit failed the
-        /// <c>ReferenceEquals(controller.Room, room)</c> attribution, not that the wire is broken.
+        /// How many live slots carried an id (<c>EntityHash != 0</c>) on the last projection. A
+        /// non-zero value here with <see cref="ProjectedUnitCount"/> == 0 means every unit's room
+        /// key matched no active room, not that the wire is broken.
         /// </summary>
-        public int IdentifiedUnitCount => _units.Count;
+        public int IdentifiedUnitCount => _unitScratch.Count;
 
         /// <summary>
         /// The producer's reliable tile stream, exposed so Phase 4's ack can reach
@@ -380,8 +430,14 @@ namespace PFE.Systems.Replication
 
             RefreshTileJournalCache();
 
+            // Stamp view truth into the world BEFORE reading it (thread J, Phase 3). The pass runs
+            // inside this tick rather than as a second ViewAligned tickable, so the sync-then-read
+            // order is structural; at this point in the bucket every unit-moving system has run
+            // and the transforms are settled.
+            _recordSync?.SyncAll();
+
             CollectProjectiles();
-            CollectUnits();
+            CollectUnits(_unitWorld);
 
             int projectedProjectiles = 0;
             int projectedUnits = 0;
@@ -440,13 +496,17 @@ namespace PFE.Systems.Replication
                     projectedProjectiles = _projectiles.Count;
                 }
 
-                // Units carry their own room: `UnitController.Room` resolves through the tile query, so
-                // attribution is a reference match rather than a guess from position — a room-local
-                // pixel coordinate cannot say which room it is local to.
+                // Units carry their room as the key the sync pass stamped (RoomKey(room.id), 0 for
+                // no room) — the same attribution the old controller walk resolved through the
+                // tile query, but computed once per unit per tick instead of once per unit per
+                // room, and read from a dense array instead of a MonoBehaviour chain. A room-local
+                // pixel coordinate cannot say which room it is local to, which is why the key, not
+                // the position, attributes.
+                ulong roomKey = SimSnapshotProjectionRules.RoomKey(room.id);
                 int unitCount = 0;
-                for (int u = 0; u < _units.Count; u++)
+                for (int u = 0; u < _unitScratch.Count; u++)
                 {
-                    if (ReferenceEquals(_units[u].Room, room)) unitCount++;
+                    if (_unitScratch[u].RoomKey == roomKey) unitCount++;
                 }
 
                 SimUnitState[] units = ReuseOrCreate(frame.Units[i], unitCount);
@@ -456,16 +516,24 @@ namespace PFE.Systems.Replication
                 {
                     int written = 0;
 
-                    for (int u = 0; u < _units.Count; u++)
+                    for (int u = 0; u < _unitScratch.Count; u++)
                     {
-                        UnitController controller = _units[u];
-                        if (!ReferenceEquals(controller.Room, room)) continue;
+                        ProjectedUnit projected = _unitScratch[u];
+                        if (projected.RoomKey != roomKey) continue;
 
-                        SimUnitState state = controller.CaptureSimState();
+                        SimUnitState state = projected.State;
                         units[written++] = state;
 
                         if (state.ControllerSlot >= 0) projectedPlayers++;
                         if (state.DefinitionId == ContentInternTable.Uninterned) uninterned++;
+                    }
+
+                    // The wire order is hash-ascending: the old walk sorted the controller list
+                    // globally and filtered, which left every room's slice in hash order; the slot
+                    // scan must reproduce that byte-for-byte, so the slice is sorted here.
+                    if (written > 1)
+                    {
+                        Array.Sort(units, 0, written, UnitHashComparer.Instance);
                     }
 
                     projectedUnits += written;
@@ -480,7 +548,7 @@ namespace PFE.Systems.Replication
 
                 frame.Deltas[i] = new SimRoomDelta
                 {
-                    RoomHash = SimSnapshotProjectionRules.RoomKey(room.id),
+                    RoomHash = roomKey,
                     LifecycleSequence = streaming != null ? streaming.GetRoomLifecycleSequence(room) : 0,
                     Units = units,
                     Motors = Array.Empty<SimMotorState>(),
@@ -500,7 +568,7 @@ namespace PFE.Systems.Replication
             _lastUnattributedProjectileCount = _projectiles.Count - projectedProjectiles;
             _lastUnitCount = projectedUnits;
             _lastPlayerUnitCount = projectedPlayers;
-            _lastUnattributedUnitCount = _units.Count - projectedUnits;
+            _lastUnattributedUnitCount = _unitScratch.Count - projectedUnits;
             _lastUninternedDefinitionCount = uninterned;
             _lastDroppedItemCount = projectedDroppedItems;
             _lastLootedObjectCount = projectedLootedObjects;
@@ -801,26 +869,34 @@ namespace PFE.Systems.Replication
         }
 
         /// <summary>
-        /// The live-view walk. A unit is projected only once it has an id — <c>OnEnable</c> registers it
-        /// inside <c>AddComponent</c>, before the spawner stamps the id, so the first tick of a spawn
-        /// legitimately sees an anonymous controller and must skip it rather than emit hash 0.
+        /// The world-slot sweep (thread J, Phase 3) — the replacement for the live-view walk. The
+        /// sync pass has already stamped every live unit's record and room attribution, so this is
+        /// a dense-array read: one pass that copies each id-carrying slot into the scratch list.
+        /// A slot acquired before the spawner stamps the id legitimately carries hash 0 for its
+        /// first ticks and is skipped here rather than emitted malformed — the same filter the
+        /// old walk's <c>HasEntityId</c> check applied, keyed by the stamped hash instead of the
+        /// controller mirror.
         /// </summary>
-        private void CollectUnits()
+        private void CollectUnits(UnitWorld world)
         {
-            _units.Clear();
+            _unitScratch.Clear();
 
-            // Thread E: the registry is the container-owned instance handed down the spawn chain; null
-            // (a fixture with no registry) means "no live views", the same answer an empty room gives.
-            IReadOnlyList<UnitController> live = _unitViews != null ? _unitViews.Live : Array.Empty<UnitController>();
-
-            for (int i = 0; i < live.Count; i++)
+            if (world == null)
             {
-                UnitController unit = live[i];
-                if (unit == null || !unit.HasEntityId) continue;
-                _units.Add(unit);
+                return;
             }
 
-            if (_units.Count > 1) _units.Sort(ByUnitHash);
+            for (int i = 0; i < world.LiveCount; i++)
+            {
+                int slot = world.LiveSlotAt(i);
+                SimUnitState state = world.UnitRecordAt(slot);
+                if (state.EntityHash == 0UL)
+                {
+                    continue;
+                }
+
+                _unitScratch.Add(new ProjectedUnit(state, world.RoomKeyAt(slot)));
+            }
         }
 
         /// <summary>

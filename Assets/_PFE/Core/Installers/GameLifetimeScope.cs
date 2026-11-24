@@ -19,6 +19,7 @@ using PFE.Systems.Particles.Adapters;
 using PFE.Systems.Particles.Rendering;
 using PFE.Data;
 using PFE.Entities.Player;
+using PFE.Entities.Units;
 using PFE.Systems.Weapons;
 using PFE.Core.Rng;
 using PFE.Core.Ids;
@@ -192,6 +193,13 @@ public class GameLifetimeScope : LifetimeScope
         // the previous session's list.
         builder.Register<PFE.Entities.Units.UnitViewRegistry>(Lifetime.Singleton);
         builder.Register<PFE.Entities.Units.EliteEnemyRegistry>(Lifetime.Singleton);
+
+        // === Unit view pool (Wave 3 thread J) ===
+        // The pooled "Visual" children RoomUnitSpawner acquires per unit and releases on room
+        // teardown. One session singleton so a view released by the room being left is available to
+        // the room being entered; gated by PfeDebugSettings.PooledUnitViews at the spawner
+        // construction site (RoomVisualController), so the flag-off path never touches it.
+        builder.Register<PFE.Entities.Units.UnitViewPool>(Lifetime.Singleton);
 
         // === Player slot context (F-09 / Phase 2.2) ===
         // The slot-indexed answer to "which player is mine", replacing the single-player global
@@ -811,6 +819,53 @@ public class GameLifetimeScope : LifetimeScope
         // The single place every always-on tickable is attached to SimLoop. This replaces the
         // per-system `IStartable` driver that ParticleWorld used to need.
         builder.RegisterEntryPoint<SimTickRegistrar>();
+
+        // === Unit drive lanes (thread J, Phase 2: batch dispatch) ===
+        //
+        // The three per-population batch tickables replace per-entity SimLoop registration for
+        // units, brains and unit-owned motors: one ISimTickable per order bucket ticks the whole
+        // population, so spawning or despawning a unit no longer churns the loop's dispatch order
+        // or the TickableCostTable rows. As<IAutoRegisteredSimTickable> is what puts each lane on
+        // SimLoop; AsSelf() follows the rule above — an `As<>` drops the implicit self binding.
+        builder.Register<UnitBrainDriveSystem>(Lifetime.Singleton)
+            .AsSelf()
+            .As<IAutoRegisteredSimTickable>();
+        builder.Register<UnitMotorDriveSystem>(Lifetime.Singleton)
+            .AsSelf()
+            .As<IAutoRegisteredSimTickable>();
+        builder.Register<UnitStepDriveSystem>(Lifetime.Singleton)
+            .AsSelf()
+            .As<IAutoRegisteredSimTickable>();
+        builder.Register<UnitDriveLanes>(Lifetime.Singleton);
+
+        // The unit sim-state store (thread J, Phase 2): the stealth/noise/suspicion record and the
+        // domains that follow it. Singleton because every unit on the loop must name slots in the
+        // same world — two worlds would be two truths about who is how suspicious of whom.
+        //
+        // Explicit factory, NOT Register<UnitWorld>(Lifetime.Singleton): the class has two
+        // constructors (`()` and `(int capacity)`, the latter kept for the offline fixtures), and
+        // VContainer picks the greediest one when no [Inject] mark exists — it would try to
+        // resolve `int` from the container and the throw would escape Build() with no entry point
+        // starting (the LootVendorItemSource registration above records the same trap).
+        builder.Register<PFE.Sim.Units.UnitWorld>(_ => new PFE.Sim.Units.UnitWorld(), Lifetime.Singleton);
+
+        // The lanes reach the entities by PUSH, same shape as WorldGate/EntityIds above: units,
+        // brains and motors are built with AddComponent and reach the loop only through
+        // AttachSimulation(clock, loop), so the lanes travel with the loop. When the push has not
+        // happened (every fixture, every offline harness) the entities fall back to registering
+        // directly on the loop — that fallback is the contract documented on SimLoop.UnitDrives.
+        builder.RegisterBuildCallback(container =>
+            container.Resolve<SimLoop>().UnitDrives = container.Resolve<UnitDriveLanes>());
+        builder.RegisterBuildCallback(container =>
+            container.Resolve<SimLoop>().UnitWorld = container.Resolve<PFE.Sim.Units.UnitWorld>());
+
+        // The view→world stamping pass the projector drives at the top of its tick (thread J,
+        // Phase 3): once per tick it stamps every live unit's view-derived fields and room
+        // attribution into the UnitWorld slot array, so the projector reads dense records instead
+        // of walking live views. A plain singleton, NOT an IAutoRegisteredSimTickable — the
+        // projector calls it, which keeps the sync-then-read order structural instead of resting
+        // on registration-order luck inside the ViewAligned bucket.
+        builder.Register<PFE.Systems.Replication.UnitRecordSyncSystem>(Lifetime.Singleton);
 
         // Phase 3.3 (F-05 closure): the host-side snapshot producer, and the first shipping reader of
         // the entity registry — via the thread-E RuntimeEntityIdService it now takes instead of the

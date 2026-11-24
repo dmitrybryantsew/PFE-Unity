@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Systems.Map;

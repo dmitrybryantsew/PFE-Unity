@@ -139,9 +139,9 @@ namespace PFE.Tests.Editor.Entities.Enemies
         [Test]
         public void ArchetypeControllers_AutomaticallyRequireAndAttachExpectedBrains()
         {
-            // ArmedShooter
+            // ArmedShooter — raider/slaver/zebra/ranger/encl/merc/necros all land here.
             var raiderGo = CreateGameObject("Raider");
-            var raider = raiderGo.AddComponent<RaiderController>();
+            var raider = raiderGo.AddComponent<ArmedShooterController>();
             Assert.IsNotNull(raiderGo.GetComponent<ArmedShooterBrain>());
 
             // Alicorn
@@ -149,45 +149,31 @@ namespace PFE.Tests.Editor.Entities.Enemies
             var alicorn = alicornGo.AddComponent<AlicornController>();
             Assert.IsNotNull(alicornGo.GetComponent<AlicornBrain>());
 
-            // Robot
+            // Robot — robobrain/dron/protect/gutsy/sentinel/spritebot/vortex/roller/msp/eqd all land here.
             var robobrainGo = CreateGameObject("Robobrain");
-            var robobrain = robobrainGo.AddComponent<RobobrainController>();
+            var robobrain = robobrainGo.AddComponent<RobotController>();
             Assert.IsNotNull(robobrainGo.GetComponent<RobotBrain>());
 
-            // Flyer
+            // Flyer — bloat/bat/phoenix/ebloat all land here.
             var bloatGo = CreateGameObject("Bloat");
-            var bloat = bloatGo.AddComponent<BloatController>();
+            var bloat = bloatGo.AddComponent<FlyerController>();
             Assert.IsNotNull(bloatGo.GetComponent<FlyerBrain>());
 
             // Climber
             var antGo = CreateGameObject("Ant");
-            var ant = antGo.AddComponent<AntController>();
+            var ant = antGo.AddComponent<ClimberController>();
             Assert.IsNotNull(antGo.GetComponent<ClimberBrain>());
-
-            // Beast
-            var hellhoundGo = CreateGameObject("Hellhound");
-            var hellhound = hellhoundGo.AddComponent<HellhoundController>();
-            var houndBrain = hellhoundGo.GetComponent<BeastBrain>();
-            Assert.IsNotNull(houndBrain);
-            Assert.AreEqual(BeastKind.Hound, houndBrain.Kind);
-
-            var slimeGo = CreateGameObject("Slime");
-            var slime = slimeGo.AddComponent<SlimeController>();
-            var slimeBrain = slimeGo.GetComponent<BeastBrain>();
-            Assert.IsNotNull(slimeBrain);
-            Assert.AreEqual(BeastKind.Slime, slimeBrain.Kind);
 
             // Aquatic
             var fishGo = CreateGameObject("Fish");
-            var fish = fishGo.AddComponent<FishController>();
+            var fish = fishGo.AddComponent<AquaticController>();
             Assert.IsNotNull(fishGo.GetComponent<AquaticBrain>());
 
-            // Trap
+            // Trap — the turret keeps its own controller (the mount's weapon/hack cluster).
             var turretGo = CreateGameObject("Turret");
             var turret = turretGo.AddComponent<TurretController>();
             var turretBrain = turretGo.GetComponent<TrapBrain>();
             Assert.IsNotNull(turretBrain);
-            Assert.AreEqual(TrapKind.Turret, turretBrain.Kind);
 
             // Bosses
             var bossRaiderGo = CreateGameObject("BossRaider");
@@ -205,6 +191,52 @@ namespace PFE.Tests.Editor.Entities.Enemies
             var bossUltraGo = CreateGameObject("BossUltra");
             bossUltraGo.AddComponent<BossUltraController>();
             Assert.IsNotNull(bossUltraGo.GetComponent<BossUltraBrain>());
+        }
+
+        /// <summary>
+        /// The class facts the deleted leaf controllers used to stamp in their <c>Awake</c>s — now
+        /// resolved from the unit id when the definition is assigned. This is the replacement for the
+        /// old per-subclass <c>Kind</c> assertions: one controller per family, the id picks the body.
+        /// </summary>
+        [Test]
+        public void BrainKinds_ResolveFromTheUnitId()
+        {
+            // Beast hound and slime share BeastController.
+            var houndGo = CreateGameObject("Hellhound");
+            var houndCtrl = houndGo.AddComponent<BeastController>();
+            houndCtrl.Initialize(IdDefinition("hellhound1"), new UnitStats(100f, 100f));
+            Assert.AreEqual(BeastKind.Hound, houndGo.GetComponent<BeastBrain>().Kind);
+
+            var slimeGo = CreateGameObject("Slime");
+            var slimeCtrl = slimeGo.AddComponent<BeastController>();
+            slimeCtrl.Initialize(IdDefinition("pinkslime"), new UnitStats(100f, 100f));
+            Assert.AreEqual(BeastKind.Slime, slimeGo.GetComponent<BeastBrain>().Kind);
+
+            // Robot drone — VariantTr resolves from the same id.
+            var dronGo = CreateGameObject("Dron");
+            var dronCtrl = dronGo.AddComponent<RobotController>();
+            dronCtrl.Initialize(IdDefinition("dron2"), new UnitStats(100f, 100f));
+            Assert.AreEqual(RobotKind.Drone, dronGo.GetComponent<RobotBrain>().Kind);
+
+            // Flyer nest — the emitter kind.
+            var nestGo = CreateGameObject("Nest");
+            var nestCtrl = nestGo.AddComponent<FlyerController>();
+            nestCtrl.Initialize(IdDefinition("ebloat"), new UnitStats(100f, 100f));
+            Assert.AreEqual(FlyerKind.Emitter, nestGo.GetComponent<FlyerBrain>().Kind);
+
+            // Trap turret — TurretController still owns the mount, TrapBrain the kind.
+            var turretGo = CreateGameObject("Turret");
+            var turretCtrl = turretGo.AddComponent<TurretController>();
+            turretCtrl.Initialize(IdDefinition("turret2"), new UnitStats(100f, 100f));
+            Assert.AreEqual(TrapKind.Turret, turretGo.GetComponent<TrapBrain>().Kind);
+        }
+
+        /// <summary>A bare definition carrying nothing but the id — the only fact the resolvers read.</summary>
+        private static UnitDefinition IdDefinition(string id)
+        {
+            var def = ScriptableObject.CreateInstance<UnitDefinition>();
+            def.id = id;
+            return def;
         }
 
         // ── 3. Mechanics Tests ─────────────────────────────────────────────────
@@ -477,7 +509,7 @@ namespace PFE.Tests.Editor.Entities.Enemies
         public void AquaticBrain_TargetLock_RequiresSubmergedOrInWaterTarget()
         {
             var fishGo = CreateGameObject("Fish");
-            var fishCtrl = fishGo.AddComponent<FishController>();
+            var fishCtrl = fishGo.AddComponent<AquaticController>();
             var brain = fishGo.GetComponent<AquaticBrain>();
             fishCtrl.Initialize(null, new UnitStats(100f, 100f));
 
@@ -639,10 +671,11 @@ namespace PFE.Tests.Editor.Entities.Enemies
         [Test]
         public void Flyer_PhoenixDiesInSingleHit_AndBloatSplitsOnVariantThreshold()
         {
-            // Phoenix fatal damage
+            // Phoenix fatal damage — the one-hit behaviour is gated on the kind, which resolves
+            // from the unit id.
             var phoenixGo = CreateGameObject("Phoenix");
-            var phoenixCtrl = phoenixGo.AddComponent<PhoenixController>();
-            phoenixCtrl.Initialize(null, new UnitStats(500f, 100f));
+            var phoenixCtrl = phoenixGo.AddComponent<FlyerController>();
+            phoenixCtrl.Initialize(IdDefinition("phoenix"), new UnitStats(500f, 100f));
             Assert.IsTrue(phoenixCtrl.IsAlive);
             phoenixCtrl.TakeDamage(1f);
             Assert.IsFalse(phoenixCtrl.IsAlive, "Phoenix must die in a single hit regardless of damage amount");
@@ -650,8 +683,8 @@ namespace PFE.Tests.Editor.Entities.Enemies
 
             // Bloat split variant < 8
             var bloatSmallGo = CreateGameObject("BloatSmall");
-            var bloatSmallCtrl = bloatSmallGo.AddComponent<BloatController>();
-            bloatSmallCtrl.Initialize(null, new UnitStats(100f, 100f));
+            var bloatSmallCtrl = bloatSmallGo.AddComponent<FlyerController>();
+            bloatSmallCtrl.Initialize(IdDefinition("bloat1"), new UnitStats(100f, 100f));
             bloatSmallCtrl.Variant = 1;
             bloatSmallCtrl.TakeDamage(200f);
             Assert.IsFalse(bloatSmallCtrl.IsAlive);
@@ -659,8 +692,8 @@ namespace PFE.Tests.Editor.Entities.Enemies
 
             // Bloat split variant >= 8
             var bloatBigGo = CreateGameObject("BloatBig");
-            var bloatBigCtrl = bloatBigGo.AddComponent<BloatController>();
-            bloatBigCtrl.Initialize(null, new UnitStats(100f, 100f));
+            var bloatBigCtrl = bloatBigGo.AddComponent<FlyerController>();
+            bloatBigCtrl.Initialize(IdDefinition("bloat1"), new UnitStats(100f, 100f));
             bloatBigCtrl.Variant = 8;
             bloatBigCtrl.TakeDamage(200f);
             Assert.IsFalse(bloatBigCtrl.IsAlive);
@@ -668,8 +701,8 @@ namespace PFE.Tests.Editor.Entities.Enemies
 
             // Bloat split isEmit
             var bloatEmitGo = CreateGameObject("BloatEmit");
-            var bloatEmitCtrl = bloatEmitGo.AddComponent<BloatController>();
-            bloatEmitCtrl.Initialize(null, new UnitStats(100f, 100f));
+            var bloatEmitCtrl = bloatEmitGo.AddComponent<FlyerController>();
+            bloatEmitCtrl.Initialize(IdDefinition("bloat1"), new UnitStats(100f, 100f));
             bloatEmitCtrl.IsEmit = true;
             bloatEmitCtrl.TakeDamage(200f);
             Assert.IsFalse(bloatEmitCtrl.IsAlive);
@@ -679,12 +712,13 @@ namespace PFE.Tests.Editor.Entities.Enemies
         [Test]
         public void DeathAnimation_HoundAndAnt_ReturnsDieWhenGrounded_AndDeathWhenAirborne()
         {
-            // Hound
+            // Hound — the kind now comes from the unit id, not the controller subclass.
             var houndGo = CreateGameObject("Hellhound");
-            var houndCtrl = houndGo.AddComponent<HellhoundController>();
+            var houndCtrl = houndGo.AddComponent<BeastController>();
             var houndBrain = houndGo.GetComponent<BeastBrain>();
             var houndStats = new UnitStats(100f, 100f);
-            houndCtrl.Initialize(null, houndStats);
+            houndCtrl.Initialize(IdDefinition("hellhound1"), houndStats);
+            Assert.AreEqual(BeastKind.Hound, houndBrain.Kind);
             houndStats.CurrentHp.Value = 0f; // Dead
 
             houndCtrl.SetGrounded(true);
@@ -695,7 +729,7 @@ namespace PFE.Tests.Editor.Entities.Enemies
 
             // Ant
             var antGo = CreateGameObject("Ant");
-            var antCtrl = antGo.AddComponent<AntController>();
+            var antCtrl = antGo.AddComponent<ClimberController>();
             var antBrain = antGo.GetComponent<ClimberBrain>();
             var antStats = new UnitStats(100f, 100f);
             antCtrl.Initialize(null, antStats);
@@ -728,7 +762,7 @@ namespace PFE.Tests.Editor.Entities.Enemies
         {
             // Robot
             var robotGo = CreateGameObject("Robot");
-            robotGo.AddComponent<RobobrainController>();
+            robotGo.AddComponent<RobotController>();
             var robotBrain = robotGo.GetComponent<RobotBrain>();
             robotBrain.Kind = RobotKind.Standard;
             Assert.IsTrue(robotBrain.CanStopToAttack, "Standard robot stops to attack");
@@ -744,7 +778,7 @@ namespace PFE.Tests.Editor.Entities.Enemies
 
             // Flyer
             var flyerGo = CreateGameObject("Flyer");
-            flyerGo.AddComponent<BloatController>();
+            flyerGo.AddComponent<FlyerController>();
             var flyerBrain = flyerGo.GetComponent<FlyerBrain>();
             Assert.IsFalse(flyerBrain.CanStopToAttack, "Flyer does not stop to attack");
 

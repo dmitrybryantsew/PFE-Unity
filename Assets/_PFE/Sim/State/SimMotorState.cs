@@ -126,6 +126,16 @@ namespace PFE.Sim.State
         [SimReconcile(SimReconcileRule.Resimulate)]
         public float SupportCarryY;
 
+        /// <summary>
+        /// The state a freshly acquired slot starts at — what <c>TilePhysicsController</c>'s field
+        /// initializer used to produce before the record's storage moved into
+        /// <c>PFE.Sim.Units.UnitWorld</c> (thread J, Phase 2). The two non-zero defaults are exactly
+        /// the old <c>facingDirection = 1</c> and <c>gravityScale = 1f</c> initializers; everything
+        /// else is the struct's own zero.
+        /// </summary>
+        public static SimMotorState Default =>
+            new SimMotorState { FacingDirection = 1, GravityScale = 1f };
+
         // ── Wire serialization (Phase 1.4; v10 codec: packed flags + sbyte directions) ──
         // Field order on the wire follows the declaration blocks above, with the nine contact/gait
         // bools folded into one flags ushort (LSB-first) written where the bool run was, and

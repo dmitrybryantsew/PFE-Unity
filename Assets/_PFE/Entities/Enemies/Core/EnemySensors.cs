@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PFE.Entities.Units;
+using PFE.Sim.Units;
 using PFE.Systems.Combat;
 using PFE.Systems.Map.TileQuery;
 using UnityEngine;
@@ -921,12 +922,12 @@ namespace PFE.Entities.Enemies
                 // A sound-only commit is deliberately imprecise: ±100 px, two independent draws. This is
                 // what makes a quiet player survivable — the unit walks to somewhere near you and then
                 // has to search, rather than to the pixel you are standing on.
-                Vector2 jitter = NoiseMath.RandomisedOffset(
+                NoiseMath.NoiseOffset jitter = NoiseMath.RandomisedOffset(
                     NoiseMath.SoundOnlyCommitSpreadPixels,
                     UnityEngine.Random.value,
                     UnityEngine.Random.value);
 
-                blackboard.LastHeardNoisePosition = heardCenterPx + jitter;
+                blackboard.LastHeardNoisePosition = heardCenterPx + new Vector2(jitter.X, jitter.Y);
 
                 // AS3 `aiSpok = maxSpok - 1` (`UnitZombie.as:661`) — the `else` of `if(celUnit)` inside
                 // `if(findCel())`, which is exactly this branch: the noise meter filled, so the unit

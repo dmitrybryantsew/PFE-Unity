@@ -14,14 +14,17 @@ namespace PFE.Tests.Editor.Core
     /// not <c>UnitController</c>. A source lint is the only offline guard for the wiring (§11 item 6:
     /// "a MonoBehaviour defect escapes every offline harness"). It asserts the <i>storage</i>, not
     /// just the names: each of the seven members must be a property whose body reads and writes
-    /// <c>_sim</c>, so a future edit that quietly turns one back into a plain field (truth back on the
-    /// MonoBehaviour) or forwards it to the wrong record field fails here.</para>
+    /// <c>SimData</c> (the UnitWorld forwarding accessor, thread J Phase 3), so a future edit that
+    /// quietly turns one back into a plain field (truth back on the MonoBehaviour) or forwards it
+    /// to the wrong record field fails here.</para>
     ///
     /// <para><b>Deliberately partial.</b> Only the motor-less unit's live motion/gait half moved in
     /// this slice. Elite/hero, corpse/dissolve, noise/stealth/suspicion, speech, contact-invulnerability
     /// and placement/content fields remain on the controller marked <c>[Authoritative]</c>; the
-    /// readiness doc §8 row 1.5 records why for each group. This lint pins the seven that moved and
-    /// does not pretend the rest did.</para>
+    /// readiness doc §8 row 1.5 records why for each group. (The corpse and stealth blocks have
+    /// since moved to <c>UnitWorld</c> as their own domains — thread J Phase 2 — but they are not
+    /// record fields and this lint still pins only the seven.) This lint pins the seven that moved
+    /// and does not pretend the rest did.</para>
     /// </summary>
     [TestFixture]
     public sealed class SimUnitStateMirrorLintTests
@@ -61,15 +64,15 @@ namespace PFE.Tests.Editor.Core
                     broken.Add(controller + " (reverted to a plain field — truth is back on the MonoBehaviour)");
                     continue;
                 }
-                if (!window.Contains("_sim." + record))
+                if (!window.Contains("SimData." + record))
                 {
-                    broken.Add(controller + " (does not forward to _sim." + record + ")");
+                    broken.Add(controller + " (does not forward to SimData." + record + ")");
                 }
-                if (record == "Vx" && !window.Contains("_sim.Vy"))
+                if (record == "Vx" && !window.Contains("SimData.Vy"))
                 {
                     broken.Add(controller + " (missing the Y half of _velocity)");
                 }
-                if (record == "SupportCarryX" && !window.Contains("_sim.SupportCarryY"))
+                if (record == "SupportCarryX" && !window.Contains("SimData.SupportCarryY"))
                 {
                     broken.Add(controller + " (missing the Y half of _groundPropCarryPixels)");
                 }
@@ -105,9 +108,14 @@ namespace PFE.Tests.Editor.Core
         {
             string stripped = SourceLint.ReadStripped(ControllerFile);
 
-            Assert.That(stripped, Does.Contain("private SimUnitState _sim"),
-                "UnitController no longer holds a live SimUnitState record. The seven forwarding " +
-                "properties need a single owner; without it the record is only a computed view.");
+            Assert.That(stripped, Does.Contain("private SimUnitState _localSim"),
+                "UnitController no longer holds the fallback SimUnitState record. The seven " +
+                "forwarding properties need a single owner for the no-world path; without it the " +
+                "record is only a computed view.");
+            Assert.That(stripped, Does.Contain("private ref SimUnitState SimData"),
+                "The UnitWorld forwarding accessor disappeared — the record would be a plain field " +
+                "again, truth back on the MonoBehaviour. (Thread J Phase 3: storage lives in the " +
+                "world slot; SimData is the only supported read/write path.)");
             Assert.That(stripped, Does.Contain("public SimUnitState UnitState"),
                 "The read-only projection (snapshot capture / host comparison) disappeared.");
             Assert.That(stripped, Does.Contain("ApplyUnitState"),

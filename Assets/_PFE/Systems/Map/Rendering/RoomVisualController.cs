@@ -365,6 +365,23 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
+        /// The container's shared unit-view pool, resolved the same lazy way as the sound service —
+        /// this controller is AddComponent-built, so [Inject] never runs on it. Thread J: one pool
+        /// serves every room's spawner, which is what lets a view released by the room being left be
+        /// reused by the room being entered. A null resolver (fixture-built controller) reads as
+        /// null, and the spawner keeps its inline visual path.
+        /// </summary>
+        private PFE.Entities.Units.UnitViewPool ResolveUnitViewPool()
+        {
+            if (resolver == null) return null;
+            try
+            {
+                return (PFE.Entities.Units.UnitViewPool)resolver.Resolve(typeof(PFE.Entities.Units.UnitViewPool));
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// The container's campaign singleton, resolved the same lazy way as the sound service — this
         /// controller is AddComponent-built, so [Inject] never runs on it and the resolver is pushed
         /// by <see cref="SetCombatServices"/>. Thread E: handed to the AreaTriggerSystem this
@@ -694,7 +711,12 @@ namespace PFE.Systems.Map.Rendering
                 useTileMotor: debugSettings != null && debugSettings.UnitMotor,
                 // The container the spawner reaches the weapon/audio services through. Without it a
                 // spawned enemy has no weapon stack and no voice — see RoomUnitSpawner's field remarks.
-                resolver: resolver);
+                resolver: resolver,
+                // Thread J: pooled "Visual" children, when the flag is on. Read once at build time,
+                // like UnitMotor above; null keeps the inline-build path.
+                unitViewPool: debugSettings != null && debugSettings.PooledUnitViews
+                    ? ResolveUnitViewPool()
+                    : null);
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 

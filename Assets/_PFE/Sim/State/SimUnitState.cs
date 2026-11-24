@@ -30,6 +30,12 @@ namespace PFE.Sim.State
     /// forwarding properties read and write this record. A unit with a motor keeps its motion in
     /// <see cref="SimMotorState"/> and leaves these at their defaults; the two are not summed.</para>
     ///
+    /// <para><b>Phase 3 (thread J) moved the record's storage into the UnitWorld slot store.</b>
+    /// The record is the fourth domain block there, sharing the controller's slot with the
+    /// stealth and corpse blocks; <c>UnitController</c> forwards through a handle and keeps a
+    /// local copy when no world is pushed. The snapshot projector reads the dense slot array
+    /// directly, so the wire payload is projected without a per-tick view walk.</para>
+    ///
     /// <para><b>What is deliberately NOT here.</b> The motor is a separate record
     /// (<see cref="SimMotorState"/>), keyed by the same <see cref="EntityHash"/> — a unit's gait and
     /// contact flags are predicted/corrected on a different cadence than its health, and merging them
@@ -201,6 +207,24 @@ namespace PFE.Sim.State
         /// </summary>
         [SimReconcile(SimReconcileRule.Interpolate)]
         public float AimAngle;
+
+        /// <summary>
+        /// The state a freshly acquired slot starts at — what <c>UnitController</c>'s field
+        /// initializer used to produce before the record's storage moved into
+        /// <c>PFE.Sim.Units.UnitWorld</c> (thread J, Phase 3). The non-zero defaults are exactly the
+        /// old initializers: facing right, both overhangs at "no support" (the literal
+        /// <c>1f</c> of <c>UnitOverhangMath.NoSupportOverhang</c>, inlined because PFE.Sim cannot
+        /// reference PFE.Entities), and <see cref="HostAiControllerSlot"/> — a zeroed record would
+        /// otherwise claim player 0 drives every AI unit.
+        /// </summary>
+        public static SimUnitState Default =>
+            new SimUnitState
+            {
+                FacingDirection = 1,
+                OverhangLeft = 1f,
+                OverhangRight = 1f,
+                ControllerSlot = HostAiControllerSlot,
+            };
 
         // ── Wire serialization (Phase 1.4; v10 codec: packed flags + quantized scalars) ──
         //

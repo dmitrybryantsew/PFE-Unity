@@ -225,7 +225,7 @@ namespace PFE.Tests.Editor.Combat
                 SourceLint.ReadStripped("Entities/Units/UnitController.cs"),
                 "public void TickCorpse()");
 
-            Assert.That(body, Does.Contain("_corpseDissolveFrames"),
+            Assert.That(body, Does.Contain("CorpseData.DissolveFrames"),
                 "positive control: this is TickCorpse's body");
 
             Assert.That(body, Does.Contain("ApplyDissolveFrame"),
@@ -318,7 +318,7 @@ namespace PFE.Tests.Editor.Combat
                 SourceLint.ReadStripped("Entities/Units/UnitController.cs"),
                 "public virtual bool ApplyDamage(in DamageOutcome outcome)");
 
-            int record = body.IndexOf("_lastDamageType = outcome.DamageType");
+            int record = body.IndexOf("CorpseData.LastDamageType = outcome.DamageType");
             int apply = body.IndexOf("_unitStats.ApplyDamage(outcome)");
             int raise = body.IndexOf("RaiseDeath");
 
@@ -349,7 +349,7 @@ namespace PFE.Tests.Editor.Combat
             Assert.That(source, Does.Contain("BeginDissolve(damageTip)"),
                 "the damage-type arm calls it");
 
-            int transitions = CountOccurrences(source, "_corpseState = CorpseState.Dissolving");
+            int transitions = CountOccurrences(source, "CorpseData.State = CorpseState.Dissolving");
             Assert.AreEqual(1, transitions,
                 "exactly one assignment puts a body into the dissolving state — a second one is a " +
                 "duplicated setup path, and `CorpseState.Dissolving` is what makes the dissolve tick");

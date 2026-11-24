@@ -57,49 +57,57 @@ namespace PFE.Systems.Map.Rendering
 
                 // Companions — AS3 `UnitPet` is one class for the phoenix, the owl and the moon
                 // (`UnitPlayer.as:446-465`). The row ids themselves must NOT map here: `phoenix` already
-                // resolves to the wild bird's `PhoenixController`, which is a different class reading the
+                // resolves to the wild bird's `FlyerController`, which is a different class reading the
                 // same row. A pet therefore carries `controllerId = "pet"`, which is what
                 // `PetSpawner` writes. See `PetController.ControllerId`.
                 [PetController.ControllerId] = typeof(PetController),
 
                 // NPCs — the one row that is not a family. `<obj id='npc' cl='UnitNPC'/>`
                 // (AllData.as:4926) is what every authored NPC placement resolves to, and `vendor` and
-                // `doctor` are the same class with a different persona (AllData.as:4927-4928). Until
-                // this entry existed, `npc` fell through to the bare UnitController — so Calamity was
-                // spawned as a collider with no art, no persona and no script verbs.
+                // `doctor` are the same class with a different persona (AllData.as:4927-4928).
                 [UnitNPCController.ControllerId] = typeof(UnitNPCController),
                 ["vendor"] = typeof(UnitNPCController),
                 ["doctor"] = typeof(UnitNPCController),
 
-                // Family 10 — ArmedShooter
+                // ── The archetype collapse ──────────────────────────────────────────────────────────
+                //
+                // Every family below routes to ONE controller per archetype. The per-class leaf
+                // controllers (`RaiderController`, `DronController`, `BloatController`, …) are deleted;
+                // the class facts they carried — brain Kind, placement-ai vocabulary, secondary weapon,
+                // griffin arm, death-split — are resolved from the unit id by
+                // `PFE.Entities.Enemies.UnitArchetypeRules` when the definition is assigned. The table
+                // still carries every AS3 class id and alias so the 4-step fallback chain resolves the
+                // same keys as before; they now land on the family's archetype controller.
+
+                // Family 10 — ArmedShooter (AS3 UnitRaider + UnitSlaver/Zebra/Ranger/Encl/Merc/Necros;
+                // the necros' distinct placement-ai vocabulary is id-keyed, and the merc's griffin arm
+                // is gated on `UnitDefinition.armSprite`).
                 [ArmedShooterController.ControllerId] = typeof(ArmedShooterController),
                 [ArmedShooterController.ControllerAlias] = typeof(ArmedShooterController),
-                [RaiderController.ControllerId] = typeof(RaiderController),
-                [RaiderController.ControllerAlias] = typeof(RaiderController),
-                [SlaverController.ControllerId] = typeof(SlaverController),
-                [SlaverController.ControllerAlias] = typeof(SlaverController),
-                [ZebraController.ControllerId] = typeof(ZebraController),
-                [ZebraController.ControllerAlias] = typeof(ZebraController),
-                [RangerController.ControllerId] = typeof(RangerController),
-                [RangerController.ControllerAlias] = typeof(RangerController),
-                [EnclController.ControllerId] = typeof(EnclController),
-                [EnclController.ControllerAlias] = typeof(EnclController),
-                [MercController.ControllerId] = typeof(MercController),
-                [MercController.ControllerAlias] = typeof(MercController),
-                [NecrosController.ControllerId] = typeof(NecrosController),
-                [NecrosController.ControllerAlias] = typeof(NecrosController),
+                ["UnitSlaver"] = typeof(ArmedShooterController),
+                ["slaver"] = typeof(ArmedShooterController),
+                ["UnitZebra"] = typeof(ArmedShooterController),
+                ["zebra"] = typeof(ArmedShooterController),
+                ["UnitRanger"] = typeof(ArmedShooterController),
+                ["ranger"] = typeof(ArmedShooterController),
+                ["UnitEncl"] = typeof(ArmedShooterController),
+                ["encl"] = typeof(ArmedShooterController),
+                ["UnitMerc"] = typeof(ArmedShooterController),
+                ["merc"] = typeof(ArmedShooterController),
+                ["UnitNecros"] = typeof(ArmedShooterController),
+                ["necros"] = typeof(ArmedShooterController),
 
-                // Family 11 — Undead
+                // Family 11 — Undead. `spectre` is NOT a zombie: AS3 UnitSpectre extends Unit and the
+                // roster guide forbids routing it to ZombieBrain, so it spawns as a brain-less plain
+                // EnemyController (it stands, takes damage, dies). Its `collisionTip = 0` is id-keyed.
                 [ZombieController.ControllerId] = typeof(ZombieController),
                 [ZombieController.ControllerAlias] = typeof(ZombieController),
-                // NOT ZombieController: UnitSpectre extends Unit, not UnitZombie, and guide 04 forbids
-                // routing it to ZombieBrain (no digger, no jump, no drop-through, no resurrection).
-                [SpectreController.ControllerId] = typeof(SpectreController),
-                [SpectreController.ControllerAlias] = typeof(SpectreController),
-                [GhoulController.ControllerId] = typeof(GhoulController),
-                [GhoulController.ControllerAlias] = typeof(GhoulController),
-                [DeadController.ControllerId] = typeof(DeadController),
-                [DeadController.ControllerAlias] = typeof(DeadController),
+                ["UnitGhoul"] = typeof(ZombieController),
+                ["ghoul"] = typeof(ZombieController),
+                ["UnitDead"] = typeof(ZombieController),
+                ["dead"] = typeof(ZombieController),
+                ["UnitSpectre"] = typeof(EnemyController),
+                ["spectre"] = typeof(EnemyController),
 
                 // Family 12 — Alicorn / Magic
                 [AlicornController.ControllerId] = typeof(AlicornController),
@@ -108,139 +116,120 @@ namespace PFE.Systems.Map.Rendering
                 // The boss alicorn's blades — AS3 `UnitScythe`. Registered on the UNIT id, not on a
                 // `cl=` row, because that is how the oracle resolves it: `Unit.as:694` special-cases
                 // `id == "scythe"` ahead of the XML lookup, so no `<obj cl='UnitScythe'/>` row exists
-                // and `scythe.asset` carries an empty `controllerId`. Without this entry the spawner's
-                // fallback chain lands on `unitId` "scythe", misses, and builds a brain-less, art-less
-                // base `UnitController` — the "plausible object that does nothing" this project keeps
-                // finding, and the reason `emit()` was left counting instead of spawning.
+                // and `scythe.asset` carries an empty `controllerId`.
                 [ScytheController.ControllerId] = typeof(ScytheController),
 
-                // Family 13 — Robot
-                [RobobrainController.ControllerId] = typeof(RobobrainController),
-                [RobobrainController.ControllerAlias] = typeof(RobobrainController),
-                ["robot"] = typeof(RobobrainController),
-                // UnitEqd extends UnitAIRobot (UnitEqd.as:5) — the same brain as robobrain. Registered
-                // because `eqd.asset` has empty controllerId/parentId, so the chain lands on unitId
-                // "eqd" and would otherwise fall through to the brain-less base UnitController (F2).
-                [EqdController.ControllerId] = typeof(EqdController),
-                [EqdController.ControllerAlias] = typeof(EqdController),
-                [DronController.ControllerId] = typeof(DronController),
-                [DronController.ControllerAlias] = typeof(DronController),
-                ["dront"] = typeof(DronController),
-                [ProtectController.ControllerId] = typeof(ProtectController),
-                [ProtectController.ControllerAlias] = typeof(ProtectController),
-                [GutsyController.ControllerId] = typeof(GutsyController),
-                [GutsyController.ControllerAlias] = typeof(GutsyController),
-                [SentinelController.ControllerId] = typeof(SentinelController),
-                [SentinelController.ControllerAlias] = typeof(SentinelController),
-                [SpriteBotController.ControllerId] = typeof(SpriteBotController),
-                [SpriteBotController.ControllerAlias] = typeof(SpriteBotController),
-                [VortexController.ControllerId] = typeof(VortexController),
-                [VortexController.ControllerAlias] = typeof(VortexController),
-                [RollerController.ControllerId] = typeof(RollerController),
-                [RollerController.ControllerAlias] = typeof(RollerController),
-                [MspController.ControllerId] = typeof(MspController),
-                [MspController.ControllerAlias] = typeof(MspController),
+                // Family 13 — Robot (AS3 UnitAIRobot + Robobrain/Eqd/Dron/Protect/Gutsy/Sentinel/
+                // SpriteBot/Vortex/Roller/Msp). The brain Kind, the `quiet`-only AI vocabulary and the
+                // `robofire`/`robomlau` secondaries are all id-keyed; `eqd` lands here because its asset
+                // has empty controllerId AND parentId, so the chain falls through to unitId "eqd" (F2).
+                [RobotController.ControllerId] = typeof(RobotController),
+                ["robot"] = typeof(RobotController),
+                ["UnitRobobrain"] = typeof(RobotController),
+                ["robobrain"] = typeof(RobotController),
+                ["UnitEqd"] = typeof(RobotController),
+                ["eqd"] = typeof(RobotController),
+                ["UnitDron"] = typeof(RobotController),
+                ["dron"] = typeof(RobotController),
+                ["dront"] = typeof(RobotController),
+                ["UnitProtect"] = typeof(RobotController),
+                ["protect"] = typeof(RobotController),
+                ["UnitGutsy"] = typeof(RobotController),
+                ["gutsy"] = typeof(RobotController),
+                ["UnitSentinel"] = typeof(RobotController),
+                ["sentinel"] = typeof(RobotController),
+                ["UnitSpriteBot"] = typeof(RobotController),
+                ["spritebot"] = typeof(RobotController),
+                ["UnitVortex"] = typeof(RobotController),
+                ["vortex"] = typeof(RobotController),
+                ["UnitRoller"] = typeof(RobotController),
+                ["roller"] = typeof(RobotController),
+                ["UnitMsp"] = typeof(RobotController),
+                ["msp"] = typeof(RobotController),
 
-                // Family 14 — Flyer
+                // Family 14 — Flyer (AS3 UnitBloat + UnitBat/UnitPhoenix/UnitBloatEmitter). The kind
+                // — drift bloat, diving bat, one-hit phoenix, emitting nest — is id-keyed.
                 [FlyerController.ControllerId] = typeof(FlyerController),
                 [FlyerController.ControllerAlias] = typeof(FlyerController),
-                [BloatController.ControllerId] = typeof(BloatController),
-                [BloatController.ControllerAlias] = typeof(BloatController),
-                [BatController.ControllerId] = typeof(BatController),
-                [BatController.ControllerAlias] = typeof(BatController),
-                ["bat"] = typeof(BatController),
-                ["bloodwing"] = typeof(BatController),
-                ["bloodwing2"] = typeof(BatController),
-                [PhoenixController.ControllerId] = typeof(PhoenixController),
-                [PhoenixController.ControllerAlias] = typeof(PhoenixController),
-                [BloatEmitterController.ControllerId] = typeof(BloatEmitterController),
-                [BloatEmitterController.ControllerAlias] = typeof(BloatEmitterController),
-                ["ebloat"] = typeof(BloatEmitterController),
+                ["UnitBat"] = typeof(FlyerController),
+                ["bat"] = typeof(FlyerController),
+                ["bloodwing"] = typeof(FlyerController),
+                ["bloodwing2"] = typeof(FlyerController),
+                ["UnitPhoenix"] = typeof(FlyerController),
+                ["phoenix"] = typeof(FlyerController),
+                ["UnitBloatEmitter"] = typeof(FlyerController),
+                ["ebloat"] = typeof(FlyerController),
 
-                // Family 15 — Climber
+                // Family 15 — Climber. The ant nest is AS3 UnitAntEmitter (extends UnitBloatEmitter)
+                // and keeps its own controller because its brain is the flyer's, not the climber's.
                 [ClimberController.ControllerId] = typeof(ClimberController),
                 [ClimberController.ControllerAlias] = typeof(ClimberController),
-                [AntController.ControllerId] = typeof(AntController),
-                [AntController.ControllerAlias] = typeof(AntController),
-                [AntEmitterController.ControllerId] = typeof(AntEmitterController),
-                [AntEmitterController.ControllerAlias] = typeof(AntEmitterController),
+                ["UnitAntEmitter"] = typeof(AntEmitterController),
                 ["eant"] = typeof(AntEmitterController),
 
-                // Family 16 — Beast
+                // Family 16 — Beast (AS3 UnitMonstrik + UnitHellhound/UnitSlime). The kind is id-keyed.
                 [BeastController.ControllerId] = typeof(BeastController),
                 [BeastController.ControllerAlias] = typeof(BeastController),
-                [MonstrikController.ControllerId] = typeof(MonstrikController),
-                [MonstrikController.ControllerAlias] = typeof(MonstrikController),
-                ["rat"] = typeof(MonstrikController),
-                ["molerat"] = typeof(MonstrikController),
-                ["scorp"] = typeof(MonstrikController),
-                ["scorp1"] = typeof(MonstrikController),
-                ["scorp2"] = typeof(MonstrikController),
-                ["scorp3"] = typeof(MonstrikController),
-                ["tarakan"] = typeof(MonstrikController),
-                [HellhoundController.ControllerId] = typeof(HellhoundController),
-                [HellhoundController.ControllerAlias] = typeof(HellhoundController),
-                ["hellhound"] = typeof(HellhoundController),
-                ["hellhound1"] = typeof(HellhoundController),
-                [SlimeController.ControllerId] = typeof(SlimeController),
-                [SlimeController.ControllerAlias] = typeof(SlimeController),
-                ["slime"] = typeof(SlimeController),
-                ["cryoslime"] = typeof(SlimeController),
-                ["pinkslime"] = typeof(SlimeController),
+                ["rat"] = typeof(BeastController),
+                ["molerat"] = typeof(BeastController),
+                ["scorp"] = typeof(BeastController),
+                ["scorp1"] = typeof(BeastController),
+                ["scorp2"] = typeof(BeastController),
+                ["scorp3"] = typeof(BeastController),
+                ["tarakan"] = typeof(BeastController),
+                ["UnitHellhound"] = typeof(BeastController),
+                ["hellhound"] = typeof(BeastController),
+                ["hellhound1"] = typeof(BeastController),
+                ["UnitSlime"] = typeof(BeastController),
+                ["slime"] = typeof(BeastController),
+                ["cryoslime"] = typeof(BeastController),
+                ["pinkslime"] = typeof(BeastController),
 
                 // Family 17 — Aquatic
                 [AquaticController.ControllerId] = typeof(AquaticController),
                 [AquaticController.ControllerAlias] = typeof(AquaticController),
-                [FishController.ControllerId] = typeof(FishController),
-                [FishController.ControllerAlias] = typeof(FishController),
-                ["fish"] = typeof(FishController),
-                ["fish1"] = typeof(FishController),
-                ["fish2"] = typeof(FishController),
-                ["fish3"] = typeof(FishController),
+                ["fish"] = typeof(AquaticController),
+                ["fish1"] = typeof(AquaticController),
+                ["fish2"] = typeof(AquaticController),
+                ["fish3"] = typeof(AquaticController),
 
-                // Family 18 — Trap / Stationary
-                [TrapController.ControllerId] = typeof(TrapController),
-                [TrapController.ControllerAlias] = typeof(TrapController),
+                // Family 18 — Trap / Stationary. The turret keeps its own controller — the mount's
+                // weapon, hack and sweep are a real behaviour cluster; the other six emplacements are
+                // the TrapBrain kind resolved from the id, and the detonator's `dam` verb is answered
+                // by TrapController for the damager kind alone.
                 [TurretController.ControllerId] = typeof(TurretController),
                 [TurretController.ControllerAlias] = typeof(TurretController),
-                ["turret"] = typeof(TurretController),
                 ["turret0"] = typeof(TurretController),
                 ["turret1"] = typeof(TurretController),
                 ["turret2"] = typeof(TurretController),
                 ["turret3"] = typeof(TurretController),
                 ["turret4"] = typeof(TurretController),
                 ["turret5"] = typeof(TurretController),
-                [BearTrapController.ControllerId] = typeof(BearTrapController),
-                [BearTrapController.ControllerAlias] = typeof(BearTrapController),
-                ["trap"] = typeof(BearTrapController),
-                ["mtrap"] = typeof(BearTrapController),
-                [TriggerController.ControllerId] = typeof(TriggerController),
-                [TriggerController.ControllerAlias] = typeof(TriggerController),
-                ["trigridge"] = typeof(TriggerController),
-                ["trigplate"] = typeof(TriggerController),
-                ["triglaser"] = typeof(TriggerController),
-                ["trigcans"] = typeof(TriggerController),
-                ["trcans"] = typeof(TriggerController),
-                ["trlaser"] = typeof(TriggerController),
-                ["trplate"] = typeof(TriggerController),
-                ["trridge"] = typeof(TriggerController),
-                [DamagerController.ControllerId] = typeof(DamagerController),
-                [DamagerController.ControllerAlias] = typeof(DamagerController),
-                ["damgren"] = typeof(DamagerController),
-                ["damshot"] = typeof(DamagerController),
-                ["damexpl1"] = typeof(DamagerController),
-                ["expl1"] = typeof(DamagerController),
-                [MagicWallController.ControllerId] = typeof(MagicWallController),
-                [MagicWallController.ControllerAlias] = typeof(MagicWallController),
-                ["mwall"] = typeof(MagicWallController),
-                [TransmitterController.ControllerId] = typeof(TransmitterController),
-                [TransmitterController.ControllerAlias] = typeof(TransmitterController),
-                ["transm"] = typeof(TransmitterController),
-                ["transmitter"] = typeof(TransmitterController),
-                [DestructiblePropController.ControllerId] = typeof(DestructiblePropController),
-                [DestructiblePropController.ControllerAlias] = typeof(DestructiblePropController),
-                ["destr1"] = typeof(DestructiblePropController),
-                ["destr"] = typeof(DestructiblePropController),
+                ["UnitTrap"] = typeof(TrapController),
+                ["trap"] = typeof(TrapController),
+                ["mtrap"] = typeof(TrapController),
+                ["UnitTrigger"] = typeof(TrapController),
+                ["trigcans"] = typeof(TrapController),
+                ["trigridge"] = typeof(TrapController),
+                ["trigplate"] = typeof(TrapController),
+                ["triglaser"] = typeof(TrapController),
+                ["trcans"] = typeof(TrapController),
+                ["trlaser"] = typeof(TrapController),
+                ["trplate"] = typeof(TrapController),
+                ["trridge"] = typeof(TrapController),
+                ["UnitDamager"] = typeof(TrapController),
+                ["damgren"] = typeof(TrapController),
+                ["damshot"] = typeof(TrapController),
+                ["damexpl1"] = typeof(TrapController),
+                ["expl1"] = typeof(TrapController),
+                ["UnitMWall"] = typeof(TrapController),
+                ["mwall"] = typeof(TrapController),
+                ["UnitTransmitter"] = typeof(TrapController),
+                ["transm"] = typeof(TrapController),
+                ["transmitter"] = typeof(TrapController),
+                ["UnitDestr"] = typeof(TrapController),
+                ["destr1"] = typeof(TrapController),
+                ["destr"] = typeof(TrapController),
 
                 // Bosses
                 [BossController.ControllerId] = typeof(BossController),
@@ -380,6 +369,24 @@ namespace PFE.Systems.Map.Rendering
         INpcDefinitionProvider _npcDefinitions;
 
         /// <summary>
+        /// The session's view pool, when <c>PfeDebugSettings.PooledUnitViews</c> is on (Thread J).
+        /// Null is the pre-pool behaviour: each spawn builds its <c>"Visual"</c> child inline and the
+        /// child is destroyed with the unit. Non-null: the child is a pooled <see cref="UnitView"/>
+        /// acquired at spawn and released — not destroyed — in <see cref="DestroyUnit"/> and
+        /// <see cref="DestroyAll"/>, so a room re-entry reuses the renderer and animator instead of
+        /// rebuilding them. The hierarchy is identical in both modes; only the construction differs.
+        /// </summary>
+        readonly UnitViewPool _viewPool;
+
+        /// <summary>
+        /// The pooled view behind each spawned record, so teardown can release it before the unit
+        /// root goes. Only populated when <see cref="_viewPool"/> is present — an inline-built view
+        /// dies with its unit and has nothing to release.
+        /// </summary>
+        readonly Dictionary<UnitInstance, UnitView> _spawnedViews =
+            new Dictionary<UnitInstance, UnitView>();
+
+        /// <summary>
         /// The room's object half of AS3's <c>land.uidObjs</c> table, forwarded to every
         /// <see cref="UnitNPCController"/> so a <b>dialogue</b> script's <c>@targ</c> resolves.
         /// </summary>
@@ -470,7 +477,8 @@ namespace PFE.Systems.Map.Rendering
             PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null,
             bool useTileMotor = false,
             IObjectResolver resolver = null,
-            INpcDefinitionProvider npcDefinitions = null)
+            INpcDefinitionProvider npcDefinitions = null,
+            UnitViewPool unitViewPool = null)
         {
             _room = room;
             _parent = parent;
@@ -483,6 +491,7 @@ namespace PFE.Systems.Map.Rendering
             _useTileMotor = useTileMotor;
             _resolver = resolver;
             _npcDefinitions = npcDefinitions;
+            _viewPool = unitViewPool;
         }
 
         /// <summary>
@@ -1240,6 +1249,7 @@ namespace PFE.Systems.Map.Rendering
                 // the room is about to lose the only place its health exists. See WriteBackUnitState.
                 WriteBackUnitState(pair.Key, pair.Value);
                 RuntimeEntityIdContext.Unregister(pair.Key);
+                ReleaseView(pair.Key);
                 DestroyObject(pair.Value);
             }
 
@@ -1252,6 +1262,7 @@ namespace PFE.Systems.Map.Rendering
 
             _deathOwners.Clear();
             _spawned.Clear();
+            _spawnedViews.Clear();
             _stale.Clear();
         }
 
@@ -1290,19 +1301,46 @@ namespace PFE.Systems.Map.Rendering
             // read it as the unit's position — while the sprite must be drawn 10px BELOW those feet
             // (AS3 `visBmp.y = -blitY + 10`). One transform cannot be both, so the visual moves and the
             // unit does not. UnitSpriteAnchor explains the pivot mismatch this compensates for.
-            var visualObject = new GameObject("Visual");
-            visualObject.transform.SetParent(unitObject.transform, false);
-
-            SpriteRenderer renderer = visualObject.AddComponent<SpriteRenderer>();
-            renderer.sortingLayerName = MapSortingLayers.BackgroundPhysicalObjects;
+            //
+            // Thread J (UnitViewPool): the child is a UnitView in both modes — acquired from the pool
+            // when one is attached (and released back on teardown), built inline otherwise. The
+            // hierarchy is identical either way: a "Visual" child holding the renderer and the
+            // animator, parent-posed by the unit root exactly as the inline build was.
             // Same depth convention as props: lower on screen draws in front.
-            renderer.sortingOrder = -Mathf.FloorToInt(unit.position.y / Mathf.Max(1f, WorldConstants.TILE_SIZE));
-            ApplySprite(renderer, unit, definition);
+            int sortingOrder = -Mathf.FloorToInt(unit.position.y / Mathf.Max(1f, WorldConstants.TILE_SIZE));
+            UnitView view;
+            if (_viewPool != null)
+            {
+                view = _viewPool.Acquire(definition, unit, unitObject.transform, sortingOrder);
+            }
+            else
+            {
+                var visualObject = new GameObject("Visual");
+                visualObject.transform.SetParent(unitObject.transform, false);
+                view = visualObject.AddComponent<UnitView>();
+                view.Configure(definition, unit, sortingOrder);
+            }
 
-            // The reader the importers were writing animation data for and nothing was reading. Added
-            // unconditionally — it early-returns when the state has no frames, so a single-frame unit
-            // keeps the resting sprite ApplySprite just drew, and a 40-cell looping `stay` starts moving.
-            visualObject.AddComponent<UnitAnimator>().Initialize(definition, renderer);
+            SpriteRenderer renderer = view.BodyRenderer;
+
+            // Naming the gap rather than rendering nothing silently is the point: an invisible enemy
+            // that is really there is the hardest kind to diagnose. The collider is still built, so
+            // the unit is targetable and damageable while its art is pending.
+            if (view.RestingSpriteMissing && _warnedMissingSprite.Add(unit.unitId))
+            {
+                Debug.LogWarning(
+                    $"[RoomUnitSpawner] Unit '{unit.unitId}' has no sprite on its UnitDefinition, so it " +
+                    $"is spawned as a collider with no visual. Run PFE/Art/Import Unit Sprites to " +
+                    $"populate it; if it stays empty after that, the unit has no <vis> art or its " +
+                    $"`stay` cell lies outside its sheet (the importer lists both).");
+            }
+
+            // Tracked only when a pool is attached: an inline view dies with the unit root and has
+            // nothing to release. See DestroyUnit.
+            if (_viewPool != null)
+            {
+                _spawnedViews[unit] = view;
+            }
 
             // ── The unit's home on the hand-rolled motor (Stage C, path 6) ──────────────────────
             //
@@ -1578,7 +1616,10 @@ namespace PFE.Systems.Map.Rendering
             // why the Super Alicorn has had no dome since the boss was ported.
             if (controller.HasSpellShieldOverlay || controller.UsesBossShieldOverlay)
             {
-                var shieldOverlay = visualObject.AddComponent<UnitShieldOverlay>();
+                // On the view, not the unit root: the dome sorts one step above the body renderer and
+                // rides the same anchor. A decorated view is not recycled — UnitViewPool destroys it
+                // on release rather than leaking the dome into the next occupant.
+                var shieldOverlay = view.gameObject.AddComponent<UnitShieldOverlay>();
                 shieldOverlay.Initialize(
                     stats,
                     controller.ShieldOverlayTier,
@@ -1694,120 +1735,6 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Draw the unit's sprite, or say plainly that there is none.
-        ///
-        /// <para><b>The art pipeline exists now: <c>UnitSpriteImporter</c></b> (menu
-        /// <c>PFE/Art/Import Unit Sprites</c>) slices each unit's sheet into a cell grid and writes the
-        /// unit's <b>resting frame</b> — the first cell of its <c>stay</c> state — into
-        /// <see cref="UnitDefinition.sprite"/>, which is what this method draws. So a null sprite here
-        /// means one of three concrete things, and the warning below says which:</para>
-        ///
-        /// <list type="number">
-        /// <item>the importer has not been run since the sheet data changed;</item>
-        /// <item>the unit has no <c>&lt;vis&gt;</c> art at all (the family templates and structural ids —
-        /// 44 of them — are not drawable units);</item>
-        /// <item>its <c>stay</c> cell fell outside its own sheet, which the importer reports as
-        /// <c>OutOfRange</c> rather than clamping onto a different animation's row.</item>
-        /// </list>
-        ///
-        /// <para><b>This method draws the resting frame; <see cref="UnitAnimator"/> takes over from the
-        /// next tick.</b> The full per-state animation data lives on
-        /// <see cref="UnitDefinition.spriteSheet"/> / <c>animations</c> and was written by the importers
-        /// with no reader at all until <c>UnitAnimator</c> landed, which is why a spawned unit used to
-        /// stand frozen however much animation its asset carried. The two are layered deliberately: the
-        /// resting frame is drawn here <i>first</i>, so a unit with no animation keeps a static sprite
-        /// and a unit with animation does not flicker through an empty first frame. Walking, attacking
-        /// and dying still need something to call <c>UnitAnimator.SetState</c> — that is the AI port, not
-        /// this class.</para>
-        ///
-        /// <para>Naming the gap rather than rendering nothing silently is the point: an invisible enemy
-        /// that is really there is the hardest kind to diagnose. The collider is still built, so the
-        /// unit is targetable and damageable while its art is pending.</para>
-        ///
-        /// <para><b>The sprite is anchored, not just assigned.</b> It goes through
-        /// <see cref="UnitSpriteAnchor.ApplyTo"/> rather than a bare <c>renderer.sprite =</c>, because the
-        /// imported per-frame PNGs carry Unity's default centre pivot while AS3 draws the frame 10px
-        /// below the unit's origin. That is the "units clip under the floor" defect; the type documents
-        /// the measurement.</para>
-        /// </summary>
-        void ApplySprite(SpriteRenderer renderer, UnitInstance unit, UnitDefinition definition)
-        {
-            Sprite sprite = definition != null ? definition.sprite : null;
-
-            // A villager pony is not one sprite: `ponpon`'s `<vis>` names a symbol whose own timeline
-            // is one frame over `pon`, and `pon` holds 27 different ponies selected by the placement's
-            // `tr` (UnitPonPon.as:112). Without this every villager in the game is frame 1 — the
-            // "it is just one mare" report. Falls through to the single sprite when the variant art
-            // has not been imported, so an un-run import degrades to the old picture, not to nothing.
-            if (PonPonVariants.TryResolve(definition, unit.GetAttribute(PonPonVariants.Attribute),
-                                          out Sprite variantSprite, out Vector2 variantScale,
-                                          out float variantFeetGap))
-            {
-                // The anchor comes from the art: a DisplayObject's origin is where the artist put it
-                // (8.54 px above the frame's bottom for these frames), not the bitmap rule's flat 10.
-                UnitSpriteAnchor.ApplyWithFeetGap(renderer, variantSprite, variantFeetGap, variantScale);
-                renderer.enabled = variantSprite != null;
-                ApplySpriteMaterial(renderer);
-                return;
-            }
-
-            // The registration point comes from the ART, not only from the definition. A turret's
-            // resting frame is a DisplayObject MovieClip whose origin is neither the frame's centre nor
-            // a 10 px feet gap (UnitTurret.setVisPos is `vis.x = X; vis.y = Y`), and no turret row
-            // authors `sprDX`/`sprDY`, so `registrationPoint` is (-1,-1) for all six mounts and the
-            // blit rule below drew them 28.5 px left and 56 px high. TurretSpriteOrigin carries the
-            // measured origin; every other unit falls through to its own declared value unchanged.
-            //
-            // `ApplyResolved` also routes the DisplayObject units that are NOT turrets — `bossnecr`,
-            // `bossraider`, `bloat*`, `dron*` and 34 more — to `VisualSpriteOrigins`, because the blit
-            // rule is the wrong question for a symbol placed with `vis.y = Y`. `visualNecrBoss` is the
-            // worst case: a 435x435 frame whose art is 96x101 with 212 px of empty canvas underneath,
-            // which a centre pivot plus `desiredY = 10` lifts 202 px — five tiles — above the collider.
-            UnitSpriteAnchor.ApplyResolved(renderer, sprite, definition, unit.unitId);
-            renderer.enabled = sprite != null;
-
-            // A turret is not one sprite: UnitTurret animates a gun and a lamp inside the mount's own
-            // MovieClip (UnitTurret.as:298-313), and the importer flattened that tree into one baked
-            // frame. Attach rebuilds the two missing pieces from the baked parts and, when they exist,
-            // swaps the body for the gun-free version of the same canvas. Returns null for every unit
-            // that is not one of the six mounts, so this is a no-op for the other ~290.
-            TurretPartPresenter.Attach(renderer, unit.unitId, renderer.sortingOrder, renderer.sortingLayerName);
-
-            if (sprite == null && _warnedMissingSprite.Add(unit.unitId))
-            {
-                Debug.LogWarning(
-                    $"[RoomUnitSpawner] Unit '{unit.unitId}' has no sprite on its UnitDefinition, so it " +
-                    $"is spawned as a collider with no visual. Run PFE/Art/Import Unit Sprites to " +
-                    $"populate it; if it stays empty after that, the unit has no <vis> art or its " +
-                    $"`stay` cell lies outside its sheet (the importer lists both).");
-            }
-
-            Material material = SpritePresenterMaterial.Get();
-            if (material != null)
-            {
-                renderer.sharedMaterial = material;
-            }
-        }
-
-        /// <summary>
-        /// The shared presenter material, which every unit sprite needs — a renderer left on Unity's
-        /// default sprite material is drawn by the built-in sprite shader and ignores the room's light
-        /// and fog passes.
-        ///
-        /// <para>Separate from <see cref="ApplySprite"/> because the villager path returns early with
-        /// its own sprite and anchor, and a material applied at only one of the two exits is how half
-        /// the ponies in a room end up lit differently from the other half.</para>
-        /// </summary>
-        static void ApplySpriteMaterial(SpriteRenderer renderer)
-        {
-            Material material = SpritePresenterMaterial.Get();
-            if (material != null)
-            {
-                renderer.sharedMaterial = material;
-            }
-        }
-
-        /// <summary>
         /// The controller type for a placement's <c>cl</c>. An empty id is normal — units placed by the
         /// random-enemy pass have no authored placement — so only a <i>named but unknown</i> controller
         /// warns, because that is a porting gap rather than the absence of one.
@@ -1853,7 +1780,27 @@ namespace PFE.Systems.Map.Rendering
             WriteBackUnitState(unit, unitObject);
             RuntimeEntityIdContext.Unregister(unit);
             _spawned.Remove(unit);
+            ReleaseView(unit);
             DestroyObject(unitObject);
+        }
+
+        /// <summary>
+        /// Detach the unit's pooled view and hand it back, <b>before</b> the unit root is destroyed —
+        /// the view is a child of that root, so releasing after <c>DestroyObject</c> would destroy the
+        /// very thing the pool exists to keep. No-op on the inline path (no pool, nothing tracked).
+        /// </summary>
+        void ReleaseView(UnitInstance unit)
+        {
+            if (_viewPool == null)
+            {
+                return;
+            }
+
+            if (_spawnedViews.TryGetValue(unit, out UnitView view))
+            {
+                _spawnedViews.Remove(unit);
+                _viewPool.Release(view);
+            }
         }
 
         /// <summary>

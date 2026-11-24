@@ -244,7 +244,7 @@ namespace PFE.Entities.Enemies.Archetypes
         /// The unit's definition, read through the owner on every use rather than captured at
         /// <see cref="Attach"/> time.
         ///
-        /// <para>The rig is built from <c>MercController.Initialize</c> right after
+        /// <para>The rig is built from <c>ArmedShooterController.Initialize</c> right after
         /// <c>base.Initialize</c>, and <c>RoomUnitSpawner</c> can call that a second time with a
         /// placement-adjusted definition — a captured copy would then describe a sheet the unit is no
         /// longer drawn from, and the arm would slide to a cell size that no longer matches its body.</para>

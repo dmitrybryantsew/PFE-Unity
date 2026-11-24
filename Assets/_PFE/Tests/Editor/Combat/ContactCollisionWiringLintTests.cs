@@ -146,13 +146,12 @@ namespace PFE.Tests.Editor.Combat
         // ── collisionTip: five classes answer false, and the rest must not ───────
 
         /// <summary>
-        /// The five ported classes that set <c>collisionTip = 0</c> in their AS3 constructors. A
-        /// missing override is not a crash and not a red fixture anywhere else — it is a slime that
-        /// shoves, which reads as "the slime is heavier than it looks" and never gets reported.
+        /// The oracle's <c>collisionTip = 0</c> constructors, ported. A missing answer is not a crash
+        /// and not a red fixture anywhere else — it is a slime that shoves, which reads as "the slime
+        /// is heavier than it looks" and never gets reported. The archetype rows answer through the
+        /// id-keyed <c>UnitCollisionImpulseMath.DisablesContactExchange</c> (behaviourally pinned in
+        /// <c>UnitCollisionImpulseMathTests</c>); the boss pair answers on its own controllers, below.
         /// </summary>
-        [TestCase(BeastPath, "public class SlimeController : BeastController", "UnitSlime.as:65")]
-        [TestCase(ZombiePath, "public sealed class SpectreController : EnemyController", "UnitSpectre.as:33")]
-        [TestCase(ArmedShooterPath, "public class NecrosController : ArmedShooterController", "UnitNecros.as:29")]
         [TestCase(BossPath, "public class BossDronController : BossController", "UnitBossDron.as:60")]
         [TestCase(BossPath, "public class ThunderHeadController : BossController", "UnitThunderHead.as:147")]
         public void TheFiveClassesThatDisableTheExchange_SaySo(string path, string classDeclaration, string oracle)

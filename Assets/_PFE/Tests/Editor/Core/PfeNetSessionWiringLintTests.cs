@@ -988,10 +988,11 @@ namespace PFE.Tests.Editor.Core
         public void LocalPlayerIsStampedWithTheSharedIdentityAndALiveRoomQuery()
         {
             // The third two-process play-test: transport, commands and world contract all green,
-            // client body state=0 foreign=28. CollectUnits() skips a unit without HasEntityId and
-            // the projector attributes a unit by ReferenceEquals(controller.Room, room); the shipped
-            // player prefab has neither. NPCs were the 28 foreign records. No compile or offline
-            // behaviour test can see a MonoBehaviour's missing SetTileQuery call — only this lint.
+            // client body state=0 foreign=28. A unit without an id never reaches the projection
+            // (the sync pass skips it), and the sync attributes a unit by the room key it stamps
+            // from controller.Room; the shipped player prefab has neither. NPCs were the 28 foreign
+            // records. No compile or offline behaviour test can see a MonoBehaviour's missing
+            // SetTileQuery call — only this lint.
             string session = ReadAdapter(SessionFile);
             string tick = SourceLint.MethodBody(session, "public void SimTick(int tickIndex)");
             AssertContains(tick, "EnsureBootRoomActive();",
@@ -1131,8 +1132,10 @@ namespace PFE.Tests.Editor.Core
                 "The overlay needs a liveness readback that a zero counter cannot counterfeit.");
             AssertContains(rawProjector, "public int ActiveRoomCount => _rooms.Count;",
                 "Zero rooms with a live manager is a different failure from a dead manager.");
-            AssertContains(rawProjector, "public int IdentifiedUnitCount => _units.Count;",
-                "Separates 'the registry is empty' from 'units could not be attributed to a room'.");
+            AssertContains(rawProjector, "public int IdentifiedUnitCount => _unitScratch.Count;",
+                "Separates 'the registry is empty' from 'units could not be attributed to a room'. " +
+                "(Thread J Phase 3: the counter names the collected world-slot scratch, not the " +
+                "retired controller list.)");
 
             string session = ReadAdapter(SessionFile);
             string fault = SourceLint.MethodBody(session,

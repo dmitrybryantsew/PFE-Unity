@@ -56,27 +56,41 @@ namespace PFE.Entities.Units
 
         // State
         /// <summary>
-        /// Phase 1.5 (F-02): the <b>live</b> Sim record for this unit. The seven motion/gait members
-        /// below are forwarding properties onto it — the MonoBehaviour no longer owns their storage.
-        /// A motored unit's motion truth stays in <c>SimMotorState</c> (different cadence, §10);
-        /// these are the motor-less path only. Field initialisers preserve the exact defaults the old
-        /// fields carried (<c>_facingDirection = 1</c>, overhang = <c>NoSupportOverhang</c>).
+        /// Phase 3 (thread J): the live Sim unit record forwards through <see cref="SimData"/> into
+        /// the controller's <see cref="PFE.Sim.Units.UnitWorld"/> slot — the SAME handle the
+        /// stealth and corpse blocks live under (see <see cref="StealthData"/>): one controller,
+        /// one slot, three domains in lockstep, acquired and released by the drive lifecycle.
+        /// <c>_localSim</c> is the fallback copy for a loop with no world, initialised to the same
+        /// <see cref="SimUnitState.Default"/> a fresh slot starts at, so the two storage paths are
+        /// indistinguishable through the public surface.
         /// </summary>
-        [Authoritative(Note = "The Sim state record UnitController's step mutates; live unit truth (F-02, Phase 1.5)")]
-        private SimUnitState _sim = new SimUnitState
-        {
-            FacingDirection = 1,
-            OverhangLeft = UnitOverhangMath.NoSupportOverhang,
-            OverhangRight = UnitOverhangMath.NoSupportOverhang,
+        [LocalOnly(Note = "Fallback copy of the unit record when the loop carries no UnitWorld")]
+        private SimUnitState _localSim = SimUnitState.Default;
 
-            // A default-constructed record would say slot 0, i.e. "player 0 drives me" — for every AI
-            // unit in the game. The record's own doc defines −1 as host AI; the initialiser is where
-            // that has to be true, not just documented.
-            ControllerSlot = SimUnitState.HostAiControllerSlot,
-        };
+        /// <summary>
+        /// The read/write view of this unit's <see cref="SimUnitState"/> — the unit-domain twin of
+        /// <see cref="StealthData"/> and <see cref="CorpseData"/>: the world's slot (under the
+        /// shared controller handle) when a world is pushed, the fallback copy otherwise. The
+        /// seven motion/gait members below are forwarding properties onto it; capture/restore and
+        /// the per-tick view sync route through it too.
+        /// </summary>
+        private ref SimUnitState SimData
+        {
+            get
+            {
+                UnitWorld world = StealthWorld;
+                if (world == null)
+                {
+                    return ref _localSim;
+                }
+
+                EnsureStealthSlot(world);
+                return ref world.AccessUnit(_stealthHandle);
+            }
+        }
 
         /// <summary>Read-only projection of the live record (snapshot capture / host comparison).</summary>
-        public SimUnitState UnitState => _sim;
+        public SimUnitState UnitState => SimData;
 
         /// <summary>
         /// Phase 3.3 (F-05 closure): the id of the <b>record</b> this view was built for, plus the
@@ -115,14 +129,14 @@ namespace PFE.Entities.Units
         public void AssignDefinitionId(ushort definitionId)
         {
             DefinitionId = definitionId;
-            _sim.DefinitionId = definitionId;
+            SimData.DefinitionId = definitionId;
         }
 
         /// <summary>
         /// Project this unit's tick state into the wire record — the host-side half of unit
         /// replication, mirroring <c>Projectile.CaptureSimState</c>.
         ///
-        /// <para><b>Most of the record is already live here.</b> <see cref="_sim"/> is the record
+        /// <para><b>Most of the record is already live here.</b> <see cref="SimData"/> is the record
         /// <c>UnitController</c>'s own step mutates, so health, gait, status and pose need no
         /// translation. Only three things are stamped at capture time: the identity (owned by the
         /// record + registry, not by this component), the interned definition id, and the position.
@@ -143,22 +157,48 @@ namespace PFE.Entities.Units
         /// </summary>
         public SimUnitState CaptureSimState()
         {
-            SimUnitState state = _sim;
+            // The view-derived fields are stamped by the same sync the snapshot projector runs each
+            // tick; capturing without syncing would hand any caller outside that pass (the
+            // multiplayer adapter's body placement is the production one) a record whose position
+            // is one sync stale.
+            SyncUnitRecordForProjection();
 
+            SimUnitState state = SimData;
+
+            // Identity is re-asserted on the copy for the same reason ApplyUnitState re-asserts it
+            // on the record: a hand-built or pre-id record must not report a blank identity while
+            // the controller's mirrors say otherwise.
             state.EntityHash = EntityId.Hash;
             state.DefinitionId = DefinitionId;
 
+            return state;
+        }
+
+        /// <summary>
+        /// Stamps the view-derived fields into the live record — position from the transform, the
+        /// avatar extras from the installed <see cref="IUnitAvatarViewSource"/> — plus the unit's
+        /// room attribution into the world slot. Called once per tick by
+        /// <c>UnitRecordSyncSystem</c> at <see cref="PFE.Core.SimTickOrder.ViewAligned"/>, before
+        /// the snapshot projector reads the dense slot array: the projector itself never touches
+        /// a view. The position mapping is exactly the one this class has always used
+        /// (transform.localPosition × 100, exact for every unit RoomUnitSpawner builds; the
+        /// unparented-player caveat is documented on <see cref="CaptureSimState"/>).
+        /// </summary>
+        public void SyncUnitRecordForProjection()
+        {
+            ref SimUnitState sim = ref SimData;
+
             Vector2 roomLocalPixels = WorldCoordinates.UnityToPixel(transform.localPosition);
-            state.Px = roomLocalPixels.x;
-            state.Py = roomLocalPixels.y;
+            sim.Px = roomLocalPixels.x;
+            sim.Py = roomLocalPixels.y;
 
             IUnitAvatarViewSource avatar = _avatarViewSource;
             if (avatar != null)
             {
-                state.AimAngle = avatar.AimAngle;
-                state.WeaponIdHash = avatar.WeaponIdHash;
-                state.PoseId = avatar.AnimStateId;
-                state.PoseFrame = avatar.AnimFrame;
+                sim.AimAngle = avatar.AimAngle;
+                sim.WeaponIdHash = avatar.WeaponIdHash;
+                sim.PoseId = avatar.AnimStateId;
+                sim.PoseFrame = avatar.AnimFrame;
 
                 // Facing rides the VISUAL truth, not the aim and not the raw record. The record's
                 // FacingDirection is motor-less truth: the step's velocity rule (Unit.as control())
@@ -171,10 +211,19 @@ namespace PFE.Entities.Units
                 // 8 for a motored rig, ApplyFacingToTransform for a motor-less one), on the local
                 // player and on a simulated peer body alike — reading it back at capture replicates
                 // exactly what the capturing machine sees.
-                state.FacingDirection = transform.localScale.x < 0f ? -1 : 1;
+                sim.FacingDirection = transform.localScale.x < 0f ? -1 : 1;
             }
 
-            return state;
+            UnitWorld world = StealthWorld;
+            if (world != null)
+            {
+                // Room attribution is part of the sync, not the record: the record itself stays
+                // pure C#, and the projector matches this key against its active-room set. The
+                // slot is ensured by the SimData access above, so the shared handle is valid here.
+                RoomInstance room = Room;
+                world.SetRoomKey(_stealthHandle,
+                    room != null ? SimSnapshotProjectionRules.RoomKey(room.id) : 0UL);
+            }
         }
 
         /// <summary>
@@ -203,25 +252,27 @@ namespace PFE.Entities.Units
 
             if (!id.IsValid) return;
 
-            _sim.EntityHash = id.Hash;
-            _sim.Generation = lifetime.Generation;
-            _sim.LifecycleSequence = lifetime.LifecycleSequence;
+            SimData.EntityHash = id.Hash;
+            SimData.Generation = lifetime.Generation;
+            SimData.LifecycleSequence = lifetime.LifecycleSequence;
         }
 
         /// <summary>Replace the live record (host correction / snapshot restore). The unit's existing
         /// step path re-projects it on the next tick: every motion/gait read now routes through
-        /// <see cref="_sim"/>. <c>Px/Py</c> are still driven by the authored room instance, so this
+        /// <see cref="SimData"/>. <c>Px/Py</c> are still driven by the authored room instance, so this
         /// deliberately does not write <c>Transform</c> — that projection lands with Phase 2.</summary>
         public void ApplyUnitState(in SimUnitState state)
         {
             HostWriteGuard.CheckRestore();
-            _sim = state;
+
+            ref SimUnitState sim = ref SimData;
+            sim = state;
 
             // Identity is not part of the state being restored. A snapshot from before this unit had an
             // id — or a hand-built <c>SimUnitState</c> in a fixture — carries EntityHash 0, and letting
             // that through would make the unit anonymous to the next projection while its EntityId
             // property still said otherwise: two answers to the same question, one of them stale.
-            if (EntityId.IsValid) _sim.EntityHash = EntityId.Hash;
+            if (EntityId.IsValid) sim.EntityHash = EntityId.Hash;
 
             // Same argument for the interned definition id: content identity is not part of the state
             // being restored. A snapshot from a peer that has not stamped it yet — or a hand-built
@@ -229,18 +280,18 @@ namespace PFE.Entities.Units
             // "definition 0" to the next projection instead of the definition it is.
             if (DefinitionId != PFE.Sim.Content.ContentInternTable.Uninterned)
             {
-                _sim.DefinitionId = DefinitionId;
+                sim.DefinitionId = DefinitionId;
             }
         }
 
         [Authoritative(Note = "Motor-less unit velocity; host-owned Sim truth (F-02)")]
         protected Vector2 _velocity
         {
-            get => new Vector2(_sim.Vx, _sim.Vy);
-            set { _sim.Vx = value.x; _sim.Vy = value.y; }
+            get => new Vector2(SimData.Vx, SimData.Vy);
+            set { SimData.Vx = value.x; SimData.Vy = value.y; }
         }
         [Authoritative(Note = "Motor-less unit groundedness; host-owned Sim truth (F-02)")]
-        protected bool _isGrounded { get => _sim.IsGrounded; set => _sim.IsGrounded = value; }
+        protected bool _isGrounded { get => SimData.IsGrounded; set => SimData.IsGrounded = value; }
 
         /// <summary>
         /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) — "ignore one-way surfaces when asking what I am
@@ -259,11 +310,11 @@ namespace PFE.Entities.Units
         /// and would not be the oracle's.</para>
         /// </summary>
         [Authoritative(Note = "AS3 throu; host-owned Sim truth (F-02)")]
-        protected bool _dropThroughPlatforms { get => _sim.DropThroughPlatforms; set => _sim.DropThroughPlatforms = value; }
+        protected bool _dropThroughPlatforms { get => SimData.DropThroughPlatforms; set => SimData.DropThroughPlatforms = value; }
 
-        // 1 = Right, -1 = Left. The default now lives in the _sim initialiser above.
+        // 1 = Right, -1 = Left. The default now lives in the SimUnitState.Default initialiser.
         [Authoritative(Note = "AS3 storona; host-owned Sim truth (F-02)")]
-        protected int _facingDirection { get => _sim.FacingDirection; set => _sim.FacingDirection = value; }
+        protected int _facingDirection { get => SimData.FacingDirection; set => SimData.FacingDirection = value; }
 
         /// <summary>
         /// AS3 <c>Unit.shX1</c>/<c>shX2</c> — how much of this unit's body width hangs past the edge of
@@ -280,11 +331,11 @@ namespace PFE.Entities.Units
         /// left ten ticks ago.</para>
         /// </summary>
         [Authoritative(Note = "AS3 shX1; host-owned Sim truth (F-02)")]
-        protected float _overhangLeft { get => _sim.OverhangLeft; set => _sim.OverhangLeft = value; }
+        protected float _overhangLeft { get => SimData.OverhangLeft; set => SimData.OverhangLeft = value; }
 
         /// <inheritdoc cref="_overhangLeft"/>
         [Authoritative(Note = "AS3 shX2; host-owned Sim truth (F-02)")]
-        protected float _overhangRight { get => _sim.OverhangRight; set => _sim.OverhangRight = value; }
+        protected float _overhangRight { get => SimData.OverhangRight; set => SimData.OverhangRight = value; }
 
 
         // Components
@@ -337,11 +388,10 @@ namespace PFE.Entities.Units
         /// <para><b>Why the controller needs it at all.</b> <see cref="UnitAnimator.Draw"/> is the only
         /// writer of <c>renderer.enabled</c> and it re-derives that flag from its own <c>_visible</c>
         /// every animation frame, so a hide that stops at <c>renderer.enabled</c> is undone on the next
-        /// frame — the failure <c>UnitAnimator._visible</c>'s own remarks warn about. Worse, enemies are
-        /// <b>never handed a renderer at all</b>: <c>RoomUnitSpawner</c> calls
-        /// <see cref="SetVisualRenderer"/> only on the <c>UnitNPCController</c> branch, so for every
-        /// enemy <c>_visualRenderer</c> is null and <see cref="ApplyVisualVisibility"/> wrote to nothing.
-        /// That is why the alicorn's <c>tr1</c> cloak was invisible in the log sense — it hid a sprite
+        /// frame — the failure <c>UnitAnimator._visible</c>'s own remarks warn about. The spawner hands
+        /// every unit its renderer at spawn, but the renderer alone cannot carry a hide: it has to
+        /// reach the animator's own flag or the next <c>Draw</c> undoes it. That is why the alicorn's
+        /// <c>tr1</c> cloak was invisible in the log sense before this seam existed — it hid a sprite
         /// nobody was told about.</para>
         /// </summary>
         [LocalOnly(Note = "View reference; resolved for the visibility write, never replicated")]
@@ -444,8 +494,8 @@ namespace PFE.Entities.Units
         [Authoritative(Note = "AS3 osndx/osndy carry; host-owned Sim truth (F-02)")]
         protected Vector2 _groundPropCarryPixels
         {
-            get => new Vector2(_sim.SupportCarryX, _sim.SupportCarryY);
-            set { _sim.SupportCarryX = value.x; _sim.SupportCarryY = value.y; }
+            get => new Vector2(SimData.SupportCarryX, SimData.SupportCarryY);
+            set { SimData.SupportCarryX = value.x; SimData.SupportCarryY = value.y; }
         }
 
         /// <summary>
@@ -1003,7 +1053,7 @@ namespace PFE.Entities.Units
         {
             if (SimDriven)
             {
-                _simLoop.Register(this);
+                RegisterSimDrive();
             }
 
             // The snapshot projector's flat list of live views. Registered here rather than in the
@@ -1063,7 +1113,7 @@ namespace PFE.Entities.Units
 
             if (SimDriven)
             {
-                _simLoop.Unregister(this);
+                UnregisterSimDrive();
             }
         }
 
@@ -1728,7 +1778,51 @@ namespace PFE.Entities.Units
             _simClock = clock;
             _simLoop = loop;
             _simAttached = true;
-            _simLoop.Register(this);
+            RegisterSimDrive();
+        }
+
+        /// <summary>
+        /// Registers this unit with the batch drive lane when the loop carries one (thread J,
+        /// Phase 2), else directly with the loop — the fixture fallback documented on
+        /// <see cref="PFE.Core.SimLoop.UnitDrives"/>. The lane ticks every registered controller in
+        /// one batch at <see cref="PFE.Core.SimTickOrder.UnitsAndAi"/> instead of the loop dispatching
+        /// each unit as its own tickable, which is what stopped spawns and despawns from invalidating
+        /// the dispatch order and the cost table.
+        /// </summary>
+        private void RegisterSimDrive()
+        {
+            UnitWorld world = StealthWorld;
+            if (world != null)
+            {
+                EnsureStealthSlot(world);
+            }
+
+            UnitDriveLanes drives = _simLoop.UnitDrives;
+            if (drives != null)
+            {
+                drives.Steps.Register(this);
+            }
+            else
+            {
+                _simLoop.Register(this);
+            }
+        }
+
+        /// <summary>The unregister half of <see cref="RegisterSimDrive"/> — same lane-or-loop choice,
+        /// so a unit that registered on a lane never tries to leave through the loop's own list.
+        /// Also the slot release: the stealth record outlives no unit.</summary>
+        private void UnregisterSimDrive()
+        {
+            ReleaseStealthSlot();
+            UnitDriveLanes drives = _simLoop.UnitDrives;
+            if (drives != null)
+            {
+                drives.Steps.Unregister(this);
+            }
+            else
+            {
+                _simLoop.Unregister(this);
+            }
         }
 
         /// <summary>
@@ -1918,62 +2012,88 @@ namespace PFE.Entities.Units
         // The arithmetic is all in NoiseMath; what lives here is the *state* — how loud this unit
         // currently is, and how suspicious of it the world has become.
         //
-        // The state is on UnitController rather than on a component of its own for the same reason
-        // `_isGrounded` and `_velocity` are: every unit has it, AS3 declares it on `Unit`, and a
-        // separate component would need a lookup from the two places that already hold the unit (the
-        // motor and the sensors). The *suspicion* meter is the one piece AS3 declares on a subclass
-        // (`UnitPlayer`) rather than on `Unit`, and the note on `Suspicion` says why it is here anyway.
+        // <b>Where the state lives (thread J, Phase 2): in a UnitWorld slot, not in fields on this
+        // class.</b> The six pieces AS3 declares on `Unit`/`UnitPlayer` — noise, noise_t, the
+        // landing-edge pair, obs/isObs and the target-side visibility group — moved into
+        // <see cref="UnitStealthData"/> as one domain, and this class is a forwarding facade over
+        // the slot its handle names. What stays here is the handle itself and the fallback copy a
+        // unit keeps when its loop carries no world — the same pushed-seam-or-local contract as
+        // <see cref="PFE.Core.SimLoop.UnitDrives"/>, so a bare `new SimLoop` fixture exercises
+        // every path below without standing up a world. The *suspicion* meter is the one piece
+        // AS3 declares on a subclass (`UnitPlayer`) rather than on `Unit`, and the note on
+        // <see cref="Suspicion"/> says why it rides on every unit anyway.
 
         /// <summary>
-        /// AS3 <c>Unit.noise:int = 0</c> — how far this unit can currently be heard, in pixels before
-        /// the listener's own <c>ear</c> is applied. Raised by <see cref="MakeNoise"/>, decays 20 per
-        /// tick, and is <b>0 whenever the unit is not doing anything loud</b>.
+        /// The slot this unit's stealth/noise/suspicion record lives in — acquired when the drive
+        /// registers (see <see cref="RegisterSimDrive"/>), released when it unregisters, invalid
+        /// whenever there is no world to name a slot in. Never replicated; it names host-local
+        /// storage. The handle names THREE domains, not one: the corpse block
+        /// (<see cref="CorpseData"/>) and the replicated unit record (<see cref="SimData"/>) share
+        /// it, because all three belong to the same drive lifecycle — one controller, one slot,
+        /// released once.
         /// </summary>
-        [Authoritative(Note = "AS3 noise; host-owned Sim truth (F-02)")]
-        private int _noise;
+        [LocalOnly(Note = "UnitWorld slot handle; names host-local sim storage, never replicated")]
+        private UnitHandle _stealthHandle;
 
         /// <summary>
-        /// AS3 <c>Unit.noise_t:int = 30</c> — the cooldown on the visible "something made a sound here"
-        /// ripple. Kept because it is the only stateful half of <c>makeNoise</c>, and read by the F3
-        /// overlay so the mechanic is visible during a play-test.
+        /// The fallback copy of the stealth record for a unit whose loop carries no
+        /// <see cref="UnitWorld"/> — every offline fixture's situation. Initialised to the same
+        /// <see cref="UnitStealthData.Default"/> a fresh world slot starts at, so the two storage
+        /// paths are indistinguishable through the public surface.
         /// </summary>
-        [Authoritative(Note = "AS3 noise_t ripple cooldown; host-owned Sim truth (F-02)")]
-        private int _noiseRippleTicks;
+        [LocalOnly(Note = "Fixture fallback store for the stealth domain; see PFE.Core.SimLoop.UnitWorld")]
+        private UnitStealthData _localStealth = UnitStealthData.Default;
 
         /// <summary>
-        /// AS3's <c>stay</c> as of the previous step, for detecting the landing edge. AS3 reads it
-        /// directly because its <c>run()</c> sets it; the port resolves groundedness in two different
-        /// places depending on the driver, so the edge is tracked here instead.
+        /// The read/write view of this unit's stealth record — the world slot when one is pushed,
+        /// the local fallback otherwise. <b>Borrowed, not stored:</b> callers hold the ref for one
+        /// mutation block and re-acquire it on the next access, so nothing can hold a ref past a
+        /// release.
         /// </summary>
-        [Authoritative(Note = "Landing-edge detector state; host-owned Sim truth (F-02)")]
-        private bool _noiseWasGrounded = true;
+        private ref UnitStealthData StealthData
+        {
+            get
+            {
+                UnitWorld world = StealthWorld;
+                if (world == null)
+                {
+                    return ref _localStealth;
+                }
 
-        /// <summary>
-        /// The downward speed at the last airborne step, in px/frame — AS3's <c>dy</c> at the moment
-        /// <c>checkShelf</c> fires. AS3 reads it inline inside <c>run()</c>; the port resolves the
-        /// landing a step later (see <see cref="TickNoise"/>), so the value has to be carried.
-        /// </summary>
-        [Authoritative(Note = "Landing-noise fall speed; host-owned Sim truth (F-02)")]
-        private float _noiseFallSpeedPixelsPerFrame;
+                EnsureStealthSlot(world);
+                return ref world.Access(_stealthHandle);
+            }
+        }
 
-        /// <summary>
-        /// AS3's <c>UnitPlayer.obs</c> / <c>isObs</c> — the suspicion the world has accumulated about
-        /// this unit.
-        ///
-        /// <para><b>Declared on <c>UnitPlayer</c> in the oracle, and deliberately on the base class
-        /// here.</b> In AS3 only the player is ever the target of <c>findCel()</c>, so a per-enemy field
-        /// would have been dead weight; in the port the sensor loop only ever sees a
-        /// <see cref="UnitController"/> (<c>EnemySensors.Evaluate</c> takes
-        /// <c>IReadOnlyList&lt;UnitController&gt;</c>), so the meter has to be reachable from there or
-        /// the sensors would need a cast to a concrete player type. Non-player units simply never
-        /// accumulate any, because nothing calls <see cref="AddSuspicion"/> for them — which is the same
-        /// statement AS3 makes by declaring the field lower down the hierarchy.</para>
-        /// </summary>
-        [Authoritative(Note = "AS3 obs/isObs suspicion meter; host-owned Sim truth (F-02)")]
-        private NoiseMath.Observation _suspicion;
+        /// <summary>The world this unit's stealth slot lives in — the same pushed seam the drive
+        /// lanes travel on, so a unit and its state are always in the same place.</summary>
+        private UnitWorld StealthWorld => _simLoop != null ? _simLoop.UnitWorld : null;
+
+        /// <summary>Idempotent acquire of the stealth slot. Called from drive registration so the
+        /// slot exists before the first tick, and defensively from the data accessor so a unit
+        /// whose world arrived after its registration still lands in a slot.</summary>
+        private void EnsureStealthSlot(UnitWorld world)
+        {
+            if (!_stealthHandle.IsValid)
+            {
+                _stealthHandle = world.Acquire();
+            }
+        }
+
+        /// <summary>The release half of <see cref="EnsureStealthSlot"/> — called from drive
+        /// unregistration. A unit whose loop is already gone never had a slot in the only world
+        /// that matters, and the fallback copy needs no cleanup.</summary>
+        private void ReleaseStealthSlot()
+        {
+            UnitWorld world = StealthWorld;
+            if (world != null && _stealthHandle.IsValid)
+            {
+                world.Release(ref _stealthHandle);
+            }
+        }
 
         /// <summary>How loud this unit currently is — AS3 <c>Unit.noise</c>.</summary>
-        public int Noise => _noise;
+        public int Noise => StealthData.Noise;
 
         /// <summary>
         /// This unit's base noise while running — AS3 <c>Unit.noiseRun</c>, from the definition's
@@ -2000,8 +2120,15 @@ namespace PFE.Entities.Units
         /// <summary>Whether this unit is mechanical — AS3 <c>opt.robot</c>, the alarm-propagation exception.</summary>
         public bool IsMechanical => _stats != null && _stats.isMechanical;
 
-        /// <summary>The suspicion meter — AS3's <c>obs</c>/<c>isObs</c> pair. See <see cref="_suspicion"/>.</summary>
-        public NoiseMath.Observation Suspicion => _suspicion;
+        /// <summary>
+        /// The suspicion meter — AS3's <c>obs</c>/<c>isObs</c> pair. See
+        /// <see cref="UnitStealthData.Suspicion"/> for why it rides on every unit rather than only
+        /// the player's subclass: the sensor loop sees a <c>UnitController</c>, so the meter has to
+        /// be reachable from here. Non-player units simply never accumulate any, because nothing
+        /// calls <see cref="AddSuspicion"/> for them — which is the same statement AS3 makes by
+        /// declaring the field on <c>UnitPlayer</c>.
+        /// </summary>
+        public NoiseMath.Observation Suspicion => StealthData.Suspicion;
 
         /// <summary>
         /// AS3 <c>UnitPlayer.maxObs = 20</c> — the value <see cref="Suspicion"/> commits at.
@@ -2013,7 +2140,7 @@ namespace PFE.Entities.Units
         /// Read by the F3 overlay; the in-world ripple AS3 emits from <c>makeNoise</c> is still not
         /// ported (recorded as an open item rather than quietly dropped).
         /// </summary>
-        public int NoiseRippleTicks => _noiseRippleTicks;
+        public int NoiseRippleTicks => StealthData.NoiseRippleTicks;
 
         /// <summary>
         /// AS3 <c>Unit.makeNoise(param1, param2)</c> — raise this unit's noise to at least
@@ -2039,15 +2166,16 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            _noise = NoiseMath.MakeNoise(_noise, amount);
+            ref UnitStealthData data = ref StealthData;
+            data.Noise = NoiseMath.MakeNoise(data.Noise, amount);
 
             // Note the ripple cooldown is refreshed whether or not the value actually rose: AS3's
             // `if(this.noise < param1)` guard covers only the assignment, and the `noise_t` block below
             // it is unconditional. A quiet footstep during a gunshot therefore still re-arms the
             // ripple — which is what makes the ripple read as "sound here", not "loudest sound here".
-            if (NoiseMath.ShouldRefreshNoiseRipple(_noiseRippleTicks, isEvent))
+            if (NoiseMath.ShouldRefreshNoiseRipple(data.NoiseRippleTicks, isEvent))
             {
-                _noiseRippleTicks = NoiseMath.NoiseRippleTicks;
+                data.NoiseRippleTicks = NoiseMath.NoiseRippleTicks;
             }
         }
 
@@ -2065,7 +2193,8 @@ namespace PFE.Entities.Units
         /// <c>dy</c> because the shelf check that finds the ground is inside the same <c>run()</c> that
         /// integrated the fall. The port resolves groundedness before the move and zeroes the velocity
         /// during it, so by the time the edge is visible the speed is gone — hence
-        /// <see cref="_noiseFallSpeedPixelsPerFrame"/>, which remembers the last airborne speed. One
+        /// <c>NoiseFallSpeedPixelsPerFrame</c> on the stealth record, which remembers the last airborne
+        /// speed. One
         /// step of latency on a sound cue, and it means the value is the speed on the step <i>before</i>
         /// contact rather than at it, which is the same number for any constant-acceleration fall.</para>
         /// </summary>
@@ -2078,9 +2207,11 @@ namespace PFE.Entities.Units
         /// </param>
         public void TickNoise(bool grounded, Vector2 velocityPixelsPerFrame)
         {
-            if (grounded && !_noiseWasGrounded)
+            ref UnitStealthData data = ref StealthData;
+
+            if (grounded && !data.NoiseWasGrounded)
             {
-                int landing = NoiseMath.LandingNoise(NoiseRun, _noiseFallSpeedPixelsPerFrame);
+                int landing = NoiseMath.LandingNoise(NoiseRun, data.NoiseFallSpeedPixelsPerFrame);
                 if (landing > 0)
                 {
                     MakeNoise(landing, isEvent: true);
@@ -2089,13 +2220,13 @@ namespace PFE.Entities.Units
 
             if (!grounded)
             {
-                _noiseFallSpeedPixelsPerFrame = velocityPixelsPerFrame.y;
+                data.NoiseFallSpeedPixelsPerFrame = velocityPixelsPerFrame.y;
             }
 
-            _noiseWasGrounded = grounded;
+            data.NoiseWasGrounded = grounded;
 
-            _noise = NoiseMath.TickNoise(_noise);
-            _noiseRippleTicks = NoiseMath.TickNoiseRipple(_noiseRippleTicks);
+            data.Noise = NoiseMath.TickNoise(data.Noise);
+            data.NoiseRippleTicks = NoiseMath.TickNoiseRipple(data.NoiseRippleTicks);
 
             int movement = NoiseMath.MovementNoise(NoiseRun, velocityPixelsPerFrame.x, grounded);
             if (movement > 0)
@@ -2109,12 +2240,13 @@ namespace PFE.Entities.Units
         /// <c>if(obs &gt; 0 &amp;&amp; isObs &lt;= 0) obs -= minusObs;</c> and its hold countdown.
         ///
         /// <para>Called for every unit rather than only for the player, because "who is a target" is a
-        /// question the sensors answer, not this class — see <see cref="_suspicion"/>. A unit nobody
+        /// question the sensors answer, not this class — see <see cref="Suspicion"/>. A unit nobody
         /// observes simply keeps a meter at zero, and ticking a zero costs two comparisons.</para>
         /// </summary>
         public void TickSuspicion()
         {
-            _suspicion = NoiseMath.TickObservation(_suspicion);
+            ref UnitStealthData data = ref StealthData;
+            data.Suspicion = NoiseMath.TickObservation(data.Suspicion);
         }
 
         /// <summary>
@@ -2128,8 +2260,9 @@ namespace PFE.Entities.Units
         /// </param>
         public float AddSuspicion(float amount)
         {
-            _suspicion = NoiseMath.AddObservation(_suspicion, amount, MaxSuspicion);
-            return _suspicion.Value;
+            ref UnitStealthData data = ref StealthData;
+            data.Suspicion = NoiseMath.AddObservation(data.Suspicion, amount, MaxSuspicion);
+            return data.Suspicion.Value;
         }
 
         /// <summary>
@@ -2144,12 +2277,13 @@ namespace PFE.Entities.Units
         /// as the meter takes to drain (20 units at 0.1/tick ≈ 6.7 s), which is why the original is
         /// hard to re-hide from immediately after being seen. Draining is the reset.
         /// </remarks>
-        public bool IsObserved => NoiseMath.IsObserved(_suspicion, MaxSuspicion);
+        public bool IsObserved => NoiseMath.IsObserved(StealthData.Suspicion, MaxSuspicion);
 
         // === Stealth — AS3's target-side `visibility` / `stealthMult` / `demask` =====================
         //
-        // The arithmetic is in StealthMath; what lives here is the *state*, for exactly the reason the
-        // acoustic state does. AS3 declares the pieces on `Unit` (`visibility`, `stealthMult`,
+        // The arithmetic is in StealthMath; the state rides on the same stealth record as the
+        // acoustic half above (see the migration note there), so what lives here is only the
+        // forwarding readers. AS3 declares the pieces on `Unit` (`visibility`, `stealthMult`,
         // `demask`, `detecting`) and on `UnitPlayer` (`lurked`, `isSit`), and the two readers already
         // hold a `UnitController`: `EnemySensors.Evaluate` takes `IReadOnlyList<UnitController>`, and
         // `AddSuspicion` is on this class.
@@ -2160,39 +2294,31 @@ namespace PFE.Entities.Units
         // StealthMath.ReferenceVisibility rather than hidden here.
 
         /// <summary>
-        /// This unit's target-side stealth state — AS3's <c>visibility</c>, <c>stealthMult</c>,
-        /// <c>demask</c>, <c>detecting</c>, <c>lurked</c>, <c>isSit</c>. Advanced by
-        /// <see cref="TickStealth"/>; read by <c>EnemySensors</c>.
-        /// </summary>
-        [Authoritative(Note = "AS3 visibility/stealthMult/demask/detecting; host-owned Sim truth (F-02)")]
-        private StealthMath.StealthState _stealth = StealthMath.StealthState.Default;
-
-        /// <summary>
         /// The whole target-side stealth state — AS3's <c>visibility</c>/<c>stealthMult</c>/<c>demask</c>
         /// group. Handed out as one value so a reader sees a consistent snapshot.
         /// </summary>
-        public StealthMath.StealthState Stealth => _stealth;
+        public StealthMath.StealthState Stealth => StealthData.Stealth;
 
         /// <summary>AS3 <c>Unit.visibility</c> — how large this unit looks to a searcher.</summary>
-        public int Visibility => _stealth.Visibility;
+        public int Visibility => StealthData.Stealth.Visibility;
 
         /// <summary>AS3 <c>Unit.stealthMult</c> — the cloak multiplier (1, or 0.2 while cloaked).</summary>
-        public float StealthMult => _stealth.StealthMult;
+        public float StealthMult => StealthData.Stealth.StealthMult;
 
         /// <summary>AS3 <c>Unit.demask</c> — the anti-stealth reveal from acting, 0…200.</summary>
-        public float Demask => _stealth.Demask;
+        public float Demask => StealthData.Stealth.Demask;
 
         /// <summary>
         /// AS3 <c>Unit.detecting</c> — the radius inside which an observer sees this unit regardless of
         /// facing. <b>0 while lurking or cloaked</b>, which deletes the point-blank tier.
         /// </summary>
-        public int Detecting => _stealth.Detecting;
+        public int Detecting => StealthData.Stealth.Detecting;
 
         /// <summary>AS3 <c>UnitPlayer.lurked</c> — in cover.</summary>
-        public bool Lurked => _stealth.Lurked;
+        public bool Lurked => StealthData.Stealth.Lurked;
 
         /// <summary>AS3 <c>Unit.isSit</c> — resting.</summary>
-        public bool IsSit => _stealth.IsSit;
+        public bool IsSit => StealthData.Stealth.IsSit;
 
         /// <summary>
         /// AS3 <c>Pers.visiMult</c> — the armour/perk concealment multiplier. <b>Scales the suspicion
@@ -2257,12 +2383,14 @@ namespace PFE.Entities.Units
         /// </param>
         public void TickStealth(Vector2 velocityPixelsPerFrame)
         {
-            _stealth.VisiMult = StealthVisiMultSource;
-            _stealth.StealthMult = StealthMultSource;
-            _stealth.SneakLurk = SneakLurkSource;
+            ref UnitStealthData data = ref StealthData;
+            StealthMath.StealthState stealth = data.Stealth;
+            stealth.VisiMult = StealthVisiMultSource;
+            stealth.StealthMult = StealthMultSource;
+            stealth.SneakLurk = SneakLurkSource;
 
-            _stealth = StealthMath.Tick(
-                _stealth,
+            data.Stealth = StealthMath.Tick(
+                stealth,
                 velocityPixelsPerFrame.x,
                 velocityPixelsPerFrame.y,
                 levitating: StealthLevitatingSource,
@@ -2284,7 +2412,10 @@ namespace PFE.Entities.Units
         /// <param name="amount">The value to raise to. Non-positive is ignored.</param>
         public void RaiseDemask(float amount)
         {
-            _stealth.Demask = StealthMath.RaiseDemask(_stealth.Demask, amount);
+            ref UnitStealthData data = ref StealthData;
+            StealthMath.StealthState stealth = data.Stealth;
+            stealth.Demask = StealthMath.RaiseDemask(stealth.Demask, amount);
+            data.Stealth = stealth;
         }
 
         // === IEffectReceiver — AS3's `this.addEffect(...)` reach =============================
@@ -3809,10 +3940,11 @@ namespace PFE.Entities.Units
         public void SetVelocityX(float velocityX)
         {
             HostWriteGuard.Check(SimAuthority.Authoritative);
-            // Phase 1.5: _velocity is a forwarding property onto _sim now, and a property cannot be
-            // assigned through (`_velocity.x = ...` would write into a temporary copy). This setter
-            // is the single legal write path for the X half, and every in-class site routes through it.
-            _sim.Vx = velocityX;
+            // Phase 1.5: _velocity is a forwarding property onto the live record now, and a property
+            // cannot be assigned through (`_velocity.x = ...` would write into a temporary copy).
+            // This setter is the single legal write path for the X half, and every in-class site
+            // routes through it.
+            SimData.Vx = velocityX;
         }
 
         /// <summary>
@@ -3821,7 +3953,7 @@ namespace PFE.Entities.Units
         public void SetVelocityY(float velocityY)
         {
             HostWriteGuard.Check(SimAuthority.Authoritative);
-            _sim.Vy = velocityY;
+            SimData.Vy = velocityY;
         }
 
         /// <summary>
@@ -3912,7 +4044,7 @@ namespace PFE.Entities.Units
         private void OnCollisionEnter2D(Collision2D collision)
         {
             // Client puppets run these callbacks too (kinematic contacts still fire), but on a client
-            // `_sim` is mirror truth owned by snapshots — a local Unity contact must not originate
+            // The record is mirror truth owned by snapshots — a local Unity contact must not originate
             // writes into it. The HostWriteGuard in SetVelocityY used to throw here every physics step
             // (75k times in one MP session); in a release player the guard compiles out and the write
             // landed anyway. Skip the whole fallback on any non-host context.
@@ -3960,8 +4092,8 @@ namespace PFE.Entities.Units
         /// </summary>
         private void OnCollisionExit2D(Collision2D collision)
         {
-            // Same authority gate as the enter/stay handlers: on a client `_sim.IsGrounded` is mirror
-            // truth and a local contact lifecycle must not write it.
+            // Same authority gate as the enter/stay handlers: on a client the record's IsGrounded is
+            // mirror truth and a local contact lifecycle must not write it.
             if (SimAuthorityContext.Current != SimWriteContext.HostSimulation) return;
 
             _supportingColliders.Remove(collision.collider);
@@ -4235,7 +4367,7 @@ namespace PFE.Entities.Units
             // AS3 reads `param2` right where it subtracts the HP (`Unit.as:3713-3741`); the port reads it
             // off the outcome here, for the same reason and at the same moment — before the death branch
             // table can ask which preset the killing blow wanted.
-            _lastDamageType = outcome.DamageType;
+            CorpseData.LastDamageType = outcome.DamageType;
 
             bool broke = _unitStats.ApplyDamage(outcome);
 
@@ -4448,7 +4580,9 @@ namespace PFE.Entities.Units
         /// attribute to read — <c>collisionTip</c> appears in no unit row. A controller is the class
         /// the port does have.</para>
         /// </remarks>
-        public virtual bool CollisionTip => UnitCollisionImpulseMath.CollisionTipDefault;
+        public virtual bool CollisionTip =>
+            UnitCollisionImpulseMath.CollisionTipDefault
+            && !UnitCollisionImpulseMath.DisablesContactExchange(Definition != null ? Definition.id : null);
 
         // === IBloodSpraySource — AS3 `Unit.blood` and `scX`/`scY` ==============================
         //
@@ -4539,7 +4673,7 @@ namespace PFE.Entities.Units
         /// Whether this unit is a body rather than a live creature — AS3 <c>sost == 3</c>.
         /// </summary>
         public bool IsCorpse =>
-            _corpseState == CorpseState.Corpse || _corpseState == CorpseState.Dissolving;
+            CorpseData.State == CorpseState.Corpse || CorpseData.State == CorpseState.Dissolving;
 
         /// <summary>
         /// Whether the body has been taken out of the world — AS3 <c>sost == 4</c>. A resurrecting
@@ -4547,78 +4681,49 @@ namespace PFE.Entities.Units
         /// (<c>UnitZombie.as:219</c>, <c>sost == 3 &amp;&amp; isRes &amp;&amp; t_res &lt; 20</c>), so a body the player
         /// destroyed can no longer get up.
         /// </summary>
-        public bool IsCorpseRemoved => _corpseState == CorpseState.Removed;
+        public bool IsCorpseRemoved => CorpseData.State == CorpseState.Removed;
+
+        // === Corpse lifecycle storage (thread J, Phase 2) ==========================================
+        //
+        // <b>Where the state lives: in the UnitWorld slot, not in fields on this class.</b> The four
+        // pieces AS3's `sost`/`die()` branch table needs — the state, the dissolve countdown, the
+        // dissolve preset, and the killing blow's damage type — moved into <see cref="UnitCorpseData"/>
+        // as the second domain beside the stealth record, and this surface forwards. The view-only
+        // halves (the per-body dissolve material, the captured tint) stay below as [LocalOnly]
+        // fields: they never approach the wire, and a sim store must not hold Unity objects. The
+        // record shares `_stealthHandle` — both domains live and die with the same unit, so one
+        // handle names both of its slots. The state machine itself (<see cref="CorpseState"/>) moved
+        // to PFE.Sim.Units with the record.
 
         /// <summary>
-        /// Where this unit sits in AS3's <c>sost</c> state machine, as far as the port models it.
+        /// The fallback copy of the corpse record for a unit whose loop carries no
+        /// <see cref="UnitWorld"/> — every offline fixture's situation. Initialised to the same
+        /// <see cref="UnitCorpseData.Default"/> a fresh world slot starts at, so the two storage
+        /// paths are indistinguishable through the public surface.
         /// </summary>
-        /// <remarks>
-        /// <para><b>Only the states that change behaviour.</b> AS3's <c>2</c> (dying, on a
-        /// <c>timerDie</c> countdown) is not modelled — nothing in the port delays a death — so a unit
-        /// goes straight from <c>1</c> to <c>3</c>. The three that remain are the three that a damage
-        /// source, a bullet's stop decision or a despawn can observe.</para>
-        /// </remarks>
-        public enum CorpseState
+        [LocalOnly(Note = "Fixture fallback store for the corpse domain; see PFE.Core.SimLoop.UnitWorld")]
+        private UnitCorpseData _localCorpse = UnitCorpseData.Default;
+
+        /// <summary>
+        /// The read/write view of this unit's corpse record — the world slot beside the stealth one
+        /// when a world is pushed, the local fallback otherwise. <b>Borrowed, not stored:</b> callers
+        /// hold the ref for one mutation block and re-acquire it on the next access, exactly as
+        /// <see cref="StealthData"/> documents.
+        /// </summary>
+        private ref UnitCorpseData CorpseData
         {
-            /// <summary><c>sost 1</c> — alive. No body has been left.</summary>
-            None = 0,
+            get
+            {
+                UnitWorld world = StealthWorld;
+                if (world == null)
+                {
+                    return ref _localCorpse;
+                }
 
-            /// <summary>
-            /// <c>sost 3</c> — a body. Solid, still a legal target, still accumulating overkill until
-            /// <see cref="UnitStats.CorpseDestroyed"/>.
-            /// </summary>
-            Corpse = 1,
-
-            /// <summary>
-            /// <c>sost 3</c> with a live <c>Desintegr</c> — the 40-frame dissolve a bloody body goes
-            /// through on its way out (<c>Unit.as:4347-4353</c>). Still solid and still targetable, as
-            /// in the oracle: <c>initBurn</c> changes nothing about <c>X1..X2</c> or <c>sost</c>.
-            /// </summary>
-            Dissolving = 2,
-
-            /// <summary><c>sost 4</c> — <c>exterminate()</c> ran. Out of the world for good.</summary>
-            Removed = 3,
+                EnsureStealthSlot(world);
+                return ref world.AccessCorpse(_stealthHandle);
+            }
         }
-
-        [Authoritative(Note = "AS3 sost corpse lifecycle; host-owned Sim truth (F-02)")]
-        private CorpseState _corpseState = CorpseState.None;
-
-        /// <summary>Canonical frames of dissolve elapsed, accumulated by <see cref="TickCorpse"/>.</summary>
-        [Authoritative(Note = "Dissolve frames elapsed; host-owned Sim truth (F-02)")]
-        private float _corpseDissolveFrames;
-
-        /// <summary>
-        /// Which of the seven <c>Desintegr</c> presets this body is dissolving with — <c>initBurn</c>'s
-        /// argument, kept because every frame of the effect reads it.
-        /// </summary>
-        [Authoritative(Note = "Dissolve preset selector; host-owned Sim truth (F-02)")]
-        private DesintegrTip _desintegrTip = DesintegrTip.None;
-
-        /// <summary>
-        /// The <c>D_*</c> code of the last hit that landed on a <i>living</i> unit — AS3's
-        /// <c>param2</c>, remembered because the death effect is chosen from it.
-        /// </summary>
-        /// <remarks>
-        /// <para><b>Why this has to be stored rather than passed.</b> <c>Unit.damage(param1, param2, …)</c>
-        /// reads <c>param2</c> in the same breath as the HP subtraction (<c>Unit.as:3713-3741</c>), so the
-        /// oracle never needs to keep it. The port splits that one function into a resolver
-        /// (<c>DamageSystem</c> → <c>DamageCalculator</c>) and a receiver (<c>ApplyDamage</c>), and by the
-        /// time <c>RaiseDeath()</c> reaches <c>EnterCorpse</c> the context is gone — the
-        /// <see cref="DamageOutcome"/> is the only survivor, which is why it carries the type.</para>
-        ///
-        /// <para><b>Only written while alive.</b> A hit on a corpse returns early in
-        /// <see cref="ApplyDamage"/>, so a body already dissolving cannot have its preset re-decided by
-        /// whoever keeps shooting it — the oracle has the same property, because a dead unit's
-        /// <c>damage()</c> never reaches the <c>hp &lt;= 0</c> block again.</para>
-        ///
-        /// <para><b><see cref="DamageType.PhysicalBullet"/> is the resting value and the correct one.</b>
-        /// It maps to no burn tip, so a unit killed by something that never went through the damage
-        /// pipeline — a scripted <c>KillNow</c>, a dev-console command, a fixture calling
-        /// <c>OnDeath</c> directly — dies exactly as a rifle shot would, which is the least surprising
-        /// answer available.</para>
-        /// </remarks>
-        [Authoritative(Note = "AS3 param2 last-hit damage type; host-owned Sim truth (F-02)")]
-        private DamageType _lastDamageType = DamageType.PhysicalBullet;
 
         /// <summary>
         /// The per-body dissolve material, created when the burn starts and destroyed when it ends.
@@ -5662,7 +5767,7 @@ namespace PFE.Entities.Units
             // AS3 `UnitPlayer.die()` is the game-over path, not a body: the player leaves no corpse
             // and never becomes a target. Gating here rather than inside `OnDeath` keeps the subclass
             // override (which calls `base`) honest.
-            if (IsPlayer || _corpseState != CorpseState.None)
+            if (IsPlayer || CorpseData.State != CorpseState.None)
             {
                 return;
             }
@@ -5677,7 +5782,7 @@ namespace PFE.Entities.Units
             if (_unitStats != null)
             {
                 DesintegrTip damageTip = DesintegrRules.TipForDamageType(
-                    _lastDamageType,
+                    CorpseData.LastDamageType,
                     _unitStats.Overkill,
                     _unitStats.MaxHp.Value,
                     // `trup` — absent definition means a body, which is AS3's own default.
@@ -5710,7 +5815,7 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            _corpseState = CorpseState.Corpse;
+            CorpseData.State = CorpseState.Corpse;
         }
 
         /// <summary>
@@ -5725,7 +5830,7 @@ namespace PFE.Entities.Units
             // controller must not lose its collider to a stray round after death, and a suppressed
             // death is not simulated here at all.
             if (damage <= 0f || _unitStats == null) return;
-            if (_corpseState != CorpseState.Corpse && _corpseState != CorpseState.Dissolving) return;
+            if (CorpseData.State != CorpseState.Corpse && CorpseData.State != CorpseState.Dissolving) return;
 
             _unitStats.Damage(damage);
 
@@ -5754,7 +5859,7 @@ namespace PFE.Entities.Units
         /// </remarks>
         private void BeginCorpseDestroy()
         {
-            if (_corpseState == CorpseState.Removed || _corpseState == CorpseState.Dissolving)
+            if (CorpseData.State == CorpseState.Removed || CorpseData.State == CorpseState.Dissolving)
             {
                 return;
             }
@@ -5795,14 +5900,14 @@ namespace PFE.Entities.Units
         /// </remarks>
         private void BeginDissolve(DesintegrTip tip)
         {
-            if (_corpseState == CorpseState.Removed || _corpseState == CorpseState.Dissolving)
+            if (CorpseData.State == CorpseState.Removed || CorpseData.State == CorpseState.Dissolving)
             {
                 return;
             }
 
-            _corpseState = CorpseState.Dissolving;
-            _corpseDissolveFrames = 0f;
-            _desintegrTip = tip;
+            CorpseData.State = CorpseState.Dissolving;
+            CorpseData.DissolveFrames = 0f;
+            CorpseData.Tip = tip;
 
             if (_visualRenderer != null)
             {
@@ -5873,18 +5978,18 @@ namespace PFE.Entities.Units
         /// </remarks>
         public void TickCorpse()
         {
-            if (_corpseState != CorpseState.Dissolving)
+            if (CorpseData.State != CorpseState.Dissolving)
             {
                 return;
             }
 
             float scale = _simClock != null ? _simClock.StepScale : 1f;
-            _corpseDissolveFrames += scale;
+            CorpseData.DissolveFrames += scale;
 
             // `burnN` is seeded at 1 by the Desintegr constructor (`Desintegr.as:109`) and `step()` runs
             // before the frame is drawn, so the frame index is the number of steps taken, floored and
             // never below 1. A 60 Hz build taking two half-steps must not advance two frames.
-            int frame = Mathf.FloorToInt(_corpseDissolveFrames);
+            int frame = Mathf.FloorToInt(CorpseData.DissolveFrames);
             if (frame < 1)
             {
                 frame = 1;
@@ -5902,7 +6007,7 @@ namespace PFE.Entities.Units
                 EmitCorpseDissolveParticles();
             }
 
-            if (_corpseDissolveFrames >= CorpseDamageMath.DissolveFrames)
+            if (CorpseData.DissolveFrames >= CorpseDamageMath.DissolveFrames)
             {
                 // No burst: the oracle's dissolve path ends in a bare `exterminate()` — the particles
                 // were the effect, and `expl()` only ever runs on the non-burning arm.
@@ -5935,7 +6040,7 @@ namespace PFE.Entities.Units
 
             if (_desintegrMaterial != null)
             {
-                DesintegrTint tint = DesintegrRules.TintAt(_desintegrTip, frame);
+                DesintegrTint tint = DesintegrRules.TintAt(CorpseData.Tip, frame);
 
                 _desintegrMaterial.SetFloat(ShaderMulR, tint.MulR);
                 _desintegrMaterial.SetFloat(ShaderMulG, tint.MulG);
@@ -5947,7 +6052,7 @@ namespace PFE.Entities.Units
                 _desintegrMaterial.SetFloat(ShaderDissolve, DesintegrRules.ErodeFraction(frame));
                 _desintegrMaterial.SetFloat(ShaderGlowAlpha, DesintegrRules.GlowAlpha(frame));
 
-                int rgb = DesintegrRules.GlowColorRgb(_desintegrTip);
+                int rgb = DesintegrRules.GlowColorRgb(CorpseData.Tip);
                 _desintegrMaterial.SetColor(ShaderGlowColor, new Color(
                     ((rgb >> 16) & 0xFF) / 255f,
                     ((rgb >> 8) & 0xFF) / 255f,
@@ -5958,7 +6063,7 @@ namespace PFE.Entities.Units
 
             // No shader: the pre-existing fade, unchanged so that its behaviour stays pinned by
             // CorpseLifecycleTests.
-            float t = Mathf.Clamp01(_corpseDissolveFrames / CorpseDamageMath.DissolveFrames);
+            float t = Mathf.Clamp01(CorpseData.DissolveFrames / CorpseDamageMath.DissolveFrames);
             Color color = _corpseBaseColor;
             color.a *= 1f - t;
             _visualRenderer.color = color;
@@ -5987,7 +6092,7 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            string id = DesintegrRules.ParticleId(_desintegrTip);
+            string id = DesintegrRules.ParticleId(CorpseData.Tip);
             if (string.IsNullOrEmpty(id))
             {
                 return;
@@ -6033,7 +6138,7 @@ namespace PFE.Entities.Units
         /// </remarks>
         private void ExterminateCorpse(bool bloodBurst)
         {
-            if (_corpseState == CorpseState.Removed)
+            if (CorpseData.State == CorpseState.Removed)
             {
                 return;
             }
@@ -6043,8 +6148,8 @@ namespace PFE.Entities.Units
                 EmitExterminationBurst();
             }
 
-            _corpseState = CorpseState.Removed;
-            _corpseDissolveFrames = 0f;
+            CorpseData.State = CorpseState.Removed;
+            CorpseData.DissolveFrames = 0f;
 
             ReleaseDesintegrMaterial();
 
@@ -6126,7 +6231,7 @@ namespace PFE.Entities.Units
 
             Destroy(_desintegrMaterial);
             _desintegrMaterial = null;
-            _desintegrTip = DesintegrTip.None;
+            CorpseData.Tip = DesintegrTip.None;
         }
 
         /// <summary>
@@ -6147,13 +6252,13 @@ namespace PFE.Entities.Units
         public void ReviveFromCorpse()
         {
             HostWriteGuard.Check(SimAuthority.Authoritative);
-            if (_corpseState == CorpseState.None)
+            if (CorpseData.State == CorpseState.None)
             {
                 return;
             }
 
-            _corpseState = CorpseState.None;
-            _corpseDissolveFrames = 0f;
+            CorpseData.State = CorpseState.None;
+            CorpseData.DissolveFrames = 0f;
 
             ReleaseDesintegrMaterial();
 

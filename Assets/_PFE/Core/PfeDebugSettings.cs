@@ -246,6 +246,16 @@ namespace PFE.Core
         private bool unitMotor = false;
 
         [SerializeField]
+        [Tooltip("Thread J (UnitViewPool): spawned units get their \"Visual\" child from a shared session pool " +
+                 "instead of building it inline, and the child is released back to the pool on room teardown " +
+                 "instead of being destroyed with the unit — a room re-entry reuses the renderer and animator " +
+                 "rather than rebuilding them. OFF = unchanged pre-pool path. The hierarchy and the pose path " +
+                 "are identical in both modes; this is a construction/reuse toggle, not a visual one. Views " +
+                 "that gained per-unit decorations (a shield dome, turret parts, an NPC persona animator) are " +
+                 "destroyed on release rather than recycled. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool pooledUnitViews = false;
+
+        [SerializeField]
         [Tooltip("Drives damage resolution from SimLoop at SimTickOrder.Damage instead of resolving each hit inline at the moment of contact. " +
                  "OFF = a hit is resolved by the source that reported it, immediately (the historical path). " +
                  "ON = the source only records the hit, and DamageSystem resolves it once per tick after every source has moved — which is what makes a hit reproducible and replicable across peers, because the result stops depending on the order the physics engine reported contacts. " +
@@ -487,6 +497,13 @@ namespace PFE.Core
         /// tooltip; the old path stays selectable until Stage D.
         /// </summary>
         public bool UnitMotor                                    => unitMotor;
+
+        /// <summary>
+        /// Whether spawned units draw through pooled <c>UnitView</c>s (Thread J) rather than an
+        /// inline-built visual child. See the field's tooltip; read once at spawner construction by
+        /// <c>RoomVisualController</c>, which is where the pool is handed down the chain.
+        /// </summary>
+        public bool PooledUnitViews                              => pooledUnitViews;
 
         /// <summary>
         /// Whether damage resolves on the tick (<c>SimTickOrder.Damage</c>) rather than inline at

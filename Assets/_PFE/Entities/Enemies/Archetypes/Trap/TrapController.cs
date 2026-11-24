@@ -16,6 +16,40 @@ namespace PFE.Entities.Enemies.Archetypes
 
         public new TrapBrain Brain => _brain as TrapBrain;
 
+        /// <summary>
+        /// AS3 <c>UnitDamager.command("dam")</c> (<c>UnitDamager.as:374-380</c>) — <c>activate()</c>,
+        /// and nothing else.
+        ///
+        /// <para><b>This is the verb the detonator's script uses.</b>
+        /// <c>rooms_begin/room_1_4</c> hangs <c>&lt;scr targ="trExpl1" act="dam"/&gt;</c> on the
+        /// <c>detonator</c> box; pressing it runs that action, which resolves <c>trExpl1</c> through the
+        /// unit half of the <c>@targ</c> table and lands here. Without this override the command reached
+        /// <see cref="UnitController.Command"/>, matched nothing, returned <c>false</c>, and the script
+        /// runner logged "no object or unit matches that uid" — the fuse was connected to a dead end.</para>
+        ///
+        /// <para><b>Gated on <see cref="TrapBrain.Kind"/> because one controller now serves the whole
+        /// trap family.</b> The deleted <c>DamagerController</c> answered the verb as a class fact; the
+        /// id-keyed kind is the same fact, and gating keeps a turret — or a bear trap — that a script
+        /// mistakenly addresses <c>dam</c> to on the ordinary "no such verb" path, exactly as before.</para>
+        ///
+        /// <para><b>Falls through to the base for every other verb.</b> AS3's override does not call
+        /// <c>super</c>, so <c>activate</c>/<c>fraction</c> are inert on a damager there. Keeping them
+        /// live is a deliberate superset: no shipped data addresses either verb at a damager, and
+        /// silently swallowing them would make a future script fail with no diagnostic.</para>
+        /// </summary>
+        public override bool Command(string verb, string value)
+        {
+            if (Brain != null
+                && Brain.Kind == TrapKind.Damager
+                && verb != null
+                && string.Equals(verb.Trim(), "dam", StringComparison.OrdinalIgnoreCase))
+            {
+                return Brain.ActivateDamager();
+            }
+
+            return base.Command(verb, value);
+        }
+
         protected override void Awake()
         {
             base.Awake();
@@ -243,107 +277,4 @@ namespace PFE.Entities.Enemies.Archetypes
         }
     }
 
-    [RequireComponent(typeof(TrapBrain))]
-    public class BearTrapController : TrapController
-    {
-        public new const string ControllerId = "UnitTrap";
-        public new const string ControllerAlias = "mtrap";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = TrapKind.BearTrap;
-        }
-    }
-
-    [RequireComponent(typeof(TrapBrain))]
-    public class TriggerController : TrapController
-    {
-        public new const string ControllerId = "UnitTrigger";
-        public new const string ControllerAlias = "trigcans";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = TrapKind.Trigger;
-        }
-    }
-
-    [RequireComponent(typeof(TrapBrain))]
-    public class DamagerController : TrapController
-    {
-        public new const string ControllerId = "UnitDamager";
-        public new const string ControllerAlias = "damshot";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = TrapKind.Damager;
-        }
-
-        /// <summary>
-        /// AS3 <c>UnitDamager.command("dam")</c> (<c>UnitDamager.as:374-380</c>) — <c>activate()</c>,
-        /// and nothing else.
-        ///
-        /// <para><b>This is the verb the detonator's script uses.</b>
-        /// <c>rooms_begin/room_1_4</c> hangs <c>&lt;scr targ="trExpl1" act="dam"/&gt;</c> on the
-        /// <c>detonator</c> box; pressing it runs that action, which resolves <c>trExpl1</c> through the
-        /// unit half of the <c>@targ</c> table and lands here. Without this override the command reached
-        /// <see cref="UnitController.Command"/>, matched nothing, returned <c>false</c>, and the script
-        /// runner logged "no object or unit matches that uid" — the fuse was connected to a dead end.</para>
-        ///
-        /// <para><b>Falls through to the base for every other verb.</b> AS3's override does not call
-        /// <c>super</c>, so <c>activate</c>/<c>fraction</c> are inert on a damager there. Keeping them
-        /// live is a deliberate superset: no shipped data addresses either verb at a damager, and
-        /// silently swallowing them would make a future script fail with no diagnostic.</para>
-        /// </summary>
-        public override bool Command(string verb, string value)
-        {
-            if (verb != null && string.Equals(verb.Trim(), "dam", StringComparison.OrdinalIgnoreCase))
-            {
-                return Brain != null && Brain.ActivateDamager();
-            }
-
-            return base.Command(verb, value);
-        }
-    }
-
-    [RequireComponent(typeof(TrapBrain))]
-    public class MagicWallController : TrapController
-    {
-        public new const string ControllerId = "UnitMWall";
-        public new const string ControllerAlias = "mwall";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = TrapKind.MagicWall;
-        }
-    }
-
-    [RequireComponent(typeof(TrapBrain))]
-    public class TransmitterController : TrapController
-    {
-        public new const string ControllerId = "UnitTransmitter";
-        public new const string ControllerAlias = "transmitter";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = TrapKind.Transmitter;
-        }
-    }
-
-    [RequireComponent(typeof(TrapBrain))]
-    public class DestructiblePropController : TrapController
-    {
-        public new const string ControllerId = "UnitDestr";
-        public new const string ControllerAlias = "destr1";
-
-        protected override void Awake()
-        {
-            base.Awake();
-            if (Brain != null) Brain.Kind = TrapKind.Destructible;
-        }
-    }
 }

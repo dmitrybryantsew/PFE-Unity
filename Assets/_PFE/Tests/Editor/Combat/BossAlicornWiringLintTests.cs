@@ -256,7 +256,7 @@ namespace PFE.Tests.Editor.Combat
         {
             string source = SourceLint.ReadStripped(SpawnerPath);
 
-            Assert.That(source, Does.Contain("typeof(RobobrainController)"),
+            Assert.That(source, Does.Contain("typeof(RobotController)"),
                 "positive control: this has to be the spawner's controller table");
 
             Assert.That(source, Does.Contain("[ScytheController.ControllerId] = typeof(ScytheController)"),

@@ -1,6 +1,7 @@
 using UnityEngine;
 using PFE.Core;
 using PFE.Sim.State;
+using PFE.Sim.Units;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Entities.Units;
@@ -126,7 +127,50 @@ namespace PFE.Systems.Physics
             simClock = clock;
             simLoop = loop;
             simAttached = true;
-            simLoop.Register(this);
+            RegisterSimDrive();
+        }
+
+        /// <summary>
+        /// Registers this motor with the batch motor lane when the loop carries one (thread J,
+        /// Phase 2) <b>and the motor is unit-owned</b>, else directly with the loop — the fixture
+        /// fallback documented on <see cref="PFE.Core.SimLoop.UnitDrives"/>. The player-owned motor
+        /// always registers directly: it ticks at <see cref="PFE.Core.SimTickOrder.PlayerMotor"/> and
+        /// there is exactly one of it, so a lane would buy nothing and would pin its order.
+        /// </summary>
+        private void RegisterSimDrive()
+        {
+            UnitWorld world = MotorWorld;
+            if (world != null)
+            {
+                EnsureMotorSlot(world);
+            }
+
+            UnitDriveLanes drives = simLoop.UnitDrives;
+            if (drives != null && unitOwned)
+            {
+                drives.Motors.Register(this);
+            }
+            else
+            {
+                simLoop.Register(this);
+            }
+        }
+
+        /// <summary>The unregister half of <see cref="RegisterSimDrive"/> — same lane-or-loop choice,
+        /// so a motor that joined the lane leaves through the lane. Also the slot release: the
+        /// motor record outlives no motor.</summary>
+        private void UnregisterSimDrive()
+        {
+            ReleaseMotorSlot();
+            UnitDriveLanes drives = simLoop.UnitDrives;
+            if (drives != null && unitOwned)
+            {
+                drives.Motors.Unregister(this);
+            }
+            else
+            {
+                simLoop.Unregister(this);
+            }
         }
 
         private void OnEnable()
@@ -135,7 +179,7 @@ namespace PFE.Systems.Physics
             // not silently stop ticking. Register is idempotent.
             if (simAttached && simLoop != null)
             {
-                simLoop.Register(this);
+                RegisterSimDrive();
             }
         }
 
@@ -143,7 +187,7 @@ namespace PFE.Systems.Physics
         {
             if (simAttached && simLoop != null)
             {
-                simLoop.Unregister(this);
+                UnregisterSimDrive();
             }
         }
 
@@ -273,68 +317,132 @@ namespace PFE.Systems.Physics
         private const float LadderSideProbePixels = 20f;
 
         /// <summary>
-        /// Phase 1.5 (F-02): <b>the live truth of this motor's tick state.</b>
+        /// Phase 1.5 (F-02), Phase 2 (thread J): <b>the live truth of this motor's tick state.</b>
         ///
-        /// <para>The 22 members below are forwarding properties onto this record. <c>StepMotor()</c>
-        /// and the entire movement / tile-collision / water / ladder / dash / boundary / prop-sweep
-        /// arithmetic still reads and writes exactly the same names — no expression was rewritten —
-        /// but the storage is now a pure <c>PFE.Sim.State</c> value type rather than 22 private
-        /// MonoBehaviour fields. The controller is a projector: <see cref="SyncUnityPosition"/>
-        /// applies <c>Px/Py</c> to the Transform, and <see cref="MotorState"/> exposes the record to
-        /// a snapshot or a host correction.</para>
+        /// <para>The 22 members below are forwarding properties onto the motor record —
+        /// <c>StepMotor()</c> and the entire movement / tile-collision / water / ladder / dash /
+        /// boundary / prop-sweep arithmetic still reads and writes exactly the same names — no
+        /// expression was rewritten. Phase 1.5 made the record a pure <c>PFE.Sim.State</c> value
+        /// type rather than 22 private MonoBehaviour fields; Phase 2 moved the record's storage
+        /// into the pushed <see cref="PFE.Sim.Units.UnitWorld"/> (thread J's store), so this class
+        /// is a projector twice over: <see cref="SyncUnityPosition"/> applies <c>Px/Py</c> to the
+        /// Transform, and <see cref="MotorState"/> exposes the record to a snapshot or a host
+        /// correction.</para>
         ///
-        /// <para>Deliberately not <c>[SerializeField]</c>: Unity's serializer cannot represent the
-        /// record's <c>ulong EntityHash</c>, and a plain C# field initializer is the only way to
-        /// guarantee the two non-zero defaults survive construction. Every shipped prefab held the
-        /// default values for the ten former <c>[SerializeField]</c> state fields, so dropping their
-        /// serialization changes no authored data. The two defaults are exactly the old
-        /// <c>facingDirection = 1</c> and <c>gravityScale = 1f</c> initializers.</para>
+        /// <para><b>Where the bytes sit.</b> The record lives in the world slot
+        /// <see cref="_motorHandle"/> names when the loop carries a world, and in the
+        /// <see cref="_localMotor"/> fallback otherwise — every offline fixture's situation. Both
+        /// paths start at <see cref="SimMotorState.Default"/> (the old <c>facingDirection = 1</c>
+        /// and <c>gravityScale = 1f</c> initializers, now the record's own factory), so the two
+        /// storages are indistinguishable through the property surface. The record is deliberately
+        /// not <c>[SerializeField]</c>: Unity's serializer cannot represent its
+        /// <c>ulong EntityHash</c>, and every shipped prefab held the default values for the ten
+        /// former <c>[SerializeField]</c> state fields anyway, so dropping their serialization
+        /// changes no authored data.</para>
         /// </summary>
-        [ClientPredicted(Note = "The Sim state record StepMotor mutates; live motor truth (F-02, Phase 1.5)")]
-        private SimMotorState _motor = new SimMotorState { FacingDirection = 1, GravityScale = 1f };
+        [LocalOnly(Note = "UnitWorld slot handle; names host-local sim storage, never replicated")]
+        private UnitHandle _motorHandle;
+
+        /// <summary>
+        /// The fallback copy of the motor record for a motor whose loop carries no
+        /// <see cref="PFE.Sim.Units.UnitWorld"/> — every offline fixture's situation. Initialised
+        /// to the same <see cref="SimMotorState.Default"/> a fresh world slot starts at, so the two
+        /// storage paths are indistinguishable through the property surface.
+        /// </summary>
+        [LocalOnly(Note = "Fixture fallback store for the motor domain; see PFE.Core.SimLoop.UnitWorld")]
+        private SimMotorState _localMotor = SimMotorState.Default;
+
+        /// <summary>
+        /// The read/write view of this motor's record — the world slot when one is pushed, the
+        /// local fallback otherwise. <b>Borrowed, not stored:</b> callers hold the ref for one
+        /// mutation block and re-acquire it on the next access, so nothing can hold a ref past a
+        /// release.
+        /// </summary>
+        private ref SimMotorState MotorData
+        {
+            get
+            {
+                UnitWorld world = MotorWorld;
+                if (world == null)
+                {
+                    return ref _localMotor;
+                }
+
+                EnsureMotorSlot(world);
+                return ref world.AccessMotor(_motorHandle);
+            }
+        }
+
+        /// <summary>The world this motor's slot lives in — the same pushed seam the drive lanes
+        /// travel on, so a motor and its state are always in the same place.</summary>
+        private UnitWorld MotorWorld => simLoop != null ? simLoop.UnitWorld : null;
+
+        /// <summary>Idempotent acquire of the motor slot. Called from drive registration so the
+        /// slot exists before the first tick, and defensively from the data accessor so a motor
+        /// whose world arrived after its registration still lands in a slot.</summary>
+        private void EnsureMotorSlot(UnitWorld world)
+        {
+            if (!_motorHandle.IsValid)
+            {
+                _motorHandle = world.Acquire();
+            }
+        }
+
+        /// <summary>The release half of <see cref="EnsureMotorSlot"/> — called from drive
+        /// unregistration. A motor whose loop is already gone never had a slot in the only world
+        /// that matters, and the fallback copy needs no cleanup.</summary>
+        private void ReleaseMotorSlot()
+        {
+            UnitWorld world = MotorWorld;
+            if (world != null && _motorHandle.IsValid)
+            {
+                world.Release(ref _motorHandle);
+            }
+        }
 
         /// <summary>The live Sim record. Read-only projection of the truth; a host correction writes
         /// through <see cref="ApplyMotorState"/>.</summary>
-        public SimMotorState MotorState => _motor;
+        public SimMotorState MotorState => MotorData;
 
         /// <summary>Replace the live record (host correction / snapshot restore) and re-project it.</summary>
         public void ApplyMotorState(in SimMotorState state)
         {
             HostWriteGuard.CheckRestore();
-            _motor = state;
+            ref SimMotorState motor = ref MotorData;
+            motor = state;
             SyncUnityPosition();
         }
 
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool isGrounded { get => _motor.IsGrounded; set => _motor.IsGrounded = value; }
+        private bool isGrounded { get => MotorData.IsGrounded; set => MotorData.IsGrounded = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool isOnPlatform { get => _motor.IsOnPlatform; set => _motor.IsOnPlatform = value; }
+        private bool isOnPlatform { get => MotorData.IsOnPlatform; set => MotorData.IsOnPlatform = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool isInWater { get => _motor.IsInWater; set => _motor.IsInWater = value; }
+        private bool isInWater { get => MotorData.IsInWater; set => MotorData.IsInWater = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool isFullySubmerged { get => _motor.IsFullySubmerged; set => _motor.IsFullySubmerged = value; }
+        private bool isFullySubmerged { get => MotorData.IsFullySubmerged; set => MotorData.IsFullySubmerged = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool isOnLadder { get => _motor.IsOnLadder; set => _motor.IsOnLadder = value; }
+        private bool isOnLadder { get => MotorData.IsOnLadder; set => MotorData.IsOnLadder = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool isCrouching { get => _motor.IsCrouching; set => _motor.IsCrouching = value; }
+        private bool isCrouching { get => MotorData.IsCrouching; set => MotorData.IsCrouching = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool hitCeiling { get => _motor.HitCeiling; set => _motor.HitCeiling = value; }
+        private bool hitCeiling { get => MotorData.HitCeiling; set => MotorData.HitCeiling = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool wallLeft { get => _motor.WallLeft; set => _motor.WallLeft = value; }
+        private bool wallLeft { get => MotorData.WallLeft; set => MotorData.WallLeft = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private bool wallRight { get => _motor.WallRight; set => _motor.WallRight = value; }
+        private bool wallRight { get => MotorData.WallRight; set => MotorData.WallRight = value; }
         [ClientPredicted(Note = "Live motor state; own entity predicted, host-corrected (F-02)")]
-        private int facingDirection { get => _motor.FacingDirection; set => _motor.FacingDirection = value; }
+        private int facingDirection { get => MotorData.FacingDirection; set => MotorData.FacingDirection = value; }
 
         // Velocity in pixel space (matching AS3 dx/dy)
         [ClientPredicted(Note = "Live motor velocity; own entity predicted, host-corrected (F-02)")]
-        private float dx { get => _motor.Vx; set => _motor.Vx = value; }
+        private float dx { get => MotorData.Vx; set => MotorData.Vx = value; }
         [ClientPredicted(Note = "Live motor velocity; own entity predicted, host-corrected (F-02)")]
-        private float dy { get => _motor.Vy; set => _motor.Vy = value; }
+        private float dy { get => MotorData.Vy; set => MotorData.Vy = value; }
 
         // Vertical impulse waiting for the next step, in pixels per canonical 30 Hz frame.
         [ClientPredicted(Note = "Tick-relevant pending impulse; part of SimMotorState (F-02)")]
-        private float pendingVerticalImpulse { get => _motor.PendingVerticalImpulse; set => _motor.PendingVerticalImpulse = value; }
+        private float pendingVerticalImpulse { get => MotorData.PendingVerticalImpulse; set => MotorData.PendingVerticalImpulse = value; }
 
         /// <summary>
         /// This unit's velocity in AS3's own units — <b>pixels per 30 Hz frame</b>, i.e. exactly
@@ -364,9 +472,9 @@ namespace PFE.Systems.Physics
 
         // Collider feet position in world pixel space.
         [ClientPredicted(Note = "Live motor position; own entity predicted, host-corrected (F-02)")]
-        private float posX { get => _motor.Px; set => _motor.Px = value; }
+        private float posX { get => MotorData.Px; set => MotorData.Px = value; }
         [ClientPredicted(Note = "Live motor position; own entity predicted, host-corrected (F-02)")]
-        private float posY { get => _motor.Py; set => _motor.Py = value; }
+        private float posY { get => MotorData.Py; set => MotorData.Py = value; }
 
         // Room reference
         [LocalOnly(Note = "Wiring reference; a Unity-side object, never replicated")]
@@ -401,8 +509,8 @@ namespace PFE.Systems.Physics
         [ClientPredicted(Note = "Tick-relevant support carry (AS3 osndx/osndy); part of SimMotorState (F-02)")]
         private Vector2 supportCarryPixels
         {
-            get => new Vector2(_motor.SupportCarryX, _motor.SupportCarryY);
-            set { _motor.SupportCarryX = value.x; _motor.SupportCarryY = value.y; }
+            get => new Vector2(MotorData.SupportCarryX, MotorData.SupportCarryY);
+            set { MotorData.SupportCarryX = value.x; MotorData.SupportCarryY = value.y; }
         }
 
         /// <summary>
@@ -461,7 +569,7 @@ namespace PFE.Systems.Physics
         [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private float ladderInputY;
         [ClientPredicted(Note = "Tick-relevant gravity scale; part of SimMotorState (F-02)")]
-        private float gravityScale { get => _motor.GravityScale; set => _motor.GravityScale = value; }
+        private float gravityScale { get => MotorData.GravityScale; set => MotorData.GravityScale = value; }
         [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
         private bool wantsToCrouch;
         [ClientPredicted(Note = "Per-tick intent fed from PlayerCommand; predicted (F-03)")]
@@ -475,13 +583,13 @@ namespace PFE.Systems.Physics
         [ClientPredicted(Note = "Per-tick intent level (AS3 keyBeUp); predicted (F-03)")]
         private bool upHeld;
         [ClientPredicted(Note = "Tick-relevant ladder latch; part of SimMotorState (F-02)")]
-        private int activeLadderDirection { get => _motor.ActiveLadderDirection; set => _motor.ActiveLadderDirection = value; }
+        private int activeLadderDirection { get => MotorData.ActiveLadderDirection; set => MotorData.ActiveLadderDirection = value; }
         [ClientPredicted(Note = "Tick-relevant ladder latch; part of SimMotorState (F-02)")]
-        private float activeLadderSnapX { get => _motor.ActiveLadderSnapX; set => _motor.ActiveLadderSnapX = value; }
+        private float activeLadderSnapX { get => MotorData.ActiveLadderSnapX; set => MotorData.ActiveLadderSnapX = value; }
         [ClientPredicted(Note = "Tick-relevant dash timer; part of SimMotorState (F-02)")]
-        private float dashTimer { get => _motor.DashTimer; set => _motor.DashTimer = value; }
+        private float dashTimer { get => MotorData.DashTimer; set => MotorData.DashTimer = value; }
         [ClientPredicted(Note = "Tick-relevant platform-drop timer; part of SimMotorState (F-02)")]
-        private float platformDropTimer { get => _motor.PlatformDropTimer; set => _motor.PlatformDropTimer = value; }
+        private float platformDropTimer { get => MotorData.PlatformDropTimer; set => MotorData.PlatformDropTimer = value; }
 
         /// <summary>
         /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) as a <b>level</b> the owning brain holds — the
@@ -501,8 +609,8 @@ namespace PFE.Systems.Physics
         [ClientPredicted(Note = "Tick-relevant dash velocity; part of SimMotorState (F-02)")]
         private Vector2 dashVelocity
         {
-            get => new Vector2(_motor.DashVelocityX, _motor.DashVelocityY);
-            set { _motor.DashVelocityX = value.x; _motor.DashVelocityY = value.y; }
+            get => new Vector2(MotorData.DashVelocityX, MotorData.DashVelocityY);
+            set { MotorData.DashVelocityX = value.x; MotorData.DashVelocityY = value.y; }
         }
         [LocalOnly(Note = "Derived content constant; cached from collisionHeight, never replicated")]
         private float standingCollisionHeight;
@@ -638,7 +746,7 @@ namespace PFE.Systems.Physics
         public int FacingDirection => facingDirection;
         public float VelocityX => dx;
         public float VelocityY => dy;
-        public Vector2 PixelPosition => new Vector2(_motor.Px, _motor.Py);
+        public Vector2 PixelPosition => new Vector2(MotorData.Px, MotorData.Py);
         public RoomInstance CurrentRoom => currentRoom;
         public ITileQueryService TileQuery => tileQueryService;
         public Vector2 ColliderOffsetPixels => colliderOffsetPixels;
@@ -2577,7 +2685,7 @@ namespace PFE.Systems.Physics
         {
             // Phase 1.5 (F-02): the projection boundary. The Sim record's Px/Py are the truth and
             // the Transform is rebuilt from them; posX/posY are now aliases for the same values.
-            Vector2 transformPixelPos = ColliderPixelToTransformPixel(new Vector2(_motor.Px, _motor.Py));
+            Vector2 transformPixelPos = ColliderPixelToTransformPixel(new Vector2(MotorData.Px, MotorData.Py));
             transform.position = new Vector3(
                 transformPixelPos.x * PIX_TO_UNIT,
                 transformPixelPos.y * PIX_TO_UNIT,
