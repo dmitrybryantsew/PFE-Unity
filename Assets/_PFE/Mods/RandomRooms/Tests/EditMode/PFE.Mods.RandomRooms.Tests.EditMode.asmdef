@@ -1,0 +1,27 @@
+{
+    "name": "PFE.Mods.RandomRooms.Tests.EditMode",
+    "rootNamespace": "PFE.Mods.RandomRooms.Tests.EditMode",
+    "references": [
+        "PFE.Mods.RandomRooms",
+        "PFE.ModAPI",
+        "PFE.Data",
+        "PFE.View",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
