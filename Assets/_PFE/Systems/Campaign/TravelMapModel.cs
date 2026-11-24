@@ -52,7 +52,8 @@ namespace PFE.Systems.Campaign
 
             bool isProb = land.isProbLand ||
                           string.Equals(land.tip, "prob", StringComparison.OrdinalIgnoreCase);
-            bool loaded = land.roomTemplates != null && land.roomTemplates.Count > 0;
+            bool loaded = land.isModProcedural ||
+                          (land.roomTemplates != null && land.roomTemplates.Count > 0);
 
             return new TravelLand(land.landId, isProb, land.isTestLand, land.fin, loaded);
         }

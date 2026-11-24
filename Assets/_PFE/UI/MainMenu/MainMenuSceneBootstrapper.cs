@@ -7,6 +7,7 @@ using PFE.Character;
 using PFE.Core;
 using PFE.Data;
 using PFE.Data.Definitions;
+using PFE.Data.Definitions.Campaign;
 using PFE.Systems.Map.Serialization;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -63,6 +64,18 @@ namespace PFE.UI.MainMenu
         PfeNetLaunchRole _connectRole = PfeNetLaunchRole.Host;
         Text _loadText;
         Text _modsText;
+        RectTransform _modsListContainer;
+        Text _modsStatusText;
+        ModLoader _modLoader;
+        ContentRegistry _modContentRegistry;
+        CampaignCatalog _modCampaignCatalog;
+        readonly List<ModRowView> _modRows = new();
+        CanvasGroup _modSettingsPanel;
+        RectTransform _modSettingsContent;
+        Text _modSettingsTitle;
+        Text _modSettingsHint;
+        string _openSettingsModId;
+        int _renderedModSettingRows;
         Text _summaryText;
         CharacterQuadPreviewPresenter _newGamePreviewPresenter;
         CharacterQuadPreviewPresenter _customizationPreviewPresenter;
@@ -78,6 +91,28 @@ namespace PFE.UI.MainMenu
         Text _eyeStyleValueText;
         Text _customizationHintText;
         readonly List<CustomizationChannelRow> _customizationRows = new();
+
+        public ModLoader ModLoader => EnsureModLoader();
+        public ContentRegistry ModContentRegistry => EnsureModContentRegistry();
+        public CampaignCatalog ModCampaignCatalog => EnsureModCampaignCatalog();
+        public RectTransform ModsListContainer => _modsListContainer;
+        public int RenderedModRowCount => _modRows.Count;
+        public string ModsStatusText => _modsStatusText != null ? _modsStatusText.text : string.Empty;
+        public CanvasGroup ModSettingsPanel => _modSettingsPanel;
+        public int RenderedModSettingRowCount => _renderedModSettingRows;
+        public bool IsModSettingsOpen =>
+            _modSettingsPanel != null && _modSettingsPanel.alpha > 0.5f && !string.IsNullOrEmpty(_openSettingsModId);
+
+        public void ConfigureModServices(
+            ModLoader loader,
+            ContentRegistry contentRegistry = null,
+            CampaignCatalog campaignCatalog = null)
+        {
+            _modLoader = loader;
+            if (contentRegistry != null) _modContentRegistry = contentRegistry;
+            if (campaignCatalog != null) _modCampaignCatalog = campaignCatalog;
+            PopulateModsPanel();
+        }
 
         void Awake()
         {
@@ -317,13 +352,306 @@ namespace PFE.UI.MainMenu
 
         CanvasGroup BuildModsPanel(RectTransform parent)
         {
-            CanvasGroup panel = MakePanel("ModsPanel", parent, new Vector2(760f, 420f));
+            CanvasGroup panel = MakePanel("ModsPanel", parent, new Vector2(820f, 560f));
             RectTransform rect = (RectTransform)panel.transform;
-            MakeText("Title", rect, "Mods", 20, Accent, TextAnchor.MiddleCenter, new Vector2(0f, 166f), new Vector2(320f, 24f), Center, Center, Center);
-            _modsText = MakeText("Body", rect, string.Empty, 16, PanelText, TextAnchor.UpperLeft, new Vector2(0f, 26f), new Vector2(620f, 230f), Center, Center, Center);
-            MakeActionButton(rect, "Close", new Vector2(0f, -166f), new Vector2(180f, 44f), () => _menuManager.ShowTitle());
+            MakeText("Title", rect, "Mods", 20, Accent, TextAnchor.MiddleCenter, new Vector2(0f, 236f), new Vector2(320f, 24f), Center, Center, Center);
+            _modsText = MakeText("Summary", rect, string.Empty, 14, PanelText, TextAnchor.UpperLeft, new Vector2(0f, 198f), new Vector2(720f, 38f), Center, Center, Center);
+
+            RectTransform scrollViewport = MakeRect("ModsScrollViewport", rect, Center, Center, Center, new Vector2(720f, 310f), new Vector2(0f, 14f));
+            Image viewportBg = scrollViewport.gameObject.AddComponent<Image>();
+            viewportBg.color = new Color(0f, 0f, 0f, 0.28f);
+            scrollViewport.gameObject.AddComponent<RectMask2D>();
+            ScrollRect scrollRect = scrollViewport.gameObject.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.scrollSensitivity = 24f;
+
+            _modsListContainer = MakeRect("ModsListContent", scrollViewport, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, 0f), Vector2.zero);
+            scrollRect.content = _modsListContainer;
+            scrollRect.viewport = scrollViewport;
+
+            _modsStatusText = MakeText("Status", rect, string.Empty, 14, Hint, TextAnchor.MiddleCenter, new Vector2(0f, -166f), new Vector2(720f, 36f), Center, Center, Center);
+
+            MakeActionButton(rect, "Apply", new Vector2(-110f, -226f), new Vector2(180f, 44f), ApplyModChanges);
+            MakeActionButton(rect, "Close", new Vector2(110f, -226f), new Vector2(180f, 44f), () => _menuManager.ShowTitle());
+            _modSettingsPanel = BuildModSettingsPanel(rect);
             PopulateModsPanel();
             return panel;
+        }
+
+        CanvasGroup BuildModSettingsPanel(RectTransform parent)
+        {
+            CanvasGroup panel = MakePanel("ModSettingsPanel", parent, new Vector2(560f, 470f));
+            RectTransform rect = (RectTransform)panel.transform;
+            _modSettingsTitle = MakeText("Title", rect, "Mod settings", 20, Accent, TextAnchor.MiddleCenter,
+                new Vector2(0f, 202f), new Vector2(480f, 24f), Center, Center, Center);
+            _modSettingsHint = MakeText("Hint", rect, string.Empty, 13, Hint, TextAnchor.MiddleCenter,
+                new Vector2(0f, 176f), new Vector2(500f, 20f), Center, Center, Center);
+
+            _modSettingsContent = MakeRect("SettingsContent", rect, Center, Center, Center,
+                new Vector2(510f, 320f), new Vector2(0f, -6f));
+
+            MakeActionButton(rect, "Reset", new Vector2(-110f, -196f), new Vector2(180f, 40f), ResetOpenModSettings);
+            MakeActionButton(rect, "Close", new Vector2(110f, -196f), new Vector2(180f, 40f), CloseModSettings);
+            return panel;
+        }
+
+        public void OpenModSettings(string modId)
+        {
+            if (_modSettingsPanel == null || string.IsNullOrEmpty(modId))
+            {
+                return;
+            }
+
+            ModLoader loader = EnsureModLoader();
+            IReadOnlyList<PFE.ModAPI.ModSettingDescriptor> schema = loader.GetSettingsSchema(modId);
+            if (schema == null)
+            {
+                return;
+            }
+
+            _openSettingsModId = modId;
+            PopulateModSettingsPanel(loader, modId, schema);
+            SetCanvasGroupVisible(_modSettingsPanel, true);
+        }
+
+        public void CloseModSettings()
+        {
+            _openSettingsModId = null;
+            SetCanvasGroupVisible(_modSettingsPanel, false);
+        }
+
+        void ResetOpenModSettings()
+        {
+            if (string.IsNullOrEmpty(_openSettingsModId))
+            {
+                return;
+            }
+
+            ModLoader loader = EnsureModLoader();
+            IReadOnlyList<PFE.ModAPI.ModSettingDescriptor> schema = loader.GetSettingsSchema(_openSettingsModId);
+            if (schema == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < schema.Count; i++)
+            {
+                PFE.ModAPI.ModSettingDescriptor descriptor = schema[i];
+                if (descriptor == null || string.IsNullOrEmpty(descriptor.Key)) continue;
+                loader.SetModSetting(_openSettingsModId, descriptor.Key, descriptor.DefaultValue ?? string.Empty);
+            }
+
+            PopulateModSettingsPanel(loader, _openSettingsModId, schema);
+        }
+
+        void PopulateModSettingsPanel(
+            ModLoader loader,
+            string modId,
+            IReadOnlyList<PFE.ModAPI.ModSettingDescriptor> schema)
+        {
+            for (int i = _modSettingsContent.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = _modSettingsContent.GetChild(i).gameObject;
+                if (Application.isPlaying)
+                    Destroy(child);
+                else
+                    DestroyImmediate(child);
+            }
+            _renderedModSettingRows = 0;
+
+            PFE.ModAPI.ModManifest manifest = FindDiscoveredMod(loader, modId);
+            string displayName = manifest != null && !string.IsNullOrEmpty(manifest.displayName)
+                ? manifest.displayName
+                : modId;
+            _modSettingsTitle.text = $"{displayName} - Settings";
+            _modSettingsHint.text = "Saved immediately; applies the next time a land is generated.";
+
+            const float RowHeight = 40f;
+            const int MaxRows = 8;
+            int count = Math.Min(schema.Count, MaxRows);
+            for (int i = 0; i < count; i++)
+            {
+                PFE.ModAPI.ModSettingDescriptor descriptor = schema[i];
+                if (descriptor == null || string.IsNullOrEmpty(descriptor.Key)) continue;
+                BuildModSettingRow(loader, modId, descriptor, -i * RowHeight);
+                _renderedModSettingRows++;
+            }
+        }
+
+        void BuildModSettingRow(
+            ModLoader loader,
+            string modId,
+            PFE.ModAPI.ModSettingDescriptor descriptor,
+            float topOffset)
+        {
+            RectTransform row = MakeRect($"Setting_{descriptor.Key}", _modSettingsContent,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(510f, 36f), new Vector2(0f, topOffset));
+
+            string label = string.IsNullOrEmpty(descriptor.DisplayName) ? descriptor.Key : descriptor.DisplayName;
+            MakeText("Label", row, label, 15, PanelText, TextAnchor.MiddleLeft,
+                new Vector2(128f, 0f), new Vector2(240f, 32f),
+                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            string current = loader.GetModSetting(modId, descriptor.Key) ?? descriptor.DefaultValue ?? string.Empty;
+
+            switch (descriptor.Type)
+            {
+                case PFE.ModAPI.ModSettingType.Bool:
+                    BuildBoolSettingControl(loader, modId, descriptor, row, current);
+                    break;
+                case PFE.ModAPI.ModSettingType.Int:
+                case PFE.ModAPI.ModSettingType.Float:
+                    BuildNumericSettingControl(loader, modId, descriptor, row, current);
+                    break;
+                case PFE.ModAPI.ModSettingType.Choice:
+                    BuildChoiceSettingControl(loader, modId, descriptor, row, current);
+                    break;
+                default:
+                    BuildStringSettingControl(loader, modId, descriptor, row, current);
+                    break;
+            }
+        }
+
+        void BuildBoolSettingControl(
+            ModLoader loader, string modId, PFE.ModAPI.ModSettingDescriptor descriptor,
+            RectTransform row, string current)
+        {
+            bool initial = ParseBoolSetting(current, descriptor.DefaultValue);
+
+            RectTransform control = MakeRect("BoolControl", row,
+                new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(24f, 24f), new Vector2(-176f, 0f));
+            Toggle toggle = control.gameObject.AddComponent<Toggle>();
+            toggle.transition = Selectable.Transition.None;
+
+            Image off = MakeImage("Off", control, _sprites != null ? _sprites.checkboxOff : null, Color.white,
+                Center, Center, Center, Vector2.zero, new Vector2(18f, 18f));
+            Image on = MakeImage("On", control, _sprites != null ? _sprites.checkboxOn : null, Color.white,
+                Center, Center, Center, Vector2.zero, new Vector2(18f, 18f));
+            off.raycastTarget = true;
+            on.enabled = initial;
+            toggle.targetGraphic = off;
+            toggle.graphic = on;
+            toggle.SetIsOnWithoutNotify(initial);
+
+            Text state = MakeText("State", row, initial ? "On" : "Off", 14, Hint, TextAnchor.MiddleLeft,
+                new Vector2(-136f, 0f), new Vector2(60f, 24f),
+                new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            toggle.onValueChanged.AddListener(isOn =>
+            {
+                on.enabled = isOn;
+                state.text = isOn ? "On" : "Off";
+                loader.SetModSetting(modId, descriptor.Key, isOn ? "true" : "false");
+            });
+        }
+
+        void BuildNumericSettingControl(
+            ModLoader loader, string modId, PFE.ModAPI.ModSettingDescriptor descriptor,
+            RectTransform row, string current)
+        {
+            bool isInt = descriptor.Type == PFE.ModAPI.ModSettingType.Int;
+            InputField input = MakeInput(row, new Vector2(170f, 0f), new Vector2(120f, 30f),
+                descriptor.DefaultValue ?? string.Empty, "ValueInput");
+            input.contentType = isInt ? InputField.ContentType.IntegerNumber : InputField.ContentType.DecimalNumber;
+            input.text = current;
+
+            input.onEndEdit.AddListener(text =>
+            {
+                string committed;
+                if (isInt)
+                {
+                    if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
+                    {
+                        input.text = loader.GetModSetting(modId, descriptor.Key) ?? descriptor.DefaultValue ?? string.Empty;
+                        return;
+                    }
+                    if (descriptor.MaxValue > descriptor.MinValue)
+                    {
+                        value = Mathf.Clamp(value, Mathf.RoundToInt(descriptor.MinValue), Mathf.RoundToInt(descriptor.MaxValue));
+                    }
+                    committed = value.ToString(CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    if (!float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out float value))
+                    {
+                        input.text = loader.GetModSetting(modId, descriptor.Key) ?? descriptor.DefaultValue ?? string.Empty;
+                        return;
+                    }
+                    if (descriptor.MaxValue > descriptor.MinValue)
+                    {
+                        value = Mathf.Clamp(value, descriptor.MinValue, descriptor.MaxValue);
+                    }
+                    committed = value.ToString("0.###", CultureInfo.InvariantCulture);
+                }
+
+                input.text = committed;
+                loader.SetModSetting(modId, descriptor.Key, committed);
+            });
+        }
+
+        void BuildChoiceSettingControl(
+            ModLoader loader, string modId, PFE.ModAPI.ModSettingDescriptor descriptor,
+            RectTransform row, string current)
+        {
+            string[] options = descriptor.Options ?? Array.Empty<string>();
+            if (options.Length == 0)
+            {
+                BuildStringSettingControl(loader, modId, descriptor, row, current);
+                return;
+            }
+
+            string Normalize(string value) =>
+                Array.Exists(options, o => string.Equals(o, value, StringComparison.OrdinalIgnoreCase))
+                    ? value
+                    : options[0];
+
+            string selected = Normalize(string.IsNullOrEmpty(current) ? descriptor.DefaultValue : current);
+            Text label = null;
+            Button cycle = MakeActionButton(row, selected, new Vector2(170f, 0f), new Vector2(150f, 30f), () =>
+            {
+                string now = Normalize(loader.GetModSetting(modId, descriptor.Key) ?? descriptor.DefaultValue);
+                int index = Array.FindIndex(options, o => string.Equals(o, now, StringComparison.OrdinalIgnoreCase));
+                string next = options[(index + 1) % options.Length];
+                loader.SetModSetting(modId, descriptor.Key, next);
+                if (label != null) label.text = next;
+            });
+            label = cycle.GetComponentInChildren<Text>();
+        }
+
+        void BuildStringSettingControl(
+            ModLoader loader, string modId, PFE.ModAPI.ModSettingDescriptor descriptor,
+            RectTransform row, string current)
+        {
+            InputField input = MakeInput(row, new Vector2(170f, 0f), new Vector2(200f, 30f),
+                descriptor.DefaultValue ?? string.Empty, "ValueInput");
+            input.text = current;
+            input.onEndEdit.AddListener(text => loader.SetModSetting(modId, descriptor.Key, text ?? string.Empty));
+        }
+
+        static bool ParseBoolSetting(string value, string fallback)
+        {
+            if (bool.TryParse(value, out bool parsed)) return parsed;
+            if (value == "1") return true;
+            if (value == "0") return false;
+            if (bool.TryParse(fallback, out parsed)) return parsed;
+            return fallback == "1";
+        }
+
+        static PFE.ModAPI.ModManifest FindDiscoveredMod(ModLoader loader, string modId)
+        {
+            IReadOnlyList<PFE.ModAPI.ModManifest> mods = loader.AllDiscoveredMods;
+            for (int i = 0; i < mods.Count; i++)
+            {
+                if (string.Equals(mods[i].modId, modId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return mods[i];
+                }
+            }
+            return null;
         }
 
         CanvasGroup BuildAboutPanel(RectTransform parent)
@@ -511,45 +839,195 @@ namespace PFE.UI.MainMenu
             _loadText.text = builder.ToString();
         }
 
+        ModLoader EnsureModLoader()
+        {
+            _modLoader ??= new ModLoader();
+            return _modLoader;
+        }
+
+        ContentRegistry EnsureModContentRegistry()
+        {
+            _modContentRegistry ??= new ContentRegistry();
+            return _modContentRegistry;
+        }
+
+        CampaignCatalog EnsureModCampaignCatalog()
+        {
+            if (_modCampaignCatalog == null)
+            {
+                _modCampaignCatalog = Resources.Load<CampaignCatalog>("CampaignCatalog");
+            }
+
+            return _modCampaignCatalog;
+        }
+
+        public void RefreshModsPanel()
+        {
+            PopulateModsPanel();
+        }
+
+        public void ApplyModChanges()
+        {
+            ModLoader loader = EnsureModLoader();
+            loader.SaveConfig();
+
+            ContentRegistry registry = EnsureModContentRegistry();
+            List<PFE.ModAPI.IContentSource> sources = loader.BuildSourceList();
+            registry.Initialize(sources);
+
+            CampaignCatalog catalog = EnsureModCampaignCatalog();
+            if (catalog != null)
+            {
+                var modLands = new List<LandDefinition>();
+                foreach (LandDefinition land in registry.GetAll<LandDefinition>(PFE.ModAPI.ContentType.Campaign))
+                {
+                    if (land == null || string.IsNullOrEmpty(land.landId)) continue;
+                    string sourceMod = registry.GetSourceMod(PFE.ModAPI.ContentType.Campaign, land.landId);
+                    if (!string.Equals(sourceMod, "pfe.base", StringComparison.OrdinalIgnoreCase))
+                    {
+                        modLands.Add(land);
+                    }
+                }
+
+                catalog.SetModLands(modLands);
+            }
+
+            if (_modsStatusText != null)
+            {
+                int enabledMods = Math.Max(0, sources.Count - 1);
+                _modsStatusText.text = $"Applied mod settings ({enabledMods} active source(s)).";
+            }
+
+            PopulateModsPanel();
+        }
+
         void PopulateModsPanel()
         {
-            if (_modsText == null)
+            if (_modsText == null && _modsListContainer == null)
             {
                 return;
             }
 
-            var loader = new ModLoader();
+            ModLoader loader = EnsureModLoader();
             List<PFE.ModAPI.ModManifest> mods = loader.DiscoverMods();
-            var builder = new StringBuilder();
-            builder.AppendLine($"Mods folder: {loader.ModsRoot}");
-            builder.AppendLine($"Discovered mods: {mods.Count}");
-            builder.AppendLine();
+
+            int enabledCount = 0;
+            for (int i = 0; i < mods.Count; i++)
+            {
+                if (mods[i].isEnabled) enabledCount++;
+            }
+
+            if (_modsText != null)
+            {
+                _modsText.text = $"Mods folder: {loader.ModsRoot}\nDiscovered: {mods.Count} ({enabledCount} enabled)";
+            }
+
+            if (_modsListContainer == null)
+            {
+                return;
+            }
+
+            for (int i = _modsListContainer.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = _modsListContainer.GetChild(i).gameObject;
+                if (Application.isPlaying)
+                    Destroy(child);
+                else
+                    DestroyImmediate(child);
+            }
+            _modRows.Clear();
 
             if (mods.Count == 0)
             {
-                builder.AppendLine("No mods found.");
+                _modsListContainer.sizeDelta = new Vector2(0f, 60f);
+                MakeText("EmptyModsNotice", _modsListContainer, "No mods discovered.", 16, PanelText, TextAnchor.MiddleCenter,
+                    new Vector2(0f, -24f), new Vector2(680f, 32f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
             }
             else
             {
-                foreach (var mod in mods)
+                const float RowHeight = 76f;
+                const float RowSpacing = 6f;
+                float totalHeight = mods.Count * (RowHeight + RowSpacing);
+                _modsListContainer.sizeDelta = new Vector2(0f, totalHeight);
+
+                for (int i = 0; i < mods.Count; i++)
                 {
-                    builder.AppendLine($"- {mod.displayName} ({mod.modId}) v{mod.version}");
+                    PFE.ModAPI.ModManifest mod = mods[i];
+                    float topOffset = -i * (RowHeight + RowSpacing);
+                    _modRows.Add(MakeModRow(_modsListContainer, mod, topOffset, RowHeight));
                 }
             }
 
-            if (loader.ValidationLog.Count > 0)
+            if (_modsStatusText != null && loader.ValidationLog.Count > 0)
             {
-                builder.AppendLine();
-                builder.AppendLine("Validation notes:");
-                foreach (string line in loader.ValidationLog)
-                {
-                    builder.AppendLine($"- {line}");
-                }
+                _modsStatusText.text = string.Join(" | ", loader.ValidationLog);
+            }
+        }
+
+        ModRowView MakeModRow(RectTransform parent, PFE.ModAPI.ModManifest mod, float topOffset, float height)
+        {
+            string modId = mod.modId ?? "unknown";
+            RectTransform rowRect = MakeRect($"ModRow_{modId}", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(700f, height), new Vector2(0f, topOffset));
+            Image bg = rowRect.gameObject.AddComponent<Image>();
+            bg.sprite = _sprites != null ? _sprites.difficultyOff : null;
+            bg.color = new Color(1f, 1f, 1f, 0.25f);
+
+            Toggle toggle = rowRect.gameObject.AddComponent<Toggle>();
+            toggle.transition = Selectable.Transition.None;
+            toggle.SetIsOnWithoutNotify(mod.isEnabled);
+
+            Image off = MakeImage("Off", rowRect, _sprites != null ? _sprites.checkboxOff : null, Color.white,
+                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(24f, 0f), new Vector2(18f, 18f));
+            Image on = MakeImage("On", rowRect, _sprites != null ? _sprites.checkboxOn : null, Color.white,
+                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(24f, 0f), new Vector2(18f, 18f));
+            off.raycastTarget = true;
+            on.enabled = mod.isEnabled;
+            toggle.targetGraphic = off;
+            toggle.graphic = on;
+
+            string badge = mod.isCodeMod ? "[Code]" : "[Asset]";
+            string displayName = string.IsNullOrEmpty(mod.displayName) ? modId : mod.displayName;
+            string author = string.IsNullOrEmpty(mod.author) ? "Unknown" : mod.author;
+            string version = string.IsNullOrEmpty(mod.version) ? "0.0.0" : mod.version;
+            string description = string.IsNullOrEmpty(mod.description) ? modId : mod.description;
+
+            Text badgeText = MakeText("Badge", rowRect, badge, 14, Version, TextAnchor.MiddleLeft,
+                new Vector2(82f, 18f), new Vector2(76f, 22f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+            bool hasSettings = EnsureModLoader().HasModSettings(modId);
+            Text headerText = MakeText("Header", rowRect,
+                $"{displayName} v{version}  |  {author}  |  Order: {mod.loadOrder}",
+                15, mod.isEnabled ? Accent : PanelText, TextAnchor.MiddleLeft,
+                new Vector2(368f, 18f), new Vector2(440f, 24f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+            Text descText = MakeText("Description", rowRect, description, 13, PanelText, TextAnchor.UpperLeft,
+                new Vector2(368f, -14f), new Vector2(636f, 34f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            Button settingsButton = null;
+            if (hasSettings)
+            {
+                string capturedModId = modId;
+                settingsButton = MakeButton(rowRect, "Settings", new Vector2(-56f, 18f), new Vector2(96f, 28f), 14,
+                    _sprites != null ? _sprites.actionButton : null, () => OpenModSettings(capturedModId),
+                    new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f),
+                    TextAnchor.MiddleCenter, Vector2.zero, Center, Center, Center);
             }
 
-            builder.AppendLine();
-            builder.Append("TODO: add persisted enabled-state and a real launcher panel.");
-            _modsText.text = builder.ToString();
+            toggle.onValueChanged.AddListener(isOn =>
+            {
+                on.enabled = isOn;
+                headerText.color = isOn ? Accent : PanelText;
+                EnsureModLoader().SetModEnabled(modId, isOn);
+            });
+
+            return new ModRowView
+            {
+                Manifest = mod,
+                Toggle = toggle,
+                BadgeText = badgeText,
+                HeaderText = headerText,
+                DescriptionText = descText,
+                SettingsButton = settingsButton
+            };
         }
 
         void RefreshSummary()
@@ -1130,6 +1608,16 @@ namespace PFE.UI.MainMenu
             text.verticalOverflow = VerticalWrapMode.Overflow;
             text.supportRichText = true;
             return text;
+        }
+
+        sealed class ModRowView
+        {
+            public PFE.ModAPI.ModManifest Manifest;
+            public Toggle Toggle;
+            public Text BadgeText;
+            public Text HeaderText;
+            public Text DescriptionText;
+            public Button SettingsButton;
         }
 
         sealed class CustomizationChannelRow

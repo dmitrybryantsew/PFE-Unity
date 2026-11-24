@@ -21,6 +21,7 @@ namespace PFE.Data
     public class GameDatabase
     {
         readonly IGameDatabaseDebugSettings _debugSettings;
+        readonly Definitions.Campaign.CampaignCatalog _campaignCatalog;
 
         /// <summary>The content registry backing this database. All content lives here.</summary>
         public ContentRegistry Registry { get; private set; }
@@ -35,15 +36,24 @@ namespace PFE.Data
         readonly Dictionary<string, RoomTemplate> _roomTemplates = new();
         readonly Dictionary<string, MapObjectDefinition> _mapObjectDefinitions = new();
 
-        public GameDatabase() : this(DefaultGameDatabaseDebugSettings.Instance)
+        public GameDatabase() : this(DefaultGameDatabaseDebugSettings.Instance, null, null)
         {
         }
 
         public GameDatabase(IGameDatabaseDebugSettings debugSettings)
+            : this(debugSettings, null, null)
+        {
+        }
+
+        public GameDatabase(
+            IGameDatabaseDebugSettings debugSettings,
+            ModLoader loader,
+            Definitions.Campaign.CampaignCatalog campaignCatalog = null)
         {
             _debugSettings = debugSettings ?? DefaultGameDatabaseDebugSettings.Instance;
+            _campaignCatalog = campaignCatalog;
             Registry = new ContentRegistry();
-            Loader = new ModLoader();
+            Loader = loader ?? new ModLoader();
         }
 
         #region Registration (legacy + IGameContent bridge)
@@ -318,6 +328,12 @@ namespace PFE.Data
                 Registry.Initialize(sources);
             }
 
+            // Sync mod-supplied Campaign lands into CampaignCatalog if provided
+            if (_campaignCatalog != null)
+            {
+                SyncCampaignCatalog(_campaignCatalog);
+            }
+
             // Log validation issues from mod discovery
             foreach (var warning in Loader.ValidationLog)
             {
@@ -329,6 +345,44 @@ namespace PFE.Data
                 Debug.Log(Registry.GetSummary());
                 Debug.Log("[GameDatabase] Initialization complete");
             }
+        }
+
+        /// <summary>
+        /// Re-runs mod discovery/registration (e.g. after toggling mods in Main Menu Apply)
+        /// and updates the supplied <see cref="Definitions.Campaign.CampaignCatalog"/>.
+        /// </summary>
+        public void RebuildFromModLoader(Definitions.Campaign.CampaignCatalog catalogOverride = null)
+        {
+            List<IContentSource> sources = Loader.BuildSourceList();
+            Registry.Initialize(sources);
+
+            Definitions.Campaign.CampaignCatalog targetCatalog = catalogOverride ?? _campaignCatalog;
+            if (targetCatalog != null)
+            {
+                SyncCampaignCatalog(targetCatalog);
+            }
+        }
+
+        /// <summary>
+        /// Pushes all non-base LandDefinitions currently registered in <see cref="Registry"/>
+        /// into <paramref name="catalog"/>'s runtime mod overlay.
+        /// </summary>
+        public void SyncCampaignCatalog(Definitions.Campaign.CampaignCatalog catalog)
+        {
+            if (catalog == null) return;
+
+            var modLands = new List<Definitions.Campaign.LandDefinition>();
+            foreach (var land in Registry.GetAll<Definitions.Campaign.LandDefinition>(ContentType.Campaign))
+            {
+                if (land == null || string.IsNullOrEmpty(land.landId)) continue;
+                string sourceMod = Registry.GetSourceMod(ContentType.Campaign, land.landId);
+                if (!string.Equals(sourceMod, "pfe.base", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    modLands.Add(land);
+                }
+            }
+
+            catalog.SetModLands(modLands);
         }
     }
 }

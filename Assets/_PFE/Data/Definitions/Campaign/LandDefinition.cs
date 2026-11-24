@@ -43,6 +43,9 @@ namespace PFE.Data.Definitions.Campaign
         [Tooltip("True if this is a procedurally assembled dungeon (rnd='1' in AS3). False if fixed authored coordinates.")]
         public bool isProcedural = false;
 
+        /// <summary>True when generated dynamically at runtime by a mod's IProceduralLandProvider (no static RoomTemplates).</summary>
+        [NonSerialized] public bool isModProcedural = false;
+
         [Tooltip("Campaign progression stage (1..12)")]
         public int stage = 1;
 

@@ -66,6 +66,9 @@ namespace PFE.ModAPI
         /// <summary>Whether this mod is enabled. Persisted in user settings, not in manifest.</summary>
         [NonSerialized] public bool isEnabled = true;
 
+        /// <summary>True if discovered via [assembly: PfeModPlugin(...)], false if folder/asset mod.</summary>
+        [NonSerialized] public bool isCodeMod;
+
         /// <summary>Absolute path to the mod folder on disk. Set at discovery time.</summary>
         [NonSerialized] public string folderPath;
 

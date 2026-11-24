@@ -81,9 +81,14 @@ namespace PFE.Data.Definitions.Campaign
         private List<VendorDefinition> _vendorsIndexSource;
         private int _vendorsIndexSize = -1;
 
+        [NonSerialized] private readonly List<LandDefinition> _modLands = new List<LandDefinition>();
+        [NonSerialized] private readonly List<LandDefinition> _combinedLands = new List<LandDefinition>();
+
         private bool _isInitialized = false;
 
-        public IReadOnlyList<LandDefinition> AllLands => lands;
+        private List<LandDefinition> ActiveLandsList => _modLands.Count == 0 ? lands : _combinedLands;
+
+        public IReadOnlyList<LandDefinition> AllLands => ActiveLandsList;
         public IReadOnlyList<QuestDefinition> AllQuests => quests;
         public IReadOnlyList<NpcDefinition> AllNpcs => npcs;
         public IReadOnlyList<CampaignScriptDefinition> AllScripts => scripts;
@@ -96,6 +101,58 @@ namespace PFE.Data.Definitions.Campaign
         }
 
         /// <summary>
+        /// Replaces the runtime overlay of mod-provided lands without mutating the serialized
+        /// <see cref="lands"/> asset list, then rebuilds lookup indexes.
+        /// </summary>
+        public void SetModLands(IEnumerable<LandDefinition> modLands)
+        {
+            _modLands.Clear();
+            _combinedLands.Clear();
+
+            if (lands != null)
+            {
+                _combinedLands.AddRange(lands);
+            }
+
+            if (modLands != null)
+            {
+                var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < _combinedLands.Count; i++)
+                {
+                    if (_combinedLands[i] != null && !string.IsNullOrEmpty(_combinedLands[i].landId))
+                    {
+                        seenIds.Add(_combinedLands[i].landId);
+                    }
+                }
+
+                foreach (LandDefinition modLand in modLands)
+                {
+                    if (modLand == null || string.IsNullOrEmpty(modLand.landId)) continue;
+                    _modLands.Add(modLand);
+                    if (seenIds.Add(modLand.landId))
+                    {
+                        _combinedLands.Add(modLand);
+                    }
+                    else
+                    {
+                        // Replace existing entry in combined list if overridden by mod
+                        for (int i = 0; i < _combinedLands.Count; i++)
+                        {
+                            if (_combinedLands[i] != null &&
+                                string.Equals(_combinedLands[i].landId, modLand.landId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                _combinedLands[i] = modLand;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            RebuildIndexes();
+        }
+
+        /// <summary>
         /// Rebuild all four indexes from the serialized lists, unconditionally.
         ///
         /// <para>Called by <see cref="Initialize"/> and, on a lookup miss, by the four <c>Get*</c> methods —
@@ -103,10 +160,11 @@ namespace PFE.Data.Definitions.Campaign
         /// </summary>
         private void RebuildIndexes()
         {
+            List<LandDefinition> activeLands = ActiveLandsList;
             _landsById.Clear();
-            if (lands != null)
+            if (activeLands != null)
             {
-                foreach (var land in lands)
+                foreach (var land in activeLands)
                 {
                     if (land != null && !string.IsNullOrEmpty(land.landId))
                     {
@@ -114,8 +172,8 @@ namespace PFE.Data.Definitions.Campaign
                     }
                 }
             }
-            _landsIndexSource = lands;
-            _landsIndexSize = SizeOf(lands);
+            _landsIndexSource = activeLands;
+            _landsIndexSize = SizeOf(activeLands);
 
             _questsById.Clear();
             if (quests != null)
@@ -183,7 +241,8 @@ namespace PFE.Data.Definitions.Campaign
         /// </summary>
         private bool IndexesAreCurrent()
         {
-            return ReferenceEquals(_landsIndexSource, lands) && _landsIndexSize == SizeOf(lands)
+            List<LandDefinition> activeLands = ActiveLandsList;
+            return ReferenceEquals(_landsIndexSource, activeLands) && _landsIndexSize == SizeOf(activeLands)
                 && ReferenceEquals(_questsIndexSource, quests) && _questsIndexSize == SizeOf(quests)
                 && ReferenceEquals(_npcsIndexSource, npcs) && _npcsIndexSize == SizeOf(npcs)
                 && ReferenceEquals(_scriptsIndexSource, scripts) && _scriptsIndexSize == SizeOf(scripts)

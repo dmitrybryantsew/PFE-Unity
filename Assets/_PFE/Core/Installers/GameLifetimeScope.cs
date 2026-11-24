@@ -903,8 +903,15 @@ public class GameLifetimeScope : LifetimeScope
         // kept taking 0 from the 7-damage minigun. Registering the database first and handing out
         // ITS registry makes `Registry.Initialize(sources)` (GameDatabase.cs:320) the single table
         // every consumer sees, which is what the resolver comments already claimed was happening.
-        builder.Register<ModLoader>(Lifetime.Singleton);
-        builder.Register<GameDatabase>(Lifetime.Singleton);
+        builder.Register<ModLoader>(_ => new ModLoader(), Lifetime.Singleton);
+        builder.Register<ProceduralLandRegistry>(
+            container => container.Resolve<ModLoader>().ProceduralLands, Lifetime.Singleton);
+        builder.Register<GameDatabase>(
+            container => new GameDatabase(
+                container.Resolve<IGameDatabaseDebugSettings>(),
+                container.Resolve<ModLoader>(),
+                container.Resolve<CampaignCatalog>()),
+            Lifetime.Singleton);
         builder.Register<ContentRegistry>(
             container => container.Resolve<GameDatabase>().Registry, Lifetime.Singleton);
 
@@ -923,10 +930,30 @@ public class GameLifetimeScope : LifetimeScope
             {
                 container.Resolve<LandMap>().SoundService = soundService;
             }
+
+            var debugOverlay = PFE.Core.Scripting.PlayerDebugEditorOverlay.Instance != null
+                ? PFE.Core.Scripting.PlayerDebugEditorOverlay.Instance
+                : FindFirstObjectByType<PFE.Core.Scripting.PlayerDebugEditorOverlay>();
+            if (debugOverlay != null)
+            {
+                debugOverlay.SetModServices(
+                    container.Resolve<ModLoader>(),
+                    container.Resolve<ProceduralLandRegistry>());
+            }
         });
         builder.Register<RoomGenerator>(Lifetime.Singleton);
         builder.Register<WorldBuilder>(Lifetime.Singleton);
-        builder.RegisterInstance(_tileFormDatabase);
+        if (_tileFormDatabase != null)
+        {
+            builder.RegisterInstance(_tileFormDatabase);
+        }
+        else
+        {
+            var runtimeFormDb = ScriptableObject.CreateInstance<TileFormDatabase>();
+            runtimeFormDb.Initialize();
+            builder.RegisterInstance(runtimeFormDb);
+            Debug.LogWarning("[GameLifetimeScope] TileFormDatabase is not assigned. Created empty runtime database.");
+        }
         builder.RegisterInstance(_materialRenderDb);
         if (_roomBackgroundLookup != null)
         {
