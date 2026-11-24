@@ -8,6 +8,7 @@ using PFE.Data;
 using PFE.Character;
 using PFE.Data.Definitions;
 using PFE.Data.Definitions.Campaign;
+using PFE.ModAPI;
 using PFE.Entities.Player;
 using PFE.Entities.Player.Rig;
 using PFE.Entities.Units;
@@ -1601,6 +1602,58 @@ namespace PFE.Core.Scripting
         /// </summary>
         private TravelMapModel _landModel;
 
+        // Mod services for the Lands tab, handed over by the game lifetime scope via SetModServices.
+        // Null in a bare scene: the tab then shows catalogue lands only, with no biome/seed controls.
+        private ModLoader _modLoader;
+        private ProceduralLandRegistry _proceduralLandRegistry;
+        private TravelOverlayPresenter _travelPresenter;
+
+        /// <summary>
+        /// Hands the overlay the mod services the Lands tab needs to offer biome/seed choices for
+        /// procedural mod lands. Called once by the game lifetime scope after the mod source list
+        /// is built; the presenter is rebuilt lazily so a re-registration is picked up.
+        /// </summary>
+        public void SetModServices(ModLoader loader, ProceduralLandRegistry proceduralRegistry)
+        {
+            _modLoader = loader;
+            _proceduralLandRegistry = proceduralRegistry;
+            _travelPresenter = null;
+        }
+
+        private TravelOverlayPresenter TravelPresenter
+        {
+            get
+            {
+                _travelPresenter ??= new TravelOverlayPresenter(null, _proceduralLandRegistry);
+                return _travelPresenter;
+            }
+        }
+
+        /// <summary>The mod's own description of a land, or null when no enabled mod handles it.</summary>
+        private ProceduralLandDescriptor ModDescriptorFor(string landId)
+        {
+            if (string.IsNullOrEmpty(landId)) return null;
+            return _proceduralLandRegistry?.GetDescriptor(landId);
+        }
+
+        /// <summary>
+        /// Lazy counterpart to the lifetime scope's <see cref="SetModServices"/> push: when the game
+        /// scene is played directly, the container finishes building before this overlay's
+        /// AfterSceneLoad bootstrap creates it, so the push never lands. Pull once the scope exists.
+        /// </summary>
+        private void EnsureModServices()
+        {
+            if (_proceduralLandRegistry != null) return;
+
+            var scope = FindFirstObjectByType<VContainer.Unity.LifetimeScope>();
+            if (scope?.Container == null) return;
+
+            if (VContainer.IObjectResolverExtensions.TryResolve(scope.Container, out ModLoader loader) && loader != null)
+            {
+                SetModServices(loader, loader.ProceduralLands);
+            }
+        }
+
         /// <summary>
         /// The live room's controller. <c>MapBridge.VisualController</c> first, because that is the
         /// injected reference; the scene search is the same fallback the developer console uses.
@@ -2171,6 +2224,8 @@ namespace PFE.Core.Scripting
         {
             _landsScroll = GUILayout.BeginScrollView(_landsScroll);
 
+            EnsureModServices();
+
             GUILayout.Label("<b>Campaign Lands</b> — rebuild the world in any land in the catalogue.",
                 GUILayout.ExpandWidth(true));
             GUILayout.Label(
@@ -2301,6 +2356,7 @@ namespace PFE.Core.Scripting
 
                 TravelLand facts = TravelLand.From(land);
                 bool isCurrent = string.Equals(land.landId, current, StringComparison.OrdinalIgnoreCase);
+                ProceduralLandDescriptor modDescriptor = ModDescriptorFor(land.landId);
 
                 GUILayout.BeginHorizontal(_cardStyle);
 
@@ -2319,16 +2375,25 @@ namespace PFE.Core.Scripting
 
                 if (GUILayout.Button(isCurrent ? "Rebuild" : "Go", GUILayout.Width(78)))
                 {
-                    GoToLand(campaign, land);
+                    if (modDescriptor != null) ConfirmModTravel(campaign, land, "Go");
+                    else GoToLand(campaign, land);
                 }
 
                 if (GUILayout.Button("Regen", GUILayout.Width(66)))
                 {
-                    RegenerateLand(campaign, land);
+                    if (modDescriptor != null) ConfirmModTravel(campaign, land, "Regen");
+                    else RegenerateLand(campaign, land);
                 }
 
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
+
+                // A mod-procedural land gets a second row with the launch options the mod declared
+                // (biome list, seed support) — rendered from the descriptor, never hardcoded here.
+                if (modDescriptor != null)
+                {
+                    DrawModLandOptionsRow(land, modDescriptor);
+                }
             }
 
             if (shown == 0)
@@ -2446,6 +2511,62 @@ namespace PFE.Core.Scripting
         {
             _landStatus = message;
             _landStatusIsError = isError;
+        }
+
+        /// <summary>
+        /// The launch-options row under a mod-procedural land: biome cycler and seed box, both
+        /// rendered from the mod's <see cref="ProceduralLandDescriptor"/> — the overlay never names
+        /// a mod's biomes itself.
+        /// </summary>
+        private void DrawModLandOptionsRow(LandDefinition land, ProceduralLandDescriptor descriptor)
+        {
+            TravelOverlayPresenter presenter = TravelPresenter;
+
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Space(16);
+            GUILayout.Label("<color=#9AD0FF>mod</color>", GUILayout.Width(40));
+
+            if (descriptor.Biomes != null && descriptor.Biomes.Length > 0)
+            {
+                string selected = presenter.GetSelectedBiome(land.landId, descriptor);
+                if (GUILayout.Button($"biome: {selected} ▾", GUILayout.Width(150)))
+                {
+                    int index = Array.IndexOf(descriptor.Biomes, selected);
+                    presenter.SetSelectedBiome(land.landId, descriptor.Biomes[(index + 1) % descriptor.Biomes.Length]);
+                }
+            }
+
+            if (descriptor.SupportsSeed)
+            {
+                GUILayout.Label("<color=#AAAAAA>seed:</color>", GUILayout.Width(36));
+                presenter.SetSeedText(land.landId,
+                    GUILayout.TextField(presenter.GetSeedText(land.landId), GUILayout.Width(110)));
+                if (GUILayout.Button("🎲", GUILayout.Width(28)))
+                {
+                    presenter.RollRandomSeed(land.landId);
+                }
+                GUILayout.Label("<color=#888888>(blank = random)</color>", GUILayout.Width(100));
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// Travel into a mod-procedural land: the chosen launch options go to the provider first,
+        /// then the standard <see cref="CampaignManager.TransitionToLand"/> flow rebuilds the world.
+        /// </summary>
+        private void ConfirmModTravel(CampaignManager campaign, LandDefinition land, string source)
+        {
+            ProceduralLandLaunchRequest request = TravelPresenter.ApplyPendingLaunchRequest(land.landId);
+            campaign.TransitionToLand(land.landId, null, forceRegenerate: true);
+            SetLandStatus(
+                $"{source}: '{land.landId}'" +
+                (request != null
+                    ? $" (biome: {request.Biome}, seed: {(request.Seed?.ToString() ?? "random")})"
+                    : string.Empty) +
+                " — TransitionToLand(forceRegenerate: true).",
+                false);
         }
 
         // =========================================================================

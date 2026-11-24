@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using PFE.Systems.Campaign;
 using UnityEngine;
@@ -52,6 +52,8 @@ namespace PFE.Systems.Map
         {
             _landRng = landStream;
         }
+
+        public TileFormDatabase FormDatabase => _formDatabase;
 
         [Inject]  // Add this constructor
         public RoomGenerator(TileFormDatabase formDb = null, PFE.Core.Rng.IRngService rng = null)

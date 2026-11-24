@@ -36,6 +36,10 @@ namespace PFE.Core.Scripting
         private DevConsoleTerrainCommands _terrainCommands;
         private bool _commandObjectsRegistered;
 
+        // Mod command routing: the registry of enabled mods' console handlers (e.g. "rr"), plus the
+        // live context MapBridge publishes while a land is active. Null when no mods are loaded.
+        private PFE.Data.ProceduralLandRegistry _modRegistry;
+
         private bool _isOpen;
         private readonly List<string> _history = new List<string>();
         private readonly List<string> _commandHistory = new List<string>();
@@ -73,6 +77,13 @@ namespace PFE.Core.Scripting
             if (setFogDisabledAction != null) _setFogDisabledAction = setFogDisabledAction;
             if (revealFogAction != null) _revealFogAction = revealFogAction;
             if (isFogDisabledFunc != null) _isFogDisabledFunc = isFogDisabledFunc;
+        }
+
+        /// <summary>Attach the mod registry so prefixed mod commands (e.g. <c>rr</c>) route to the
+        /// handlers mods registered through <c>IModHostContext.RegisterConsoleCommands</c>.</summary>
+        public void SetModRegistry(PFE.Data.ProceduralLandRegistry modRegistry)
+        {
+            _modRegistry = modRegistry;
         }
 
         /// <summary>
@@ -620,8 +631,45 @@ namespace PFE.Core.Scripting
                     return true;
 
                 default:
-                    return false;
+                    return TryRunModCommand(trimmed, verb, out result);
             }
+        }
+
+        /// <summary>
+        /// Offer an unrecognised verb to the mod-registered console handlers (e.g. <c>rr</c>).
+        /// Runs after every built-in so a mod can never shadow a shipped command, and before the
+        /// Lua fallback so a mod prefix never reaches the Lua interpreter as a syntax error.
+        /// </summary>
+        private bool TryRunModCommand(string trimmed, string verb, out string result)
+        {
+            result = null;
+            if (_modRegistry == null) return false;
+
+            foreach (var kvp in _modRegistry.ConsoleHandlers)
+            {
+                if (!string.Equals(kvp.Key, verb, StringComparison.OrdinalIgnoreCase)) continue;
+
+                if (kvp.Value is not PFE.ModAPI.IModConsoleCommandHandler handler)
+                {
+                    result = $"[mods] Handler for '{kvp.Key}' is not an IModConsoleCommandHandler.";
+                    return true;
+                }
+
+                try
+                {
+                    result = handler.Execute(trimmed, _modRegistry.ModConsoleContext)
+                             ?? $"[mods] '{verb}' handler returned no output.";
+                }
+                catch (Exception ex)
+                {
+                    result = $"[mods] '{verb}' handler threw: {ex.Message}";
+                }
+
+                AppendLog(result);
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>

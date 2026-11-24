@@ -100,6 +100,12 @@ public class MapBridge : MonoBehaviour
     private PFE.Core.SimClock _simClock;
     private PFE.Core.SimLoop _simLoop;
     private PFE.Systems.Physics.IPhysicsWorldService _physicsWorldService;
+    private PFE.Data.ProceduralLandRegistry _proceduralRegistry;
+    private PFE.ModAPI.IProceduralLandProvider _activeProceduralProvider;
+    private string _activeProceduralLandId;
+    private readonly Dictionary<Vector3Int, RoomTemplate> _activeProceduralTemplates = new Dictionary<Vector3Int, RoomTemplate>();
+    private RoomTransitionManager _hookedTransitionManager;
+    private ModConsoleContext _modConsoleContext;
 
     /// <summary>
     /// The injected <see cref="PFE.Core.Messages.LandBuildRequestMessage"/> source. Stored here and
@@ -157,7 +163,7 @@ public class MapBridge : MonoBehaviour
     // defaults were "deliberately omitted" while the line beneath it carried three — the code is the
     // truth, and it is why a scene cannot opt out of a registration by relying on the default.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, RoomRenderAssetBundle renderAssets, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, LandSessionService landSession = null, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null, VContainer.IObjectResolver objectResolver = null, MessagePipe.ISubscriber<PFE.Core.Messages.LandBuildRequestMessage> landBuildSubscriber = null, PFE.Systems.Campaign.CampaignManager campaign = null)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, RoomRenderAssetBundle renderAssets, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, LandSessionService landSession = null, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null, VContainer.IObjectResolver objectResolver = null, MessagePipe.ISubscriber<PFE.Core.Messages.LandBuildRequestMessage> landBuildSubscriber = null, PFE.Systems.Campaign.CampaignManager campaign = null, PFE.Data.ProceduralLandRegistry proceduralRegistry = null)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -171,6 +177,12 @@ public class MapBridge : MonoBehaviour
         // CampaignManager.Current so a fixture-built bridge (no container) keeps working — the static
         // is set for exactly the containerless paths this file's other lookups document.
         _campaign = campaign;
+        _proceduralRegistry = proceduralRegistry;
+        if (_proceduralRegistry != null)
+        {
+            _modConsoleContext = new ModConsoleContext(this);
+            _proceduralRegistry.ModConsoleContext = _modConsoleContext;
+        }
 
         // Kept, not subscribed, until Start — see the field remark. A null here is legal and is what a
         // test rig or a scene without the broker registration gets: the bridge then rebuilds only on
@@ -757,6 +769,14 @@ public class MapBridge : MonoBehaviour
 
     private void OnDestroy()
     {
+        DetachProceduralExpansion();
+
+        if (_proceduralRegistry != null && ReferenceEquals(_proceduralRegistry.ModConsoleContext, _modConsoleContext))
+        {
+            _proceduralRegistry.ModConsoleContext = null;
+        }
+        _modConsoleContext = null;
+
         // Before the visual controller is torn down, and unconditionally: the broker is a container-owned
         // singleton that can outlive this scene, so an undisposed subscription would call into a
         // destroyed MonoBehaviour on the next publish.
@@ -771,6 +791,60 @@ public class MapBridge : MonoBehaviour
         // The fon plane is parented to the camera, not to anything this bridge owns — see
         // RoomPresentationCoordinator.Dispose for why it is destroyed by hand.
         _presentation?.Dispose();
+    }
+
+    private void AttachProceduralExpansion(
+        RoomTransitionManager rtm,
+        PFE.ModAPI.IProceduralLandProvider provider,
+        string landId)
+    {
+        DetachProceduralExpansion();
+        if (rtm == null || provider == null || string.IsNullOrEmpty(landId)) return;
+
+        _activeProceduralProvider = provider;
+        _activeProceduralLandId = landId;
+        _hookedTransitionManager = rtm;
+        _hookedTransitionManager.OnRoomTransitionComplete += HandleProceduralRoomTransitionComplete;
+    }
+
+    private void DetachProceduralExpansion()
+    {
+        if (_hookedTransitionManager != null)
+        {
+            _hookedTransitionManager.OnRoomTransitionComplete -= HandleProceduralRoomTransitionComplete;
+            _hookedTransitionManager = null;
+        }
+
+        _activeProceduralProvider = null;
+        _activeProceduralLandId = null;
+        _activeProceduralTemplates.Clear();
+    }
+
+    private void HandleProceduralRoomTransitionComplete(RoomInstance toRoom, RoomInstance fromRoom)
+    {
+        if (_activeProceduralProvider == null || string.IsNullOrEmpty(_activeProceduralLandId) || toRoom == null)
+        {
+            return;
+        }
+
+        var landMap = _gameManager != null ? _gameManager.GetLandMap() : null;
+        if (landMap == null) return;
+
+        PFE.ModAPI.ProceduralLandExpansionResult expansion = _activeProceduralProvider.TryExpandLand(
+            _activeProceduralLandId,
+            toRoom.landPosition,
+            landMap.minBounds,
+            landMap.maxBounds);
+
+        if (expansion != null && expansion.Expanded)
+        {
+            ProceduralLandBuilder.ApplyExpansion(
+                landMap,
+                expansion,
+                _roomGenerator,
+                _roomGenerator != null ? _roomGenerator.FormDatabase : null,
+                _activeProceduralTemplates);
+        }
     }
 
     private void HandleGotoLand(string targetLand)
@@ -907,6 +981,8 @@ public class MapBridge : MonoBehaviour
         // Clear visuals
         _presentation.ClearRoom();
 
+        DetachProceduralExpansion();
+
         // Get LandMap and clear
         var landMap = _gameManager.GetLandMap();
         if (landMap != null)
@@ -914,138 +990,131 @@ public class MapBridge : MonoBehaviour
             landMap.Clear();
         }
 
-        // Resolve collection name
-        string collectionName = _session.ResolveCollectionName(targetLand);
-        var templates = _gameManager.GetTemplatesForCollection(collectionName);
-        if (templates == null || templates.Count == 0)
-        {
-            Debug.LogError($"[MapBridge] No templates found for collection '{collectionName}' (targetLand: '{targetLand}')!");
-            if (playerController != null) playerController.enabled = true;
-            yield break;
-        }
-
-        // The whole entry decision — AS3's `rnd`/`visited` reads, the run difficulty, the checkpoint
-        // resume, the entry cell — in the oracle's order, with no scene knowledge. See
-        // LandSessionService.BuildEntryPlan for the rules and their AS3 citations.
         CampaignManager campaign = _campaign ?? CampaignManager.Current;
-        LandEntryPlan plan = _session.BuildEntryPlan(
-            targetLand,
-            templates,
-            campaign,
-            playerLevel: playerController != null && playerController.CharacterStats != null
-                ? playerController.CharacterStats.Level
-                : 1,
-            targetPosition: targetPosition);
-
         var worldBuilder = _gameManager.GetWorldBuilder();
-
-        bool built;
-
-        // One context per land, and it must be in the builder's hands BEFORE the build — see the
-        // assignment inside the procedural branch. It is cleared here first so an authored build cannot
-        // keep the previous land's rooms: the builder is a shared instance whose `ProbContext` outlives a
-        // build (`_gameManager.GetWorldBuilder()`), and the room-transition manager is a scene singleton.
-        // Leaving either holding the previous land's rooms would let an exit box from the land you just
-        // left route into the land you just entered — the doors themselves are gone, but the registry
-        // is not.
         ProbDoorContext probContext = null;
         worldBuilder.ProbContext = null;
 
-        if (plan.Land != null && plan.Land.isProcedural)
+        string collectionName;
+        PFE.Data.Definitions.Campaign.LandDefinition resolvedLandDef;
+        bool isRandomLand;
+        bool firstVisit;
+        bool built;
+
+        PFE.ModAPI.IProceduralLandProvider modProvider = _proceduralRegistry != null
+            ? _proceduralRegistry.GetProviderForLand(targetLand)
+            : null;
+
+        if (modProvider != null)
         {
-            LandRuntimeState state = campaign.LandStates.Get(targetLand);
-            bool mbaseVisited = campaign.GetTrigger("mbase_visited").IsGreaterThanZero();
+            collectionName = $"mod:{targetLand}";
+            resolvedLandDef = campaign?.Catalog?.GetLand(targetLand);
+            isRandomLand = true;
+            firstVisit = campaign == null || !campaign.LandStates.Get(targetLand).visited;
 
-            Debug.Log($"[MapBridge] Procedural land '{targetLand}' (conf {plan.Land.configId}, " +
-                      $"stage {state.landStage}, visited {state.visited}).");
-
-            // The prob / boss door subsystem needs a context before the land is built: the `prob`
-            // land's room templates (content) and the run's `prob_<id>` completion record (run state).
-            // AS3 reads both inside newRandomProb (Land.as:809-863), and the builder cannot reach
-            // either on its own — BuildLand is handed one land's collection. Without a context the
-            // builder places no prob doors and reports once, so this is what makes them appear at all.
-            //
-            // It also carries the exit rooms: AS3 reaches those through the same registry, because
-            // Location.createObj pushes the exit box's `prob` into land.probIds (:2080-2082) and
-            // Land.buildProbs builds every id in it (Land.as:752-768). See WorldBuilder.PlaceCellObjects.
-            probContext = ProbDoorContext.ForLand(
-                _gameManager.GetTemplatesForCollection(_session.ResolveCollectionName("prob")),
-                plan.Land.probRooms,
-                campaign);
-
-            // The builder READS `ProbContext` *while it builds*: PlaceCellObjects → BuildAndRegisterProbRoom
-            // builds and registers each exit / trial room through it. This assignment used to live after the
-            // branch, so the builder always saw null, every prob room (the exit room included) was placed
-            // but never built, and the exit box refused with "prob 'exit_plant' has no built room". It must
-            // be set here, before BuildLand.
-            worldBuilder.ProbContext = probContext;
-
-            // A regenerated procedural land's objects are FRESH, and its checkpoint record must not
-            // outlive the layout that named it:
-            //   · AS3 never persists a random land's objects — `Land.saveObjs` returns immediately
-            //     (`Land.as:1193-1196`), so no `<obj code>` for a checkpoint in a procedural land is ever
-            //     written back, and `CheckPoint`'s constructor has nothing to restore `act` from
-            //     (`:105-124`).
-            //   · The port's `CurrentCheckpoint` is campaign state and survives a rebuild. Every conf 0
-            //     land enters at (0,0) at every stage, and a procedural checkpoint's `code` is empty — so
-            //     the identity falls back to the room cell (`CampaignManager.MatchesCheckpoint`) and the
-            //     NEW entry checkpoint reads as "already active". `ActivateCheckpoint` then refuses, the
-            //     return is never armed, and no save is written: the entry checkpoint would be a prop you
-            //     cannot press, which is exactly the state this change exists to fix.
             campaign?.ClearCheckpointForRebuild();
 
-            built = worldBuilder.BuildLand(plan.Land, templates, state.landStage, state.visited,
-                forceRegenerate: false, mbaseVisited: mbaseVisited, runDifficulty: plan.RunDifficulty);
+            PFE.ModAPI.ProceduralLandDescriptor descriptor = modProvider.GetDescriptor(targetLand);
+            PFE.ModAPI.ProceduralLandLaunchRequest launchRequest = modProvider.GetPendingLaunchRequest(targetLand);
+            if (launchRequest == null)
+            {
+                string defaultBiome = !string.IsNullOrEmpty(descriptor?.DefaultBiome)
+                    ? descriptor.DefaultBiome
+                    : (descriptor?.Biomes != null && descriptor.Biomes.Length > 0 ? descriptor.Biomes[0] : string.Empty);
+
+                launchRequest = new PFE.ModAPI.ProceduralLandLaunchRequest
+                {
+                    LandId = targetLand,
+                    Biome = defaultBiome,
+                    Seed = null
+                };
+            }
+
+            PFE.ModAPI.ProceduralLandBuildResult buildResult = modProvider.BuildInitialLand(launchRequest);
+            built = ProceduralLandBuilder.ApplyBuildResult(
+                landMap,
+                buildResult,
+                _roomGenerator,
+                _roomGenerator != null ? _roomGenerator.FormDatabase : null,
+                _activeProceduralTemplates);
+
+            if (built)
+            {
+                AttachProceduralExpansion(rtm, modProvider, targetLand);
+            }
         }
         else
         {
-            if (plan.Land == null)
+            // Resolve collection name
+            collectionName = _session.ResolveCollectionName(targetLand);
+            var templates = _gameManager.GetTemplatesForCollection(collectionName);
+            if (templates == null || templates.Count == 0)
             {
-                // Name the condition that failed. The old message fired identically for a null campaign, a
-                // null catalogue and a missing definition, so a lookup that had gone stale (see
-                // CampaignCatalog.Initialize) was indistinguishable from a land that was never authored —
-                // and the two need different fixes. AllLands is the raw serialized list; GetLand is the
-                // index over it, so printing the list size says which of the two is empty.
-                Debug.LogWarning(
-                    $"[MapBridge] No LandDefinition for '{targetLand}'; building it as an authored land. " +
-                    $"[campaign={(campaign != null ? "ok" : "NULL")}, " +
-                    $"catalog={(plan.Catalog != null ? "ok" : "NULL")}, " +
-                    $"catalog.AllLands={(plan.Catalog != null ? plan.Catalog.AllLands.Count : -1)}]");
-
-                // Refuse to build a land that is guaranteed to be a trap. An authored build places one room
-                // per distinct fixedPosition, and an AS3 procedural room carries no x/y/z, so the importer
-                // gives every procedural template fixedPosition (0,0,0) — the bounds then collapse to a
-                // single cell and the player spawns with no neighbour to walk to and no way out (observed:
-                // entering `random_plant` through this branch dropped the player into
-                // `rooms_plant/арсенал_0_0_0`).
-                //
-                // Only the unresolved case is refused. A land that *did* resolve and is simply not
-                // procedural is authored by definition, and its build is not ours to second-guess.
-                if (_session.TemplatesCollapseToASingleCell(templates))
-                {
-                    Debug.LogError(
-                        $"[MapBridge] Refusing to build '{targetLand}' as an authored land: all " +
-                        $"{templates.Count} of its templates sit on one land coordinate, which would " +
-                        "produce a single room with no exit. The land is procedural but was not resolved " +
-                        "from the catalogue (see the warning above). Staying in the current land.");
-                    if (playerController != null) playerController.enabled = true;
-                    yield break;
-                }
+                Debug.LogError($"[MapBridge] No templates found for collection '{collectionName}' (targetLand: '{targetLand}')!");
+                if (playerController != null) playerController.enabled = true;
+                yield break;
             }
 
-            // An authored land is still a LAND ENTRY, so it owes the oracle's `Land` constructor fields —
-            // the difficulty, and the two land-scoped loot fields. It cannot go through `BuildLand`,
-            // because that method chooses its own entry cell from the land's authored `locx/locy`, while
-            // this branch must keep `plan.StartPos` (the checkpoint / named-room / entrance resolution in
-            // LandSessionService.BuildEntryPlan). So the context is built here and handed in as the third
-            // argument.
-            //
-            // Without this the authored path passed `LocationBuildContext.None`, so EVERY authored land's
-            // rooms were generated at `landDifLevel 0` / biome -1 — the port's room difficulty was the
-            // sentinel rather than the land's, which is the largest single divergence on this axis
-            // (authored lands are the bulk of the campaign).
-            built = worldBuilder.BuildSpecificWorld(templates, plan.StartPos,
-                worldBuilder.EnterLand(plan.Land, plan.RunDifficulty));
+            // The whole entry decision — AS3's `rnd`/`visited` reads, the run difficulty, the checkpoint
+            // resume, the entry cell — in the oracle's order, with no scene knowledge. See
+            // LandSessionService.BuildEntryPlan for the rules and their AS3 citations.
+            LandEntryPlan plan = _session.BuildEntryPlan(
+                targetLand,
+                templates,
+                campaign,
+                playerLevel: playerController != null && playerController.CharacterStats != null
+                    ? playerController.CharacterStats.Level
+                    : 1,
+                targetPosition: targetPosition);
+
+            resolvedLandDef = plan.Land;
+            isRandomLand = plan.LandIsRandom;
+            firstVisit = plan.FirstVisit;
+
+            if (plan.Land != null && plan.Land.isProcedural)
+            {
+                LandRuntimeState state = campaign.LandStates.Get(targetLand);
+                bool mbaseVisited = campaign.GetTrigger("mbase_visited").IsGreaterThanZero();
+
+                Debug.Log($"[MapBridge] Procedural land '{targetLand}' (conf {plan.Land.configId}, " +
+                          $"stage {state.landStage}, visited {state.visited}).");
+
+                probContext = ProbDoorContext.ForLand(
+                    _gameManager.GetTemplatesForCollection(_session.ResolveCollectionName("prob")),
+                    plan.Land.probRooms,
+                    campaign);
+
+                worldBuilder.ProbContext = probContext;
+                campaign?.ClearCheckpointForRebuild();
+
+                built = worldBuilder.BuildLand(plan.Land, templates, state.landStage, state.visited,
+                    forceRegenerate: false, mbaseVisited: mbaseVisited, runDifficulty: plan.RunDifficulty);
+            }
+            else
+            {
+                if (plan.Land == null)
+                {
+                    Debug.LogWarning(
+                        $"[MapBridge] No LandDefinition for '{targetLand}'; building it as an authored land. " +
+                        $"[campaign={(campaign != null ? "ok" : "NULL")}, " +
+                        $"catalog={(plan.Catalog != null ? "ok" : "NULL")}, " +
+                        $"catalog.AllLands={(plan.Catalog != null ? plan.Catalog.AllLands.Count : -1)}]");
+
+                    if (_session.TemplatesCollapseToASingleCell(templates))
+                    {
+                        Debug.LogError(
+                            $"[MapBridge] Refusing to build '{targetLand}' as an authored land: all " +
+                            $"{templates.Count} of its templates sit on one land coordinate, which would " +
+                            "produce a single room with no exit. The land is procedural but was not resolved " +
+                            "from the catalogue (see the warning above). Staying in the current land.");
+                        if (playerController != null) playerController.enabled = true;
+                        yield break;
+                    }
+                }
+
+                built = worldBuilder.BuildSpecificWorld(templates, plan.StartPos,
+                    worldBuilder.EnterLand(plan.Land, plan.RunDifficulty));
+            }
         }
 
         // The transition manager reads the context only when a door is used, so it is handed the same
@@ -1064,13 +1133,7 @@ public class MapBridge : MonoBehaviour
 
         // The land's `fon` backdrop — AS3 `World.ativateLand` (`World.as:1058-1070`), which is the
         // only caller of `Grafon.drawFon` and the exact counterpart of this point in the transition.
-        //
-        // Land-scoped, not room-scoped, so it is refreshed here rather than by the room presentation:
-        // a door inside the same land goes through RoomTransitionManager and never comes back here,
-        // and every room in a land shares one backdrop. `plan.Land` is null only for a land that did
-        // not resolve from the catalogue, and that takes AS3's own fallback (`fonDefault`) rather than
-        // skipping the layer — the authored-fallback build below is still a land.
-        _presentation.RefreshLandFon(plan.Land);
+        _presentation.RefreshLandFon(resolvedLandDef);
 
         yield return null;
 
@@ -1082,18 +1145,8 @@ public class MapBridge : MonoBehaviour
 
             // AS3 `Location.createCheck(true)` ends with `this.cp.activate(true)`
             // (Location.as:2105-2108) — the entry checkpoint is activated by the BUILD, not by the
-            // player. That is what makes the "safe prop" at the start of a level the land's current
-            // checkpoint, and — when the placement carries `teleOn` — what arms its return-to-camp
-            // button (`CheckPoint.as:234-240`).
-            //
-            // Procedural only: `createCheck` is called from `buildRandomLand` alone, and an authored
-            // room's checkpoints come from its own `<obj>` children, which the oracle never activates.
-            //
-            // AFTER SpawnPlayer, which is the port's ordering rather than the oracle's. AS3 activates
-            // inside `new Land(...)`, when the player has no position yet; here the save that ends the
-            // activation (`CheckPoint.as:247`) is a real file write, so it must record the arrival
-            // rather than the room the player just left.
-            if (plan.LandIsRandom)
+            // player. AFTER SpawnPlayer so the save records the arrival rather than the departure.
+            if (isRandomLand)
             {
                 _session.ActivateEntryCheckpoint(campaign, targetLand, currentRoom);
             }
@@ -1107,17 +1160,7 @@ public class MapBridge : MonoBehaviour
             if (rsm != null)
             {
                 // Drop the streaming manager's record of whatever was active BEFORE activating the new
-                // room. `ActivateRoom` early-returns when the room it is handed is already the active
-                // one ("Don't reactivate the same room", `RoomStreamingManager.cs:94`), and that early
-                // return skips `ActivateRoomInternal` — the only writer of `room.isActive` and the only
-                // raiser of `OnRoomActivated`.
-                //
-                // That matters here because `InitializeRoom` above may have destroyed and rebuilt the room's
-                // visuals (its first act on an already-initialized controller is `ClearVisuals()`).
-                // Without this reset, a build that re-used a room instance the manager still considered
-                // active would finish with fresh visuals and no activation pass — a room that draws its
-                // tiles but none of its props or enemies. Resetting first makes activation unconditional
-                // and idempotent, which is the property the transition actually needs.
+                // room so activation is unconditional and idempotent.
                 rsm.ResetStreaming();
                 rsm.ActivateRoom(currentRoom);
             }
@@ -1129,11 +1172,103 @@ public class MapBridge : MonoBehaviour
         }
 
         // The two campaign writes that end every land entry — `visited` and the `firstroom` trigger —
-        // deliberately AFTER the build: both were READ to compute this entry's plan, and writing them
-        // first would corrupt the next entry. See LandSessionService.CompleteLandEntry for the AS3
-        // citations and the recorded re-visit divergence.
-        _session.CompleteLandEntry(campaign, targetLand, plan.FirstVisit);
+        // deliberately AFTER the build: both were READ to compute this entry's plan.
+        _session.CompleteLandEntry(campaign, targetLand, firstVisit);
 
         Debug.Log($"[MapBridge] Successfully transitioned to land '{targetLand}' ({collectionName}), current room: {currentRoom?.id}");
+    }
+
+    /// <summary>
+    /// Host-owned <see cref="PFE.ModAPI.IModConsoleContext"/> handed to mod console command
+    /// handlers. Reads live bridge state lazily, so it stays correct across land rebuilds;
+    /// registered on the <see cref="PFE.Data.ProceduralLandRegistry"/> for the console to route with.
+    /// </summary>
+    private sealed class ModConsoleContext : PFE.ModAPI.IModConsoleContext
+    {
+        private readonly MapBridge _bridge;
+
+        public ModConsoleContext(MapBridge bridge)
+        {
+            _bridge = bridge;
+        }
+
+        public string CurrentLandId
+        {
+            get
+            {
+                CampaignManager campaign = _bridge._campaign ?? CampaignManager.Current;
+                return campaign?.CurrentLandId?.CurrentValue ?? string.Empty;
+            }
+        }
+
+        public Vector3Int CurrentRoomPosition => Map()?.GetCurrentPosition() ?? Vector3Int.zero;
+        public Vector3Int BoundsMin => Map()?.minBounds ?? Vector3Int.zero;
+        public Vector3Int BoundsMax => Map()?.maxBounds ?? Vector3Int.zero;
+        public int RoomCount => Map()?.GetRoomCount() ?? 0;
+
+        public void RequestTravelToLand(string landId, bool forceRegenerate = true)
+        {
+            CampaignManager campaign = _bridge._campaign ?? CampaignManager.Current;
+            campaign?.TransitionToLand(landId, null, forceRegenerate);
+        }
+
+        public bool RequestTeleportToRoom(Vector3Int roomPosition)
+        {
+            LandMap landMap = Map();
+            RoomInstance room = landMap?.GetRoom(roomPosition);
+            if (room == null) return false;
+
+            Vector3 spawn = RoomSetup.FindPlayerSpawnUnity(room);
+            landMap.SwitchRoom(roomPosition, (Vector2)spawn);
+
+            // Same activation path as the console's `room` command: streaming/re-render via the
+            // transition manager, then the motor, so the next tick does not undo the move.
+            var transitionManager = UnityEngine.Object.FindFirstObjectByType<RoomTransitionManager>();
+            transitionManager?.ApplyRestoredRoom(room);
+
+            GameObject playerObj = GameObject.FindWithTag(_bridge._playerTag);
+            if (playerObj == null)
+            {
+                var playerController = UnityEngine.Object.FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+                if (playerController != null) playerObj = playerController.gameObject;
+            }
+
+            if (playerObj != null)
+            {
+                var motor = playerObj.GetComponent<PFE.Systems.Physics.IMovementMotor>();
+                if (motor != null) motor.RepositionForRoom(room, spawn);
+                else playerObj.transform.position = spawn;
+            }
+
+            return true;
+        }
+
+        public string DescribeCurrentRoom()
+        {
+            RoomInstance room = Map()?.currentRoom;
+            if (room == null) return "No active room.";
+
+            int activeDoors = 0;
+            if (room.doors != null)
+            {
+                for (int i = 0; i < room.doors.Count; i++)
+                {
+                    if (room.doors[i] != null && room.doors[i].isActive) activeDoors++;
+                }
+            }
+
+            return $"Room: {room.id} (template {room.templateId})\n" +
+                   $"Position: {room.landPosition}\n" +
+                   $"Size: {room.width}x{room.height}\n" +
+                   $"Active doors: {activeDoors}\n" +
+                   $"Units: {room.units?.Count ?? 0}\n" +
+                   $"Objects: {room.objects?.Count ?? 0}\n" +
+                   $"Backgrounds: {room.backgroundDecorations?.Count ?? 0}";
+        }
+
+        private LandMap Map()
+        {
+            return _bridge._gameManager != null ? _bridge._gameManager.GetLandMap() : null;
+        }
     }
 }

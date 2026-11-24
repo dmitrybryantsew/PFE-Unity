@@ -145,6 +145,14 @@ namespace PFE.Core.Scripting
             }
 
             _service.SetDependencies(null, landMap, setFogAction, revealFogAction, isFogDisabledFunc);
+
+            // Mod console routing degrades the same way: no ModLoader in the container simply means
+            // no mod prefixes are recognised.
+            if (_resolver != null && _resolver.TryResolve(out PFE.Data.ModLoader modLoader))
+            {
+                _service.SetModRegistry(modLoader?.ProceduralLands);
+            }
+
             SyncCommandObjects(landMap);
         }
 
