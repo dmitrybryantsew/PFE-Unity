@@ -301,9 +301,18 @@ namespace PFE.Data
         private void DiscoverCodePluginMods()
         {
             IEnumerable<Assembly> assemblies = _assembliesOverride ?? AppDomain.CurrentDomain.GetAssemblies();
+            bool explicitScan = _assembliesOverride != null;
             foreach (Assembly assembly in assemblies)
             {
                 if (assembly == null || assembly.IsDynamic) continue;
+
+                // The implicit scan covers every assembly loaded into the domain, which in the
+                // Editor includes PFE's own EditMode fixtures — they carry [assembly: PfeModPlugin]
+                // so the discovery/enable/ordering pipeline can be tested. Left unfiltered they
+                // became real, enabled mods in the Mods tab and put the fixture's empty
+                // 'test_procedural_land' (zero rooms, therefore a black screen) in the F2 travel
+                // list. A caller that passes an explicit assembly list is testing on purpose.
+                if (!explicitScan && IsTestAssembly(assembly)) continue;
 
                 object[] attributes;
                 try
@@ -358,6 +367,36 @@ namespace PFE.Data
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// True for an assembly that is a test fixture rather than a mod: it references NUnit.
+        /// A shipping mod never does, and a mod author cannot fake the reference by accident, so
+        /// this is a reliable marker where an assembly-name convention would not be.
+        /// </summary>
+        private static bool IsTestAssembly(Assembly assembly)
+        {
+            try
+            {
+                AssemblyName[] references = assembly.GetReferencedAssemblies();
+                for (int i = 0; i < references.Length; i++)
+                {
+                    string name = references[i]?.Name;
+                    if (!string.IsNullOrEmpty(name) &&
+                        name.StartsWith("nunit.framework", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // A reflection-only or partially loaded assembly is not a mod host either way;
+                // treat an unreadable reference list as "not a test assembly" and let the
+                // attribute scan below decide.
+            }
+
+            return false;
         }
 
         private static void SortModsWithDependencies(List<ModManifest> mods)
