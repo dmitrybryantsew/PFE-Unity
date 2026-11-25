@@ -78,7 +78,7 @@ namespace PFE.Systems.Map
         /// </summary>
         public static float LandRowToWorldPixelY(int landRow)
         {
-            return -(landRow * WorldConstants.ROOM_SIZE_PIXELS.y);
+            return -(landRow * WorldConstants.CellSizePixels.y);
         }
 
         /// <summary>
@@ -95,7 +95,7 @@ namespace PFE.Systems.Map
         /// </summary>
         public static float RoomOriginPixelX(int landColumn, int borderOffsetTiles)
         {
-            return landColumn * WorldConstants.ROOM_SIZE_PIXELS.x
+            return landColumn * WorldConstants.CellSizePixels.x
                    - borderOffsetTiles * WorldConstants.TILE_SIZE;
         }
 
@@ -113,9 +113,17 @@ namespace PFE.Systems.Map
         {
             if (room == null) return Vector2.zero;
             int borderOffset = Mathf.Max(0, room.borderOffset);
+
+            // The room's own canvas, not the land default: a mod land may declare a bigger canvas,
+            // and a room that predates the current land (a prob room, a save-loaded room) must still
+            // resolve to the origin it was built with. Falls back to the live cell size when the
+            // room carries no dimensions.
+            float sizeX = (room.width > 0 ? room.width : WorldConstants.CellWidth) * WorldConstants.TILE_SIZE;
+            float sizeY = (room.height > 0 ? room.height : WorldConstants.CellHeight) * WorldConstants.TILE_SIZE;
+
             return new Vector2(
-                RoomOriginPixelX(room.landPosition.x, borderOffset),
-                RoomOriginPixelY(room.landPosition.y, borderOffset));
+                room.landPosition.x * sizeX - borderOffset * WorldConstants.TILE_SIZE,
+                -(room.landPosition.y * sizeY) - borderOffset * WorldConstants.TILE_SIZE);
         }
 
         /// <summary>
@@ -126,7 +134,7 @@ namespace PFE.Systems.Map
         public static Vector2 LandToWorld(Vector3Int landCoord, Vector2 localPos)
         {
             return new Vector2(
-                landCoord.x * WorldConstants.ROOM_SIZE_PIXELS.x + localPos.x,
+                landCoord.x * WorldConstants.CellSizePixels.x + localPos.x,
                 LandRowToWorldPixelY(landCoord.y) + localPos.y
             );
         }
@@ -139,8 +147,8 @@ namespace PFE.Systems.Map
         public static Vector3Int WorldToLand(Vector2 worldPos)
         {
             return new Vector3Int(
-                Mathf.FloorToInt(worldPos.x / WorldConstants.ROOM_SIZE_PIXELS.x),
-                -Mathf.FloorToInt(worldPos.y / WorldConstants.ROOM_SIZE_PIXELS.y),
+                Mathf.FloorToInt(worldPos.x / WorldConstants.CellSizePixels.x),
+                -Mathf.FloorToInt(worldPos.y / WorldConstants.CellSizePixels.y),
                 0
             );
         }
@@ -152,8 +160,8 @@ namespace PFE.Systems.Map
         /// </summary>
         public static Vector2 WorldToLocal(Vector2 worldPos)
         {
-            float sizeX = WorldConstants.ROOM_SIZE_PIXELS.x;
-            float sizeY = WorldConstants.ROOM_SIZE_PIXELS.y;
+            float sizeX = WorldConstants.CellSizePixels.x;
+            float sizeY = WorldConstants.CellSizePixels.y;
 
             float localX = worldPos.x % sizeX;
             if (localX < 0f) localX += sizeX;

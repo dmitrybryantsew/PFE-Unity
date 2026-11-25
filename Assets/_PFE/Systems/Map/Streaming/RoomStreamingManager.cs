@@ -293,9 +293,11 @@ namespace PFE.Systems.Map.Streaming
             // Reset tiles
             if (room.tiles != null)
             {
-                for (int y = 0; y < WorldConstants.ROOM_HEIGHT; y++)
+                int width = room.width > 0 ? room.width : WorldConstants.ROOM_WIDTH;
+                int height = room.height > 0 ? room.height : WorldConstants.ROOM_HEIGHT;
+                for (int y = 0; y < height; y++)
                 {
-                    for (int x = 0; x < WorldConstants.ROOM_WIDTH; x++)
+                    for (int x = 0; x < width; x++)
                     {
                         if (room.tiles[x, y].IsDestroyed())
                         {

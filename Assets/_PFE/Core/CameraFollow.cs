@@ -34,7 +34,7 @@ namespace PFE.Core
         public static bool StaticRoomCamera { get; set; }
 
         /// <summary>Standard room size in Unity units: 48 x 25 cells of 40 px at 100 px/unit.</summary>
-        public static Vector2 RoomSizeUnity => WorldConstants.ROOM_SIZE_PIXELS / 100f;
+        public static Vector2 RoomSizeUnity => WorldConstants.CellSizePixels / 100f;
 
         /// <summary>
         /// The centre of the room cell containing <paramref name="playerWorldUnity"/>, in Unity units.
@@ -52,8 +52,8 @@ namespace PFE.Core
             Vector2 pixel = WorldCoordinates.UnityToPixel(playerWorldUnity);
             Vector3Int land = WorldCoordinates.WorldToLand(pixel);
             Vector2 centerPixel = new Vector2(
-                (land.x + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.x,
-                WorldCoordinates.LandRowToWorldPixelY(land.y) + 0.5f * WorldConstants.ROOM_SIZE_PIXELS.y);
+                (land.x + 0.5f) * WorldConstants.CellSizePixels.x,
+                WorldCoordinates.LandRowToWorldPixelY(land.y) + 0.5f * WorldConstants.CellSizePixels.y);
             return WorldCoordinates.PixelToUnity(centerPixel);
         }
 

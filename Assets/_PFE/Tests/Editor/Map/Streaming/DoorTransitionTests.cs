@@ -13,6 +13,15 @@ namespace PFE.Tests.Editor.Map.Streaming
     [TestFixture]
     public class DoorTransitionTests
     {
+        [SetUp]
+        public void PinAuthoredCellSize()
+        {
+            // The live land cell size is land-scoped state (a mod land may declare a bigger
+            // canvas). This fixture asserts the authored 48x25 grid, so pin it here rather than
+            // inheriting whatever land the previous test built.
+            WorldConstants.ResetCellSize();
+        }
+
         private GameObject _holderGo;
         private RoomInstance _room;
 

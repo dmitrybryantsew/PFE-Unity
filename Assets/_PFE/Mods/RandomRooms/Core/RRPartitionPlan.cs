@@ -84,10 +84,22 @@ namespace PFE.Mods.RandomRooms.Core
         private SpaceProgram program;
         private int visits;
         private int maxVisits = 2400;
+        private int W = 48;
+        private int H = 25;
 
         public RRPartitionPlan(Func<double> random)
         {
             rnd = random;
+        }
+
+        private int Sx(int v)
+        {
+            return (int)Math.Round(v * (W - 2) / 46.0);
+        }
+
+        private int Sy(int v)
+        {
+            return (int)Math.Round(v * (H - 2) / 23.0);
         }
 
         private int N(int a, int b)
@@ -109,14 +121,19 @@ namespace PFE.Mods.RandomRooms.Core
             return new PartitionRegion { x0 = x, top = y, x1 = right, floor = bottom };
         }
 
-        public List<PartitionRegion> Build(string theme, string form, int[] boundary, bool modern = false)
+        public List<PartitionRegion> Build(string theme, string form, int[] boundary, bool modern = false,
+            int width = 0, int height = 0)
         {
+            W = width > 0 ? Math.Max(RRSynth.MIN_GRID_W, width) : 48;
+            H = height > 0 ? Math.Max(RRSynth.MIN_GRID_H, height) : 25;
+
             ports = boundary;
             visits = 0;
             masses = new List<PartitionRegion>();
-            program = new RRSpaceRules(rnd).Create(theme, form, modern);
+            double areaScale = (double)((W - 2) * (H - 2)) / (46.0 * 23.0);
+            program = new RRSpaceRules(rnd).Create(theme, form, modern, areaScale);
 
-            PartitionRegion whole = Rect(1, 1, 46, 23);
+            PartitionRegion whole = Rect(1, 1, W - 2, H - 2);
             string layout = rnd() < program.levels ? "storeys" :
                 (rnd() < 0.28 && form != "cistern" && form != "street_links" && form != "rooftops" ? "staggered" : "sliced");
             if (modern && rnd() < 0.48 && form != "street_links" && form != "rooftops") layout = "wings";
@@ -177,12 +194,12 @@ namespace PFE.Mods.RandomRooms.Core
                     {
                         if (ports[port] >= 2)
                         {
-                            PortRect socket = RRPorts.Rect(port, ports[port]);
+                            PortRect socket = RRPorts.Rect(port, ports[port], W, H);
                             if (RRPorts.Vertical(port))
                             {
-                                if ((port >= 17 ? r.top == 1 : r.floor == 23) && r.x0 <= socket.x1 + 1 && r.x1 >= socket.x0 - 1) return false;
+                                if ((port >= 17 ? r.top == 1 : r.floor == H - 2) && r.x0 <= socket.x1 + 1 && r.x1 >= socket.x0 - 1) return false;
                             }
-                            else if ((port >= 11 ? r.x0 == 1 : r.x1 == 46) && r.top <= socket.y1 && r.floor >= socket.y0) return false;
+                            else if ((port >= 11 ? r.x0 == 1 : r.x1 == W - 2) && r.top <= socket.y1 && r.floor >= socket.y0) return false;
                         }
                     }
                 }
@@ -192,7 +209,7 @@ namespace PFE.Mods.RandomRooms.Core
                     {
                         if (ports[k] >= 2)
                         {
-                            PortRect b = RRPorts.Rect(k, ports[k]);
+                            PortRect b = RRPorts.Rect(k, ports[k], W, H);
                             if (b.x0 >= r.x0 && b.x0 <= r.x1) return false;
                         }
                     }
@@ -207,9 +224,9 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (ports[p] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(p, ports[p]);
-                    if (vertical && RRPorts.Vertical(p) && ((p >= 17 && r.top == 1) || (p < 11 && r.floor == 23)) && c >= b.x0 - 1 && c <= b.x1 + 1) return false;
-                    if (!vertical && !RRPorts.Vertical(p) && ((p >= 11 && r.x0 == 1) || (p < 6 && r.x1 == 46)) && c >= b.y0 && c <= b.y1) return false;
+                    PortRect b = RRPorts.Rect(p, ports[p], W, H);
+                    if (vertical && RRPorts.Vertical(p) && ((p >= 17 && r.top == 1) || (p < 11 && r.floor == H - 2)) && c >= b.x0 - 1 && c <= b.x1 + 1) return false;
+                    if (!vertical && !RRPorts.Vertical(p) && ((p >= 11 && r.x0 == 1) || (p < 6 && r.x1 == W - 2)) && c >= b.y0 && c <= b.y1) return false;
                 }
             }
             return true;
@@ -314,7 +331,7 @@ namespace PFE.Mods.RandomRooms.Core
                         if (b != tallBand && hs[b] < preferred) shorter.Add(b);
                     }
                     int bIdx = shorter.Count > 0 ? shorter[N(0, shorter.Count - 1)] : N(0, count - 1);
-                    if (hs[bIdx] >= (bIdx == tallBand ? 21 : (program.theme == "mane" ? 7 : 6))) continue;
+                    if (hs[bIdx] >= (bIdx == tallBand ? H - 4 : (program.theme == "mane" ? 7 : 6))) continue;
                     hs[bIdx]++;
                     remaining--;
                 }
@@ -424,14 +441,14 @@ namespace PFE.Mods.RandomRooms.Core
         {
             for (int attempt = 0; attempt < 18 && visits < maxVisits; attempt++)
             {
-                int lx = N(8, 19), rx = N(lx + 6, 38), ty = N(6, 11), by = N(ty + 4, 18);
+                int lx = N(Sx(8), Sx(19)), rx = N(lx + Sx(6), Sx(38)), ty = N(Sy(6), Sy(11)), by = N(ty + Sy(4), Sy(18));
                 var boxes = new List<PartitionRegion>
                 {
                     Rect(lx, ty, rx, by),
                     Rect(1, 1, rx, ty - 2),
-                    Rect(rx + 2, 1, 46, by),
-                    Rect(lx, by + 2, 46, 23),
-                    Rect(1, ty, lx - 2, 23)
+                    Rect(rx + 2, 1, W - 2, by),
+                    Rect(lx, by + 2, W - 2, H - 2),
+                    Rect(1, ty, lx - 2, H - 2)
                 };
 
                 if (rnd() < 0.5)
@@ -439,8 +456,8 @@ namespace PFE.Mods.RandomRooms.Core
                     foreach (var mirror in boxes)
                     {
                         int old = mirror.x0;
-                        mirror.x0 = 47 - mirror.x1;
-                        mirror.x1 = 47 - old;
+                        mirror.x0 = (W - 1) - mirror.x1;
+                        mirror.x1 = (W - 1) - old;
                     }
                 }
 
@@ -533,15 +550,15 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (ports[p] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(p, ports[p]);
+                    PortRect b = RRPorts.Rect(p, ports[p], W, H);
                     bool found = false;
                     foreach (var r in rooms)
                     {
                         if (RRPorts.Vertical(p))
                         {
-                            if ((p >= 17 ? r.top == 1 : r.floor == 23) && r.x0 <= b.x0 - 1 && r.x1 >= b.x1 + 1) found = true;
+                            if ((p >= 17 ? r.top == 1 : r.floor == H - 2) && r.x0 <= b.x0 - 1 && r.x1 >= b.x1 + 1) found = true;
                         }
-                        else if ((p >= 11 ? r.x0 == 1 : r.x1 == 46) && r.top <= b.y0 && r.floor >= b.y1)
+                        else if ((p >= 11 ? r.x0 == 1 : r.x1 == W - 2) && r.top <= b.y0 && r.floor >= b.y1)
                         {
                             found = true;
                         }

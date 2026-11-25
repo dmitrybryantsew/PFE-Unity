@@ -12,9 +12,9 @@ namespace PFE.Mods.RandomRooms.Core
     {
         public static void Check(RRArchitecture plan, bool dry = false)
         {
-            const int W = 48;
-            const int H = 25;
-            const int TotalCells = W * H;
+            int W = plan.W;
+            int H = plan.H;
+            int TotalCells = W * H;
 
             bool[] clear = new bool[TotalCells];
             bool[] climb = new bool[TotalCells];
@@ -66,7 +66,7 @@ namespace PFE.Mods.RandomRooms.Core
                     stand[i] = false;
                     slope[i] = false;
 
-                    for (int sy = y; sy <= Math.Min(24, y + 1); sy++)
+                    for (int sy = y; sy <= Math.Min(H - 1, y + 1); sy++)
                     {
                         for (int sx = x; sx <= x + 1; sx++)
                         {
@@ -80,7 +80,7 @@ namespace PFE.Mods.RandomRooms.Core
                         }
                     }
 
-                    if (y < 24)
+                    if (y < H - 1)
                     {
                         for (int xx = x; xx <= x + 1; xx++)
                         {
@@ -158,9 +158,9 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (plan.ports[p] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(p, plan.ports[p]);
-                    int px = RRPorts.Vertical(p) ? b.x0 : (p >= 11 ? 0 : 46);
-                    int py = RRPorts.Vertical(p) ? (p >= 17 ? 1 : 24) : b.y1;
+                    PortRect b = RRPorts.Rect(p, plan.ports[p], W, H);
+                    int px = RRPorts.Vertical(p) ? b.x0 : (p >= 11 ? 0 : W - 2);
+                    int py = RRPorts.Vertical(p) ? (p >= 17 ? 1 : H - 1) : b.y1;
                     int i = py * W + px;
                     if (!reached.Contains(i) || !returned.Contains(i))
                     {

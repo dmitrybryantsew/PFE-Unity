@@ -48,7 +48,7 @@ namespace PFE.Systems.Map
             DoorCarver.CarveAllDoors(room);
 
             // Step 3: Apply water level
-            if (template.environment.waterLevel < WorldConstants.ROOM_HEIGHT)
+            if (template.environment.waterLevel < room.height)
             {
                 DoorCarver.ApplyWaterLevel(room, template.environment.waterLevel);
             }
@@ -208,7 +208,7 @@ namespace PFE.Systems.Map
 
             RoomEdgeSnapshot before = MapIntegrityDiagnostics.Capture(room);
 
-            if (template.environment.waterLevel < WorldConstants.ROOM_HEIGHT)
+            if (template.environment.waterLevel < room.height)
             {
                 DoorCarver.ApplyWaterLevel(room, template.environment.waterLevel);
             }
@@ -298,8 +298,8 @@ namespace PFE.Systems.Map
         {
             if (room == null)
                 return new Vector2(
-                    WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE * 0.5f,
-                    WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE * 0.5f);
+                    WorldConstants.CellWidth * WorldConstants.TILE_SIZE * 0.5f,
+                    WorldConstants.CellHeight * WorldConstants.TILE_SIZE * 0.5f);
 
             // Priority 1: Use designated player spawn points
             foreach (var sp in room.spawnPoints)

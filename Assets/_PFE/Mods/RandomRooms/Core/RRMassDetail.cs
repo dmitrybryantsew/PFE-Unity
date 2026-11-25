@@ -42,7 +42,7 @@ namespace PFE.Mods.RandomRooms.Core
                         int lo = Math.Min(face, end);
                         int hi = Math.Max(face, end);
 
-                        if (lo < 3 || hi > 44 || top < 2 || f > 22) continue;
+                        if (lo < 3 || hi > p.W - 4 || top < 2 || f > p.H - 3) continue;
 
                         bool ok = true;
                         for (int x = face - dir * 2; x != face; x += dir)
@@ -114,7 +114,7 @@ namespace PFE.Mods.RandomRooms.Core
                     {
                         before.Add((x, y, p.grid[y, x]));
                         p.grid[y, x] = (sealedCache && x == c.face) ? ("F" + c.parent.bg) : ("_" + c.parent.bg);
-                        if (sealedCache) p.hiddenCells.Add(y * 48 + x);
+                        if (sealedCache) p.hiddenCells.Add(y * p.W + x);
                     }
                 }
 
@@ -127,7 +127,7 @@ namespace PFE.Mods.RandomRooms.Core
                     foreach (var cell in before)
                     {
                         p.grid[cell.y, cell.x] = cell.code;
-                        p.hiddenCells.Remove(cell.y * 48 + cell.x);
+                        p.hiddenCells.Remove(cell.y * p.W + cell.x);
                     }
                     continue;
                 }

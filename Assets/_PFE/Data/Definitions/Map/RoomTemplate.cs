@@ -25,6 +25,19 @@ namespace PFE.Systems.Map
         [Tooltip("Room type: beg0, pass, roof, vert, surf, etc.")]
         public string type;  // beg0, pass, roof, etc.
 
+        /// <summary>
+        /// Room canvas in tiles. 48x25 is the authored AS3 grid and the default for every imported
+        /// room; a mod land may declare its own, in which case every room of that land shares it
+        /// (the door slots are anchored to the room's own walls, so two neighbours only align when
+        /// the walls coincide).
+        /// </summary>
+        [Header("Canvas")]
+        [Tooltip("Room canvas width in tiles (48 = authored AS3 grid)")]
+        public int width = WorldConstants.ROOM_WIDTH;
+
+        [Tooltip("Room canvas height in tiles (25 = authored AS3 grid)")]
+        public int height = WorldConstants.ROOM_HEIGHT;
+
         // Position (for specific levels)
         [Header("Position (Specific Levels Only)")]
         public Vector3Int fixedPosition = new Vector3Int(-1, -1, -1);
@@ -100,12 +113,14 @@ namespace PFE.Systems.Map
 
         public TileData[,] ParseTiles(TileFormDatabase formDb)
         {
+            int canvasWidth = width > 0 ? width : WorldConstants.ROOM_WIDTH;
+            int canvasHeight = height > 0 ? height : WorldConstants.ROOM_HEIGHT;
+
             if (string.IsNullOrWhiteSpace(tileDataString))
-                return new TileData[WorldConstants.ROOM_WIDTH, WorldConstants.ROOM_HEIGHT];
+                return new TileData[canvasWidth, canvasHeight];
 
             string[] rows = tileDataString.Replace("\r\n", "\n").Split('\n');
-            return TileDecoder.ParseRoom(rows, formDb, false,
-                WorldConstants.ROOM_WIDTH, WorldConstants.ROOM_HEIGHT);
+            return TileDecoder.ParseRoom(rows, formDb, false, canvasWidth, canvasHeight);
         }
         /// <summary>
         /// Parse single tile character into TileData.

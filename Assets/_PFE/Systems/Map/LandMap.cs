@@ -54,6 +54,12 @@ namespace PFE.Systems.Map
             minBounds = min;
             maxBounds = max;
 
+            // A new land means a new cell size. The authored default is 48x25; a procedural land
+            // overrides it right after this call (ProceduralLandBuilder.ApplyBuildResult), and every
+            // land that never declares one keeps the authored grid. Resetting here is what stops a
+            // mod land's canvas leaking into the next land that is built.
+            WorldConstants.ResetCellSize();
+
             // Clear existing
             rooms.Clear();
             specialRooms.Clear();

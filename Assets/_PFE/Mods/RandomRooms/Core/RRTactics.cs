@@ -55,9 +55,9 @@ namespace PFE.Mods.RandomRooms.Core
         public RRTactics(RRArchitecture plan)
         {
             p = plan;
-            const int W = 48;
-            const int H = 25;
-            const int TotalCells = W * H;
+            int W = p.W;
+            int H = p.H;
+            int TotalCells = W * H;
 
             edges = new List<int>[TotalCells];
             stand = new bool[TotalCells];
@@ -108,7 +108,7 @@ namespace PFE.Mods.RandomRooms.Core
                     climb[i] = p.grid[y, x + 1].Contains("А");
                     stand[i] = false;
 
-                    for (int sy = y; sy <= Math.Min(24, y + 1); sy++)
+                    for (int sy = y; sy <= Math.Min(p.H - 1, y + 1); sy++)
                     {
                         for (int sx = x; sx <= x + 1; sx++)
                         {
@@ -121,7 +121,7 @@ namespace PFE.Mods.RandomRooms.Core
                         }
                     }
 
-                    if (y < 24)
+                    if (y < p.H - 1)
                     {
                         for (int xx = x; xx <= x + 1; xx++)
                         {
@@ -184,9 +184,9 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (p.ports[slot] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(slot, p.ports[slot]);
-                    int px = RRPorts.Vertical(slot) ? b.x0 : (slot >= 11 ? 0 : 46);
-                    int py = RRPorts.Vertical(slot) ? (slot >= 17 ? 1 : 24) : b.y1;
+                    PortRect b = RRPorts.Rect(slot, p.ports[slot], W, H);
+                    int px = RRPorts.Vertical(slot) ? b.x0 : (slot >= 11 ? 0 : W - 2);
+                    int py = RRPorts.Vertical(slot) ? (slot >= 17 ? 1 : H - 1) : b.y1;
                     entries.Add(new TacticsEntry
                     {
                         slot = slot,
@@ -239,7 +239,7 @@ namespace PFE.Mods.RandomRooms.Core
 
         public bool ProtectsEntry(TurretTacticsInfo t)
         {
-            const int W = 48;
+            int W = p.W;
             foreach (var e in entries)
             {
                 for (int dx = -1; dx <= 1; dx++)
@@ -259,7 +259,7 @@ namespace PFE.Mods.RandomRooms.Core
 
         public HashSet<int> BlockedBy(List<TurretTacticsInfo> turrets)
         {
-            const int W = 48;
+            int W = p.W;
             var blocked = new HashSet<int>();
             for (int i = 0; i < clear.Length; i++)
             {
@@ -325,7 +325,7 @@ namespace PFE.Mods.RandomRooms.Core
 
         public void ReservePath(List<int> nodes)
         {
-            const int W = 48;
+            int W = p.W;
             foreach (int node in nodes)
             {
                 p.Reserve(node % W, node / W - 1, node % W + 1, node / W);

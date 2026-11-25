@@ -12,6 +12,15 @@ namespace PFE.Tests.Editor.Map
     [TestFixture]
     public class WorldCoordinatesTests
     {
+        [SetUp]
+        public void PinAuthoredCellSize()
+        {
+            // The live land cell size is land-scoped state (a mod land may declare a bigger
+            // canvas). This fixture asserts the authored 48x25 grid, so pin it here rather than
+            // inheriting whatever land the previous test built.
+            WorldConstants.ResetCellSize();
+        }
+
         [Test]
         public void LandToWorld_ConvertsCorrectly()
         {

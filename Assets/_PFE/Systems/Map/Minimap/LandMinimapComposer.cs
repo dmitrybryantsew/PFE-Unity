@@ -126,7 +126,12 @@ namespace PFE.Systems.Map.Minimap
             int columns = maxX - minX + 1;
             int rows = maxY - minY + 1;
 
-            buffer = new LandMinimapBuffer(columns, rows, WorldConstants.ROOM_WIDTH, WorldConstants.ROOM_HEIGHT);
+            // Every room in one land shares its canvas, so the first room's dimensions size the
+            // whole buffer; the authored grid is the fallback for a land of 48x25 rooms.
+            int cellWidth = rooms[0] != null && rooms[0].width > 0 ? rooms[0].width : WorldConstants.ROOM_WIDTH;
+            int cellHeight = rooms[0] != null && rooms[0].height > 0 ? rooms[0].height : WorldConstants.ROOM_HEIGHT;
+
+            buffer = new LandMinimapBuffer(columns, rows, cellWidth, cellHeight);
             buffer.Fill(MinimapPalette.EmptyCell);
 
             Vector3Int currentCell = map.currentRoom != null ? map.currentRoom.landPosition : new Vector3Int(int.MinValue, 0, 0);

@@ -86,6 +86,18 @@ namespace PFE.ModAPI
         public int Danger;
         public string TileDataString;
         public int[] DoorPorts = Array.Empty<int>();
+
+        /// <summary>
+        /// The room canvas in tiles. 0 means "the host default" (48x25, the authored AS3 grid), so a
+        /// provider written before this field existed keeps building 48x25 rooms. Every room of one
+        /// land must declare the same size: the host's door slots are anchored to the room's own
+        /// walls, and two neighbours only line up when those walls coincide.
+        /// </summary>
+        public int Width;
+
+        /// <summary>The room canvas height in tiles. 0 means the host default. See <see cref="Width"/>.</summary>
+        public int Height;
+
         public List<ProceduralObjectSpawn> Objects = new List<ProceduralObjectSpawn>();
         public bool HasPlayerSpawn;
         public Vector2Int As3PlayerSpawn;

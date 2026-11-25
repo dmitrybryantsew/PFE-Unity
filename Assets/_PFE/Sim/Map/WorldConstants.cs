@@ -21,6 +21,46 @@ namespace PFE.Systems.Map
             ROOM_HEIGHT * TILE_SIZE
         );
 
+        // ── The LIVE land cell size ─────────────────────────────────────────────────────────────
+        //
+        // `ROOM_WIDTH/HEIGHT` and `ROOM_SIZE_PIXELS` above are the authored AS3 grid — the size of
+        // every imported room, and the value `LandFonMath.RoomRectPixels` and the room editor are
+        // defined against. A mod land may declare its own per-land canvas (RandomRooms rolls one
+        // per land), and every room in that land shares it. Because only ONE land is ever live in
+        // world space at a time (a land's rooms start at landPosition 0,0, so two lands cannot
+        // coexist without overlapping), the live cell size is land-scoped state, set when a land is
+        // initialized and reset to the authored default by the same call.
+        //
+        // Read it through `CellSizePixels`, never through ROOM_SIZE_PIXELS, on any path that maps a
+        // land position to world pixels.
+
+        /// <summary>Width in tiles of the land currently live in world space.</summary>
+        public static int CellWidth { get; private set; } = ROOM_WIDTH;
+
+        /// <summary>Height in tiles of the land currently live in world space.</summary>
+        public static int CellHeight { get; private set; } = ROOM_HEIGHT;
+
+        /// <summary>The live land's cell size in pixels. See the section remarks.</summary>
+        public static Vector2 CellSizePixels => new Vector2(CellWidth * TILE_SIZE, CellHeight * TILE_SIZE);
+
+        /// <summary>
+        /// Declare the live land's room canvas. Ignored for a degenerate size so a caller that has no
+        /// dimensions in hand cannot silently collapse the world to 0x0.
+        /// </summary>
+        public static void SetCellSize(int widthTiles, int heightTiles)
+        {
+            if (widthTiles <= 0 || heightTiles <= 0) return;
+            CellWidth = widthTiles;
+            CellHeight = heightTiles;
+        }
+
+        /// <summary>Restore the authored 48x25 grid. Called when a land is (re)initialized.</summary>
+        public static void ResetCellSize()
+        {
+            CellWidth = ROOM_WIDTH;
+            CellHeight = ROOM_HEIGHT;
+        }
+
         // Maximum step height - from AS3: World.maxdy
         public const float MAX_STEP_HEIGHT = 20f;
 

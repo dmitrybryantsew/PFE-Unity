@@ -116,6 +116,16 @@ namespace PFE.Mods.RandomRooms.Core
     public class RRArchitecture
     {
         public string[,] grid = new string[25, 48];
+
+        /// <summary>
+        /// Canvas width in tiles. Every canvas-boundary literal in this file is expressed against
+        /// <see cref="W"/>/<see cref="H"/>; the default 48x25 reproduces the ported AS3 grid exactly
+        /// (Sx/Sy are identity at the default size).
+        /// </summary>
+        public int W = 48;
+
+        /// <summary>Canvas height in tiles. See <see cref="W"/>.</summary>
+        public int H = 25;
         public List<PartitionRegion> regions = new();
         public List<LadderFixture> ladders = new();
         public List<StairFixture> stairs = new();
@@ -157,6 +167,21 @@ namespace PFE.Mods.RandomRooms.Core
             return lo + (int)(rnd() * (hi - lo + 1));
         }
 
+        /// <summary>
+        /// A horizontal design coordinate (expressed on the 48-wide reference canvas) scaled to
+        /// <see cref="W"/>. Identity at W = 48.
+        /// </summary>
+        private int Sx(int v)
+        {
+            return (int)Math.Round(v * (W - 2) / 46.0);
+        }
+
+        /// <summary>A vertical design coordinate on the 25-tall reference canvas, scaled to <see cref="H"/>.</summary>
+        private int Sy(int v)
+        {
+            return (int)Math.Round(v * (H - 2) / 23.0);
+        }
+
         private void Shuffle<T>(List<T> a)
         {
             for (int i = a.Count - 1; i > 0; i--)
@@ -166,8 +191,13 @@ namespace PFE.Mods.RandomRooms.Core
             }
         }
 
-        public void Build(string biome, string requested = "", int[] boundary = null, GenerationContext context = null)
+        public void Build(string biome, string requested = "", int[] boundary = null, GenerationContext context = null,
+            int width = 0, int height = 0)
         {
+            W = width > 0 ? Math.Max(RRSynth.MIN_GRID_W, width) : 48;
+            H = height > 0 ? Math.Max(RRSynth.MIN_GRID_H, height) : 25;
+            grid = new string[H, W];
+
             theme = biome;
             modern = context != null && context.contentVersion == "13";
             scene = RRScene.Profile(theme);
@@ -216,9 +246,9 @@ namespace PFE.Mods.RandomRooms.Core
             caches.Clear();
             hiddenCells.Clear();
 
-            for (int y = 0; y < 25; y++)
+            for (int y = 0; y < H; y++)
             {
-                for (int x = 0; x < 48; x++)
+                for (int x = 0; x < W; x++)
                 {
                     grid[y, x] = wall;
                 }
@@ -227,13 +257,13 @@ namespace PFE.Mods.RandomRooms.Core
             tallBias = scene.bias;
             volumes = new List<PartitionRegion>
             {
-                new PartitionRegion { x0 = 1, top = 1, x1 = 46, floor = 23 }
+                new PartitionRegion { x0 = 1, top = 1, x1 = W - 2, floor = H - 2 }
             };
 
             if (context != null && context.partition == "rules")
             {
                 var partition = new RRPartitionPlan(rnd);
-                volumes = partition.Build(theme, sceneForm, ports, modern);
+                volumes = partition.Build(theme, sceneForm, ports, modern, W, H);
                 partitionInfo = partition.info;
                 masses = partition.masses;
             }
@@ -287,9 +317,9 @@ namespace PFE.Mods.RandomRooms.Core
             RRTraversal.Check(this);
             if (pools.Count > 0) RRTraversal.Check(this, true);
 
-            for (int y = 1; y < 25; y++)
+            for (int y = 1; y < H; y++)
             {
-                for (int x = 0; x < 48; x++)
+                for (int x = 0; x < W; x++)
                 {
                     if (Solid(x, y) && !Solid(x, y - 1))
                     {
@@ -374,8 +404,8 @@ namespace PFE.Mods.RandomRooms.Core
 
         private PartitionRegion CentralBay(string role)
         {
-            var left = Divide(volumes[0], true, 12, 16);
-            var right = Divide(left[1], true, 30, 34);
+            var left = Divide(volumes[0], true, Sx(12), Sx(16));
+            var right = Divide(left[1], true, Sx(30), Sx(34));
             var center = right[0];
             center.role = role;
             SplitWing(left[0], theme == "stable" ? new[] { "office", "living" } : new[] { "control", "store" });
@@ -394,15 +424,15 @@ namespace PFE.Mods.RandomRooms.Core
                 if (sceneForm == "production") CentralBay("workshop");
                 else if (sceneForm == "storage_hall")
                 {
-                    parts = Divide(volumes[0], false, 7, 10);
+                    parts = Divide(volumes[0], false, Sy(7), Sy(10));
                     parts[1].role = "warehouse";
                     Cells(parts[0], Pick(2, 3), new[] { "store", "control", "office" });
                 }
                 else
                 {
-                    parts = Divide(volumes[0], true, 17, 23);
+                    parts = Divide(volumes[0], true, Sx(17), Sx(23));
                     parts[1].role = "workshop";
-                    other = Divide(parts[0], false, 10, 16);
+                    other = Divide(parts[0], false, Sy(10), Sy(16));
                     other[0].role = "control";
                     Cells(other[1], 2, new[] { "service", "store" });
                 }
@@ -414,17 +444,17 @@ namespace PFE.Mods.RandomRooms.Core
                 if (sceneForm == "atrium_ring") CentralBay("hall");
                 else if (sceneForm == "quarters")
                 {
-                    parts = Divide(volumes[0], false, 6, 9);
-                    other = Divide(parts[1], false, 12, 15);
+                    parts = Divide(volumes[0], false, Sy(6), Sy(9));
+                    other = Divide(parts[1], false, Sy(12), Sy(15));
                     other[0].role = "corridor";
                     Cells(parts[0], Pick(3, 4), new[] { "living", "living", "office" });
                     Cells(other[1], Pick(2, 3), new[] { "living", "kitchen", "medical" });
                 }
                 else
                 {
-                    parts = Divide(volumes[0], true, 12, 18);
+                    parts = Divide(volumes[0], true, Sx(12), Sx(18));
                     SplitWing(parts[0], new[] { "store", "service" });
-                    other = Divide(parts[1], false, 9, 14);
+                    other = Divide(parts[1], false, Sy(9), Sy(14));
                     Cells(other[0], 2, new[] { "control", "service" });
                     Cells(other[1], 2, new[] { "medical", "office" });
                 }
@@ -435,28 +465,28 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (sceneForm == "cistern")
                 {
-                    parts = Divide(volumes[0], false, 6, 8);
+                    parts = Divide(volumes[0], false, Sy(6), Sy(8));
                     Cells(parts[0], 2, new[] { "service", "service" });
-                    foreach (var galleryRoom in volumes) if (galleryRoom.floor <= 8) galleryRoom.keep = true;
-                    other = Divide(parts[1], true, 11, 14);
+                    foreach (var galleryRoom in volumes) if (galleryRoom.floor <= Sy(8)) galleryRoom.keep = true;
+                    other = Divide(parts[1], true, Sx(11), Sx(14));
                     other[0].role = "control";
                     other[1].role = "canal";
                 }
                 else if (sceneForm == "dry_tunnels")
                 {
-                    parts = Divide(volumes[0], true, 19, 28);
+                    parts = Divide(volumes[0], true, Sx(19), Sx(28));
                     SplitWing(parts[0], new[] { "service", "store" });
-                    other = Divide(parts[1], false, 6, 10);
+                    other = Divide(parts[1], false, Sy(6), Sy(10));
                     other[0].role = "service";
                     SplitWing(other[1], new[] { "control", "service" });
                 }
                 else
                 {
-                    parts = Divide(volumes[0], false, sceneForm == "canal_gallery" ? 12 : 7, sceneForm == "canal_gallery" ? 14 : 11);
+                    parts = Divide(volumes[0], false, Sy(sceneForm == "canal_gallery" ? 12 : 7), Sy(sceneForm == "canal_gallery" ? 14 : 11));
                     Cells(parts[0], 2, new[] { "service", "control" });
                     if (sceneForm == "pump_chain")
                     {
-                        other = Divide(parts[1], true, 21, 28);
+                        other = Divide(parts[1], true, Sx(21), Sx(28));
                         other[0].role = "canal";
                         other[1].role = "control";
                     }
@@ -470,7 +500,7 @@ namespace PFE.Mods.RandomRooms.Core
 
             if (sceneForm == "rooftops")
             {
-                parts = Divide(volumes[0], false, 6, 9);
+                parts = Divide(volumes[0], false, Sy(6), Sy(9));
                 major = parts[0];
                 major.keep = true;
                 major.role = "roof";
@@ -478,8 +508,8 @@ namespace PFE.Mods.RandomRooms.Core
             }
             else if (sceneForm == "street_links")
             {
-                parts = Divide(volumes[0], true, 13, 17);
-                other = Divide(parts[1], true, 30, 34);
+                parts = Divide(volumes[0], true, Sx(13), Sx(17));
+                other = Divide(parts[1], true, Sx(30), Sx(34));
                 other[0].role = "street";
                 other[0].keep = true;
                 parts[0].role = "store";
@@ -487,19 +517,19 @@ namespace PFE.Mods.RandomRooms.Core
             }
             else if (sceneForm == "offices")
             {
-                parts = Divide(volumes[0], true, 9, 12);
+                parts = Divide(volumes[0], true, Sx(9), Sx(12));
                 parts[0].role = "service";
                 parts[1].role = "office";
             }
             else if (sceneForm == "commercial")
             {
-                parts = Divide(volumes[0], false, 10, 14);
+                parts = Divide(volumes[0], false, Sy(10), Sy(14));
                 parts[0].role = "office";
                 parts[1].role = "store";
             }
             else if (sceneForm == "ruined")
             {
-                parts = Divide(volumes[0], true, 18, 25);
+                parts = Divide(volumes[0], true, Sx(18), Sx(25));
                 parts[0].role = "living";
                 parts[1].role = "hall";
             }
@@ -585,10 +615,10 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (ports[p] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(p, ports[p]);
-                    if (vertical && RRPorts.Vertical(p) && ((p >= 17 && r.top == 1) || (p < 11 && r.floor == 23)) &&
+                    PortRect b = RRPorts.Rect(p, ports[p], W, H);
+                    if (vertical && RRPorts.Vertical(p) && ((p >= 17 && r.top == 1) || (p < 11 && r.floor == H - 2)) &&
                         c >= b.x0 - 1 && c <= b.x1 + 1) return false;
-                    if (!vertical && !RRPorts.Vertical(p) && ((p >= 11 && r.x0 == 1) || (p < 6 && r.x1 == 46)) &&
+                    if (!vertical && !RRPorts.Vertical(p) && ((p >= 11 && r.x0 == 1) || (p < 6 && r.x1 == W - 2)) &&
                         c >= b.y0 - 1 && c <= b.y1) return false;
                 }
             }
@@ -901,22 +931,22 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (ports[p] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(p, ports[p]);
+                    PortRect b = RRPorts.Rect(p, ports[p], W, H);
                     PartitionRegion r;
                     if (RRPorts.Vertical(p))
                     {
-                        r = VolumeAt(b.x0, p >= 17 ? 1 : 23);
+                        r = VolumeAt(b.x0, p >= 17 ? 1 : H - 2);
                         if (p >= 17) LadderRoute(b.x0, 0, r.floor, r);
-                        else Ladder(b.x0, 24, 24, r.bg);
-                        Reserve(b.x0 - 1, p >= 17 ? 0 : 21, b.x1 + 1, p >= 17 ? 3 : 24);
+                        else Ladder(b.x0, H - 1, H - 1, r.bg);
+                        Reserve(b.x0 - 1, p >= 17 ? 0 : H - 4, b.x1 + 1, p >= 17 ? 3 : H - 1);
                     }
                     else
                     {
-                        r = VolumeAt(p >= 11 ? 1 : 46, b.y1);
+                        r = VolumeAt(p >= 11 ? 1 : W - 2, b.y1);
                         Open(b.x0, b.y0, b.x1, b.y1, r.bg);
                         for (int x = b.x0; x <= b.x1; x++) grid[b.y1 + 1, x] = trim;
-                        LandingToFloor(r, p >= 11 ? 0 : 47, b.y1);
-                        Reserve(p >= 11 ? 0 : 43, b.y0 - 1, p >= 11 ? 4 : 47, b.y1);
+                        LandingToFloor(r, p >= 11 ? 0 : W - 1, b.y1);
+                        Reserve(p >= 11 ? 0 : W - 5, b.y0 - 1, p >= 11 ? 4 : W - 1, b.y1);
                     }
                 }
             }
@@ -983,7 +1013,7 @@ namespace PFE.Mods.RandomRooms.Core
                 int changes = Pick(1, 3);
                 for (int t = 0; t < 60 && changes > 0; t++)
                 {
-                    int x = Pick(5, 39), y = Pick(6, 19), width = Pick(2, 4);
+                    int x = Pick(Sx(5), Sx(39)), y = Pick(Sy(6), Sy(19)), width = Pick(2, 4);
                     bool ok = true;
                     for (int xx = x - 1; xx <= x + width; xx++)
                     {
@@ -1139,15 +1169,15 @@ namespace PFE.Mods.RandomRooms.Core
                 }
             }
 
-            for (int y = 1; y < 24; y++)
+            for (int y = 1; y < H - 1; y++)
             {
-                for (int x = 1; x < 47; x++)
+                for (int x = 1; x < W - 1; x++)
                 {
                     if (Solid(x, y))
                     {
                         if (theme == "stable" && Solid(x, y - 1) && Solid(x, y + 1)) grid[y, x] = (x % 9 < 2) ? "K" : "J";
-                        if (theme == "plant" && (x < 4 || x > 43 || y > 20) && (x / 7 + y / 5) % 3 == 0) grid[y, x] = "D";
-                        if (theme == "sewer" && Solid(x, y - 1) && Solid(x, y + 1) && (x < 5 || x > 42)) grid[y, x] = "I";
+                        if (theme == "plant" && (x < 4 || x > W - 5 || y > H - 5) && (x / 7 + y / 5) % 3 == 0) grid[y, x] = "D";
+                        if (theme == "sewer" && Solid(x, y - 1) && Solid(x, y + 1) && (x < 5 || x > W - 6)) grid[y, x] = "I";
                         if (theme == "mane" && (x / 8 + y / 6) % 3 == 0) grid[y, x] = "D";
                     }
                 }
@@ -1156,9 +1186,9 @@ namespace PFE.Mods.RandomRooms.Core
 
         public void Open(int x0, int top, int x1, int bottom, string bg)
         {
-            for (int y = Math.Max(0, top); y <= Math.Min(24, bottom); y++)
+            for (int y = Math.Max(0, top); y <= Math.Min(H - 1, bottom); y++)
             {
-                for (int x = Math.Max(0, x0); x <= Math.Min(47, x1); x++)
+                for (int x = Math.Max(0, x0); x <= Math.Min(W - 1, x1); x++)
                 {
                     grid[y, x] = "_" + bg;
                 }
@@ -1167,7 +1197,7 @@ namespace PFE.Mods.RandomRooms.Core
 
         public void Platform(int x0, int x1, int y, string bg)
         {
-            for (int x = Math.Max(1, x0); x <= Math.Min(46, x1); x++)
+            for (int x = Math.Max(1, x0); x <= Math.Min(W - 2, x1); x++)
             {
                 if (!reserved.Contains((y, x))) grid[y, x] = "_" + bg + "-";
             }
@@ -1216,7 +1246,7 @@ namespace PFE.Mods.RandomRooms.Core
                         if (x != px && Math.Abs(x - px) < 3) ok = false;
                     }
                 }
-                if (archetype != "connector" && bottom >= 21)
+                if (archetype != "connector" && bottom >= H - 4)
                 {
                     for (int p = 6; p < 11; p++)
                     {
@@ -1280,7 +1310,7 @@ namespace PFE.Mods.RandomRooms.Core
                         if (mid <= l.bottom + 1 && bottom >= l.top - 1 && nx != l.x && Math.Abs(nx - l.x) < 3) ok = false;
                     }
 
-                    if (bottom >= 21)
+                    if (bottom >= H - 4)
                     {
                         for (int p = 6; p < 11; p++)
                         {
@@ -1378,9 +1408,9 @@ namespace PFE.Mods.RandomRooms.Core
 
         private void AuditLadders()
         {
-            for (int y = 0; y < 25; y++)
+            for (int y = 0; y < H; y++)
             {
-                for (int x = 1; x < 48; x++)
+                for (int x = 1; x < W; x++)
                 {
                     if (!grid[y, x].Contains("А")) continue;
                     if (Solid(x - 1, y)) throw new InvalidOperationException($"Narrow ladder {x},{y}");
@@ -1416,7 +1446,7 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (ports[p] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(p, ports[p]);
+                    PortRect b = RRPorts.Rect(p, ports[p], W, H);
                     for (int y = b.y0; y <= b.y1; y++)
                     {
                         for (int x = b.x0; x <= b.x1; x++)
@@ -1428,11 +1458,11 @@ namespace PFE.Mods.RandomRooms.Core
                 }
             }
 
-            for (int y = 0; y < 25; y++)
+            for (int y = 0; y < H; y++)
             {
-                for (int x = 0; x < 48; x++)
+                for (int x = 0; x < W; x++)
                 {
-                    if ((x == 0 || x == 47 || y == 0 || y == 24) && !Solid(x, y) && !expected.Contains((y, x)))
+                    if ((x == 0 || x == W - 1 || y == 0 || y == H - 1) && !Solid(x, y) && !expected.Contains((y, x)))
                     {
                         throw new InvalidOperationException($"Undeclared edge hole {x},{y}");
                     }
@@ -1445,7 +1475,7 @@ namespace PFE.Mods.RandomRooms.Core
             var candidates = new List<HatchFixture>();
             foreach (var l in ladders)
             {
-                for (int y = Math.Max(4, l.top); y <= Math.Min(20, l.bottom - 2); y++)
+                for (int y = Math.Max(4, l.top); y <= Math.Min(H - 5, l.bottom - 2); y++)
                 {
                     int x = l.x;
                     if (!Landing(x - 1, y) || !Landing(x + 2, y)) continue;
@@ -1479,9 +1509,9 @@ namespace PFE.Mods.RandomRooms.Core
         private void AddWindows()
         {
             var candidates = new List<WindowFixture>();
-            for (int x = 4; x <= 43; x++)
+            for (int x = Sx(4); x <= Sx(43); x++)
             {
-                for (int y = 3; y <= 21; y++)
+                for (int y = Sy(3); y <= Sy(21); y++)
                 {
                     if (!Solid(x, y - 2) || !Solid(x, y - 1) || !Solid(x, y) || !Solid(x, y + 1)) continue;
                     if (reserved.Contains((y - 1, x)) || reserved.Contains((y, x))) continue;
@@ -1531,9 +1561,9 @@ namespace PFE.Mods.RandomRooms.Core
 
         public void Reserve(int x0, int top, int x1, int bottom)
         {
-            for (int y = Math.Max(0, top); y <= Math.Min(24, bottom); y++)
+            for (int y = Math.Max(0, top); y <= Math.Min(H - 1, bottom); y++)
             {
-                for (int x = Math.Max(0, x0); x <= Math.Min(47, x1); x++)
+                for (int x = Math.Max(0, x0); x <= Math.Min(W - 1, x1); x++)
                 {
                     reserved.Add((y, x));
                 }
@@ -1542,12 +1572,12 @@ namespace PFE.Mods.RandomRooms.Core
 
         public bool Solid(int x, int y)
         {
-            return x < 0 || x >= 48 || y < 0 || y >= 25 || (grid[y, x].Length > 0 && WALL_CHARS.IndexOf(grid[y, x][0]) >= 0);
+            return x < 0 || x >= W || y < 0 || y >= H || (grid[y, x].Length > 0 && WALL_CHARS.IndexOf(grid[y, x][0]) >= 0);
         }
 
         public bool Support(int x, int y)
         {
-            return x >= 0 && x < 48 && y >= 0 && y + 1 < 25 && (Solid(x, y + 1) || grid[y + 1, x].Contains("-"));
+            return x >= 0 && x < W && y >= 0 && y + 1 < H && (Solid(x, y + 1) || grid[y + 1, x].Contains("-"));
         }
     }
 }

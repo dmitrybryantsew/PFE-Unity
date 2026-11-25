@@ -27,7 +27,9 @@ namespace PFE.Mods.RandomRooms.Core
         public int danger;
         public int value;
         public int ecologyType;
-        public string[] rows = new string[25];
+        public int width = RRSynth.GRID_W;
+        public int height = RRSynth.GRID_H;
+        public string[] rows = new string[RRSynth.GRID_H];
         public string tileDataString;
         public List<SynthesizedObject> objects = new();
         public List<BackDecoration> backs = new();
@@ -38,13 +40,16 @@ namespace PFE.Mods.RandomRooms.Core
 
     /// <summary>
     /// Master synthesis orchestrator running the full 48-attempt room generation pipeline.
-    /// Emits standard 48x25 dot-separated tile strings, 22-slot doors, objects, and backgrounds.
+    /// Emits dot-separated tile strings, 22-slot doors, objects, and backgrounds for a
+    /// caller-sized canvas (default <see cref="GRID_W"/> x <see cref="GRID_H"/>).
     /// Pure C#, zero UnityEngine references.
     /// </summary>
     public class RRSynth
     {
         public const int GRID_W = 48;
         public const int GRID_H = 25;
+        public const int MIN_GRID_W = 48;
+        public const int MIN_GRID_H = 25;
         public const string WALL_CHARS = "ABCDEFGHIJKLMNOPQRST";
         public const string FCHARS = "ABCDEFGHIJKLMNOPQRST_";
         public const string OCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZАБВГДЕЖЗИЙКЛМОПСТ-ДЕКНР*,;:";
@@ -65,8 +70,13 @@ namespace PFE.Mods.RandomRooms.Core
             int depth = 0,
             bool peaceful = false,
             bool safe = false,
-            GenerationContext context = null)
+            GenerationContext context = null,
+            int width = 0,
+            int height = 0)
         {
+            int gridW = width > 0 ? Math.Max(MIN_GRID_W, width) : GRID_W;
+            int gridH = height > 0 ? Math.Max(MIN_GRID_H, height) : GRID_H;
+
             if (context == null)
             {
                 context = new GenerationContext
@@ -91,7 +101,7 @@ namespace PFE.Mods.RandomRooms.Core
                 {
                     var geomSeed = prototypeSeed.Fork("geometry:" + attempts);
                     plan = new RRArchitecture(() => geomSeed.Next());
-                    plan.Build(biome, rtype, boundary, context);
+                    plan.Build(biome, rtype, boundary, context, gridW, gridH);
                     lastError = null;
                     break;
                 }
@@ -125,6 +135,9 @@ namespace PFE.Mods.RandomRooms.Core
             var result = new SynthesizedRoom
             {
                 name = "syn_" + n,
+                width = gridW,
+                height = gridH,
+                rows = new string[gridH],
                 theme = plan.theme,
                 archetype = plan.archetype,
                 sceneForm = plan.sceneForm,
@@ -138,10 +151,10 @@ namespace PFE.Mods.RandomRooms.Core
             };
 
             var sb = new StringBuilder();
-            for (int y = 0; y < GRID_H; y++)
+            for (int y = 0; y < gridH; y++)
             {
-                var rowCells = new string[GRID_W];
-                for (int x = 0; x < GRID_W; x++)
+                var rowCells = new string[gridW];
+                for (int x = 0; x < gridW; x++)
                 {
                     rowCells[x] = plan.grid[y, x];
                 }
@@ -207,14 +220,18 @@ namespace PFE.Mods.RandomRooms.Core
 
         public static bool ValidateRoom(SynthesizedRoom room)
         {
-            if (room == null || room.rows.Length != GRID_H || room.options == null) return false;
+            if (room == null || room.options == null) return false;
 
-            for (int y = 0; y < GRID_H; y++)
+            int gridW = room.width > 0 ? room.width : GRID_W;
+            int gridH = room.height > 0 ? room.height : GRID_H;
+            if (room.rows == null || room.rows.Length != gridH) return false;
+
+            for (int y = 0; y < gridH; y++)
             {
                 string[] row = room.rows[y].Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-                if (row.Length != GRID_W) return false;
+                if (row.Length != gridW) return false;
 
-                for (int x = 0; x < GRID_W; x++)
+                for (int x = 0; x < gridW; x++)
                 {
                     string c = row[x];
                     if (c.Length == 0 || FCHARS.IndexOf(c[0]) < 0) return false;

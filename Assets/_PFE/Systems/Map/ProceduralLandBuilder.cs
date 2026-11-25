@@ -33,6 +33,19 @@ namespace PFE.Systems.Map
 
             landMap.Initialize(result.BoundsMin, result.BoundsMax);
 
+            // Declare this land's room canvas before anything is positioned in world space. A mod land
+            // may build bigger rooms than the authored 48x25; every consumer of
+            // WorldConstants.CellSizePixels (room origins, camera, door transitions, land row math)
+            // reads it live, so this single call is what makes a per-land canvas work.
+            if (result.Rooms != null && result.Rooms.Count > 0)
+            {
+                ProceduralRoomBlueprint first = result.Rooms[0];
+                if (first != null && first.Width > 0 && first.Height > 0)
+                {
+                    WorldConstants.SetCellSize(first.Width, first.Height);
+                }
+            }
+
             var builtRooms = new Dictionary<Vector3Int, RoomInstance>();
             if (result.Rooms != null)
             {
@@ -201,6 +214,13 @@ namespace PFE.Systems.Map
             template.maxInstances = 1;
             template.tileDataString = bp.TileDataString ?? string.Empty;
 
+            // The provider's canvas, or the authored grid when it declares none. Every blueprint in
+            // one land must carry the same size; the host's door slots are anchored to the room's own
+            // walls, so unequal neighbours would carve at different world positions.
+            template.width = bp.Width > 0 ? bp.Width : WorldConstants.ROOM_WIDTH;
+            template.height = bp.Height > 0 ? bp.Height : WorldConstants.ROOM_HEIGHT;
+            int roomHeight = template.height;
+
             template.doorQuality = new int[24];
             if (bp.DoorPorts != null)
             {
@@ -217,7 +237,7 @@ namespace PFE.Systems.Map
                 {
                     ProceduralObjectSpawn obj = bp.Objects[i];
                     if (obj == null) continue;
-                    int unityY = WorldCoordinates.As3RowToUnityRow(obj.As3TileCoord.y, WorldConstants.ROOM_HEIGHT);
+                    int unityY = WorldCoordinates.As3RowToUnityRow(obj.As3TileCoord.y, roomHeight);
                     template.objects.Add(new ObjectSpawnData
                     {
                         id = obj.Id,
@@ -231,7 +251,7 @@ namespace PFE.Systems.Map
             template.spawnPoints = new List<SpawnPointData>();
             if (bp.HasPlayerSpawn)
             {
-                int unitySpawnY = WorldCoordinates.As3RowToUnityRow(bp.As3PlayerSpawn.y, WorldConstants.ROOM_HEIGHT);
+                int unitySpawnY = WorldCoordinates.As3RowToUnityRow(bp.As3PlayerSpawn.y, roomHeight);
                 template.spawnPoints.Add(new SpawnPointData
                 {
                     tileCoord = new Vector2Int(bp.As3PlayerSpawn.x, unitySpawnY),
@@ -242,7 +262,7 @@ namespace PFE.Systems.Map
             {
                 template.spawnPoints.Add(new SpawnPointData
                 {
-                    tileCoord = new Vector2Int(4, WorldCoordinates.As3RowToUnityRow(20, WorldConstants.ROOM_HEIGHT)),
+                    tileCoord = new Vector2Int(4, WorldCoordinates.As3RowToUnityRow(roomHeight - 5, roomHeight)),
                     type = SpawnType.Player
                 });
             }
@@ -254,7 +274,7 @@ namespace PFE.Systems.Map
                 {
                     ProceduralBackDecoration back = bp.BackgroundDecorations[i];
                     if (back == null) continue;
-                    int unityBackY = WorldCoordinates.As3RowToUnityRow(back.As3TileCoord.y, WorldConstants.ROOM_HEIGHT);
+                    int unityBackY = WorldCoordinates.As3RowToUnityRow(back.As3TileCoord.y, roomHeight);
                     template.backgroundDecorations.Add(new BackgroundDecorationData
                     {
                         id = back.Id,

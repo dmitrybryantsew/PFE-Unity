@@ -22,6 +22,8 @@ namespace PFE.Mods.RandomRooms.Unity
                 RoomId = !string.IsNullOrEmpty(synth.name) ? synth.name : $"rr_{synth.archetype}_{position.x}_{position.y}",
                 Archetype = !string.IsNullOrEmpty(synth.archetype) ? synth.archetype : "pass",
                 Danger = Mathf.Clamp(synth.danger, 0, 20),
+                Width = synth.width > 0 ? synth.width : RRSynth.GRID_W,
+                Height = synth.height > 0 ? synth.height : RRSynth.GRID_H,
                 TileDataString = synth.tileDataString ?? string.Join("\n", synth.rows),
                 DoorPorts = new int[22],
                 HasPlayerSpawn = synth.spawn != default,

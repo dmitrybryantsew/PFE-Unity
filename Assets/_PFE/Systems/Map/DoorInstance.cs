@@ -34,7 +34,7 @@ namespace PFE.Systems.Map
         public Vector2 GetWorldPosition(Vector3Int currentRoomPos)
         {
             Vector2 roomPos = new Vector2(
-                currentRoomPos.x * WorldConstants.ROOM_SIZE_PIXELS.x,
+                currentRoomPos.x * WorldConstants.CellSizePixels.x,
                 WorldCoordinates.LandRowToWorldPixelY(currentRoomPos.y)
             );
             Vector2 tilePos = WorldCoordinates.TileToPixel(tilePosition);

@@ -71,7 +71,8 @@ namespace PFE.Mods.RandomRooms.Unity
                            $"Total Rooms: {context.RoomCount}\n" +
                            $"Current Room: {context.CurrentRoomPosition}\n" +
                            $"Seed: {(_provider != null ? _provider.CurrentSeed.ToString() : "N/A")}\n" +
-                           $"Biome: {(_provider != null ? _provider.CurrentBiome : "N/A")}";
+                           $"Biome: {(_provider != null ? _provider.CurrentBiome : "N/A")}\n" +
+                           $"Room canvas: {(_provider != null && _provider.CurrentRoomWidth > 0 ? _provider.CurrentRoomWidth + "x" + _provider.CurrentRoomHeight : "default")}";
                 }
 
                 case "debug":
@@ -109,10 +110,10 @@ namespace PFE.Mods.RandomRooms.Unity
         public static string GetHelpText()
         {
             return "RandomRooms Console Commands:\n" +
-                   "  rr enter <biome> [seed]    - Generate and enter 5x5 procedural dungeon (biomes: plant, stable, sewer, mane)\n" +
+                   "  rr enter <biome> [seed]    - Generate and enter the procedural land (biomes: plant, stable, sewer, mane)\n" +
                    "  rr showroom <biome> [seed] - Generate and enter 4x3 archetype showroom\n" +
                    "  rr next                    - Teleport to exit room\n" +
-                   "  rr status                  - Show current dungeon and map status\n" +
+                   "  rr status                  - Show current dungeon, map status and room canvas\n" +
                    "  rr debug                   - Inspect current active room";
         }
     }

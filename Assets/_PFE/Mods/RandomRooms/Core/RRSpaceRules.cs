@@ -133,8 +133,9 @@ namespace PFE.Mods.RandomRooms.Core
             return p;
         }
 
-        public SpaceProgram Create(string theme, string form, bool modern = false)
+        public SpaceProgram Create(string theme, string form, bool modern = false, double areaScale = 1.0)
         {
+            if (areaScale < 1.0) areaScale = 1.0;
             sceneId = theme;
             var rooms = new List<SpaceDemand>();
             string[] bag;
@@ -209,6 +210,19 @@ namespace PFE.Mods.RandomRooms.Core
                 if (main == "roof" || main == "street") count = density == "dense" ? Between(8, 10) : Between(4, 7);
             }
 
+            // A canvas larger than the 46x23 reference interior has more area to fill: the demand
+            // capacities and the room count grow with it, otherwise Feasible() rejects the whole
+            // plan (capacity < area) and every attempt fails. areaScale == 1 leaves this a no-op.
+            //
+            // The count grows with the LINEAR dimension (sqrt of the area), not with the area: area
+            // grows quadratically per canvas dimension, so a linear count turned a 500x250 canvas
+            // into ~1000 demands of up to 5000 tiles wide — a demand set the partition search can
+            // never place. The per-room capacities below absorb the remaining growth.
+            if (areaScale > 1.0)
+            {
+                count = (int)Math.Round(count * Math.Sqrt(areaScale));
+            }
+
             while (rooms.Count < count)
             {
                 rooms.Add(Demand(Pick(bag)));
@@ -240,6 +254,19 @@ namespace PFE.Mods.RandomRooms.Core
                         item.maxW = theme == "mane" ? 13 : (theme == "plant" ? 20 : 24);
                         item.maxH = theme == "sewer" ? 9 : 7;
                         item.weight *= 0.55;
+                    }
+                }
+            }
+
+            if (areaScale > 1.0)
+            {
+                foreach (var item in rooms)
+                {
+                    item.maxW = Math.Max(item.minW, (int)Math.Round(item.maxW * areaScale));
+                    item.maxH = Math.Max(item.minH, (int)Math.Round(item.maxH * areaScale));
+                    if (item.maxArea.HasValue)
+                    {
+                        item.maxArea = Math.Max(item.minW * item.minH, (int)Math.Round(item.maxArea.Value * areaScale));
                     }
                 }
             }

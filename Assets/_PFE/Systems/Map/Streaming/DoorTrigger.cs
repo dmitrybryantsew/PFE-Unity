@@ -283,7 +283,7 @@ namespace PFE.Systems.Map.Streaming
             {
                 Gizmos.color = Color.yellow;
                 Vector3 targetPos = new Vector3(
-                    doorInstance.targetRoomPosition.x * WorldConstants.ROOM_SIZE_PIXELS.x,
+                    doorInstance.targetRoomPosition.x * WorldConstants.CellSizePixels.x,
                     WorldCoordinates.LandRowToWorldPixelY(doorInstance.targetRoomPosition.y),
                     0
                 );

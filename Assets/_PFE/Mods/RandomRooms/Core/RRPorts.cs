@@ -19,7 +19,10 @@ namespace PFE.Mods.RandomRooms.Core
     }
 
     /// <summary>
-    /// The 22 native door/socket slots along the room perimeter (48x25 grid).
+    /// The 22 native door/socket slots along the room perimeter. Slot <i>spacing</i> is fixed in
+    /// absolute tiles (9 columns across the top/bottom, 4 rows down each side) — that is what keeps
+    /// two neighbouring rooms' doors aligned — while the two walls themselves are canvas-relative
+    /// (<c>width-2</c> on the right, <c>height-2</c> at the bottom).
     /// Pure C#, zero UnityEngine references.
     /// </summary>
     public static class RRPorts
@@ -57,16 +60,16 @@ namespace PFE.Mods.RandomRooms.Core
             return b;
         }
 
-        public static PortRect Rect(int p, int amount = 2)
+        public static PortRect Rect(int p, int amount = 2, int width = 48, int height = 25)
         {
             int x, y;
             if (Vertical(p))
             {
                 x = 5 + 9 * (p >= 17 ? p - 17 : p - 6);
-                y = p >= 17 ? 0 : 23;
+                y = p >= 17 ? 0 : height - 2;
                 return new PortRect(x - (amount > 2 ? 1 : 0), y, x + 1 + (amount > 2 ? 1 : 0), y + 1);
             }
-            x = p >= 11 ? 0 : 46;
+            x = p >= 11 ? 0 : width - 2;
             y = 3 + 4 * (p >= 11 ? p - 11 : p);
             return new PortRect(x, y - (amount > 2 ? 2 : 1), x + 1, y);
         }

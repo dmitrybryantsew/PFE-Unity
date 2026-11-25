@@ -93,11 +93,11 @@ namespace PFE.Mods.RandomRooms.Core
             {
                 if (p.ports[slot] >= 2)
                 {
-                    PortRect b = RRPorts.Rect(slot, p.ports[slot]);
-                    if (slot < 6) b.x0 = 42;
+                    PortRect b = RRPorts.Rect(slot, p.ports[slot], p.W, p.H);
+                    if (slot < 6) b.x0 = p.W - 6;
                     else if (slot >= 11 && slot < 17) b.x1 = 5;
                     else if (slot >= 17) b.y1 = 2;
-                    else b.y0 = 22;
+                    else b.y0 = p.H - 3;
 
                     for (int y = b.y0; y <= b.y1; y++)
                     {
@@ -132,7 +132,7 @@ namespace PFE.Mods.RandomRooms.Core
         {
             if (!SIZES.TryGetValue(id, out var d)) return false;
             int w = d[0], h = d[1];
-            if (x < 3 || x + w > 45 || y - h < 1 || y > 23) return false;
+            if (x < 3 || x + w > p.W - 3 || y - h < 1 || y > p.H - 2) return false;
             if (Dangerous(kind) && Math.Abs(x - p.spawn.x) + Math.Abs(y - p.spawn.y) < 8) return false;
 
             for (int yy = y - h + 1; yy <= y; yy++)
@@ -172,9 +172,9 @@ namespace PFE.Mods.RandomRooms.Core
             var a = new List<CandidatePosition>();
             int w = SIZES[id][0];
 
-            for (int y = 2; y <= 23; y++)
+            for (int y = 2; y <= p.H - 2; y++)
             {
-                for (int x = 3; x <= 44; x++)
+                for (int x = 3; x <= p.W - 4; x++)
                 {
                     if (region != null && (x < region.x0 || x + w - 1 > region.x1 || y < region.top || y > region.floor)) continue;
                     if (Fit(id, x, y, mount, kind))
@@ -216,7 +216,7 @@ namespace PFE.Mods.RandomRooms.Core
                 o.lift = pos.floorY - pos.y;
                 if (pos.operatorNode >= 0) o.operatorNode = pos.operatorNode;
             }
-            if (id == "armturret") o.turn = pos.x < 24 ? 1 : -1;
+            if (id == "armturret") o.turn = pos.x < p.W / 2 ? 1 : -1;
             if (id == "wturret") o.vis = p.Solid(pos.x - 1, pos.y) ? "right" : "left";
 
             objects.Add(o);

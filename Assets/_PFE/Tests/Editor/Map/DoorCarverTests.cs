@@ -263,13 +263,84 @@ namespace PFE.Tests.Editor.Map
             }
         }
 
+        /// <summary>
+        /// Two neighbours only line up when they share a canvas. This pins the invariant that makes a
+        /// per-land room size legal: the slot lattice is anchored to the room's own walls (right =
+        /// <c>width-1</c>, bottom = <c>height-1</c>) and the rows/columns are absolute tile offsets, so
+        /// slot p in one room and slot p+11 in its neighbour carve the same world coordinate as long as
+        /// the two canvases are equal — and do not when they are not.
+        /// </summary>
+        [Test]
+        public void CarveDoor_AdjacentRoomsShareTheOpeningRow_WhenTheirCanvasesMatch()
+        {
+            const int width = 64;
+            const int height = 32;
+
+            RoomInstance left = CreateAirRoom(width, height, new Vector3Int(0, 0, 0));
+            RoomInstance right = CreateAirRoom(width, height, new Vector3Int(1, 0, 0));
+            DoorCarver.ApplyBorder(left, 1);
+            DoorCarver.ApplyBorder(right, 1);
+
+            Vector2 leftOrigin = WorldCoordinates.RoomOriginPixel(left);
+            Vector2 rightOrigin = WorldCoordinates.RoomOriginPixel(right);
+            Assert.AreEqual(width * WorldConstants.TILE_SIZE, rightOrigin.x - leftOrigin.x,
+                "Adjacent cells must be exactly one canvas apart");
+
+            for (int p = 0; p <= 5; p++)
+            {
+                DoorCarver.CarveDoor(left, p, (int)DoorQuality.Narrow);
+                DoorCarver.CarveDoor(right, p + 11, (int)DoorQuality.Narrow);
+
+                int as3Row = p * 4 + 3;
+                int unityRow = height - 1 - as3Row;
+
+                Assert.AreEqual(TilePhysicsType.Air, left.tiles[width - 1, unityRow].physicsType,
+                    $"left room slot {p} must be carved at its own right wall");
+                Assert.AreEqual(TilePhysicsType.Air, right.tiles[0, unityRow].physicsType,
+                    $"right room slot {p + 11} must be carved at its own left wall");
+
+                float leftWorldY = leftOrigin.y + unityRow * WorldConstants.TILE_SIZE;
+                float rightWorldY = rightOrigin.y + unityRow * WorldConstants.TILE_SIZE;
+                Assert.That(rightWorldY, Is.EqualTo(leftWorldY).Within(0.001f), $"slot {p} opening rows must coincide in world space");
+            }
+        }
+
+        [Test]
+        public void CarveDoor_AdjacentRoomsDoNotAlign_WhenTheirCanvasesDiffer()
+        {
+            RoomInstance left = CreateAirRoom(64, 32, new Vector3Int(0, 0, 0));
+            RoomInstance right = CreateAirRoom(64, 36, new Vector3Int(1, 0, 0));
+            DoorCarver.ApplyBorder(left, 1);
+            DoorCarver.ApplyBorder(right, 1);
+
+            DoorCarver.CarveDoor(left, 0, (int)DoorQuality.Narrow);
+            DoorCarver.CarveDoor(right, 11, (int)DoorQuality.Narrow);
+
+            Vector2 leftOrigin = WorldCoordinates.RoomOriginPixel(left);
+            Vector2 rightOrigin = WorldCoordinates.RoomOriginPixel(right);
+
+            float leftWorldY = leftOrigin.y + (32 - 1 - 3) * WorldConstants.TILE_SIZE;
+            float rightWorldY = rightOrigin.y + (36 - 1 - 3) * WorldConstants.TILE_SIZE;
+
+            // Not an endorsement — a guard. If this ever starts passing, some host path has begun
+            // compensating for unequal canvases and the "one canvas per land" rule can be revisited.
+            Assert.That(rightWorldY, Is.Not.EqualTo(leftWorldY).Within(0.001f),
+                "Unequal canvases put the two halves of a door at different world rows");
+        }
+
         private static RoomInstance CreateAirRoom()
+        {
+            return CreateAirRoom(WorldConstants.ROOM_WIDTH, WorldConstants.ROOM_HEIGHT, new Vector3Int(0, 0, 0));
+        }
+
+        private static RoomInstance CreateAirRoom(int width, int height, Vector3Int position)
         {
             RoomInstance room = new RoomInstance
             {
                 id = "door_carver_test",
-                width = WorldConstants.ROOM_WIDTH,
-                height = WorldConstants.ROOM_HEIGHT
+                landPosition = position,
+                width = width,
+                height = height
             };
             room.InitializeTiles();
             return room;

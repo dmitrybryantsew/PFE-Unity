@@ -135,8 +135,8 @@ namespace PFE.Systems.Map
                 id = $"{template.GetContentId()}_{position.x}_{position.y}_{position.z}",
                 templateId = template.GetContentId(),
                 landPosition = position,
-                width = WorldConstants.ROOM_WIDTH,
-                height = WorldConstants.ROOM_HEIGHT,
+                width = template.width > 0 ? template.width : WorldConstants.ROOM_WIDTH,
+                height = template.height > 0 ? template.height : WorldConstants.ROOM_HEIGHT,
                 roomType = template.type
             };
 
@@ -290,7 +290,7 @@ namespace PFE.Systems.Map
                         // Inactive on purpose: a candidate becomes a door only when
                         // WorldBuilder.CarveNeighbourPair activates it (AS3's pass_r/pass_d draw).
                         isActive = false,
-                        tilePosition = GetDoorTilePosition(i)
+                        tilePosition = GetDoorTilePosition(i, room.width, room.height)
                     };
 
                     doors.Add(door);
@@ -314,10 +314,10 @@ namespace PFE.Systems.Map
         /// <summary>
         /// Get door tile position from index.
         /// </summary>
-        private Vector2Int GetDoorTilePosition(int doorIndex)
+        private Vector2Int GetDoorTilePosition(int doorIndex, int width, int height)
         {
-            int width = WorldConstants.ROOM_WIDTH;   // 48
-            int height = WorldConstants.ROOM_HEIGHT; // 25 — AS3 World.cellsY
+            if (width <= 0) width = WorldConstants.ROOM_WIDTH;
+            if (height <= 0) height = WorldConstants.ROOM_HEIGHT;
 
             if (doorIndex >= 0 && doorIndex <= 5)
             {

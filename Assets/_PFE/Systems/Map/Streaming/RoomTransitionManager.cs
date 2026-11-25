@@ -175,8 +175,8 @@ namespace PFE.Systems.Map.Streaming
 
             // Find spawn point in target room (center in Unity units)
             Vector2 roomCenterPixels = new Vector2(
-                (roomPosition.x + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.x,
-                WorldCoordinates.LandRowToWorldPixelY(roomPosition.y) + 0.5f * WorldConstants.ROOM_SIZE_PIXELS.y
+                (roomPosition.x + 0.5f) * WorldConstants.CellSizePixels.x,
+                WorldCoordinates.LandRowToWorldPixelY(roomPosition.y) + 0.5f * WorldConstants.CellSizePixels.y
             );
             Vector3 spawnPos = WorldCoordinates.PixelToUnity(roomCenterPixels);
             spawnPos.z = player.transform.position.z;
@@ -1002,8 +1002,8 @@ namespace PFE.Systems.Map.Streaming
             {
                 // No target door, spawn at center of room
                 Vector2 roomCenterPixels = new Vector2(
-                    (targetRoom.landPosition.x + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.x,
-                    WorldCoordinates.LandRowToWorldPixelY(targetRoom.landPosition.y) + 0.5f * WorldConstants.ROOM_SIZE_PIXELS.y
+                    (targetRoom.landPosition.x + 0.5f) * WorldConstants.CellSizePixels.x,
+                    WorldCoordinates.LandRowToWorldPixelY(targetRoom.landPosition.y) + 0.5f * WorldConstants.CellSizePixels.y
                 );
                 Vector3 centerUnity = WorldCoordinates.PixelToUnity(roomCenterPixels);
                 centerUnity.z = currentPlayerPos.z;
